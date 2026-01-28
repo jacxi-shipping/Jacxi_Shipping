@@ -100,9 +100,45 @@ export async function GET(request: NextRequest) {
         .filter(Boolean)
         .join(' / ');
 
+      const capacity = `${container.currentCount}/${container.maxCapacity}`;
+      const progressPercent = `${container.progress}%`;
+
       csvRows.push([
         container.containerNumber,
         container.status,
         container.trackingNumber || '',
         container.bookingNumber || '',
-        `"${(container.shippingLine || '').replace(/
+        `"${(container.shippingLine || '').replace(/"/g, '""')}"`,
+        `"${vesselInfo}"`,
+        container.loadingPort || '',
+        container.destinationPort || '',
+        departureDate,
+        arrivalDate,
+        capacity,
+        container._count.shipments.toString(),
+        progressPercent,
+        container.notes ? `"${container.notes.replace(/"/g, '""')}"` : '',
+      ].join(','));
+    }
+
+    // Add summary
+    csvRows.push('');
+    csvRows.push(`Total Containers:,${containers.length}`);
+
+    const csvContent = csvRows.join('\n');
+
+    // Return Excel-compatible CSV file
+    return new NextResponse(csvContent, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="containers-${Date.now()}.csv"`,
+      },
+    });
+  } catch (error) {
+    console.error('Error exporting containers:', error);
+    return NextResponse.json(
+      { error: 'Failed to export containers' },
+      { status: 500 }
+    );
+  }
+}

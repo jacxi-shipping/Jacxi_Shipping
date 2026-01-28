@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter, Urbanist } from "next/font/google";
 import "./globals.css";
 import "./print.css";
 import ConditionalLayout from "@/components/layout/ConditionalLayout";
@@ -7,17 +6,8 @@ import { Providers } from "@/components/providers/Providers";
 import { Toaster } from "@/components/design-system";
 import Script from "next/script";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const urbanist = Urbanist({
-  variable: "--font-urbanist",
-  subsets: ["latin"],
-  display: "swap",
-});
+// Use system fonts as fallback when Google Fonts aren't available
+const fontVariables = '';
 
 export const metadata: Metadata = {
   title: "JACXI Shipping - Vehicle Shipping from USA to Afghanistan via UAE",
@@ -35,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${urbanist.variable}`} dir="ltr">
-      <body className="min-h-screen bg-background antialiased" style={{ fontFamily: 'var(--font-inter), sans-serif' }}>
+    <html lang="en" className={fontVariables} dir="ltr">
+      <body className="min-h-screen bg-background antialiased" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
           <Script id="ux-sniff" strategy="afterInteractive">
             {`(function(u,x,s,n,i,f){
   u.ux=u.ux||function(){(u.ux.q=u.ux.q||[]).push(arguments)};

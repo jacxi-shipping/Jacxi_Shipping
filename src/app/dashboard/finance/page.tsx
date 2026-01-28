@@ -24,6 +24,9 @@ import {
   CheckCircle,
 } from 'lucide-react';
 
+// Force dynamic rendering (requires database connection)
+export const dynamic = 'force-dynamic';
+
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -157,11 +160,11 @@ export default async function FinancePage() {
                     icon={<DollarSign className="w-5 h-5" />}
                     title="Net Balance"
                     value={formatCurrency(Math.abs(data.ledger.netBalance))}
+                    subtitle={data.ledger.netBalance > 0 ? "Receivable" : "Payable"}
                     variant={data.ledger.netBalance >= 0 ? 'success' : 'error'}
                     trend={{ 
                         value: 0, 
-                        label: data.ledger.netBalance > 0 ? "Receivable" : "Payable", 
-                        trend: data.ledger.netBalance >= 0 ? 'up' : 'down' 
+                        isPositive: data.ledger.netBalance >= 0
                     }}
                 />
                 <StatsCard
