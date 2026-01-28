@@ -1,0 +1,258 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import { z } from 'zod';
+
+// Schema for generating invoices
+const generateInvoicesSchema = z.object({
+  containerId: z.string(),
+  dueDate: z.string().optional(),
+  sendEmail: z.boolean().default(false),
+  discountPercent: z.number().min(0).max(100).default(0),
+});
+
+/**
+ * POST /api/invoices/generate
+ * Generate invoices for all users with shipments in a container
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Only admins can generate invoices
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { containerId, dueDate, sendEmail, discountPercent } = generateInvoicesSchema.parse(body);
+
+    // Get container with all shipments and expenses
+    const container = await prisma.container.findUnique({
+      where: { id: containerId },
+      include: {
+        shipments: {
+          include: {
+            user: true,
+          },
+        },
+        expenses: true,
+      },
+    });
+
+    if (!container) {
+      return NextResponse.json({ error: 'Container not found' }, { status: 404 });
+    }
+
+    if (container.shipments.length === 0) {
+      return NextResponse.json({ error: 'No shipments in container' }, { status: 400 });
+    }
+
+    // Calculate total container expenses
+    const totalExpenses = container.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const vehicleCount = container.shipments.length;
+    const expensePerVehicle = vehicleCount > 0 ? totalExpenses / vehicleCount : 0;
+
+    // Group shipments by user
+    const shipmentsByUser = container.shipments.reduce((acc, shipment) => {
+      const userId = shipment.userId;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user: shipment.user,
+          shipments: [],
+        };
+      }
+      acc[userId].shipments.push(shipment);
+      return acc;
+    }, {} as Record<string, { user: any; shipments: any[] }>);
+
+    // Generate invoices for each user
+    const generatedInvoices = [];
+    
+    for (const [userId, { user, shipments }] of Object.entries(shipmentsByUser)) {
+      // Check if invoice already exists for this user and container
+      const existingInvoice = await prisma.userInvoice.findFirst({
+        where: {
+          userId,
+          containerId,
+          status: {
+            not: 'CANCELLED',
+          },
+        },
+      });
+
+      if (existingInvoice) {
+        generatedInvoices.push({ 
+          userId, 
+          userName: user.name, 
+          invoiceId: existingInvoice.id,
+          invoiceNumber: existingInvoice.invoiceNumber,
+          status: 'existing' 
+        });
+        continue;
+      }
+
+      // Generate invoice number
+      const invoiceCount = await prisma.userInvoice.count();
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
+
+      // Calculate line items for this user
+      const lineItems = [];
+      let subtotal = 0;
+
+      for (const shipment of shipments) {
+        // Vehicle price
+        if (shipment.price) {
+          lineItems.push({
+            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Vehicle Price`.trim(),
+            shipmentId: shipment.id,
+            type: 'VEHICLE_PRICE' as const,
+            quantity: 1,
+            unitPrice: shipment.price,
+            amount: shipment.price,
+          });
+          subtotal += shipment.price;
+        }
+
+        // Insurance
+        if (shipment.insuranceValue) {
+          lineItems.push({
+            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Insurance`.trim(),
+            shipmentId: shipment.id,
+            type: 'INSURANCE' as const,
+            quantity: 1,
+            unitPrice: shipment.insuranceValue,
+            amount: shipment.insuranceValue,
+          });
+          subtotal += shipment.insuranceValue;
+        }
+
+        // Shared expenses (divided equally)
+        const expenseTypes = container.expenses.reduce((acc, expense) => {
+          if (!acc[expense.type]) {
+            acc[expense.type] = 0;
+          }
+          acc[expense.type] += expense.amount;
+          return acc;
+        }, {} as Record<string, number>);
+
+        for (const [expenseType, totalAmount] of Object.entries(expenseTypes)) {
+          const shareAmount = totalAmount / vehicleCount;
+          const lineItemType = mapExpenseTypeToLineItemType(expenseType) as any;
+          
+          lineItems.push({
+            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - ${expenseType} (${1}/${vehicleCount} share)`.trim(),
+            shipmentId: shipment.id,
+            type: lineItemType,
+            quantity: 1,
+            unitPrice: shareAmount,
+            amount: shareAmount,
+          });
+          subtotal += shareAmount;
+        }
+      }
+
+      // Apply discount if any
+      const discountAmount = (subtotal * discountPercent) / 100;
+      const total = subtotal - discountAmount;
+
+      // Set due date (30 days from now if not provided)
+      const invoiceDueDate = dueDate 
+        ? new Date(dueDate) 
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      // Create invoice
+      const invoice = await prisma.userInvoice.create({
+        data: {
+          invoiceNumber,
+          userId,
+          containerId,
+          status: 'DRAFT',
+          issueDate: new Date(),
+          dueDate: invoiceDueDate,
+          subtotal,
+          discount: discountAmount,
+          total,
+          lineItems: {
+            create: lineItems,
+          },
+        },
+        include: {
+          lineItems: {
+            include: {
+              shipment: true,
+            },
+          },
+          user: true,
+          container: true,
+        },
+      });
+
+      generatedInvoices.push({
+        userId,
+        userName: user.name,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        total: invoice.total,
+        status: 'created',
+      });
+
+      // TODO: Send email notification if sendEmail is true
+      // This will be implemented in Phase 4
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Generated ${generatedInvoices.filter(i => i.status === 'created').length} invoice(s)`,
+      invoices: generatedInvoices,
+      summary: {
+        totalInvoices: generatedInvoices.length,
+        newInvoices: generatedInvoices.filter(i => i.status === 'created').length,
+        existingInvoices: generatedInvoices.filter(i => i.status === 'existing').length,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error generating invoices:', error);
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.issues },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to generate invoices' },
+      { status: 500 }
+    );
+  }
+}
+
+// Helper function to map expense types to line item types
+function mapExpenseTypeToLineItemType(expenseType: string): string {
+  const typeMap: Record<string, string> = {
+    'SHIPPING_FEE': 'SHIPPING_FEE',
+    'PORT_CHARGES': 'CUSTOMS_FEE',
+    'CUSTOMS_DUTY': 'CUSTOMS_FEE',
+    'CUSTOMS': 'CUSTOMS_FEE',
+    'STORAGE_FEE': 'STORAGE_FEE',
+    'HANDLING_FEE': 'HANDLING_FEE',
+    'INSURANCE': 'INSURANCE',
+    'INLAND_TRANSPORT': 'SHIPPING_FEE',
+    'DOCUMENTATION': 'OTHER_FEE',
+    'INSPECTION': 'OTHER_FEE',
+    'OTHER': 'OTHER_FEE',
+    // Legacy/Title Case mappings just in case
+    'Shipping': 'SHIPPING_FEE',
+    'Customs': 'CUSTOMS_FEE',
+    'Storage': 'STORAGE_FEE',
+    'Handling': 'HANDLING_FEE',
+  };
+
+  return typeMap[expenseType] || 'OTHER_FEE';
+}

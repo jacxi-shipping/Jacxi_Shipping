@@ -1,0 +1,207 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import { auth } from '@/lib/auth';
+
+const prisma = new PrismaClient();
+
+export async function GET() {
+  try {
+    const session = await auth();
+
+    if (!session) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user?.role !== 'admin') {
+      return NextResponse.json(
+        { message: 'Forbidden: Only admins can view invoices' },
+        { status: 403 }
+      );
+    }
+
+    const invoices = await prisma.containerInvoice.findMany({
+      include: {
+        container: {
+          select: {
+            containerNumber: true,
+            shipments: {
+              select: {
+                id: true,
+                vehicleVIN: true,
+                vehicleMake: true,
+                vehicleModel: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json({ invoices }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+type CreateInvoicePayload = {
+  containerId: string;
+  itemIds: string[];
+  exchangeRate?: number;
+  dueDate?: string;
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+
+    if (!session) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user?.role !== 'admin') {
+      return NextResponse.json(
+        { message: 'Forbidden: Only admins can create invoices' },
+        { status: 403 }
+      );
+    }
+
+    const data = (await request.json()) as CreateInvoicePayload;
+    const { containerId, itemIds, exchangeRate, dueDate } = data;
+
+    if (!containerId || !itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
+      return NextResponse.json(
+        { message: 'Container ID and at least one item ID are required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify container exists
+    const container = await prisma.container.findUnique({
+      where: { id: containerId },
+      include: {
+        items: {
+          where: {
+            id: { in: itemIds },
+          },
+        },
+      },
+    });
+
+    if (!container) {
+      return NextResponse.json(
+        { message: 'Container not found' },
+        { status: 404 }
+      );
+    }
+
+    if (container.items.length !== itemIds.length) {
+      return NextResponse.json(
+        { message: 'Some items not found in container' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate totals
+    const rate = exchangeRate || 3.67;
+    let subtotalUSD = 0;
+
+    container.items.forEach((item) => {
+      subtotalUSD +=
+        (item.freightCost || 0) +
+        (item.towingCost || 0) +
+        (item.clearanceCost || 0) +
+        (item.vatCost || 0) +
+        (item.customsCost || 0) +
+        (item.otherCost || 0);
+    });
+
+    const subtotalAED = subtotalUSD * rate;
+    const totalUSD = subtotalUSD;
+    const totalAED = subtotalAED;
+
+    // Generate invoice number
+    const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+    // Create invoice
+    const invoice = await prisma.containerInvoice.create({
+      data: {
+        containerId,
+        invoiceNumber,
+        exchangeRate: rate,
+        subtotalUSD,
+        subtotalAED,
+        totalUSD,
+        totalAED,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        status: 'DRAFT',
+      },
+    });
+
+    // Create invoice items
+    await Promise.all(
+      container.items.map(async (item) => {
+        const itemSubtotalUSD =
+          (item.freightCost || 0) +
+          (item.towingCost || 0) +
+          (item.clearanceCost || 0) +
+          (item.vatCost || 0) +
+          (item.customsCost || 0) +
+          (item.otherCost || 0);
+        const itemSubtotalAED = itemSubtotalUSD * rate;
+
+        return prisma.invoiceItem.create({
+          data: {
+            invoiceId: invoice.id,
+            itemId: item.id,
+            vin: item.vin,
+            lotNumber: item.lotNumber,
+            auctionCity: item.auctionCity,
+            freightCost: item.freightCost || 0,
+            towingCost: item.towingCost || 0,
+            clearanceCost: item.clearanceCost || 0,
+            vatCost: item.vatCost || 0,
+            customsCost: item.customsCost || 0,
+            otherCost: item.otherCost || 0,
+            subtotalUSD: itemSubtotalUSD,
+            subtotalAED: itemSubtotalAED,
+          },
+        });
+      })
+    );
+
+    const invoiceWithItems = await prisma.containerInvoice.findUnique({
+      where: { id: invoice.id },
+      include: {
+        container: {
+          select: {
+            containerNumber: true,
+            shipments: { select: { id: true, vehicleVIN: true, vehicleMake: true, vehicleModel: true } },
+          },
+        },
+        },
+      },
+    });
+
+    return NextResponse.json(
+      {
+        message: 'Invoice created successfully',
+        invoice: invoiceWithItems,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
