@@ -26,6 +26,9 @@ import {
 
 import ShipmentCalculator from '@/components/dashboard/ShipmentCalculator';
 
+// Force dynamic rendering (requires database connection)
+export const dynamic = 'force-dynamic';
+
 // Helper for currency if not available
 const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -161,7 +164,8 @@ export default async function DashboardPage() {
                     value={data.activeShipmentsCount}
                     icon={<Package className="w-5 h-5" />}
                     variant="default"
-                    trend={{ value: 0, label: "vs last month", trend: 'neutral' }} 
+                    subtitle="vs last month"
+                    trend={{ value: 0, isPositive: true }} 
                 />
                 <StatsCard 
                     title="Active Containers"

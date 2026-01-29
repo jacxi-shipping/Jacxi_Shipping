@@ -99,6 +99,7 @@ interface Document {
 	name: string;
 	type: string;
 	fileUrl: string;
+	fileType: string;
 	uploadedAt: string;
     category: string;
     fileSize: number;
@@ -1375,12 +1376,17 @@ export default function ContainerDetailPage() {
 						>
                             <DocumentManager 
                                 documents={container.documents.map(d => ({
-                                    ...d,
-                                    size: d.fileSize || 0,
-                                    uploadedBy: d.uploadedBy || 'User',
-                                    category: d.category || 'OTHER',
+                                    id: d.id,
+                                    name: d.name,
+                                    type: d.type,
+                                    fileUrl: d.fileUrl,
                                     url: d.fileUrl,
-                                    createdAt: d.uploadedAt || new Date().toISOString()
+                                    fileType: d.fileType,
+                                    fileSize: d.fileSize,
+                                    size: d.fileSize,
+                                    category: d.type,
+                                    uploadedBy: d.uploadedBy,
+                                    createdAt: d.uploadedAt.toString()
                                 }))}
                                 entityId={container.id}
                                 entityType="container"

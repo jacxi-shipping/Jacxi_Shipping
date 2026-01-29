@@ -375,7 +375,15 @@ export default function ShipmentDetailPage() {
         const invoiceData = {
             invoiceNumber: `INV-${shipment.vehicleVIN?.slice(-6) || shipment.id.slice(0,6)}-${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
             date: new Date().toISOString(),
-            shipment: shipment,
+            shipment: {
+                ...shipment,
+                user: {
+                    ...shipment.user,
+                    address: null,
+                    city: null,
+                    country: null
+                }
+            },
             expenses: expenses
         };
 

@@ -24,6 +24,7 @@ export class TrackingSyncService {
 					shippingLine: true,
 					estimatedArrival: true,
 					autoTrackingEnabled: true,
+					status: true,
 				},
 			});
 
