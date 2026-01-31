@@ -8,6 +8,7 @@ const recordPaymentSchema = z.object({
   userId: z.string(),
   shipmentIds: z.array(z.string()).min(1),
   amount: z.number().positive(),
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHECK', 'CREDIT_CARD', 'WIRE']).optional().default('CASH'),
   notes: z.string().optional(),
 });
 
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           shipmentIds: validatedData.shipmentIds,
           paymentType: 'received',
+          paymentMethod: validatedData.paymentMethod,
         },
       },
       include: {
