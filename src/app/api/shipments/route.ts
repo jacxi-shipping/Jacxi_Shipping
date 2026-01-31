@@ -121,6 +121,7 @@ export async function GET(request: NextRequest) {
 
 type CreateShipmentPayload = {
   userId: string;
+  serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
   vehicleType: string;
   vehicleMake?: string | null;
   vehicleModel?: string | null;
@@ -142,6 +143,12 @@ type CreateShipmentPayload = {
   hasTitle?: boolean | null;
   titleStatus?: string | null;
   paymentMode?: 'CASH' | 'DUE' | null;
+  // Purchase fields (for PURCHASE_AND_SHIPPING service type)
+  purchasePrice?: number | string | null;
+  purchaseDate?: string | null;
+  purchaseLocation?: string | null;
+  dealerName?: string | null;
+  purchaseNotes?: string | null;
 };
 
 export async function POST(request: NextRequest) {
@@ -166,6 +173,7 @@ export async function POST(request: NextRequest) {
     const data = (await request.json()) as CreateShipmentPayload;
     const { 
       userId, // Admin must specify which user this shipment is for
+      serviceType,
       vehicleType, 
       vehicleMake, 
       vehicleModel, 
@@ -186,6 +194,12 @@ export async function POST(request: NextRequest) {
       hasTitle,
       titleStatus,
       paymentMode,
+      // Purchase fields
+      purchasePrice,
+      purchaseDate,
+      purchaseLocation,
+      dealerName,
+      purchaseNotes,
     } = data;
 
     // Validate required fields
@@ -287,6 +301,8 @@ export async function POST(request: NextRequest) {
         : null;
     const parsedPrice =
       typeof price === 'number' ? price : typeof price === 'string' ? parseFloat(price) : null;
+    const parsedPurchasePrice =
+      typeof purchasePrice === 'number' ? purchasePrice : typeof purchasePrice === 'string' ? parseFloat(purchasePrice) : null;
     
     // Calculate vehicle age if vehicleYear is provided
     const currentYear = new Date().getFullYear();
@@ -294,6 +310,14 @@ export async function POST(request: NextRequest) {
     
     // Validate titleStatus - only allowed if hasTitle is true
     const finalTitleStatus = (hasTitle === true && titleStatus) ? titleStatus as TitleStatus : null;
+    
+    // Validate purchase price for PURCHASE_AND_SHIPPING
+    if (serviceType === 'PURCHASE_AND_SHIPPING' && !parsedPurchasePrice) {
+      return NextResponse.json(
+        { message: 'Purchase price is required for Purchase + Shipping service type' },
+        { status: 400 }
+      );
+    }
     
     const shipment = await prisma.$transaction(async (tx) => {
       // Determine payment status based on payment mode
@@ -307,6 +331,7 @@ export async function POST(request: NextRequest) {
       const createdShipment = await tx.shipment.create({
         data: {
           userId: userId, // Use the userId from request (assigned by admin)
+          serviceType: serviceType || 'SHIPPING_ONLY',
           vehicleType,
           vehicleMake,
           vehicleModel,
@@ -330,6 +355,12 @@ export async function POST(request: NextRequest) {
           hasTitle: typeof hasTitle === 'boolean' ? hasTitle : null,
           titleStatus: finalTitleStatus,
           vehicleAge: calculatedVehicleAge,
+          // Purchase information
+          purchasePrice: parsedPurchasePrice,
+          purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+          purchaseLocation: purchaseLocation || null,
+          dealerName: dealerName || null,
+          purchaseNotes: purchaseNotes || null,
         },
       });
 

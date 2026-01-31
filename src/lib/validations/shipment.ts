@@ -6,6 +6,9 @@ export const shipmentSchema = z.object({
   // Owner/Customer
   userId: z.string().min(1, 'User assignment is required'),
   
+  // Service Type - NEW: Determines if this is purchase+shipping or shipping-only
+  serviceType: z.enum(['PURCHASE_AND_SHIPPING', 'SHIPPING_ONLY']).default('SHIPPING_ONLY'),
+  
   // Car Information
   vehicleType: z.string().min(1, 'Vehicle type is required'),
   vehicleMake: z.string().optional(),
@@ -33,6 +36,21 @@ export const shipmentSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Insurance value must be greater than 0' }
   ),
+  
+  // Purchase Information - NEW: Only for PURCHASE_AND_SHIPPING service type
+  purchasePrice: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Purchase price must be greater than 0' }
+  ),
+  purchaseDate: z.string().optional(), // Will be converted to Date on server
+  purchaseLocation: z.string().optional(),
+  dealerName: z.string().optional(),
+  purchaseNotes: z.string().optional().refine(
+    (val) => !val || val.length <= 500,
+    { message: 'Purchase notes cannot exceed 500 characters' }
+  ),
+  
+  // Shipping Service Price (separate from purchase price)
   price: z.string().optional().refine(
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Price must be greater than 0' }
@@ -63,9 +81,21 @@ export const shipmentSchema = z.object({
 }, {
   message: 'Container selection is required when status is IN_TRANSIT',
   path: ['containerId'],
+}).refine((data) => {
+  // If service type is PURCHASE_AND_SHIPPING, purchase price is required
+  if (data.serviceType === 'PURCHASE_AND_SHIPPING' && !data.purchasePrice) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Purchase price is required for Purchase + Shipping service',
+  path: ['purchasePrice'],
 });
 
 export const shipmentUpdateSchema = z.object({
+  // Service Type
+  serviceType: z.enum(['PURCHASE_AND_SHIPPING', 'SHIPPING_ONLY']).optional(),
+  
   // Car Information
   vehicleType: z.string().min(1, 'Vehicle type is required').optional(),
   vehicleMake: z.string().optional(),
@@ -93,6 +123,21 @@ export const shipmentUpdateSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Insurance value must be greater than 0' }
   ),
+  
+  // Purchase Information
+  purchasePrice: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Purchase price must be greater than 0' }
+  ),
+  purchaseDate: z.string().optional(),
+  purchaseLocation: z.string().optional(),
+  dealerName: z.string().optional(),
+  purchaseNotes: z.string().optional().refine(
+    (val) => !val || val.length <= 500,
+    { message: 'Purchase notes cannot exceed 500 characters' }
+  ),
+  
+  // Shipping Service Price
   price: z.string().optional().refine(
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Price must be greater than 0' }
