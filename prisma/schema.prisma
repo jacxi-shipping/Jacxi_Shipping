@@ -747,6 +747,7 @@ enum UserInvoiceStatus {
 
 enum LineItemType {
   VEHICLE_PRICE
+  PURCHASE_PRICE   // Vehicle purchase price (for PURCHASE_AND_SHIPPING service type)
   INSURANCE
   SHIPPING_FEE
   CUSTOMS_FEE
