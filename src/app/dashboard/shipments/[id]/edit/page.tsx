@@ -26,6 +26,7 @@ import { PageHeader, Button, FormField, Breadcrumbs, toast, EmptyState, FormPage
 import { shipmentSchema, type ShipmentFormData } from '@/lib/validations/shipment';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { compressImage, isValidImageFile, formatFileSize } from '@/lib/utils/image-compression';
+import { decodeVIN as decodeVINService, getBestWeightEstimate } from '@/lib/services/vin-decoder';
 interface UserOption {
   id: string;
   name: string | null;
@@ -191,26 +192,50 @@ export default function EditShipmentPage() {
     }
   }, [statusValue, containers.length]);
 
-  // VIN Decoder
+  // VIN Decoder with enhanced data extraction
   const decodeVIN = async (vin: string) => {
     if (!vin || vin.length !== 17) return;
 
     setDecodingVin(true);
     try {
-      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
-      const data = await response.json();
+      const decodedData = await decodeVINService(vin);
 
-      if (data.Results) {
-        const makeResult = data.Results.find((r: { Variable: string }) => r.Variable === 'Make');
-        const modelResult = data.Results.find((r: { Variable: string }) => r.Variable === 'Model');
-        const yearResult = data.Results.find((r: { Variable: string }) => r.Variable === 'Model Year');
-
-        if (makeResult?.Value) setValue('vehicleMake', makeResult.Value);
-        if (modelResult?.Value) setValue('vehicleModel', modelResult.Value);
-        if (yearResult?.Value) setValue('vehicleYear', yearResult.Value);
-
-        toast.success('VIN decoded successfully!');
+      // Populate basic vehicle info
+      if (decodedData.make) setValue('vehicleMake', decodedData.make);
+      if (decodedData.model) setValue('vehicleModel', decodedData.model);
+      if (decodedData.year) setValue('vehicleYear', decodedData.year);
+      
+      // Populate vehicle type if available and not already set
+      if (decodedData.bodyClass && !watch('vehicleType')) {
+        setValue('vehicleType', decodedData.bodyClass);
       }
+      
+      // Populate color if available from VIN (rare, but worth trying)
+      if (decodedData.color) {
+        setValue('vehicleColor', decodedData.color);
+      }
+      
+      // Populate weight with best available estimate
+      const weightEstimate = getBestWeightEstimate(decodedData);
+      if (weightEstimate) {
+        setValue('weight', weightEstimate.toString());
+      }
+
+      // Build success message with decoded info
+      const decodedFields: string[] = [];
+      if (decodedData.make && decodedData.model && decodedData.year) {
+        decodedFields.push(`${decodedData.year} ${decodedData.make} ${decodedData.model}`);
+      }
+      if (weightEstimate) {
+        decodedFields.push(`Weight: ~${weightEstimate.toLocaleString()} lbs`);
+      }
+      if (decodedData.color) {
+        decodedFields.push(`Color: ${decodedData.color}`);
+      }
+
+      toast.success('VIN decoded successfully!', {
+        description: decodedFields.join(' • ')
+      });
     } catch (error) {
       console.error('Error decoding VIN:', error);
       toast.error('Failed to decode VIN');

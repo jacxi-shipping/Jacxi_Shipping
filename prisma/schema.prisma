@@ -49,6 +49,7 @@ model User {
   emailVerified    DateTime?
   image            String?
   passwordHash     String?
+  loginCode        String?            @unique // Simple 8-character login code for easy access
   role             String             @default("user")
   phone            String?
   address          String?
@@ -66,6 +67,8 @@ model User {
   ledgerEntries    LedgerEntry[]
   invoices         UserInvoice[]
   notifications    Notification[]
+
+  @@index([loginCode])
 }
 
 model VerificationToken {
@@ -104,6 +107,9 @@ model Notification {
 model Shipment {
   id                  String                @id @default(cuid())
   
+  // Service Type - NEW: Differentiates between purchase+shipping vs shipping-only
+  serviceType         ServiceType           @default(SHIPPING_ONLY)
+  
   // Vehicle Information
   vehicleType         String
   vehicleMake         String?
@@ -123,14 +129,21 @@ model Shipment {
   arrivalPhotos       String[]              @default([])
   vehiclePhotos       String[]              @default([])
   
+  // Purchase Information - NEW: Only applicable for PURCHASE_AND_SHIPPING service type
+  purchasePrice       Float?                // Vehicle purchase price (when company buys for customer)
+  purchaseDate        DateTime?             // Date vehicle was purchased
+  purchaseLocation    String?               // Auction/Dealer location
+  dealerName          String?               // Dealer or auction house name
+  purchaseNotes       String?               // Additional purchase details
+  
   // Status and Assignment
   status              ShipmentSimpleStatus  @default(ON_HAND)
   containerId         String?
   userId              String                // Owner/Customer
   internalNotes       String?
   
-  // Financial
-  price               Float?
+  // Financial (shipping service price)
+  price               Float?                // Shipping service price (separate from purchase price)
   paymentStatus       PaymentStatus         @default(PENDING)
   paymentMode         PaymentMode?
   
@@ -151,6 +164,7 @@ model Shipment {
   @@index([containerId])
   @@index([status])
   @@index([vehicleVIN])
+  @@index([serviceType])
 }
 
 // ============================================
@@ -192,6 +206,9 @@ model Container {
   notes                String?
   lastLocationUpdate   DateTime?
   autoTrackingEnabled  Boolean                     @default(true)
+  
+  // Expense Allocation
+  expenseAllocationMethod ExpenseAllocationMethod  @default(EQUAL)
   
   // Metadata
   createdAt            DateTime                    @default(now())
@@ -592,6 +609,11 @@ model AuditLog {
 // ENUMS
 // ============================================
 
+enum ServiceType {
+  PURCHASE_AND_SHIPPING  // Company buys car for customer + shipping
+  SHIPPING_ONLY          // Customer already owns car, just shipping service
+}
+
 enum ShipmentSimpleStatus {
   ON_HAND
   IN_TRANSIT
@@ -728,6 +750,7 @@ enum UserInvoiceStatus {
 
 enum LineItemType {
   VEHICLE_PRICE
+  PURCHASE_PRICE   // Vehicle purchase price (for PURCHASE_AND_SHIPPING service type)
   INSURANCE
   SHIPPING_FEE
   CUSTOMS_FEE
@@ -758,4 +781,11 @@ enum NotificationType {
   SUCCESS
   WARNING
   ERROR
+}
+
+enum ExpenseAllocationMethod {
+  EQUAL        // Divide equally among all shipments
+  BY_VALUE     // Weighted by insurance value
+  BY_WEIGHT    // Weighted by vehicle weight
+  CUSTOM       // Custom allocation percentages
 }

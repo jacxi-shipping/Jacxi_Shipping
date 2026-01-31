@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { allocateExpenses } from '@/lib/expense-allocation';
+import { sendInvoiceEmail } from '@/lib/email';
 
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
   containerId: z.string(),
   dueDate: z.string().optional(),
-  sendEmail: z.boolean().default(false),
+  sendEmail: z.boolean().default(true), // Changed default to true
   discountPercent: z.number().min(0).max(100).default(0),
 });
 
@@ -52,10 +54,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No shipments in container' }, { status: 400 });
     }
 
-    // Calculate total container expenses
-    const totalExpenses = container.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const vehicleCount = container.shipments.length;
-    const expensePerVehicle = vehicleCount > 0 ? totalExpenses / vehicleCount : 0;
+    // Calculate expense allocation based on container's allocation method
+    const allocationMethod = container.expenseAllocationMethod || 'EQUAL';
+    const expenseAllocations = allocateExpenses(
+      container.shipments,
+      container.expenses,
+      allocationMethod
+    );
 
     // Group shipments by user
     const shipmentsByUser = container.shipments.reduce((acc, shipment) => {
@@ -131,28 +136,27 @@ export async function POST(req: NextRequest) {
           subtotal += shipment.insuranceValue;
         }
 
-        // Shared expenses (divided equally)
-        const expenseTypes = container.expenses.reduce((acc, expense) => {
-          if (!acc[expense.type]) {
-            acc[expense.type] = 0;
-          }
-          acc[expense.type] += expense.amount;
-          return acc;
-        }, {} as Record<string, number>);
-
-        for (const [expenseType, totalAmount] of Object.entries(expenseTypes)) {
-          const shareAmount = totalAmount / vehicleCount;
-          const lineItemType = mapExpenseTypeToLineItemType(expenseType) as any;
-          
+        // Allocated container expenses for this shipment
+        const allocatedExpense = expenseAllocations[shipment.id] || 0;
+        
+        if (allocatedExpense > 0) {
+          const expenseDescription = allocationMethod === 'EQUAL' 
+            ? `Shared Container Expenses (Equal Split)`
+            : allocationMethod === 'BY_VALUE'
+            ? `Shared Container Expenses (By Value)`
+            : allocationMethod === 'BY_WEIGHT'
+            ? `Shared Container Expenses (By Weight)`
+            : `Shared Container Expenses`;
+            
           lineItems.push({
-            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - ${expenseType} (${1}/${vehicleCount} share)`.trim(),
+            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - ${expenseDescription}`.trim(),
             shipmentId: shipment.id,
-            type: lineItemType,
+            type: 'SHIPPING_FEE' as const,
             quantity: 1,
-            unitPrice: shareAmount,
-            amount: shareAmount,
+            unitPrice: allocatedExpense,
+            amount: allocatedExpense,
           });
-          subtotal += shareAmount;
+          subtotal += allocatedExpense;
         }
       }
 
@@ -201,8 +205,29 @@ export async function POST(req: NextRequest) {
         status: 'created',
       });
 
-      // TODO: Send email notification if sendEmail is true
-      // This will be implemented in Phase 4
+      // Send email notification if sendEmail is true and user has email
+      if (sendEmail && user.email) {
+        try {
+          const pdfUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/invoices/${invoice.id}/pdf`;
+          
+          await sendInvoiceEmail({
+            to: user.email,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: invoice.total,
+            dueDate: invoiceDueDate.toLocaleDateString(),
+            pdfUrl,
+          });
+          
+          // Update invoice status to SENT after successful email
+          await prisma.userInvoice.update({
+            where: { id: invoice.id },
+            data: { status: 'SENT' },
+          });
+        } catch (emailError) {
+          console.error(`Failed to send email for invoice ${invoice.invoiceNumber}:`, emailError);
+          // Don't fail the whole operation if email fails
+        }
+      }
     }
 
     return NextResponse.json({

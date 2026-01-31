@@ -14,6 +14,7 @@ import { PageHeader, Button, FormField, Breadcrumbs, toast } from '@/components/
 import { shipmentSchema, type ShipmentFormData } from '@/lib/validations/shipment';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { compressImage, isValidImageFile, formatFileSize } from '@/lib/utils/image-compression';
+import { decodeVIN as decodeVINService, getBestWeightEstimate } from '@/lib/services/vin-decoder';
 
 interface UserOption {
 	id: string;
@@ -73,11 +74,13 @@ export default function NewShipmentPage() {
 		defaultValues: {
 			vehiclePhotos: [],
 			status: 'ON_HAND',
+			serviceType: 'SHIPPING_ONLY',
 		},
 	});
 
 	const statusValue = watch('status');
 	const vinValue = watch('vehicleVIN');
+	const serviceTypeValue = watch('serviceType');
 	const formValues = watch();
 
 	// Fetch users
@@ -123,26 +126,50 @@ export default function NewShipmentPage() {
 		}
 	}, [statusValue]);
 
-	// VIN Decoder
+	// VIN Decoder with enhanced data extraction
 	const decodeVIN = async (vin: string) => {
 		if (vin.length !== 17) return;
 
 		setDecodingVin(true);
 		try {
-			const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
-			const data = await response.json();
+			const decodedData = await decodeVINService(vin);
 
-			if (data.Results) {
-				const makeResult = data.Results.find((r: { Variable: string }) => r.Variable === 'Make');
-				const modelResult = data.Results.find((r: { Variable: string }) => r.Variable === 'Model');
-				const yearResult = data.Results.find((r: { Variable: string }) => r.Variable === 'Model Year');
-
-				if (makeResult?.Value) setValue('vehicleMake', makeResult.Value);
-				if (modelResult?.Value) setValue('vehicleModel', modelResult.Value);
-				if (yearResult?.Value) setValue('vehicleYear', yearResult.Value);
-
-				toast.success('VIN decoded successfully!');
+			// Populate basic vehicle info
+			if (decodedData.make) setValue('vehicleMake', decodedData.make);
+			if (decodedData.model) setValue('vehicleModel', decodedData.model);
+			if (decodedData.year) setValue('vehicleYear', decodedData.year);
+			
+			// Populate vehicle type if available
+			if (decodedData.bodyClass && !watch('vehicleType')) {
+				setValue('vehicleType', decodedData.bodyClass);
 			}
+			
+			// Populate color if available from VIN (rare, but worth trying)
+			if (decodedData.color) {
+				setValue('vehicleColor', decodedData.color);
+			}
+			
+			// Populate weight with best available estimate
+			const weightEstimate = getBestWeightEstimate(decodedData);
+			if (weightEstimate) {
+				setValue('weight', weightEstimate.toString());
+			}
+
+			// Build success message with decoded info
+			const decodedFields: string[] = [];
+			if (decodedData.make && decodedData.model && decodedData.year) {
+				decodedFields.push(`${decodedData.year} ${decodedData.make} ${decodedData.model}`);
+			}
+			if (weightEstimate) {
+				decodedFields.push(`Weight: ~${weightEstimate.toLocaleString()} lbs`);
+			}
+			if (decodedData.color) {
+				decodedFields.push(`Color: ${decodedData.color}`);
+			}
+
+			toast.success('VIN decoded successfully!', {
+				description: decodedFields.join(' • ')
+			});
 		} catch (error) {
 			console.error('Error decoding VIN:', error);
 			toast.error('Failed to decode VIN', {
@@ -444,6 +471,49 @@ export default function NewShipmentPage() {
 					{activeStep === 0 && (
 						<DashboardPanel title="Vehicle Information" description="Enter basic vehicle details">
 							<Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+								{/* Service Type - NEW */}
+								<Box>
+									<Typography
+										component="label"
+										htmlFor="serviceType"
+										sx={{
+											display: 'block',
+											fontSize: '0.875rem',
+											fontWeight: 500,
+											color: 'var(--text-primary)',
+											mb: 1,
+										}}
+									>
+										Service Type *
+									</Typography>
+									<select
+										id="serviceType"
+										{...register('serviceType')}
+										style={{
+											width: '100%',
+											padding: '10px 12px',
+											borderRadius: '16px',
+											border: errors.serviceType ? '2px solid var(--error)' : '1px solid rgba(var(--border-rgb), 0.9)',
+											backgroundColor: 'var(--background)',
+											color: 'var(--text-primary)',
+											fontSize: '0.875rem',
+										}}
+									>
+										<option value="SHIPPING_ONLY">Shipping Only (Customer owns vehicle)</option>
+										<option value="PURCHASE_AND_SHIPPING">Purchase + Shipping (We buy for customer)</option>
+									</select>
+									{errors.serviceType && (
+										<Typography sx={{ fontSize: '0.75rem', color: 'var(--error)', mt: 0.5 }}>
+											{errors.serviceType.message}
+										</Typography>
+									)}
+									<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+										{serviceTypeValue === 'PURCHASE_AND_SHIPPING' 
+											? '📦 Purchase + Shipping: We buy the vehicle from auction/dealer and ship it'
+											: '🚚 Shipping Only: Customer already owns the vehicle, we just handle shipping'}
+									</Typography>
+								</Box>
+
 								{/* VIN */}
 								<Box>
 									<Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
@@ -657,6 +727,85 @@ export default function NewShipmentPage() {
 											<option value="DELIVERED">Delivered</option>
 										</select>
 									</Box>
+								)}
+
+								{/* Purchase Information - Only shown for PURCHASE_AND_SHIPPING */}
+								{serviceTypeValue === 'PURCHASE_AND_SHIPPING' && (
+									<>
+										<Box sx={{ 
+											mt: 3, 
+											p: 3, 
+											borderRadius: '12px', 
+											backgroundColor: 'rgba(var(--accent-gold-rgb), 0.05)',
+											border: '1px solid rgba(var(--accent-gold-rgb), 0.2)'
+										}}>
+											<Typography sx={{ 
+												fontSize: '1rem', 
+												fontWeight: 600, 
+												color: 'var(--text-primary)', 
+												mb: 2,
+												display: 'flex',
+												alignItems: 'center',
+												gap: 1
+											}}>
+												💰 Purchase Information
+											</Typography>
+
+											{/* Purchase Price and Date */}
+											<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
+												<FormField
+													id="purchasePrice"
+													label="Purchase Price *"
+													type="number"
+													placeholder="Amount paid for vehicle"
+													error={!!errors.purchasePrice}
+													helperText={errors.purchasePrice?.message || 'Price company paid for the vehicle'}
+													{...register('purchasePrice')}
+													required
+												/>
+												<FormField
+													id="purchaseDate"
+													label="Purchase Date"
+													type="date"
+													error={!!errors.purchaseDate}
+													helperText={errors.purchaseDate?.message}
+													{...register('purchaseDate')}
+												/>
+											</Box>
+
+											{/* Dealer/Auction Information */}
+											<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
+												<FormField
+													id="dealerName"
+													label="Dealer/Auction Name"
+													placeholder="e.g., Copart, IAAI, Local Dealer"
+													error={!!errors.dealerName}
+													helperText={errors.dealerName?.message}
+													{...register('dealerName')}
+												/>
+												<FormField
+													id="purchaseLocation"
+													label="Purchase Location"
+													placeholder="City, State"
+													error={!!errors.purchaseLocation}
+													helperText={errors.purchaseLocation?.message}
+													{...register('purchaseLocation')}
+												/>
+											</Box>
+
+											{/* Purchase Notes */}
+											<FormField
+												id="purchaseNotes"
+												label="Purchase Notes"
+												placeholder="Additional details about the purchase..."
+												error={!!errors.purchaseNotes}
+												helperText={errors.purchaseNotes?.message}
+												{...register('purchaseNotes')}
+												multiline
+												rows={3}
+											/>
+										</Box>
+									</>
 								)}
 							</Box>
 						</DashboardPanel>
@@ -1129,6 +1278,25 @@ export default function NewShipmentPage() {
 									<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
 										<Box>
 											<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+												Service Type
+											</Typography>
+											<Box
+												sx={{
+													display: 'inline-block',
+													px: 1.5,
+													py: 0.5,
+													borderRadius: 1,
+													bgcolor: formValues.serviceType === 'PURCHASE_AND_SHIPPING' ? 'rgba(var(--accent-gold-rgb), 0.15)' : 'rgba(99, 102, 241, 0.15)',
+													color: formValues.serviceType === 'PURCHASE_AND_SHIPPING' ? 'var(--accent-gold)' : 'rgb(99, 102, 241)',
+													fontSize: '0.75rem',
+													fontWeight: 600,
+												}}
+											>
+												{formValues.serviceType === 'PURCHASE_AND_SHIPPING' ? '📦 Purchase + Shipping' : '🚚 Shipping Only'}
+											</Box>
+										</Box>
+										<Box>
+											<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
 												Vehicle
 											</Typography>
 											<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -1170,9 +1338,19 @@ export default function NewShipmentPage() {
 												{formValues.status === 'IN_TRANSIT' ? 'In Transit' : 'On Hand'}
 											</Box>
 										</Box>
+										{formValues.serviceType === 'PURCHASE_AND_SHIPPING' && formValues.purchasePrice && (
+											<Box>
+												<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+													Purchase Price
+												</Typography>
+												<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
+													${parseFloat(formValues.purchasePrice).toLocaleString()}
+												</Typography>
+											</Box>
+										)}
 										<Box>
 											<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
-												Price
+												{formValues.serviceType === 'PURCHASE_AND_SHIPPING' ? 'Shipping Price' : 'Price'}
 											</Typography>
 											<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
 												${formValues.price || '0.00'}
@@ -1187,6 +1365,57 @@ export default function NewShipmentPage() {
 											</Typography>
 										</Box>
 									</Box>
+
+									{/* Purchase Information Summary */}
+									{formValues.serviceType === 'PURCHASE_AND_SHIPPING' && (formValues.dealerName || formValues.purchaseLocation || formValues.purchaseDate) && (
+										<Box sx={{ mt: 3, pt: 3, borderTop: '1px solid var(--border)' }}>
+											<Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', mb: 2 }}>
+												💰 Purchase Details
+											</Typography>
+											<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+												{formValues.dealerName && (
+													<Box>
+														<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+															Dealer/Auction
+														</Typography>
+														<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+															{formValues.dealerName}
+														</Typography>
+													</Box>
+												)}
+												{formValues.purchaseLocation && (
+													<Box>
+														<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+															Location
+														</Typography>
+														<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+															{formValues.purchaseLocation}
+														</Typography>
+													</Box>
+												)}
+												{formValues.purchaseDate && (
+													<Box>
+														<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+															Purchase Date
+														</Typography>
+														<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+															{new Date(formValues.purchaseDate).toLocaleDateString()}
+														</Typography>
+													</Box>
+												)}
+											</Box>
+											{formValues.purchaseNotes && (
+												<Box sx={{ mt: 2 }}>
+													<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+														Purchase Notes
+													</Typography>
+													<Typography sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+														{formValues.purchaseNotes}
+													</Typography>
+												</Box>
+											)}
+										</Box>
+									)}
 
 									{vehiclePhotos.length > 0 && (
 										<Box sx={{ mt: 2, pt: 2, borderTop: '1px solid var(--border)' }}>
