@@ -203,7 +203,7 @@ export default function EditShipmentPage() {
       // Populate basic vehicle info
       if (decodedData.make) setValue('vehicleMake', decodedData.make);
       if (decodedData.model) setValue('vehicleModel', decodedData.model);
-      if (decodedData.year) setValue('vehicleYear', parseInt(decodedData.year, 10));
+      if (decodedData.year) setValue('vehicleYear', decodedData.year);
       
       // Populate vehicle type if available and not already set
       if (decodedData.bodyClass && !watch('vehicleType')) {
@@ -218,7 +218,7 @@ export default function EditShipmentPage() {
       // Populate weight with best available estimate
       const weightEstimate = getBestWeightEstimate(decodedData);
       if (weightEstimate) {
-        setValue('weight', weightEstimate);
+        setValue('weight', weightEstimate.toString());
       }
 
       // Build success message with decoded info
