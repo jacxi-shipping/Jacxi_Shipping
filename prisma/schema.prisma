@@ -49,6 +49,7 @@ model User {
   emailVerified    DateTime?
   image            String?
   passwordHash     String?
+  loginCode        String?            @unique // Simple 8-character login code for easy access
   role             String             @default("user")
   phone            String?
   address          String?
@@ -66,6 +67,8 @@ model User {
   ledgerEntries    LedgerEntry[]
   invoices         UserInvoice[]
   notifications    Notification[]
+
+  @@index([loginCode])
 }
 
 model VerificationToken {

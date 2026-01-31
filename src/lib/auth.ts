@@ -22,9 +22,41 @@ export const {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        loginCode: { label: "Login Code", type: "text" },
       },
       async authorize(credentials) {
         try {
+          // Check if login code is provided (simple login)
+          if (credentials?.loginCode) {
+            const code = (credentials.loginCode as string).trim().toUpperCase();
+            
+            if (!code || code.length !== 8) {
+              return null;
+            }
+
+            const user = await prisma.user.findFirst({
+              where: { 
+                loginCode: {
+                  equals: code,
+                  mode: 'insensitive'
+                }
+              },
+            });
+
+            if (!user) {
+              return null;
+            }
+
+            return {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              image: user.image,
+              role: user.role,
+            };
+          }
+
+          // Regular email/password login
           if (!credentials?.email || !credentials.password) {
             return null;
           }
