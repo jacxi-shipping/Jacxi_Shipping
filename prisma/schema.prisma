@@ -193,6 +193,9 @@ model Container {
   lastLocationUpdate   DateTime?
   autoTrackingEnabled  Boolean                     @default(true)
   
+  // Expense Allocation
+  expenseAllocationMethod ExpenseAllocationMethod  @default(EQUAL)
+  
   // Metadata
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
@@ -758,4 +761,11 @@ enum NotificationType {
   SUCCESS
   WARNING
   ERROR
+}
+
+enum ExpenseAllocationMethod {
+  EQUAL        // Divide equally among all shipments
+  BY_VALUE     // Weighted by insurance value
+  BY_WEIGHT    // Weighted by vehicle weight
+  CUSTOM       // Custom allocation percentages
 }
