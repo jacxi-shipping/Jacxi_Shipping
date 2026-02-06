@@ -61,11 +61,24 @@ export const {
             return null;
           }
 
+          // Normalize email to lowercase for consistent matching
+          const normalizedEmail = (credentials.email as string).toLowerCase().trim();
+
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email as string },
+            where: { 
+              email: normalizedEmail
+            },
           });
 
-          if (!user || !user.passwordHash) {
+          if (!user) {
+            // Log specific reason internally for debugging, but return generic error
+            console.error('Email/password login failed: User not found');
+            return null;
+          }
+
+          if (!user.passwordHash) {
+            // Log specific reason internally for debugging, but return generic error
+            console.error('Email/password login failed: User has no password set');
             return null;
           }
 
@@ -75,6 +88,8 @@ export const {
           );
 
           if (!isValid) {
+            // Log specific reason internally for debugging, but return generic error
+            console.error('Email/password login failed: Password mismatch');
             return null;
           }
 
