@@ -4,16 +4,47 @@ Jacxi Shipping is a Next.js 15 dashboard and customer portal for creating, monit
 
 ## Getting Started
 
+### Quick Setup
+
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Set up environment variables (see below)
+cp .env.example .env.local
+
+# 3. Generate Prisma client
+npm run db:generate
+
+# 4. Apply database migrations (MUST be done before building)
+npm run db:migrate:deploy
+
+# 5. Build the application
+npm run build
+
+# 6. Start development server
 npm run dev
 ```
 
 Visit `http://localhost:3000` and sign in with an admin account to unlock shipment management features.
 
+**⚠️ Important:** If you see an error about `User.loginCode` column not existing, see [FIX_LOGINCODE_ERROR.md](./FIX_LOGINCODE_ERROR.md) for the solution.
+
 ## Environment Variables
 
-Copy `.env` or `.env.local` from `env.example` and fill in the values for auth, database, and integrations. For shipment photo uploads you must also configure a Vercel Blob token:
+Copy `.env.example` to `.env.local` and fill in the values. **Important:** Use the exact variable names shown:
+
+```env
+# Database - REQUIRED: Use these exact names
+jacxi_DATABASE_URL="postgresql://..."
+jacxi_POSTGRES_URL="postgresql://..."
+
+# NextAuth
+NEXTAUTH_SECRET="your-secret-here"
+NEXTAUTH_URL="http://localhost:3000"
+```
+
+For shipment photo uploads you must also configure a Vercel Blob token:
 
 - `BLOB_READ_WRITE_TOKEN` – obtain via `vercel blob tokens create jacxi-shipments --rw`.
 
