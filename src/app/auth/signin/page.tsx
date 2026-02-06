@@ -33,8 +33,11 @@ export default function SignInPage() {
 		setError('');
 
 		try {
+			// Normalize email to lowercase for consistent matching
+			const normalizedEmail = email.toLowerCase().trim();
+			
 			const result = await signIn('credentials', {
-				email,
+				email: normalizedEmail,
 				password,
 				redirect: false,
 			});
