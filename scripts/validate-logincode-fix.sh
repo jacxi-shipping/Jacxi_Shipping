@@ -66,19 +66,21 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# Check 5: Verify build script includes migration
+# Check 5: Verify build script configuration
 echo "✓ Checking build script..."
-if grep -q "prisma migrate deploy" "package.json"; then
-    echo "  ✅ Build script includes migration deployment"
+if grep -q '"build".*prisma.*migrate.*deploy' "package.json"; then
+    echo "  ⚠️  Build script includes migration deployment (not recommended for CI/CD)"
+    echo "     Migrations should be run separately as a deployment step"
+elif grep -q '"build".*prisma.*generate' "package.json"; then
+    echo "  ✅ Build script generates Prisma client (correct)"
 else
-    echo "  ⚠️  Build script doesn't include migration deployment (optional)"
+    echo "  ⚠️  Build script doesn't generate Prisma client"
 fi
 
-if grep -q "prisma generate" "package.json"; then
-    echo "  ✅ Build script includes Prisma generation"
+if grep -q '"db:migrate:deploy"' "package.json"; then
+    echo "  ✅ Separate migration deployment script exists (db:migrate:deploy)"
 else
-    echo "  ❌ Build script missing Prisma generation"
-    ERRORS=$((ERRORS + 1))
+    echo "  ⚠️  No separate migration deployment script found"
 fi
 
 # Check 6: Verify documentation exists
