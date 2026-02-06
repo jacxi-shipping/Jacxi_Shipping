@@ -18,10 +18,12 @@ Make sure your `.env.local` or `.env` file has the correct database URL variable
 
 ```env
 # Database - REQUIRED: Use these exact variable names
+# The Prisma schema requires jacxi_DATABASE_URL and jacxi_POSTGRES_URL (not just DATABASE_URL)
 jacxi_DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
 jacxi_POSTGRES_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
 
-# Also include DATABASE_URL for compatibility with some scripts
+# Optional: For compatibility with some utility scripts (e.g., migrate-vehicle-photos.js)
+# These scripts check for DATABASE_URL but actually use jacxi_DATABASE_URL
 DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
 
 # NextAuth

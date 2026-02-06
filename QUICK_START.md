@@ -18,8 +18,12 @@ Create a `.env.local` file in the project root:
 
 ```env
 # Database - IMPORTANT: Use these exact variable names
+# The Prisma schema requires jacxi_DATABASE_URL and jacxi_POSTGRES_URL
 jacxi_DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
 jacxi_POSTGRES_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
+
+# Optional: Some older scripts may check for DATABASE_URL, but they actually use jacxi_DATABASE_URL
+# You can set this for compatibility, but it's not used by the app
 DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
 
 # NextAuth
