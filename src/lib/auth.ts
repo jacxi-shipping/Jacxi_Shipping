@@ -70,8 +70,15 @@ export const {
             },
           });
 
-          if (!user || !user.passwordHash) {
-            console.error('Email/password login failed: Invalid credentials');
+          if (!user) {
+            // Log specific reason internally for debugging, but return generic error
+            console.error('Email/password login failed: User not found');
+            return null;
+          }
+
+          if (!user.passwordHash) {
+            // Log specific reason internally for debugging, but return generic error
+            console.error('Email/password login failed: User has no password set');
             return null;
           }
 
@@ -81,7 +88,8 @@ export const {
           );
 
           if (!isValid) {
-            console.error('Email/password login failed: Invalid credentials');
+            // Log specific reason internally for debugging, but return generic error
+            console.error('Email/password login failed: Password mismatch');
             return null;
           }
 
