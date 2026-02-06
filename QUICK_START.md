@@ -17,18 +17,21 @@ This guide will help you get the JACXI Shipping platform up and running in minut
 Create a `.env.local` file in the project root:
 
 ```env
-# Database
+# Database - IMPORTANT: Use these exact variable names
+jacxi_DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
+jacxi_POSTGRES_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
 DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
 
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-super-secret-key-generate-with-openssl-rand-base64-32"
-NEXTAUTH_JWT_SECRET="your-jwt-secret-key"
 
 # Google OAuth (Optional)
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```
+
+**⚠️ Important:** The Prisma schema uses `jacxi_DATABASE_URL` and `jacxi_POSTGRES_URL` (not just `DATABASE_URL`). Make sure to include all three!
 
 ### Step 2: Install Dependencies
 
@@ -39,13 +42,25 @@ npm install
 ### Step 3: Set Up Database
 
 ```bash
-npm run db:setup
+# Generate Prisma client
+npm run db:generate
+
+# Apply database migrations (includes loginCode field)
+npx prisma migrate deploy
+
+# Seed initial data (optional)
+npm run db:seed
 ```
 
-This command will:
+This will:
 - Generate Prisma Client
-- Push schema to database
+- Apply all migrations to database (including the loginCode field)
 - Seed initial data
+
+**Alternative:** Use the automated fix script:
+```bash
+bash scripts/fix-logincode.sh
+```
 
 ### Step 4: Start Development Server
 
@@ -126,9 +141,25 @@ Use the language switcher in the navigation bar to switch languages.
 
 ## 🐛 Troubleshooting
 
+### loginCode Column Error
+If you see: `The column User.loginCode does not exist in the current database`
+
+**Quick Fix:**
+```bash
+bash scripts/fix-logincode.sh
+```
+
+Or manually:
+```bash
+npm run db:generate
+npx prisma migrate deploy
+```
+
+**See:** [FIX_LOGINCODE_ERROR.md](./FIX_LOGINCODE_ERROR.md) for detailed troubleshooting.
+
 ### Database Connection Issues
 - Verify PostgreSQL is running
-- Check DATABASE_URL in `.env.local`
+- Check `jacxi_DATABASE_URL` in `.env.local` (not just `DATABASE_URL`)
 - Ensure database exists
 
 ### Build Errors
@@ -138,7 +169,7 @@ Use the language switcher in the navigation bar to switch languages.
 
 ### Prisma Issues
 - Run `npm run db:generate`
-- Run `npm run db:push`
+- Run `npx prisma migrate deploy`
 - Check schema in `prisma/schema.prisma`
 
 ## 📚 Next Steps
