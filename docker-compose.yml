@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - jacxi_DATABASE_URL=${jacxi_DATABASE_URL:-postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require}
+        - jacxi_POSTGRES_URL=${jacxi_POSTGRES_URL:-postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require}
+        - jacxi_PRISMA_DATABASE_URL=${jacxi_PRISMA_DATABASE_URL:-prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19LQTQwY3BxczlHanp2RS1KUU9GZU4iLCJhcGlfa2V5IjoiMDFLQzlSNDZHWkM1QkIzQzQ3NTlGMEZHMlYiLCJ0ZW5hbnRfaWQiOiJkMjMyNTkwNjU4N2Q3YmQzMDlmNzE1ODNjMDVmZDU5MWYzNDgxMDI3NWViNGQ4MTFkYmQ0OGU2YmZlMWY5NGZmIiwiaW50ZXJuYWxfc2VjcmV0IjoiYmU5OTg2NjQtMzMyZS00YzUyLTk5MTUtZjM3ZmYwZTk1NWQ4In0.nbvHbMEP7UvGvXdwaznm9H0dRZdvtqGKVCxRCLyS_Yk}
+    ports:
+      - "3000:3000"
+    environment:
+      # Database connection (runtime)
+      - jacxi_DATABASE_URL=${jacxi_DATABASE_URL:-postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require}
+      - jacxi_POSTGRES_URL=${jacxi_POSTGRES_URL:-postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require}
+      - jacxi_PRISMA_DATABASE_URL=${jacxi_PRISMA_DATABASE_URL}
+      
+      # NextAuth configuration
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-secret-here-change-in-production}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      
+      # Optional: Email service
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      
+      # Optional: App URL
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      
+      # Optional: Cron job security
+      - CRON_SECRET=${CRON_SECRET}
+      - TRACKING_WEBHOOK_SECRET=${TRACKING_WEBHOOK_SECRET}
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
