@@ -74,12 +74,12 @@ export const {
           });
 
           if (!user) {
-            console.error(`Email/password login failed: User not found for email ${normalizedEmail}`);
+            console.error('Email/password login failed: User not found');
             return null;
           }
 
           if (!user.passwordHash) {
-            console.error(`Email/password login failed: User ${normalizedEmail} has no password set`);
+            console.error('Email/password login failed: User has no password set');
             return null;
           }
 
@@ -89,7 +89,7 @@ export const {
           );
 
           if (!isValid) {
-            console.error(`Email/password login failed: Invalid password for email ${normalizedEmail}`);
+            console.error('Email/password login failed: Invalid password');
             return null;
           }
 
