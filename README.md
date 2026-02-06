@@ -13,11 +13,16 @@ npm install
 # 2. Set up environment variables (see below)
 cp .env.example .env.local
 
-# 3. Generate Prisma client and apply migrations
+# 3. Generate Prisma client
 npm run db:generate
-npx prisma migrate deploy
 
-# 4. Start development server
+# 4. Apply database migrations (MUST be done before building)
+npm run db:migrate:deploy
+
+# 5. Build the application
+npm run build
+
+# 6. Start development server
 npm run dev
 ```
 

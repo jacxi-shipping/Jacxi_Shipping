@@ -123,23 +123,53 @@ npm run db:generate && npx prisma migrate deploy && npm run dev
 
 ## For Production Deployment
 
-When deploying to production (e.g., Vercel):
+When deploying to production (e.g., Vercel, AWS, Docker):
 
-1. Set the environment variables in your hosting platform:
-   - `jacxi_DATABASE_URL`
-   - `jacxi_POSTGRES_URL`
-   - `NEXTAUTH_SECRET`
-   - `NEXTAUTH_URL`
+### Environment Variables
+Set the environment variables in your hosting platform:
+- `jacxi_DATABASE_URL`
+- `jacxi_POSTGRES_URL`
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
 
-2. Ensure migrations run during deployment:
-   - Add a build command that includes: `npx prisma migrate deploy`
-   - Or add it to your `package.json` build script
+### Migration Strategy
 
-Example build script:
-```json
-{
-  "scripts": {
-    "build": "npx prisma generate && npx prisma migrate deploy && next build"
-  }
-}
+**Option 1: Run migrations in a separate deployment step (RECOMMENDED)**
+
+Most hosting platforms allow you to run commands before starting the app:
+
+```bash
+# Run migrations first
+npx prisma migrate deploy
+
+# Then start the app
+npm run start
 ```
+
+**Option 2: Add a pre-start script**
+
+Create a startup script that runs migrations before starting:
+
+```bash
+#!/bin/bash
+npx prisma migrate deploy
+npm run start
+```
+
+**Option 3: For Vercel**
+
+Add a build command in `vercel.json` or project settings:
+- Build Command: `npm run build`
+- Install Command: `npm install`
+
+Then use Vercel's lifecycle hooks or manually run migrations via Vercel CLI after deployment.
+
+**Option 4: For Docker**
+
+Update your Dockerfile CMD to run migrations on container start:
+
+```dockerfile
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+```
+
+**IMPORTANT:** Do NOT add `prisma migrate deploy` to the build script. The build process may not have database access, and migrations should run at deployment time, not build time.

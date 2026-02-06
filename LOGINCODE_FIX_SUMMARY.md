@@ -31,19 +31,18 @@ jacxi_POSTGRES_URL="postgresql://..."
 ### 2. Automated Migration Deployment
 **File Modified**: `package.json`
 
-Updated build script to automatically:
-- Generate Prisma client (`prisma generate`)
-- Apply migrations (`prisma migrate deploy`)
-- Build the Next.js application
+Updated build script to generate Prisma client (but NOT run migrations during build):
 
 ```json
 {
   "scripts": {
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && next build",
     "postinstall": "prisma generate"
   }
 }
 ```
+
+**Key Change:** Migrations are NOT run during build to avoid database connection issues in CI/CD. They must be run separately using `npm run db:migrate:deploy` before starting the application.
 
 ### 3. User-Friendly Fix Script
 **File Created**: `scripts/fix-logincode.sh`
