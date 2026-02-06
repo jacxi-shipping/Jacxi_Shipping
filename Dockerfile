@@ -32,5 +32,7 @@ COPY --from=base /app/prisma ./prisma
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+# Run migrations on container start, then start the app
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+
 
