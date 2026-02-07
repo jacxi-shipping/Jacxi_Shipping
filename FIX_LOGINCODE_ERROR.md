@@ -19,21 +19,21 @@ Make sure your `.env.local` or `.env` file has the correct database URL variable
 ```env
 # Database - REQUIRED: Use these exact variable names
 # Direct PostgreSQL connections (for migrations and direct queries)
-jacxi_DATABASE_URL="postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require"
-jacxi_POSTGRES_URL="postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require"
+jacxi_DATABASE_URL="postgres://user:password@host:5432/database?sslmode=require"
+jacxi_POSTGRES_URL="postgres://user:password@host:5432/database?sslmode=require"
 
 # Prisma Accelerate URL (optional, for optimized connection pooling)
-jacxi_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19LQTQwY3BxczlHanp2RS1KUU9GZU4iLCJhcGlfa2V5IjoiMDFLQzlSNDZHWkM1QkIzQzQ3NTlGMEZHMlYiLCJ0ZW5hbnRfaWQiOiJkMjMyNTkwNjU4N2Q3YmQzMDlmNzE1ODNjMDVmZDU5MWYzNDgxMDI3NWViNGQ4MTFkYmQ0OGU2YmZlMWY5NGZmIiwiaW50ZXJuYWxfc2VjcmV0IjoiYmU5OTg2NjQtMzMyZS00YzUyLTk5MTUtZjM3ZmYwZTk1NWQ4In0.nbvHbMEP7UvGvXdwaznm9H0dRZdvtqGKVCxRCLyS_Yk"
+jacxi_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY_HERE"
 
 # Legacy (for backward compatibility with some scripts)
-DATABASE_URL="postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require"
+DATABASE_URL="postgres://user:password@host:5432/database?sslmode=require"
 
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-super-secret-key-generate-with-openssl-rand-base64-32"
 ```
 
-**Important:** The schema.prisma file specifically uses `jacxi_DATABASE_URL` and `jacxi_POSTGRES_URL`, so make sure these are set!
+**Important:** The schema.prisma file specifically uses `jacxi_DATABASE_URL` and `jacxi_POSTGRES_URL`, so make sure these are set with your actual database credentials!
 
 ### Step 2: Apply Database Migrations
 
@@ -138,9 +138,9 @@ Set the environment variables in your hosting platform:
 **Example for Docker:**
 ```bash
 docker run -d \
-  -e jacxi_DATABASE_URL="postgres://..." \
-  -e jacxi_POSTGRES_URL="postgres://..." \
-  -e jacxi_PRISMA_DATABASE_URL="prisma+postgres://..." \
+  -e jacxi_DATABASE_URL="postgres://user:password@host:5432/database" \
+  -e jacxi_POSTGRES_URL="postgres://user:password@host:5432/database" \
+  -e jacxi_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY" \
   -e NEXTAUTH_SECRET="your-secret" \
   -e NEXTAUTH_URL="https://yourdomain.com" \
   -p 3000:3000 \
@@ -154,9 +154,9 @@ services:
   app:
     image: your-image-name
     environment:
-      - jacxi_DATABASE_URL=postgres://...
-      - jacxi_POSTGRES_URL=postgres://...
-      - jacxi_PRISMA_DATABASE_URL=prisma+postgres://...
+      - jacxi_DATABASE_URL=postgres://user:password@host:5432/database
+      - jacxi_POSTGRES_URL=postgres://user:password@host:5432/database
+      - jacxi_PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY
       - NEXTAUTH_SECRET=your-secret
       - NEXTAUTH_URL=https://yourdomain.com
     ports:

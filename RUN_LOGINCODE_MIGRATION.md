@@ -12,9 +12,9 @@ If you're deploying with Docker, the migration will run automatically on contain
 
 ```bash
 docker run -d \
-  -e jacxi_DATABASE_URL="postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require" \
-  -e jacxi_POSTGRES_URL="postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require" \
-  -e jacxi_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19LQTQwY3BxczlHanp2RS1KUU9GZU4iLCJhcGlfa2V5IjoiMDFLQzlSNDZHWkM1QkIzQzQ3NTlGMEZHMlYiLCJ0ZW5hbnRfaWQiOiJkMjMyNTkwNjU4N2Q3YmQzMDlmNzE1ODNjMDVmZDU5MWYzNDgxMDI3NWViNGQ4MTFkYmQ0OGU2YmZlMWY5NGZmIiwiaW50ZXJuYWxfc2VjcmV0IjoiYmU5OTg2NjQtMzMyZS00YzUyLTk5MTUtZjM3ZmYwZTk1NWQ4In0.nbvHbMEP7UvGvXdwaznm9H0dRZdvtqGKVCxRCLyS_Yk" \
+  -e jacxi_DATABASE_URL="postgres://user:password@host:5432/database?sslmode=require" \
+  -e jacxi_POSTGRES_URL="postgres://user:password@host:5432/database?sslmode=require" \
+  -e jacxi_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY_HERE" \
   -e NEXTAUTH_SECRET="your-secret-here" \
   -e NEXTAUTH_URL="https://your-domain.com" \
   -p 3000:3000 \
@@ -31,12 +31,14 @@ The Dockerfile already includes `npx prisma migrate deploy` in the startup comma
 
 **Create `.env` file:**
 ```env
-jacxi_DATABASE_URL=postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require
-jacxi_POSTGRES_URL=postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require
-jacxi_PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19LQTQwY3BxczlHanp2RS1KUU9GZU4iLCJhcGlfa2V5IjoiMDFLQzlSNDZHWkM1QkIzQzQ3NTlGMEZHMlYiLCJ0ZW5hbnRfaWQiOiJkMjMyNTkwNjU4N2Q3YmQzMDlmNzE1ODNjMDVmZDU5MWYzNDgxMDI3NWViNGQ4MTFkYmQ0OGU2YmZlMWY5NGZmIiwiaW50ZXJuYWxfc2VjcmV0IjoiYmU5OTg2NjQtMzMyZS00YzUyLTk5MTUtZjM3ZmYwZTk1NWQ4In0.nbvHbMEP7UvGvXdwaznm9H0dRZdvtqGKVCxRCLyS_Yk
+jacxi_DATABASE_URL=postgres://user:password@host:5432/database?sslmode=require
+jacxi_POSTGRES_URL=postgres://user:password@host:5432/database?sslmode=require
+jacxi_PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY_HERE
 NEXTAUTH_SECRET=your-secret-here-change-in-production
 NEXTAUTH_URL=http://localhost:3000
 ```
+
+**Note:** Replace the placeholder values above with your actual database credentials.
 
 Then run:
 ```bash
@@ -49,8 +51,8 @@ If you have direct access to a server where the database is reachable:
 
 1. **Set environment variables:**
 ```bash
-export jacxi_DATABASE_URL="postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require"
-export jacxi_POSTGRES_URL="postgres://d2325906587d7bd309f71583c05fd591f34810275eb4d811dbd48e6bfe1f94ff:sk_KA40cpqs9GjzvE-JQOFeN@db.prisma.io:5432/postgres?sslmode=require"
+export jacxi_DATABASE_URL="postgres://user:password@host:5432/database?sslmode=require"
+export jacxi_POSTGRES_URL="postgres://user:password@host:5432/database?sslmode=require"
 ```
 
 2. **Install dependencies:**
