@@ -18,20 +18,22 @@ Make sure your `.env.local` or `.env` file has the correct database URL variable
 
 ```env
 # Database - REQUIRED: Use these exact variable names
-# The Prisma schema requires jacxi_DATABASE_URL and jacxi_POSTGRES_URL (not just DATABASE_URL)
-jacxi_DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
-jacxi_POSTGRES_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
+# Direct PostgreSQL connections (for migrations and direct queries)
+jacxi_DATABASE_URL="postgres://user:password@host:5432/database?sslmode=require"
+jacxi_POSTGRES_URL="postgres://user:password@host:5432/database?sslmode=require"
 
-# Optional: For compatibility with some utility scripts (e.g., migrate-vehicle-photos.js)
-# These scripts check for DATABASE_URL but actually use jacxi_DATABASE_URL
-DATABASE_URL="postgresql://username:password@localhost:5432/jacxi_shipping"
+# Prisma Accelerate URL (optional, for optimized connection pooling)
+jacxi_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY_HERE"
+
+# Legacy (for backward compatibility with some scripts)
+DATABASE_URL="postgres://user:password@host:5432/database?sslmode=require"
 
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-super-secret-key-generate-with-openssl-rand-base64-32"
 ```
 
-**Important:** The schema.prisma file specifically uses `jacxi_DATABASE_URL` and `jacxi_POSTGRES_URL`, so make sure these are set!
+**Important:** The schema.prisma file specifically uses `jacxi_DATABASE_URL` and `jacxi_POSTGRES_URL`, so make sure these are set with your actual database credentials!
 
 ### Step 2: Apply Database Migrations
 
@@ -127,10 +129,39 @@ When deploying to production (e.g., Vercel, AWS, Docker):
 
 ### Environment Variables
 Set the environment variables in your hosting platform:
-- `jacxi_DATABASE_URL`
-- `jacxi_POSTGRES_URL`
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`
+- `jacxi_DATABASE_URL` - Direct PostgreSQL connection URL
+- `jacxi_POSTGRES_URL` - Direct PostgreSQL connection URL (usually same as DATABASE_URL)
+- `jacxi_PRISMA_DATABASE_URL` - (Optional) Prisma Accelerate URL for connection pooling
+- `NEXTAUTH_SECRET` - NextAuth secret key
+- `NEXTAUTH_URL` - Your application URL
+
+**Example for Docker:**
+```bash
+docker run -d \
+  -e jacxi_DATABASE_URL="postgres://user:password@host:5432/database" \
+  -e jacxi_POSTGRES_URL="postgres://user:password@host:5432/database" \
+  -e jacxi_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY" \
+  -e NEXTAUTH_SECRET="your-secret" \
+  -e NEXTAUTH_URL="https://yourdomain.com" \
+  -p 3000:3000 \
+  your-image-name
+```
+
+**Example for Docker Compose:**
+```yaml
+version: '3.8'
+services:
+  app:
+    image: your-image-name
+    environment:
+      - jacxi_DATABASE_URL=postgres://user:password@host:5432/database
+      - jacxi_POSTGRES_URL=postgres://user:password@host:5432/database
+      - jacxi_PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=YOUR_API_KEY
+      - NEXTAUTH_SECRET=your-secret
+      - NEXTAUTH_URL=https://yourdomain.com
+    ports:
+      - "3000:3000"
+```
 
 ### Migration Strategy
 
