@@ -11,6 +11,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:resolve": "node scripts/resolve-failed-migration.js",
     "db:seed": "node scripts/init-db.js",
     "db:studio": "prisma studio",
     "db:backup": "node scripts/backup-db.js",
