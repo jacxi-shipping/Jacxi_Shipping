@@ -2,13 +2,16 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Add, ChevronLeft, ChevronRight, Inventory2 } from '@mui/icons-material';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import ShipmentRow from '@/components/dashboard/ShipmentRow';
 import SmartSearch, { SearchFilters } from '@/components/dashboard/SmartSearch';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
-import { Button, EmptyState, Breadcrumbs, SkeletonTable, toast } from '@/components/design-system';
+import { Button, EmptyState, Breadcrumbs, SkeletonTable, toast, StatusBadge } from '@/components/design-system';
+import { DataTable, Column } from '@/components/ui/DataTable';
+import { exportToCSVWithHeaders } from '@/lib/export';
 
 interface Shipment {
 	id: string;
@@ -40,10 +43,23 @@ interface Shipment {
 	};
 }
 
+interface ShipmentTableRow {
+	id: string;
+	vehicle: string;
+	vin: string;
+	status: string;
+	paymentStatus: string;
+	container: string;
+	createdAt: string;
+	customer: string;
+}
+
 export default function ShipmentsListPage() {
+	const router = useRouter();
 	const { data: session } = useSession();
 	const [shipments, setShipments] = useState<Shipment[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [showBulkTable, setShowBulkTable] = useState(false);
 	const [searchFilters, setSearchFilters] = useState<SearchFilters>({
 		query: '',
 		type: 'shipments',
@@ -93,6 +109,131 @@ export default function ShipmentsListPage() {
 	};
 
 	const isAdmin = session?.user?.role === 'admin';
+
+	const formatDate = (value: string) => new Date(value).toLocaleDateString();
+
+	const shipmentTableRows: ShipmentTableRow[] = shipments.map((shipment) => {
+		const vehicleInfo =
+			[shipment.vehicleMake, shipment.vehicleModel, shipment.vehicleYear]
+				.filter(Boolean)
+				.join(' ') || shipment.vehicleType;
+
+		return {
+			id: shipment.id,
+			vehicle: vehicleInfo,
+			vin: shipment.vehicleVIN ?? '-',
+			status: shipment.status,
+			paymentStatus: shipment.paymentStatus ?? '-',
+			container: shipment.container?.containerNumber ?? '-',
+			createdAt: shipment.createdAt,
+			customer: shipment.user?.name || shipment.user?.email || '-',
+		};
+	});
+
+	const shipmentColumns: Column<ShipmentTableRow>[] = [
+		{ key: 'vehicle', header: 'Vehicle', sortable: true },
+		{ key: 'vin', header: 'VIN', sortable: true },
+		{
+			key: 'status',
+			header: 'Status',
+			render: (value) => <StatusBadge status={String(value)} size="sm" />,
+		},
+		{
+			key: 'paymentStatus',
+			header: 'Payment',
+			render: (value) => <StatusBadge status={String(value)} size="sm" />,
+		},
+		{ key: 'container', header: 'Container', sortable: true },
+		{
+			key: 'createdAt',
+			header: 'Created',
+			sortable: true,
+			render: (value) => formatDate(String(value)),
+		},
+		...(isAdmin ? [{ key: 'customer', header: 'Customer', sortable: true }] : []),
+	];
+
+	const shipmentStatusOptions = [
+		{ value: 'ON_HAND', label: 'On Hand' },
+		{ value: 'IN_TRANSIT', label: 'In Transit' },
+	];
+
+	const handleBulkDelete = async (shipmentIds: string[]) => {
+		if (!isAdmin) return;
+		if (!confirm(`Delete ${shipmentIds.length} shipment(s)? This cannot be undone.`)) {
+			return;
+		}
+
+		try {
+			const response = await fetch('/api/bulk/shipments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'delete', shipmentIds }),
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data?.message || 'Bulk delete failed');
+			}
+
+			const data = await response.json();
+			toast.success('Shipments deleted', {
+				description: `${data.count || 0} shipment(s) removed`,
+			});
+			fetchShipments();
+		} catch (error) {
+			console.error('Error deleting shipments:', error);
+			toast.error('Failed to delete shipments');
+		}
+	};
+
+	const handleBulkExport = (rows: ShipmentTableRow[]) => {
+		try {
+			exportToCSVWithHeaders(
+				rows,
+				[
+					{ key: 'vehicle', label: 'Vehicle' },
+					{ key: 'vin', label: 'VIN' },
+					{ key: 'status', label: 'Status' },
+					{ key: 'paymentStatus', label: 'Payment' },
+					{ key: 'container', label: 'Container' },
+					{ key: 'createdAt', label: 'Created' },
+					...(isAdmin ? [{ key: 'customer', label: 'Customer' }] : []),
+				],
+				'shipments'
+			);
+			toast.success('Export ready');
+		} catch (error) {
+			console.error('Error exporting shipments:', error);
+			toast.error('Failed to export shipments');
+		}
+	};
+
+	const handleBulkStatusUpdate = async (shipmentIds: string[], status: string) => {
+		if (!isAdmin) return;
+
+		try {
+			const response = await fetch('/api/bulk/shipments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'updateStatus', shipmentIds, data: { status } }),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data?.message || 'Bulk status update failed');
+			}
+
+			toast.success('Shipments updated', {
+				description: `${data.count || 0} shipment(s) updated`,
+			});
+			fetchShipments();
+		} catch (error) {
+			console.error('Error updating shipments:', error);
+			toast.error('Failed to update shipments');
+		}
+	};
 
 	return (
 		<DashboardSurface className="overflow-hidden">
@@ -145,6 +286,17 @@ export default function ShipmentsListPage() {
 				fullHeight
 				className="overflow-hidden"
 				bodyClassName="overflow-hidden"
+				actions={
+					isAdmin ? (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setShowBulkTable((prev) => !prev)}
+						>
+							{showBulkTable ? 'Card view' : 'Bulk mode'}
+						</Button>
+					) : null
+				}
 			>
 				{loading ? (
 					<SkeletonTable rows={5} columns={6} />
@@ -164,23 +316,37 @@ export default function ShipmentsListPage() {
 						}
 					/>
 				) : (
-					<>
-						<Box sx={{ 
-							display: 'flex', 
-							flexDirection: 'column', 
-							gap: { xs: 1, sm: 1.15, md: 1.25 },
-							minWidth: 0,
-							width: '100%',
-							overflow: 'hidden',
-						}}>
-							{shipments.map((shipment, index) => (
-								<ShipmentRow
-									key={shipment.id}
-									{...shipment}
-									showCustomer={isAdmin}
-									delay={index * 0.05}
+							{showBulkTable ? (
+								<DataTable
+									data={shipmentTableRows}
+									columns={shipmentColumns}
+									keyField="id"
+									selectable={isAdmin}
+									onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
+									onDelete={isAdmin ? handleBulkDelete : undefined}
+									onExport={isAdmin ? handleBulkExport : undefined}
+									bulkStatusOptions={shipmentStatusOptions}
+									onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
 								/>
-							))}
+							) : (
+								<Box sx={{ 
+									display: 'flex', 
+									flexDirection: 'column', 
+									gap: { xs: 1, sm: 1.15, md: 1.25 },
+									minWidth: 0,
+									width: '100%',
+									overflow: 'hidden',
+								}}>
+									{shipments.map((shipment, index) => (
+										<ShipmentRow
+											key={shipment.id}
+											{...shipment}
+											showCustomer={isAdmin}
+											delay={index * 0.05}
+										/>
+									))}
+								</Box>
+							)}
 						</Box>
 
 						{totalPages > 1 && (

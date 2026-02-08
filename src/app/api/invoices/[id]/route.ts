@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NotificationType } from '@prisma/client';
+import { createNotification } from '@/lib/notifications';
 import { z } from 'zod';
 
 /**
@@ -144,6 +146,8 @@ export async function PATCH(
       total = subtotal - discount + tax;
     }
 
+    const previousStatus = currentInvoice.status;
+
     // Update invoice
     const invoice = await prisma.userInvoice.update({
       where: { id: params.id },
@@ -163,6 +167,25 @@ export async function PATCH(
         },
       },
     });
+
+    if (validatedData.status && validatedData.status !== previousStatus) {
+      const formattedStatus = validatedData.status
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+      try {
+        await createNotification({
+          userId: invoice.userId,
+          title: 'Invoice status updated',
+          description: `Invoice ${invoice.invoiceNumber} is now ${formattedStatus}.`,
+          type: NotificationType.INFO,
+          link: `/dashboard/invoices/${invoice.id}`,
+        });
+      } catch (notificationError) {
+        console.error('Failed to create invoice status notification:', notificationError);
+      }
+    }
 
     return NextResponse.json(invoice);
 

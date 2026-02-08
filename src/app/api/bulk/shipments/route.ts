@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ShipmentSimpleStatus } from '@prisma/client';
+import { ShipmentSimpleStatus, NotificationType } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { createNotifications } from '@/lib/notifications';
 
 // POST: Bulk operations on shipments
 export async function POST(request: NextRequest) {
@@ -48,6 +49,43 @@ export async function POST(request: NextRequest) {
           where: { id: { in: shipmentIds } },
           data: { status: data.status as ShipmentSimpleStatus },
         });
+
+        try {
+          const shipments = await prisma.shipment.findMany({
+            where: { id: { in: shipmentIds } },
+            select: {
+              id: true,
+              userId: true,
+              vehicleType: true,
+              vehicleMake: true,
+              vehicleModel: true,
+              vehicleYear: true,
+            },
+          });
+
+          const formattedStatus = data.status
+            .replace(/_/g, ' ')
+            .toLowerCase()
+            .replace(/\b\w/g, (char: string) => char.toUpperCase());
+
+          await createNotifications(
+            shipments.map((shipment) => {
+              const vehicleLabel =
+                [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
+                  .filter(Boolean)
+                  .join(' ') || shipment.vehicleType;
+              return {
+                userId: shipment.userId,
+                title: 'Shipment status updated',
+                description: `Your shipment ${vehicleLabel} is now ${formattedStatus}.`,
+                type: NotificationType.INFO,
+                link: `/dashboard/shipments/${shipment.id}`,
+              };
+            })
+          );
+        } catch (notificationError) {
+          console.error('Failed to create bulk shipment notifications:', notificationError);
+        }
         break;
 
       case 'assignContainer':
@@ -64,6 +102,38 @@ export async function POST(request: NextRequest) {
             status: 'IN_TRANSIT' as ShipmentSimpleStatus,
           },
         });
+
+        try {
+          const shipments = await prisma.shipment.findMany({
+            where: { id: { in: shipmentIds } },
+            select: {
+              id: true,
+              userId: true,
+              vehicleType: true,
+              vehicleMake: true,
+              vehicleModel: true,
+              vehicleYear: true,
+            },
+          });
+
+          await createNotifications(
+            shipments.map((shipment) => {
+              const vehicleLabel =
+                [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
+                  .filter(Boolean)
+                  .join(' ') || shipment.vehicleType;
+              return {
+                userId: shipment.userId,
+                title: 'Shipment assigned to container',
+                description: `Your shipment ${vehicleLabel} is now In Transit.`,
+                type: NotificationType.INFO,
+                link: `/dashboard/shipments/${shipment.id}`,
+              };
+            })
+          );
+        } catch (notificationError) {
+          console.error('Failed to create container assignment notifications:', notificationError);
+        }
         break;
 
       case 'assignUser':

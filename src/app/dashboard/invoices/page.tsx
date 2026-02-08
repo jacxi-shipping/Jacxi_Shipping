@@ -40,7 +40,10 @@ import {
 	EmptyState, 
 	StatsCard,
 	DashboardPageSkeleton,
+	StatusBadge,
 } from '@/components/design-system';
+import { DataTable, Column } from '@/components/ui/DataTable';
+import { exportToCSVWithHeaders } from '@/lib/export';
 
 interface Invoice {
 	id: string;
@@ -63,6 +66,18 @@ interface Invoice {
 	};
 }
 
+interface InvoiceTableRow {
+	id: string;
+	invoiceNumber: string;
+	customer: string;
+	containerNumber: string;
+	containerId: string;
+	issueDate: string;
+	dueDate: string | null;
+	status: string;
+	total: number;
+}
+
 const statusConfig: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
 	DRAFT: { label: 'Draft', color: 'default' },
 	PENDING: { label: 'Pending', color: 'warning' },
@@ -79,6 +94,7 @@ export default function InvoicesPage() {
 	const [loading, setLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
+	const [showBulkTable, setShowBulkTable] = useState(false);
 
 	const isAdmin = session?.user?.role === 'admin';
 
@@ -153,6 +169,152 @@ export default function InvoicesPage() {
 		});
 	};
 
+	const invoiceRows: InvoiceTableRow[] = filteredInvoices.map((invoice) => ({
+		id: invoice.id,
+		invoiceNumber: invoice.invoiceNumber,
+		customer: invoice.user.name || invoice.user.email,
+		containerNumber: invoice.container.containerNumber,
+		containerId: invoice.containerId,
+		issueDate: invoice.issueDate,
+		dueDate: invoice.dueDate,
+		status: invoice.status,
+		total: invoice.total,
+	}));
+
+	const invoiceColumns: Column<InvoiceTableRow>[] = [
+		{ key: 'invoiceNumber', header: 'Invoice #', sortable: true },
+		...(isAdmin ? [{ key: 'customer', header: 'Customer', sortable: true }] : []),
+		{
+			key: 'containerNumber',
+			header: 'Container',
+			render: (value, row) => (
+				<Link
+					href={`/dashboard/containers/${row.containerId}`}
+					style={{
+						color: 'var(--accent-gold)',
+						textDecoration: 'none',
+						fontFamily: 'monospace',
+						fontWeight: 600,
+					}}
+				>
+					{String(value)}
+				</Link>
+			),
+		},
+		{
+			key: 'issueDate',
+			header: 'Issue Date',
+			sortable: true,
+			render: (value) => formatDate(String(value)),
+		},
+		{
+			key: 'dueDate',
+			header: 'Due Date',
+			render: (value) => formatDate(value ? String(value) : null),
+		},
+		{
+			key: 'status',
+			header: 'Status',
+			render: (value) => <StatusBadge status={String(value)} size="sm" />,
+		},
+		{
+			key: 'total',
+			header: 'Total',
+			render: (value) => formatCurrency(Number(value)),
+		},
+	];
+
+	const invoiceStatusOptions = Object.entries(statusConfig).map(([value, config]) => ({
+		value,
+		label: config.label,
+	}));
+
+	const handleBulkStatusUpdate = async (invoiceIds: string[], status: string) => {
+		if (!isAdmin) return;
+
+		try {
+			const response = await fetch('/api/bulk/invoices', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'updateStatus', invoiceIds, data: { status } }),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data?.message || 'Bulk status update failed');
+			}
+
+			toast.success('Invoices updated', {
+				description: `${data.count || 0} invoice(s) updated`,
+			});
+			fetchInvoices();
+		} catch (error) {
+			console.error('Error updating invoices:', error);
+			toast.error('Failed to update invoices');
+		}
+	};
+
+	const handleBulkDelete = async (invoiceIds: string[]) => {
+		if (!isAdmin) return;
+
+		if (!confirm(`Delete ${invoiceIds.length} invoice(s)? This cannot be undone.`)) {
+			return;
+		}
+
+		try {
+			const response = await fetch('/api/bulk/invoices', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'delete', invoiceIds }),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data?.message || 'Bulk delete failed');
+			}
+
+			toast.success('Invoices deleted', {
+				description: `${data.count || 0} invoice(s) removed`,
+			});
+			fetchInvoices();
+		} catch (error) {
+			console.error('Error deleting invoices:', error);
+			toast.error('Failed to delete invoices');
+		}
+	};
+
+	const handleBulkExport = (rows: InvoiceTableRow[]) => {
+		try {
+			exportToCSVWithHeaders(
+				rows.map((row) => ({
+					invoiceNumber: row.invoiceNumber,
+					customer: row.customer,
+					containerNumber: row.containerNumber,
+					issueDate: formatDate(row.issueDate),
+					dueDate: formatDate(row.dueDate),
+					status: row.status,
+					total: formatCurrency(row.total),
+				})),
+				[
+					{ key: 'invoiceNumber', label: 'Invoice #' },
+					{ key: 'customer', label: 'Customer' },
+					{ key: 'containerNumber', label: 'Container' },
+					{ key: 'issueDate', label: 'Issue Date' },
+					{ key: 'dueDate', label: 'Due Date' },
+					{ key: 'status', label: 'Status' },
+					{ key: 'total', label: 'Total' },
+				],
+				'invoices'
+			);
+			toast.success('Export ready');
+		} catch (error) {
+			console.error('Error exporting invoices:', error);
+			toast.error('Failed to export invoices');
+		}
+	};
+
 	// Filter invoices based on search
 	const filteredInvoices = invoices.filter(invoice => {
 		const searchLower = searchTerm.toLowerCase();
@@ -192,6 +354,13 @@ export default function InvoicesPage() {
 			<PageHeader
 				title={isAdmin ? 'All Invoices' : 'My Invoices'}
 				description={isAdmin ? 'Manage customer invoices' : 'View and download your invoices'}
+				actions={
+					isAdmin ? (
+						<Button variant="outline" onClick={() => setShowBulkTable((prev) => !prev)}>
+							{showBulkTable ? 'Table view' : 'Bulk mode'}
+						</Button>
+					) : null
+				}
 			/>
 
 			{/* Stats Cards */}
@@ -277,6 +446,18 @@ export default function InvoicesPage() {
 							icon={<FileText className="w-12 h-12" />}
 							title="No Invoices"
 							description={searchTerm ? 'No invoices match your search' : 'No invoices have been created yet'}
+						/>
+					) : showBulkTable ? (
+						<DataTable
+							data={invoiceRows}
+							columns={invoiceColumns}
+							keyField="id"
+							selectable={isAdmin}
+							onRowClick={(row) => router.push(`/dashboard/invoices/${row.id}`)}
+							onDelete={isAdmin ? handleBulkDelete : undefined}
+							onExport={isAdmin ? handleBulkExport : undefined}
+							bulkStatusOptions={invoiceStatusOptions}
+							onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
 						/>
 					) : (
 						<TableContainer>

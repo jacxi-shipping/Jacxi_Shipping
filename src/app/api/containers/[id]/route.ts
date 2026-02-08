@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NotificationType } from '@prisma/client';
+import { createNotifications } from '@/lib/notifications';
 import { z } from 'zod';
 
 // Schema for updating container
@@ -283,6 +285,28 @@ export async function PATCH(
         oldValue: container.status,
         newValue: validatedData.status,
       });
+
+      try {
+        const formattedStatus = validatedData.status
+          .replace(/_/g, ' ')
+          .toLowerCase()
+          .replace(/\b\w/g, (char) => char.toUpperCase());
+        const uniqueUserIds = Array.from(
+          new Set(updatedContainer.shipments.map((shipment) => shipment.userId))
+        );
+
+        await createNotifications(
+          uniqueUserIds.map((userId) => ({
+            userId,
+            title: 'Container status updated',
+            description: `Container ${updatedContainer.containerNumber} is now ${formattedStatus}.`,
+            type: NotificationType.INFO,
+            link: `/dashboard/containers/${updatedContainer.id}`,
+          }))
+        );
+      } catch (notificationError) {
+        console.error('Failed to create container status notifications:', notificationError);
+      }
 
       // Cascade status to shipments
       if (validatedData.status === 'LOADED' || validatedData.status === 'IN_TRANSIT') {

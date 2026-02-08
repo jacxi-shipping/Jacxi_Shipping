@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, TitleStatus } from '@prisma/client';
+import { Prisma, TitleStatus, NotificationType } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { createNotification } from '@/lib/notifications';
 
 type UpdateShipmentPayload = {
   userId?: string;
@@ -311,6 +312,29 @@ export async function PATCH(
         container: true,
       },
     });
+
+    if (updatedShipment.status !== existingShipment.status) {
+      const vehicleLabel =
+        [updatedShipment.vehicleYear, updatedShipment.vehicleMake, updatedShipment.vehicleModel]
+          .filter(Boolean)
+          .join(' ') || updatedShipment.vehicleType;
+      const formattedStatus = updatedShipment.status
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+      try {
+        await createNotification({
+          userId: updatedShipment.userId,
+          title: 'Shipment status updated',
+          description: `Your shipment ${vehicleLabel} is now ${formattedStatus}.`,
+          type: NotificationType.INFO,
+          link: `/dashboard/shipments/${updatedShipment.id}`,
+        });
+      } catch (notificationError) {
+        console.error('Failed to create shipment notification:', notificationError);
+      }
+    }
 
     // Update container counts if container assignment changed
     if (data.containerId !== undefined && data.containerId !== existingShipment.containerId) {

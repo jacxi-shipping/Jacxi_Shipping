@@ -20,7 +20,7 @@ interface StatsCardProps {
 		value: number;
 		isPositive: boolean;
 	};
-	variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
+	variant?: 'default' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
 	size?: 'sm' | 'md' | 'lg';
 	delay?: number;
 }
@@ -49,6 +49,10 @@ export default function StatsCard({
 		default: {
 			iconColor: 'var(--accent-gold)',
 			iconBg: 'rgba(var(--accent-gold-rgb), 0.15)',
+		},
+		secondary: {
+			iconColor: 'var(--text-primary)',
+			iconBg: 'rgba(var(--text-secondary-rgb), 0.12)',
 		},
 		success: {
 			iconColor: 'var(--success)',

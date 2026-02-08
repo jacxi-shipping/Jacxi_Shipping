@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { allocateExpenses } from '@/lib/expense-allocation';
 import { sendInvoiceEmail } from '@/lib/email';
+import { NotificationType } from '@prisma/client';
+import { createNotification } from '@/lib/notifications';
 
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
@@ -204,6 +206,18 @@ export async function POST(req: NextRequest) {
         total: invoice.total,
         status: 'created',
       });
+
+      try {
+        await createNotification({
+          userId,
+          title: 'Invoice created',
+          description: `Invoice ${invoice.invoiceNumber} is ready for review.`,
+          type: NotificationType.INFO,
+          link: `/dashboard/invoices/${invoice.id}`,
+        });
+      } catch (notificationError) {
+        console.error('Failed to create invoice notification:', notificationError);
+      }
 
       // Send email notification if sendEmail is true and user has email
       if (sendEmail && user.email) {

@@ -8,7 +8,9 @@ import { Box, Typography, Menu, MenuItem, IconButton, Divider } from '@mui/mater
 import { Package, Ship, MapPin, TrendingUp, Calendar, FileText, DollarSign, Receipt, MoreVertical, Eye, Copy, Trash2, Download } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
-import { PageHeader, StatsCard, Button, EmptyState, FormField, Breadcrumbs, toast, SkeletonCard, DashboardPageSkeleton, CompactSkeleton } from '@/components/design-system';
+import { PageHeader, StatsCard, Button, EmptyState, FormField, Breadcrumbs, toast, SkeletonCard, DashboardPageSkeleton, CompactSkeleton, StatusBadge } from '@/components/design-system';
+import { DataTable, Column } from '@/components/ui/DataTable';
+import { exportToCSVWithHeaders } from '@/lib/export';
 
 interface Container {
   id: string;
@@ -60,10 +62,12 @@ export default function ContainersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showBulkTable, setShowBulkTable] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   const router = useRouter();
   const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'admin';
 
   useEffect(() => {
     fetchContainers();
@@ -129,6 +133,73 @@ export default function ContainersPage() {
       toast.success('Export started successfully');
     } catch (error) {
       console.error('Export error:', error);
+      toast.error('Failed to export containers');
+    }
+  };
+
+  const handleBulkDelete = async (containerIds: string[]) => {
+    if (!isAdmin) return;
+
+    if (!confirm(`Delete ${containerIds.length} container(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/bulk/containers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', containerIds }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Bulk delete failed');
+      }
+
+      toast.success('Containers deleted', {
+        description: `${data.deletedCount || 0} container(s) removed`,
+      });
+
+      if (data.skipped?.length) {
+        toast.error('Some containers were not deleted', {
+          description: data.skipped.map((item: { containerNumber: string }) => item.containerNumber).join(', '),
+        });
+      }
+
+      fetchContainers();
+    } catch (error) {
+      console.error('Error deleting containers:', error);
+      toast.error('Failed to delete containers');
+    }
+  };
+
+  const handleBulkExport = (rows: Container[]) => {
+    try {
+      exportToCSVWithHeaders(
+        rows.map((row) => ({
+          containerNumber: row.containerNumber,
+          status: row.status,
+          trackingNumber: row.trackingNumber ?? '-',
+          vesselName: row.vesselName ?? '-',
+          destinationPort: row.destinationPort ?? '-',
+          estimatedArrival: row.estimatedArrival ? new Date(row.estimatedArrival).toLocaleDateString() : '-',
+          capacity: `${row.currentCount}/${row.maxCapacity}`,
+        })),
+        [
+          { key: 'containerNumber', label: 'Container' },
+          { key: 'status', label: 'Status' },
+          { key: 'trackingNumber', label: 'Tracking' },
+          { key: 'vesselName', label: 'Vessel' },
+          { key: 'destinationPort', label: 'Destination' },
+          { key: 'estimatedArrival', label: 'ETA' },
+          { key: 'capacity', label: 'Capacity' },
+        ],
+        'containers'
+      );
+      toast.success('Export ready');
+    } catch (error) {
+      console.error('Error exporting containers:', error);
       toast.error('Failed to export containers');
     }
   };
@@ -205,6 +276,61 @@ export default function ContainersPage() {
       : 0,
   };
 
+  const containerStatusOptions = Object.entries(statusLabels).map(([value, label]) => ({
+    value,
+    label,
+  }));
+
+  const containerColumns: Column<Container>[] = [
+    { key: 'containerNumber', header: 'Container', sortable: true },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (value) => <StatusBadge status={String(value)} size="sm" />,
+    },
+    { key: 'trackingNumber', header: 'Tracking', sortable: true },
+    { key: 'vesselName', header: 'Vessel', sortable: true },
+    { key: 'destinationPort', header: 'Destination', sortable: true },
+    {
+      key: 'estimatedArrival',
+      header: 'ETA',
+      sortable: true,
+      render: (value) => (value ? new Date(String(value)).toLocaleDateString() : '-'),
+    },
+    {
+      key: 'currentCount',
+      header: 'Capacity',
+      render: (_value, row) => `${row.currentCount}/${row.maxCapacity}`,
+    },
+  ];
+
+  const handleBulkStatusUpdate = async (containerIds: string[], status: string) => {
+    if (!isAdmin) return;
+
+    try {
+      const response = await fetch('/api/bulk/containers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateStatus', containerIds, data: { status } }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Bulk status update failed');
+      }
+
+      toast.success('Containers updated', {
+        description: `${data.count || 0} container(s) updated`,
+      });
+
+      fetchContainers();
+    } catch (error) {
+      console.error('Error updating containers:', error);
+      toast.error('Failed to update containers');
+    }
+  };
+
   if (loading && containers.length === 0) {
     return (
       <ProtectedRoute>
@@ -226,6 +352,14 @@ export default function ContainersPage() {
           description="Manage shipping containers and tracking"
           actions={
             <Box sx={{ display: 'flex', gap: 1 }}>
+              {isAdmin && (
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowBulkTable((prev) => !prev)}
+                >
+                  {showBulkTable ? 'Card view' : 'Bulk mode'}
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 onClick={handleExport}
@@ -233,7 +367,7 @@ export default function ContainersPage() {
               >
                 Export CSV
               </Button>
-              {session?.user?.role === 'admin' && (
+              {isAdmin && (
                 <Link href="/dashboard/containers/new" style={{ textDecoration: 'none' }}>
                   <Button variant="primary" icon={<Package className="w-4 h-4" />}>
                     New Container
@@ -344,6 +478,18 @@ export default function ContainersPage() {
                   <Button variant="primary">Create First Container</Button>
                 </Link>
               }
+            />
+          ) : showBulkTable ? (
+            <DataTable
+              data={containers}
+              columns={containerColumns}
+              keyField="id"
+              selectable={isAdmin}
+              onRowClick={(row) => router.push(`/dashboard/containers/${row.id}`)}
+              onDelete={isAdmin ? handleBulkDelete : undefined}
+              onExport={isAdmin ? handleBulkExport : undefined}
+              bulkStatusOptions={containerStatusOptions}
+              onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
             />
           ) : (
             <>

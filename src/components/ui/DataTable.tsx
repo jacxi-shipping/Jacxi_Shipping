@@ -26,6 +26,8 @@ interface DataTableProps<T> {
   onDelete?: (selectedIds: string[]) => void;
   onEdit?: (row: T) => void;
   onExport?: (selectedRows: T[]) => void;
+  bulkStatusOptions?: { value: string; label: string }[];
+  onBulkStatusChange?: (selectedIds: string[], status: string) => void;
   className?: string;
 }
 
@@ -44,6 +46,8 @@ export function DataTable<T extends Record<string, any>>({
   onDelete,
   onEdit,
   onExport,
+  bulkStatusOptions = [],
+  onBulkStatusChange,
   className,
 }: DataTableProps<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -55,6 +59,7 @@ export function DataTable<T extends Record<string, any>>({
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const columnMenuRef = useRef<HTMLDivElement | null>(null);
   const columnButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [bulkStatus, setBulkStatus] = useState('');
 
   // Handle sorting
   const handleSort = (columnKey: string) => {
@@ -148,6 +153,12 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
+  const handleBulkStatusUpdate = () => {
+    if (!onBulkStatusChange || !bulkStatus) return;
+    onBulkStatusChange(Array.from(selectedIds), bulkStatus);
+    setBulkStatus('');
+  };
+
   const getSortIcon = (columnKey: string) => {
     if (sortColumn !== columnKey) {
       return <ArrowUpDown className="w-4 h-4 opacity-30" />;
@@ -233,6 +244,29 @@ export function DataTable<T extends Record<string, any>>({
             {selectedIds.size} selected
           </span>
           <div className="flex items-center gap-2">
+            {onBulkStatusChange && bulkStatusOptions.length > 0 && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={bulkStatus}
+                  onChange={(event) => setBulkStatus(event.target.value)}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
+                >
+                  <option value="">Update status...</option>
+                  {bulkStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleBulkStatusUpdate}
+                  disabled={!bulkStatus}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] bg-[var(--background)] hover:bg-[var(--border)] rounded-lg transition-colors disabled:opacity-60"
+                >
+                  Update
+                </button>
+              </div>
+            )}
             {onExport && (
               <button
                 onClick={handleBulkExport}
