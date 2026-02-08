@@ -1,8 +1,13 @@
--- CreateEnum
-CREATE TYPE "AuditAction" AS ENUM ('CREATE', 'UPDATE', 'DELETE');
+-- Create enum safely
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AuditAction') THEN
+        CREATE TYPE "AuditAction" AS ENUM ('CREATE', 'UPDATE', 'DELETE');
+    END IF;
+END $$;
 
--- CreateTable
-CREATE TABLE "AuditLog" (
+-- Create table if missing
+CREATE TABLE IF NOT EXISTS "AuditLog" (
     "id" TEXT NOT NULL,
     "entityType" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
@@ -16,14 +21,19 @@ CREATE TABLE "AuditLog" (
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "AuditLog_entityType_entityId_idx" ON "AuditLog"("entityType", "entityId");
+-- Create indexes if missing
+CREATE INDEX IF NOT EXISTS "AuditLog_entityType_entityId_idx" ON "AuditLog"("entityType", "entityId");
+CREATE INDEX IF NOT EXISTS "AuditLog_performedBy_idx" ON "AuditLog"("performedBy");
+CREATE INDEX IF NOT EXISTS "AuditLog_performedAt_idx" ON "AuditLog"("performedAt");
 
--- CreateIndex
-CREATE INDEX "AuditLog_performedBy_idx" ON "AuditLog"("performedBy");
-
--- CreateIndex
-CREATE INDEX "AuditLog_performedAt_idx" ON "AuditLog"("performedAt");
-
--- AddForeignKey
-ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_entityId_fkey" FOREIGN KEY ("entityId") REFERENCES "LedgerEntry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Add foreign key if missing
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'AuditLog_entityId_fkey'
+    ) THEN
+        ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_entityId_fkey"
+        FOREIGN KEY ("entityId") REFERENCES "LedgerEntry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;

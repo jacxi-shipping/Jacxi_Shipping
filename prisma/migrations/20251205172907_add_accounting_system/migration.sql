@@ -1,14 +1,32 @@
--- CreateEnum
-CREATE TYPE "PaymentMode" AS ENUM ('CASH', 'DUE');
+-- Create enums safely
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PaymentMode') THEN
+        CREATE TYPE "PaymentMode" AS ENUM ('CASH', 'DUE');
+    END IF;
+END $$;
 
--- CreateEnum
-CREATE TYPE "LedgerEntryType" AS ENUM ('DEBIT', 'CREDIT');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'LedgerEntryType') THEN
+        CREATE TYPE "LedgerEntryType" AS ENUM ('DEBIT', 'CREDIT');
+    END IF;
+END $$;
 
--- AlterTable
-ALTER TABLE "Shipment" ADD COLUMN "paymentMode" "PaymentMode";
+-- Add paymentMode column to Shipment if missing
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Shipment'
+        AND column_name = 'paymentMode'
+    ) THEN
+        ALTER TABLE "Shipment" ADD COLUMN "paymentMode" "PaymentMode";
+    END IF;
+END $$;
 
--- CreateTable
-CREATE TABLE "LedgerEntry" (
+-- Create LedgerEntry table if missing
+CREATE TABLE IF NOT EXISTS "LedgerEntry" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "shipmentId" TEXT,
@@ -26,17 +44,30 @@ CREATE TABLE "LedgerEntry" (
     CONSTRAINT "LedgerEntry_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "LedgerEntry_userId_idx" ON "LedgerEntry"("userId");
+-- Create indexes if missing
+CREATE INDEX IF NOT EXISTS "LedgerEntry_userId_idx" ON "LedgerEntry"("userId");
+CREATE INDEX IF NOT EXISTS "LedgerEntry_shipmentId_idx" ON "LedgerEntry"("shipmentId");
+CREATE INDEX IF NOT EXISTS "LedgerEntry_transactionDate_idx" ON "LedgerEntry"("transactionDate");
 
--- CreateIndex
-CREATE INDEX "LedgerEntry_shipmentId_idx" ON "LedgerEntry"("shipmentId");
+-- Add foreign keys if missing
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'LedgerEntry_userId_fkey'
+    ) THEN
+        ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_userId_fkey"
+        FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
--- CreateIndex
-CREATE INDEX "LedgerEntry_transactionDate_idx" ON "LedgerEntry"("transactionDate");
-
--- AddForeignKey
-ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_shipmentId_fkey" FOREIGN KEY ("shipmentId") REFERENCES "Shipment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'LedgerEntry_shipmentId_fkey'
+    ) THEN
+        ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_shipmentId_fkey"
+        FOREIGN KEY ("shipmentId") REFERENCES "Shipment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;

@@ -6,24 +6,35 @@
 -- STEP 1: Create new enums
 -- ============================================
 
-CREATE TYPE "ShipmentSimpleStatus" AS ENUM ('ON_HAND', 'IN_TRANSIT');
-CREATE TYPE "ContainerLifecycleStatus" AS ENUM (
-  'CREATED',
-  'WAITING_FOR_LOADING',
-  'LOADED',
-  'IN_TRANSIT',
-  'ARRIVED_PORT',
-  'CUSTOMS_CLEARANCE',
-  'RELEASED',
-  'CLOSED'
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ShipmentSimpleStatus') THEN
+    CREATE TYPE "ShipmentSimpleStatus" AS ENUM ('ON_HAND', 'IN_TRANSIT');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ContainerLifecycleStatus') THEN
+    CREATE TYPE "ContainerLifecycleStatus" AS ENUM (
+      'CREATED',
+      'WAITING_FOR_LOADING',
+      'LOADED',
+      'IN_TRANSIT',
+      'ARRIVED_PORT',
+      'CUSTOMS_CLEARANCE',
+      'RELEASED',
+      'CLOSED'
+    );
+  END IF;
+END $$;
 
 -- ============================================
 -- STEP 2: Create new Container tables
 -- ============================================
 
 -- Enhanced Container table
-CREATE TABLE "Container_New" (
+CREATE TABLE IF NOT EXISTS "Container_New" (
     "id" TEXT NOT NULL,
     "containerNumber" TEXT NOT NULL,
     "trackingNumber" TEXT,
@@ -52,16 +63,16 @@ CREATE TABLE "Container_New" (
     CONSTRAINT "Container_New_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "Container_New_containerNumber_key" ON "Container_New"("containerNumber");
-CREATE UNIQUE INDEX "Container_New_trackingNumber_key" ON "Container_New"("trackingNumber");
-CREATE INDEX "Container_New_status_idx" ON "Container_New"("status");
-CREATE INDEX "Container_New_shippingLine_idx" ON "Container_New"("shippingLine");
-CREATE INDEX "Container_New_destinationPort_idx" ON "Container_New"("destinationPort");
-CREATE INDEX "Container_New_estimatedArrival_idx" ON "Container_New"("estimatedArrival");
-CREATE INDEX "Container_New_trackingNumber_idx" ON "Container_New"("trackingNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "Container_New_containerNumber_key" ON "Container_New"("containerNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "Container_New_trackingNumber_key" ON "Container_New"("trackingNumber");
+CREATE INDEX IF NOT EXISTS "Container_New_status_idx" ON "Container_New"("status");
+CREATE INDEX IF NOT EXISTS "Container_New_shippingLine_idx" ON "Container_New"("shippingLine");
+CREATE INDEX IF NOT EXISTS "Container_New_destinationPort_idx" ON "Container_New"("destinationPort");
+CREATE INDEX IF NOT EXISTS "Container_New_estimatedArrival_idx" ON "Container_New"("estimatedArrival");
+CREATE INDEX IF NOT EXISTS "Container_New_trackingNumber_idx" ON "Container_New"("trackingNumber");
 
 -- Container Expenses
-CREATE TABLE "ContainerExpense" (
+CREATE TABLE IF NOT EXISTS "ContainerExpense" (
     "id" TEXT NOT NULL,
     "containerId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -77,11 +88,11 @@ CREATE TABLE "ContainerExpense" (
     CONSTRAINT "ContainerExpense_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "ContainerExpense_containerId_idx" ON "ContainerExpense"("containerId");
-CREATE INDEX "ContainerExpense_type_idx" ON "ContainerExpense"("type");
+CREATE INDEX IF NOT EXISTS "ContainerExpense_containerId_idx" ON "ContainerExpense"("containerId");
+CREATE INDEX IF NOT EXISTS "ContainerExpense_type_idx" ON "ContainerExpense"("type");
 
 -- Container Invoices
-CREATE TABLE "ContainerInvoice" (
+CREATE TABLE IF NOT EXISTS "ContainerInvoice" (
     "id" TEXT NOT NULL,
     "containerId" TEXT NOT NULL,
     "invoiceNumber" TEXT NOT NULL,
@@ -99,11 +110,11 @@ CREATE TABLE "ContainerInvoice" (
     CONSTRAINT "ContainerInvoice_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "ContainerInvoice_containerId_idx" ON "ContainerInvoice"("containerId");
-CREATE INDEX "ContainerInvoice_status_idx" ON "ContainerInvoice"("status");
+CREATE INDEX IF NOT EXISTS "ContainerInvoice_containerId_idx" ON "ContainerInvoice"("containerId");
+CREATE INDEX IF NOT EXISTS "ContainerInvoice_status_idx" ON "ContainerInvoice"("status");
 
 -- Container Documents
-CREATE TABLE "ContainerDocument" (
+CREATE TABLE IF NOT EXISTS "ContainerDocument" (
     "id" TEXT NOT NULL,
     "containerId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -118,11 +129,11 @@ CREATE TABLE "ContainerDocument" (
     CONSTRAINT "ContainerDocument_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "ContainerDocument_containerId_idx" ON "ContainerDocument"("containerId");
-CREATE INDEX "ContainerDocument_type_idx" ON "ContainerDocument"("type");
+CREATE INDEX IF NOT EXISTS "ContainerDocument_containerId_idx" ON "ContainerDocument"("containerId");
+CREATE INDEX IF NOT EXISTS "ContainerDocument_type_idx" ON "ContainerDocument"("type");
 
 -- Container Tracking Events
-CREATE TABLE "ContainerTrackingEvent" (
+CREATE TABLE IF NOT EXISTS "ContainerTrackingEvent" (
     "id" TEXT NOT NULL,
     "containerId" TEXT NOT NULL,
     "status" TEXT NOT NULL,
@@ -139,11 +150,11 @@ CREATE TABLE "ContainerTrackingEvent" (
     CONSTRAINT "ContainerTrackingEvent_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "ContainerTrackingEvent_containerId_idx" ON "ContainerTrackingEvent"("containerId");
-CREATE INDEX "ContainerTrackingEvent_eventDate_idx" ON "ContainerTrackingEvent"("eventDate");
+CREATE INDEX IF NOT EXISTS "ContainerTrackingEvent_containerId_idx" ON "ContainerTrackingEvent"("containerId");
+CREATE INDEX IF NOT EXISTS "ContainerTrackingEvent_eventDate_idx" ON "ContainerTrackingEvent"("eventDate");
 
 -- Container Audit Log
-CREATE TABLE "ContainerAuditLog" (
+CREATE TABLE IF NOT EXISTS "ContainerAuditLog" (
     "id" TEXT NOT NULL,
     "containerId" TEXT NOT NULL,
     "action" TEXT NOT NULL,
@@ -157,19 +168,62 @@ CREATE TABLE "ContainerAuditLog" (
     CONSTRAINT "ContainerAuditLog_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "ContainerAuditLog_containerId_idx" ON "ContainerAuditLog"("containerId");
-CREATE INDEX "ContainerAuditLog_timestamp_idx" ON "ContainerAuditLog"("timestamp");
-CREATE INDEX "ContainerAuditLog_action_idx" ON "ContainerAuditLog"("action");
+CREATE INDEX IF NOT EXISTS "ContainerAuditLog_containerId_idx" ON "ContainerAuditLog"("containerId");
+CREATE INDEX IF NOT EXISTS "ContainerAuditLog_timestamp_idx" ON "ContainerAuditLog"("timestamp");
+CREATE INDEX IF NOT EXISTS "ContainerAuditLog_action_idx" ON "ContainerAuditLog"("action");
 
 -- ============================================
 -- STEP 3: Modify Shipment table
 -- ============================================
 
 -- Add new columns
-ALTER TABLE "Shipment" ADD COLUMN "status_new" "ShipmentSimpleStatus" DEFAULT 'ON_HAND';
-ALTER TABLE "Shipment" ADD COLUMN "containerId_new" TEXT;
-ALTER TABLE "Shipment" ADD COLUMN "internalNotes" TEXT;
-ALTER TABLE "Shipment" RENAME COLUMN "containerPhotos" TO "vehiclePhotos";
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Shipment'
+    AND column_name = 'status_new'
+  ) THEN
+    ALTER TABLE "Shipment" ADD COLUMN "status_new" "ShipmentSimpleStatus" DEFAULT 'ON_HAND';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Shipment'
+    AND column_name = 'containerId_new'
+  ) THEN
+    ALTER TABLE "Shipment" ADD COLUMN "containerId_new" TEXT;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Shipment'
+    AND column_name = 'internalNotes'
+  ) THEN
+    ALTER TABLE "Shipment" ADD COLUMN "internalNotes" TEXT;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Shipment'
+    AND column_name = 'containerPhotos'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Shipment'
+    AND column_name = 'vehiclePhotos'
+  ) THEN
+    ALTER TABLE "Shipment" RENAME COLUMN "containerPhotos" TO "vehiclePhotos";
+  END IF;
+END $$;
 
 -- Remove old columns (after data migration)
 -- Note: These are commented out for safety - uncomment after verifying data migration
@@ -189,20 +243,60 @@ ALTER TABLE "Shipment" RENAME COLUMN "containerPhotos" TO "vehiclePhotos";
 -- STEP 4: Add Foreign Keys
 -- ============================================
 
-ALTER TABLE "ContainerExpense" ADD CONSTRAINT "ContainerExpense_containerId_fkey" 
-  FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ContainerExpense_containerId_fkey'
+  ) THEN
+    ALTER TABLE "ContainerExpense" ADD CONSTRAINT "ContainerExpense_containerId_fkey" 
+      FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "ContainerInvoice" ADD CONSTRAINT "ContainerInvoice_containerId_fkey" 
-  FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ContainerInvoice_containerId_fkey'
+  ) THEN
+    ALTER TABLE "ContainerInvoice" ADD CONSTRAINT "ContainerInvoice_containerId_fkey" 
+      FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "ContainerDocument" ADD CONSTRAINT "ContainerDocument_containerId_fkey" 
-  FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ContainerDocument_containerId_fkey'
+  ) THEN
+    ALTER TABLE "ContainerDocument" ADD CONSTRAINT "ContainerDocument_containerId_fkey" 
+      FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "ContainerTrackingEvent" ADD CONSTRAINT "ContainerTrackingEvent_containerId_fkey" 
-  FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ContainerTrackingEvent_containerId_fkey'
+  ) THEN
+    ALTER TABLE "ContainerTrackingEvent" ADD CONSTRAINT "ContainerTrackingEvent_containerId_fkey" 
+      FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "ContainerAuditLog" ADD CONSTRAINT "ContainerAuditLog_containerId_fkey" 
-  FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ContainerAuditLog_containerId_fkey'
+  ) THEN
+    ALTER TABLE "ContainerAuditLog" ADD CONSTRAINT "ContainerAuditLog_containerId_fkey" 
+      FOREIGN KEY ("containerId") REFERENCES "Container_New"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- ============================================
 -- STEP 5: Data Migration Instructions
