@@ -314,19 +314,14 @@ export async function PATCH(
           where: { containerId: container.id },
           data: { status: 'IN_TRANSIT' },
         });
-      } else if (validatedData.status === 'ARRIVED_PORT' || validatedData.status === 'RELEASED') {
-        // When container arrives or is released, shipments are effectively "on hand" at the destination
-        // or potentially ready for pickup/delivery. 
-        // We'll set them to ON_HAND (at destination) or keep them IN_TRANSIT depending on business rule.
-        // Assuming ON_HAND means "at a facility we control", arrival at port fits.
+      } else if (validatedData.status === 'ARRIVED_PORT' || validatedData.status === 'RELEASED' || validatedData.status === 'CLOSED') {
+        // When container arrives, is released, or is closed, shipments are effectively "on hand" at the destination
+        // or ready for pickup/delivery.
+        // Assuming ON_HAND means "at a facility we control", arrival at port or container closure fits.
         await prisma.shipment.updateMany({
             where: { containerId: container.id },
-            data: { status: 'ON_HAND' }, // Reset to ON_HAND as they are physically at the port/warehouse
+            data: { status: 'ON_HAND' },
         });
-      } else if (validatedData.status === 'CLOSED') {
-          // If container is closed/completed, shipments might be considered delivered or simply done with this leg
-          // This depends on whether "CLOSED" means delivered to customer.
-          // For now, we won't auto-close shipments to avoid accidental 'DELIVERED' status if there's final mile.
       }
     }
 
