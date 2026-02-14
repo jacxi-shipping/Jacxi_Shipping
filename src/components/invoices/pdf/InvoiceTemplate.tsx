@@ -473,7 +473,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
         {/* Payment Information (if paid) */}
         {invoice.status === 'PAID' && (
           <View style={styles.paymentBox}>
-            <Text style={styles.paymentTitle}>✓ PAYMENT RECEIVED</Text>
+            <Text style={styles.paymentTitle}>PAYMENT RECEIVED</Text>
             <Text style={styles.paymentText}>This invoice has been paid in full.</Text>
           </View>
         )}

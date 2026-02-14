@@ -283,7 +283,7 @@ export const generateInvoicePDF = (invoice: Invoice) => {
       const vehicleVIN = group.shipment.vehicleVIN ? `VIN: ${group.shipment.vehicleVIN}` : '';
       tableData.push([
         { 
-          content: `🚗 ${vehicleDesc}${vehicleVIN ? ' • ' + vehicleVIN : ''}`, 
+          content: `Vehicle: ${vehicleDesc}${vehicleVIN ? ' • ' + vehicleVIN : ''}`, 
           colSpan: 5, 
           styles: { 
             fontStyle: 'bold', 
@@ -388,7 +388,7 @@ export const generateInvoicePDF = (invoice: Invoice) => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...COLORS.success);
-    doc.text('✓ PAYMENT RECEIVED', 25, yPos + 4);
+    doc.text('PAYMENT RECEIVED', 25, yPos + 4);
     
     yPos += 12;
     doc.setFontSize(9);
@@ -414,8 +414,11 @@ export const generateInvoicePDF = (invoice: Invoice) => {
       yPos = 20;
     }
 
+    const notesLines = doc.splitTextToSize(invoice.notes, pageWidth - 50);
+    const notesHeight = (notesLines.length * 5) + 20;
+    
     doc.setFillColor(...COLORS.background);
-    doc.roundedRect(20, yPos - 3, pageWidth - 40, 'auto', 2, 2, 'F');
+    doc.roundedRect(20, yPos - 3, pageWidth - 40, notesHeight, 2, 2, 'F');
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -427,7 +430,6 @@ export const generateInvoicePDF = (invoice: Invoice) => {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...COLORS.textSecondary);
     
-    const notesLines = doc.splitTextToSize(invoice.notes, pageWidth - 50);
     doc.text(notesLines, 25, yPos);
   }
 
