@@ -314,13 +314,19 @@ export async function PATCH(
           where: { containerId: container.id },
           data: { status: 'IN_TRANSIT' },
         });
-      } else if (validatedData.status === 'ARRIVED_PORT' || validatedData.status === 'RELEASED' || validatedData.status === 'CLOSED') {
-        // When container arrives, is released, or is closed, shipments are effectively "on hand" at the destination
+      } else if (validatedData.status === 'ARRIVED_PORT' || validatedData.status === 'RELEASED') {
+        // When container arrives or is released, shipments are effectively "on hand" at the destination
         // or ready for pickup/delivery.
-        // Assuming ON_HAND means "at a facility we control", arrival at port or container closure fits.
+        // Assuming ON_HAND means "at a facility we control", arrival at port or release fits.
         await prisma.shipment.updateMany({
             where: { containerId: container.id },
             data: { status: 'ON_HAND' },
+        });
+      } else if (validatedData.status === 'CLOSED') {
+        // When container is closed, it means the shipments have been delivered to customers
+        await prisma.shipment.updateMany({
+            where: { containerId: container.id },
+            data: { status: 'DELIVERED' },
         });
       }
     }
