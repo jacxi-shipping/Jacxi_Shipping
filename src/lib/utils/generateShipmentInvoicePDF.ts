@@ -64,6 +64,26 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+/**
+ * Generate and download a PDF receipt for a single shipment
+ * 
+ * IMPORTANT: This is NOT an official invoice!
+ * 
+ * This function creates a quick PDF export of shipment details for reference purposes.
+ * It is NOT saved to the database and NOT tracked. Use this for:
+ * - Quick reference/printing
+ * - Informal quotes
+ * - Internal documentation
+ * - Customer inquiries before official invoicing
+ * 
+ * For OFFICIAL customer invoices that are tracked, paid, and emailed:
+ * - Go to the container page
+ * - Click "Generate Invoices" 
+ * - This creates UserInvoice records in the database
+ * 
+ * @param data - Shipment invoice data including shipment details and expenses
+ * @returns jsPDF document (auto-downloads)
+ */
 export const generateShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -77,12 +97,17 @@ export const generateShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text('SHIPMENT INVOICE', 20, 20);
+  doc.text('SHIPMENT RECEIPT', 20, 20); // Changed from INVOICE to RECEIPT
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Generated: ${formatDate(new Date().toISOString())}`, 20, 30);
   doc.text(data.invoiceNumber, 20, 37);
+  
+  // Add watermark/note that this is not an official invoice
+  doc.setFontSize(8);
+  doc.setTextColor(200, 200, 200);
+  doc.text('For reference only - Not an official invoice', pageWidth - 20, 20, { align: 'right' });
 
   yPos = 55;
 

@@ -371,7 +371,7 @@ export default function AnalyticsPage() {
 
       <DashboardGrid className="lg:grid-cols-2">
         <DashboardPanel title="Shipment volume" description="Six month rolling window" fullHeight>
-          <Box sx={{ height: 300 }}>
+          <Box sx={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.shipmentsByMonth || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -385,7 +385,7 @@ export default function AnalyticsPage() {
         </DashboardPanel>
 
         <DashboardPanel title="Revenue (USD)" description="Paid invoices (six months)" fullHeight>
-          <Box sx={{ height: 300 }}>
+          <Box sx={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.revenueByMonth || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />

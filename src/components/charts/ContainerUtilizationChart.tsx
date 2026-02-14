@@ -39,7 +39,7 @@ export function ContainerUtilizationChart({ data, className }: ContainerUtilizat
   };
 
   return (
-    <div className={className}>
+    <div className={className} style={{ minHeight: '300px', width: '100%' }}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />

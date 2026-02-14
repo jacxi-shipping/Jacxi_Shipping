@@ -14,9 +14,13 @@ import {
 	Save,
 	RotateCcw,
 	Image as ImageIcon,
+	Key,
+	Copy,
+	RefreshCw,
 } from 'lucide-react';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { PageHeader, Button, Breadcrumbs, toast, EmptyState, StatsCard, DashboardPageSkeleton, FormField } from '@/components/design-system';
+import { formatLoginCode } from '@/lib/loginCode';
 
 type ProfileFormState = {
 	name: string;
@@ -38,6 +42,7 @@ type ProfileResponse = {
 		address: string | null;
 		city: string | null;
 		country: string | null;
+		loginCode: string | null;
 		createdAt: string;
 		updatedAt: string;
 	};
@@ -59,6 +64,7 @@ export default function ProfilePage() {
 	const [form, setForm] = useState<ProfileFormState>(initialFormState);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [generatingCode, setGeneratingCode] = useState(false);
 
 	useEffect(() => {
 		if (status === 'loading') return;
@@ -149,6 +155,45 @@ export default function ProfilePage() {
 			image: profile.image ?? '',
 		});
 		toast.info('Form reset to saved values');
+	};
+
+	const handleCopyLoginCode = () => {
+		if (!profile?.loginCode) return;
+		navigator.clipboard.writeText(profile.loginCode);
+		toast.success('Login code copied to clipboard');
+	};
+
+	const handleGenerateLoginCode = async () => {
+		if (!profile || !session?.user) return;
+		
+		setGeneratingCode(true);
+		try {
+			const response = await fetch('/api/users/login-code', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ userId: session.user.id }),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data.error || 'Failed to generate login code');
+			}
+
+			// Refresh profile to get new code
+			const profileResponse = await fetch('/api/profile', { cache: 'no-store' });
+			const profileData = (await profileResponse.json()) as ProfileResponse;
+			
+			if (profileResponse.ok && profileData.user) {
+				setProfile(profileData.user);
+				toast.success('Login code generated successfully');
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to generate login code';
+			toast.error(message);
+		} finally {
+			setGeneratingCode(false);
+		}
 	};
 
 	if (status === 'loading' || loading) {
@@ -359,6 +404,103 @@ export default function ProfilePage() {
 										<li style={{ marginBottom: '0.5rem' }}>Keep your contact info up to date</li>
 										<li style={{ marginBottom: '0.5rem' }}>Review account activity regularly</li>
 									</ul>
+								</Box>
+							</DashboardPanel>
+
+							{/* Login Code Panel */}
+							<DashboardPanel
+								title="Login Code"
+								description="Quick access code for simplified login"
+							>
+								<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+									{profile.loginCode ? (
+										<>
+											<Box>
+												<Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 1 }}>
+													Your Login Code
+												</Box>
+												<Box 
+													sx={{ 
+														display: 'flex',
+														alignItems: 'center',
+														gap: 1,
+														bgcolor: 'var(--background)',
+														border: '2px solid var(--accent-gold)',
+														borderRadius: 2,
+														p: 2,
+													}}
+												>
+													<Key className="w-5 h-5" style={{ color: 'var(--accent-gold)' }} />
+													<Box 
+														sx={{ 
+															fontSize: '1.5rem', 
+															fontWeight: 700,
+															color: 'var(--text-primary)',
+															fontFamily: 'monospace',
+															letterSpacing: '0.2em',
+															flex: 1,
+														}}
+													>
+														{formatLoginCode(profile.loginCode)}
+													</Box>
+													<Button
+														variant="ghost"
+														size="sm"
+														icon={<Copy className="w-4 h-4" />}
+														onClick={handleCopyLoginCode}
+													>
+														Copy
+													</Button>
+												</Box>
+											</Box>
+											<Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+												Use this code to login at{' '}
+												<Box component="span" sx={{ color: 'var(--accent-gold)', fontWeight: 500 }}>
+													/auth/simple-login
+												</Box>
+												. Keep it secure and don't share it with others.
+											</Box>
+											{session?.user.role === 'admin' && (
+												<>
+													<Divider sx={{ borderColor: 'var(--border)' }} />
+													<Button
+														variant="outline"
+														size="sm"
+														icon={<RefreshCw className="w-4 h-4" />}
+														onClick={handleGenerateLoginCode}
+														disabled={generatingCode}
+														fullWidth
+													>
+														{generatingCode ? 'Generating...' : 'Regenerate Code'}
+													</Button>
+												</>
+											)}
+										</>
+									) : (
+										<>
+											<Box sx={{ textAlign: 'center', py: 2 }}>
+												<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)', mb: 2 }}>
+													No login code set yet
+												</Box>
+												{session?.user.role === 'admin' && (
+													<Button
+														variant="primary"
+														size="sm"
+														icon={<Key className="w-4 h-4" />}
+														onClick={handleGenerateLoginCode}
+														disabled={generatingCode}
+													>
+														{generatingCode ? 'Generating...' : 'Generate Login Code'}
+													</Button>
+												)}
+												{session?.user.role !== 'admin' && (
+													<Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+														Contact an administrator to set up a login code
+													</Box>
+												)}
+											</Box>
+										</>
+									)}
 								</Box>
 							</DashboardPanel>
 

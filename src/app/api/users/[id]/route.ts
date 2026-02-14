@@ -32,6 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         address: true,
         city: true,
         country: true,
+        loginCode: true,
         createdAt: true,
         updatedAt: true,
         shipments: {

@@ -66,9 +66,15 @@ html {
 	}
 
 	/* Ensure all containers stay within viewport */
-	* {
-		max-width: 100%;
+	/* Note: Avoid applying max-width to all elements as it breaks chart libraries like Recharts */
+	*:not(svg):not(svg *) {
 		box-sizing: border-box;
+	}
+	
+	/* Apply max-width to specific elements that need it */
+	img, video, iframe, table {
+		max-width: 100%;
+		height: auto;
 	}
 
 	/* Fix for mobile text overflow */
@@ -107,12 +113,12 @@ html {
 	/* Backgrounds & Surfaces */
 	--background: #F9FAFB;
 	--background-rgb: 249, 250, 251;
-	--panel: #E4E9F0;
-	--panel-rgb: 228, 233, 240;
+	--panel: #FFFFFF;  /* Changed to pure white for better contrast */
+	--panel-rgb: 255, 255, 255;
 	
 	/* Borders */
-	--border: #E0E0E0;
-	--border-rgb: 224, 224, 224;
+	--border: #E5E7EB;  /* Slightly darker for better visibility */
+	--border-rgb: 229, 231, 235;
 	
 	/* Text */
 	--text-primary: #1C1C1E;

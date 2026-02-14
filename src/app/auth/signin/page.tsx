@@ -332,6 +332,33 @@ export default function SignInPage() {
 								</Typography>
 							</Typography>
 						</Box>
+
+						{/* Short Code Login Link */}
+						<Box sx={{ textAlign: 'center', pt: 2, mt: 2, borderTop: '1px solid var(--border)' }}>
+							<Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)', mb: 1 }}>
+								Have a login code?
+							</Typography>
+							<Typography
+								component="button"
+								type="button"
+								onClick={() => router.push('/auth/simple-login')}
+								sx={{
+									background: 'none',
+									border: 'none',
+									color: 'var(--accent-gold)',
+									fontWeight: 500,
+									cursor: 'pointer',
+									fontSize: '0.875rem',
+									textDecoration: 'underline',
+									transition: 'color 0.2s ease',
+									'&:hover': {
+										color: 'var(--accent-gold)',
+									},
+								}}
+							>
+								Login with 8-character code
+							</Typography>
+						</Box>
 					</Box>
 				</Paper>
 			</motion.div>
