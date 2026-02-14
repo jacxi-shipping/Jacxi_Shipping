@@ -316,80 +316,80 @@ export default function ShipmentsListPage() {
 						}
 					/>
 				) : (
-							{showBulkTable ? (
-								<DataTable
-									data={shipmentTableRows}
-									columns={shipmentColumns}
-									keyField="id"
-									selectable={isAdmin}
-									onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
-									onDelete={isAdmin ? handleBulkDelete : undefined}
-									onExport={isAdmin ? handleBulkExport : undefined}
-									bulkStatusOptions={shipmentStatusOptions}
-									onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
+					<>
+						{showBulkTable ? (
+							<DataTable
+								data={shipmentTableRows}
+								columns={shipmentColumns}
+								keyField="id"
+								selectable={isAdmin}
+								onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
+								onDelete={isAdmin ? handleBulkDelete : undefined}
+								onExport={isAdmin ? handleBulkExport : undefined}
+								bulkStatusOptions={shipmentStatusOptions}
+								onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
+							/>
+					) : (
+						<Box sx={{ 
+							display: 'flex', 
+							flexDirection: 'column', 
+							gap: { xs: 1, sm: 1.15, md: 1.25 },
+							minWidth: 0,
+							width: '100%',
+							overflow: 'hidden',
+						}}>
+							{shipments.map((shipment, index) => (
+								<ShipmentRow
+									key={shipment.id}
+									{...shipment}
+									showCustomer={isAdmin}
+									delay={index * 0.05}
 								/>
-							) : (
-								<Box sx={{ 
-									display: 'flex', 
-									flexDirection: 'column', 
-									gap: { xs: 1, sm: 1.15, md: 1.25 },
-									minWidth: 0,
-									width: '100%',
-									overflow: 'hidden',
-								}}>
-									{shipments.map((shipment, index) => (
-										<ShipmentRow
-											key={shipment.id}
-											{...shipment}
-											showCustomer={isAdmin}
-											delay={index * 0.05}
-										/>
-									))}
-								</Box>
-							)}
+							))}
 						</Box>
-
-						{totalPages > 1 && (
-							<Box
-								sx={{
-									mt: 2,
-									display: 'flex',
-									flexDirection: { xs: 'column', sm: 'row' },
-									alignItems: 'center',
-									justifyContent: 'space-between',
-									gap: 1,
-									width: '100%',
-								}}
+					)}
+					
+					{totalPages > 1 && (
+						<Box
+							sx={{
+								mt: 2,
+								display: 'flex',
+								flexDirection: { xs: 'column', sm: 'row' },
+								alignItems: 'center',
+								justifyContent: 'space-between',
+								gap: 1,
+								width: '100%',
+							}}
+						>
+							<Button
+								variant="outline"
+								size="sm"
+								icon={<ChevronLeft sx={{ fontSize: { xs: 12, sm: 14 } }} />}
+								iconPosition="start"
+								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+								disabled={currentPage === 1}
+								sx={{ width: { xs: '100%', sm: 'auto' } }}
 							>
-								<Button
-									variant="outline"
-									size="sm"
-									icon={<ChevronLeft sx={{ fontSize: { xs: 12, sm: 14 } }} />}
-									iconPosition="start"
-									onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-									disabled={currentPage === 1}
-									sx={{ width: { xs: '100%', sm: 'auto' } }}
-								>
-									Previous
-								</Button>
-								<Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.72rem', md: '0.75rem' }, color: 'var(--text-secondary)' }}>
-									Page {currentPage} of {totalPages}
-								</Typography>
-								<Button
-									variant="outline"
-									size="sm"
-									icon={<ChevronRight sx={{ fontSize: { xs: 12, sm: 14 } }} />}
-									iconPosition="end"
-									onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-									disabled={currentPage === totalPages}
-									sx={{ width: { xs: '100%', sm: 'auto' } }}
-								>
-									Next
-								</Button>
-							</Box>
-						)}
-					</>
-				)}
+								Previous
+							</Button>
+							<Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.72rem', md: '0.75rem' }, color: 'var(--text-secondary)' }}>
+								Page {currentPage} of {totalPages}
+							</Typography>
+							<Button
+								variant="outline"
+								size="sm"
+								icon={<ChevronRight sx={{ fontSize: { xs: 12, sm: 14 } }} />}
+								iconPosition="end"
+								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+								disabled={currentPage === totalPages}
+								sx={{ width: { xs: '100%', sm: 'auto' } }}
+							>
+								Next
+							</Button>
+						</Box>
+					)}
+				</>
+			)}
 			</DashboardPanel>
 		</DashboardSurface>
 	);
