@@ -1275,6 +1275,37 @@ export default function ContainerDetailPage() {
 							title="User Invoices"
 							description="Customer invoices for shipments in this container"
 						>
+							{/* Info box explaining invoice generation */}
+							{isAdmin && (!container.userInvoices || container.userInvoices.length === 0) && container.shipments.length > 0 && (
+								<Box sx={{ 
+									mb: 3, 
+									p: 2, 
+									bgcolor: 'rgba(var(--info-rgb), 0.1)', 
+									border: '1px solid rgba(var(--info-rgb), 0.3)',
+									borderRadius: 2,
+									display: 'flex',
+									gap: 2,
+									alignItems: 'flex-start'
+								}}>
+									<FileText className="w-5 h-5" style={{ color: 'var(--info)', marginTop: '2px', flexShrink: 0 }} />
+									<Box sx={{ flex: 1 }}>
+										<Typography sx={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem', mb: 0.5 }}>
+											Generate Official Customer Invoices
+										</Typography>
+										<Typography sx={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+											Click "Generate Invoices" to create official invoices for all customers with shipments in this container. 
+											The system will consolidate each customer's shipments, allocate container expenses, and send email notifications with PDF links.
+											{container.expenses && container.expenses.length > 0 && (
+												<> Container expenses will be allocated using the <strong>{container.expenseAllocationMethod || 'EQUAL'}</strong> method.</>
+											)}
+										</Typography>
+										<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 1, fontStyle: 'italic' }}>
+											💡 Tip: For quick reference PDFs of individual shipments, use the "Download Receipt" button on each shipment page.
+										</Typography>
+									</Box>
+								</Box>
+							)}
+
 							<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
 								<Box sx={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
 									{container.shipments.length > 0 

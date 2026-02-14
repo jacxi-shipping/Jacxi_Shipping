@@ -360,7 +360,7 @@ export default function ShipmentDetailPage() {
     return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const handleGenerateInvoice = async () => {
+  const handleDownloadReceipt = async () => {
     if (!shipment) return;
     
     try {
@@ -373,7 +373,7 @@ export default function ShipmentDetailPage() {
             }));
 
         const invoiceData = {
-            invoiceNumber: `INV-${shipment.vehicleVIN?.slice(-6) || shipment.id.slice(0,6)}-${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
+            invoiceNumber: `RECEIPT-${shipment.vehicleVIN?.slice(-6) || shipment.id.slice(0,6)}-${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
             date: new Date().toISOString(),
             shipment: {
                 ...shipment,
@@ -388,10 +388,10 @@ export default function ShipmentDetailPage() {
         };
 
         downloadShipmentInvoicePDF(invoiceData);
-        toast.success('Invoice generated');
+        toast.success('Receipt downloaded');
     } catch (error) {
-        console.error('Error generating invoice:', error);
-        toast.error('Failed to generate invoice');
+        console.error('Error generating receipt:', error);
+        toast.error('Failed to generate receipt');
     }
   };
 
@@ -569,10 +569,12 @@ export default function ShipmentDetailPage() {
             </div>
 
             <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleGenerateInvoice}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Invoice
-                </Button>
+                <Tooltip content="Download a PDF receipt for this shipment. For official invoices, go to the container page and generate invoices.">
+                  <Button variant="outline" size="sm" onClick={handleDownloadReceipt}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Download Receipt
+                  </Button>
+                </Tooltip>
                 {isAdmin && (
                   <>
                     <Link href={`/dashboard/shipments/${shipment.id}/edit`}>

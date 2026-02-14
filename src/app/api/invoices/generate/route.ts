@@ -17,7 +17,27 @@ const generateInvoicesSchema = z.object({
 
 /**
  * POST /api/invoices/generate
- * Generate invoices for all users with shipments in a container
+ * 
+ * Generate official UserInvoices for all customers with shipments in a container.
+ * 
+ * This is the PRIMARY method for creating customer invoices. It:
+ * 1. Groups all shipments in the container by customer
+ * 2. Creates ONE invoice per customer (consolidating all their shipments)
+ * 3. Allocates container expenses across shipments based on allocation method
+ * 4. Saves invoices to database with tracking and status
+ * 5. Sends email notifications with PDF links
+ * 6. Creates in-app notifications
+ * 
+ * Important: This is different from the quick PDF export on shipment pages.
+ * Those PDFs are for reference only and are NOT saved to the database.
+ * 
+ * @requires Admin role
+ * @param containerId - ID of the container
+ * @param dueDate - Optional due date for payment
+ * @param sendEmail - Whether to send email notifications (default: true)
+ * @param discountPercent - Percentage discount to apply (0-100)
+ * 
+ * @returns Array of generated invoice objects with user details
  */
 export async function POST(req: NextRequest) {
   try {
