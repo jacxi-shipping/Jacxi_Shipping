@@ -113,6 +113,19 @@ export const {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // Update session every 24 hours
+  },
+  cookies: {
+    sessionToken: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      },
+    },
   },
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
@@ -120,7 +133,7 @@ export const {
     error: "/auth/signin", // Error code passed in query string
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         if (user.id) {
           token.id = user.id;
@@ -128,6 +141,10 @@ export const {
         if (user.role) {
           token.role = user.role;
         }
+      }
+      // Extend token expiry on each request to keep session alive
+      if (trigger === 'update') {
+        token.iat = Math.floor(Date.now() / 1000);
       }
       return token;
     },
