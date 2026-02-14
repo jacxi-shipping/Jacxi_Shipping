@@ -5,11 +5,14 @@ import { createTheme } from '@mui/material/styles';
 const palette = {
 	accentGold: '#D4AF37',
 	background: '#F9FAFB',
-	panel: '#E4E9F0',
+	panel: '#FFFFFF',  // Changed from #E4E9F0 to pure white for better contrast
 	textPrimary: '#1C1C1E',
 	textSecondary: '#5F6368',
-	border: '#E0E0E0',
+	border: '#E5E7EB',  // Slightly darker for better visibility
 	error: '#EF4444',
+	success: '#10B981',  // Added proper semantic colors
+	warning: '#F59E0B',
+	info: '#3B82F6',
 };
 
 // Create a custom Material-UI theme
@@ -29,40 +32,44 @@ export const theme = createTheme({
         contrastText: palette.background,
       },
       success: {
-        main: palette.accentGold,
-        light: palette.accentGold,
-        dark: '#BD9430',
+        main: palette.success,
+        light: '#D1FAE5',
+        dark: '#047857',
+        contrastText: '#FFFFFF',
       },
       warning: {
-        main: palette.accentGold,
-        light: palette.accentGold,
-        dark: '#BD9430',
+        main: palette.warning,
+        light: '#FEF3C7',
+        dark: '#B45309',
+        contrastText: '#FFFFFF',
       },
       error: {
         main: palette.error,
-        light: '#F87171',
+        light: '#FEE2E2',
         dark: '#B91C1C',
+        contrastText: '#FFFFFF',
       },
       info: {
-        main: palette.accentGold,
-        light: palette.accentGold,
-        dark: '#BD9430',
+        main: palette.info,
+        light: '#DBEAFE',
+        dark: '#1D4ED8',
+        contrastText: '#FFFFFF',
       },
       grey: {
-        50: palette.background,
-        100: palette.panel,
-        200: palette.panel,
-        300: palette.border,
-        400: palette.textSecondary,
+        50: '#F9FAFB',
+        100: '#F3F4F6',
+        200: '#E5E7EB',
+        300: '#D1D5DB',
+        400: '#9CA3AF',
         500: palette.textSecondary,
-        600: palette.textSecondary,
-        700: palette.textSecondary,
-        800: palette.textPrimary,
+        600: '#4B5563',
+        700: '#374151',
+        800: '#1F2937',
         900: palette.textPrimary,
       },
       background: {
         default: palette.background,
-        paper: palette.background,
+        paper: palette.panel,  // Use panel for paper (cards, dialogs, etc.)
       },
       text: {
         primary: palette.textPrimary,
