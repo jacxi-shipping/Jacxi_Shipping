@@ -11,159 +11,276 @@ const styles = StyleSheet.create({
     padding: 30,
     fontFamily: 'Helvetica',
   },
+  // Modern header with gold accent bar
+  goldBar: {
+    backgroundColor: '#D4AF37',
+    height: 8,
+    width: '100%',
+    marginLeft: -30,
+    marginRight: -30,
+    marginTop: -30,
+    marginBottom: 0,
+  },
   header: {
-    backgroundColor: '#191C1F',
-    color: '#FFFFFF',
-    padding: 20,
-    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+    paddingTop: 20,
+    paddingBottom: 20,
+    marginBottom: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   headerLeft: {
     flexDirection: 'column',
   },
+  companyName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1C1C1E',
+    marginBottom: 2,
+  },
+  companyTagline: {
+    fontSize: 10,
+    color: '#5F6368',
+  },
+  headerRight: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 5,
+    color: '#D4AF37',
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 10,
-    opacity: 0.8,
+  invoiceNumber: {
+    fontSize: 11,
+    color: '#5F6368',
+    marginBottom: 8,
   },
   statusBadge: {
     padding: '4 10',
-    borderRadius: 4,
-    backgroundColor: '#64748B', // Default
+    borderRadius: 2,
+    backgroundColor: '#5F6368',
   },
   statusText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
   },
-  section: {
-    margin: 10,
-    padding: 10,
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 5,
-  },
-  col: {
-    flexDirection: 'column',
-  },
-  label: {
-    fontSize: 9,
-    color: '#64748B',
-    marginBottom: 2,
-  },
-  value: {
-    fontSize: 10,
-    color: '#191C1F',
+  separator: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E7EB',
+    marginBottom: 15,
   },
   billToSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingBottom: 20,
   },
   billToCol: {
-    width: '45%',
+    width: '48%',
   },
   detailsCol: {
-    width: '45%',
+    width: '48%',
     alignItems: 'flex-end',
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1C1C1E',
+    marginBottom: 8,
+  },
+  customerName: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1C1C1E',
+    marginBottom: 4,
+  },
+  label: {
+    fontSize: 9,
+    color: '#5F6368',
+    marginBottom: 4,
+  },
+  value: {
+    fontSize: 9,
+    color: '#5F6368',
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginBottom: 4,
+    gap: 10,
   },
   detailLabel: {
     fontSize: 9,
-    color: '#64748B',
-    marginRight: 10,
+    color: '#5F6368',
   },
   detailValue: {
-    fontSize: 10,
-    color: '#191C1F',
+    fontSize: 9,
+    color: '#1C1C1E',
     fontWeight: 'bold',
+  },
+  shippingBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 2,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 15,
+  },
+  shippingTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+    marginBottom: 6,
+  },
+  shippingText: {
+    fontSize: 8,
+    color: '#5F6368',
+  },
+  tableDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#D4AF37',
+    marginBottom: 10,
   },
   table: {
     width: '100%',
-    marginTop: 20,
+    marginTop: 5,
     marginBottom: 20,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    padding: 8,
+    backgroundColor: '#F9FAFB',
+    padding: 6,
+    marginBottom: 2,
   },
   tableRow: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    padding: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E7EB',
+    padding: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  tableRowAlt: {
+    backgroundColor: '#FCFCFD',
+  },
+  vehicleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F9FAFB',
+    padding: 6,
+    marginTop: 4,
   },
   th: {
     fontSize: 9,
     fontWeight: 'bold',
-    color: '#64748B',
+    color: '#5F6368',
   },
   td: {
     fontSize: 9,
-    color: '#334155',
+    color: '#1C1C1E',
   },
   col1: { width: '40%' },
   col2: { width: '15%', textAlign: 'center' },
   col3: { width: '15%', textAlign: 'center' },
   col4: { width: '15%', textAlign: 'right' },
-  col5: { width: '15%', textAlign: 'right' },
-  
+  col5: { width: '15%', textAlign: 'right', fontWeight: 'bold' },
   totalsSection: {
     flexDirection: 'column',
     alignItems: 'flex-end',
     marginTop: 10,
     paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopWidth: 0.5,
+    borderTopColor: '#E5E7EB',
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginBottom: 5,
     width: '50%',
+    gap: 20,
   },
   totalLabel: {
     fontSize: 10,
-    color: '#64748B',
-    marginRight: 20,
+    color: '#5F6368',
   },
   totalValue: {
     fontSize: 10,
-    color: '#191C1F',
+    color: '#1C1C1E',
     fontWeight: 'bold',
     width: 80,
     textAlign: 'right',
   },
-  grandTotal: {
-    fontSize: 14,
+  grandTotalRow: {
+    marginTop: 5,
+    paddingTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  grandTotalLabel: {
+    fontSize: 11,
     fontWeight: 'bold',
-    color: '#DAA520', // Gold
+    color: '#1C1C1E',
+  },
+  grandTotal: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+  },
+  paymentBox: {
+    backgroundColor: '#D1FAE5',
+    borderRadius: 2,
+    padding: 10,
+    marginTop: 15,
+    marginBottom: 10,
+  },
+  paymentTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#10B981',
+    marginBottom: 6,
+  },
+  paymentText: {
+    fontSize: 9,
+    color: '#5F6368',
+  },
+  notesBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 2,
+    padding: 10,
+    marginTop: 15,
+  },
+  notesTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+    marginBottom: 4,
+  },
+  notesText: {
+    fontSize: 9,
+    color: '#5F6368',
+    lineHeight: 1.4,
   },
   footer: {
     position: 'absolute',
     bottom: 30,
     left: 30,
     right: 30,
+  },
+  footerLine: {
+    borderTopWidth: 0.5,
+    borderTopColor: '#D4AF37',
+    marginBottom: 8,
+  },
+  footerText: {
     textAlign: 'center',
     fontSize: 8,
-    color: '#94A3B8',
+    color: '#5F6368',
+    marginBottom: 3,
+  },
+  footerConfidential: {
+    textAlign: 'center',
+    fontSize: 7,
+    color: '#9CA3AF',
   },
 });
 
@@ -221,33 +338,44 @@ const formatDate = (date: Date | string | null) => {
 };
 
 const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
-  // Determine status color
+  // Determine status color using design system
   const statusColor = 
-    invoice.status === 'PAID' ? '#22C55E' : 
-    invoice.status === 'OVERDUE' ? '#EF4444' : 
-    invoice.status === 'SENT' ? '#3B82F6' : 
-    '#64748B';
+    invoice.status === 'PAID' ? '#10B981' :     // success
+    invoice.status === 'OVERDUE' ? '#EF4444' :  // error
+    invoice.status === 'SENT' ? '#3B82F6' :     // info
+    invoice.status === 'PENDING' ? '#F59E0B' :  // warning
+    '#5F6368';  // textSecondary
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         
+        {/* Gold accent bar at top */}
+        <View style={styles.goldBar} />
+        
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title}>INVOICE</Text>
-            <Text style={styles.subtitle}>#{invoice.invoiceNumber}</Text>
+            <Text style={styles.companyName}>JACXI</Text>
+            <Text style={styles.companyTagline}>SHIPPING</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <Text style={styles.statusText}>{invoice.status}</Text>
+          <View style={styles.headerRight}>
+            <Text style={styles.title}>INVOICE</Text>
+            <Text style={styles.invoiceNumber}>#{invoice.invoiceNumber}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+              <Text style={styles.statusText}>{invoice.status}</Text>
+            </View>
           </View>
         </View>
+
+        {/* Separator */}
+        <View style={styles.separator} />
 
         {/* Bill To & Details */}
         <View style={styles.billToSection}>
           <View style={styles.billToCol}>
-            <Text style={[styles.label, { marginBottom: 5 }]}>BILL TO</Text>
-            <Text style={[styles.value, { fontWeight: 'bold' }]}>{invoice.user.name || 'Valued Customer'}</Text>
+            <Text style={styles.sectionTitle}>BILL TO</Text>
+            <Text style={styles.customerName}>{invoice.user.name || 'Valued Customer'}</Text>
             <Text style={styles.value}>{invoice.user.email}</Text>
             {invoice.user.phone && <Text style={styles.value}>{invoice.user.phone}</Text>}
             {invoice.user.address && (
@@ -260,26 +388,42 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
           </View>
 
           <View style={styles.detailsCol}>
+            <Text style={[styles.sectionTitle, { textAlign: 'right' }]}>INVOICE DETAILS</Text>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Issue Date:</Text>
+              <Text style={styles.detailLabel}>Invoice Date</Text>
               <Text style={styles.detailValue}>{formatDate(invoice.issueDate)}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Due Date:</Text>
+              <Text style={styles.detailLabel}>Due Date</Text>
               <Text style={styles.detailValue}>{formatDate(invoice.dueDate)}</Text>
             </View>
-            <View style={[styles.detailRow, { marginTop: 8 }]}>
-              <Text style={styles.detailLabel}>Container:</Text>
+            <View style={[styles.detailRow, { marginTop: 6 }]}>
+              <Text style={styles.detailLabel}>Container #</Text>
               <Text style={styles.detailValue}>{invoice.container.containerNumber}</Text>
             </View>
             {invoice.container.vesselName && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Vessel:</Text>
+                <Text style={styles.detailLabel}>Vessel</Text>
                 <Text style={styles.detailValue}>{invoice.container.vesselName}</Text>
               </View>
             )}
           </View>
         </View>
+
+        {/* Shipping Details Box */}
+        {(invoice.container.vesselName || invoice.container.loadingPort || invoice.container.destinationPort) && (
+          <View style={styles.shippingBox}>
+            <Text style={styles.shippingTitle}>SHIPPING DETAILS</Text>
+            <Text style={styles.shippingText}>
+              {invoice.container.vesselName && `Vessel: ${invoice.container.vesselName}`}
+              {invoice.container.loadingPort && ` • From: ${invoice.container.loadingPort}`}
+              {invoice.container.destinationPort && ` • To: ${invoice.container.destinationPort}`}
+            </Text>
+          </View>
+        )}
+
+        {/* Table divider */}
+        <View style={styles.tableDivider} />
 
         {/* Line Items Table */}
         <View style={styles.table}>
@@ -291,13 +435,13 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
             <Text style={[styles.th, styles.col5]}>Amount</Text>
           </View>
 
-          {invoice.lineItems.map((item) => (
-            <View key={item.id} style={styles.tableRow}>
+          {invoice.lineItems.map((item, index) => (
+            <View key={item.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]}>
               <Text style={[styles.td, styles.col1]}>{item.description}</Text>
               <Text style={[styles.td, styles.col2]}>{item.type.replace('_', ' ')}</Text>
               <Text style={[styles.td, styles.col3]}>{item.quantity}</Text>
               <Text style={[styles.td, styles.col4]}>{formatCurrency(item.unitPrice)}</Text>
-              <Text style={[styles.td, styles.col5, { fontWeight: 'bold' }]}>{formatCurrency(item.amount)}</Text>
+              <Text style={[styles.td, styles.col5]}>{formatCurrency(item.amount)}</Text>
             </View>
           ))}
         </View>
@@ -305,39 +449,53 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
         {/* Totals */}
         <View style={styles.totalsSection}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Subtotal:</Text>
+            <Text style={styles.totalLabel}>Subtotal</Text>
             <Text style={styles.totalValue}>{formatCurrency(invoice.subtotal)}</Text>
           </View>
           {invoice.discount > 0 && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Discount:</Text>
-              <Text style={[styles.totalValue, { color: '#22C55E' }]}>-{formatCurrency(invoice.discount)}</Text>
+              <Text style={styles.totalLabel}>Discount</Text>
+              <Text style={[styles.totalValue, { color: '#10B981' }]}>-{formatCurrency(invoice.discount)}</Text>
             </View>
           )}
           {invoice.tax > 0 && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Tax:</Text>
+              <Text style={styles.totalLabel}>Tax</Text>
               <Text style={styles.totalValue}>{formatCurrency(invoice.tax)}</Text>
             </View>
           )}
-          <View style={[styles.totalRow, { marginTop: 5 }]}>
-            <Text style={[styles.totalLabel, { fontSize: 12, fontWeight: 'bold', color: '#191C1F' }]}>TOTAL:</Text>
-            <Text style={[styles.totalValue, styles.grandTotal]}>{formatCurrency(invoice.total)}</Text>
+          <View style={[styles.totalRow, styles.grandTotalRow]}>
+            <Text style={styles.grandTotalLabel}>TOTAL DUE</Text>
+            <Text style={styles.grandTotal}>{formatCurrency(invoice.total)}</Text>
           </View>
         </View>
 
+        {/* Payment Information (if paid) */}
+        {invoice.status === 'PAID' && (
+          <View style={styles.paymentBox}>
+            <Text style={styles.paymentTitle}>✓ PAYMENT RECEIVED</Text>
+            <Text style={styles.paymentText}>This invoice has been paid in full.</Text>
+          </View>
+        )}
+
         {/* Notes */}
         {invoice.notes && (
-          <View style={{ marginTop: 30, padding: 10, backgroundColor: '#F8FAFC', borderRadius: 4 }}>
-            <Text style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 4, color: '#64748B' }}>NOTES</Text>
-            <Text style={{ fontSize: 9, color: '#334155' }}>{invoice.notes}</Text>
+          <View style={styles.notesBox}>
+            <Text style={styles.notesTitle}>NOTES</Text>
+            <Text style={styles.notesText}>{invoice.notes}</Text>
           </View>
         )}
 
         {/* Footer */}
-        <Text style={styles.footer}>
-          Thank you for your business. Please make checks payable to JACXI Shipping.
-        </Text>
+        <View style={styles.footer}>
+          <View style={styles.footerLine} />
+          <Text style={styles.footerText}>
+            Thank you for your business with JACXI Shipping
+          </Text>
+          <Text style={styles.footerConfidential}>
+            This invoice is confidential and intended solely for the addressee.
+          </Text>
+        </View>
       </Page>
     </Document>
   );
