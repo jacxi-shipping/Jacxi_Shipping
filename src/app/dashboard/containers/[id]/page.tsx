@@ -164,6 +164,7 @@ interface Container {
 	currentCount: number;
 	notes: string | null;
 	autoTrackingEnabled: boolean;
+	expenseAllocationMethod: string | null;
 	createdAt: string;
 	shipments: Shipment[];
 	expenses: Expense[];
