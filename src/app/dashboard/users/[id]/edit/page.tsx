@@ -7,8 +7,8 @@ import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Save, Loader2, AlertCircle } from 'lucide-react';
-import { Box, Typography, Alert } from '@mui/material';
+import { ArrowLeft, Save, Loader2, AlertCircle, Key, Copy, RefreshCw, Trash2 } from 'lucide-react';
+import { Box, Typography, Alert, Divider } from '@mui/material';
 import { 
   DashboardSurface, 
   DashboardPanel 
@@ -18,8 +18,10 @@ import {
   Button, 
   Breadcrumbs, 
   FormField, 
-  LoadingState 
+  LoadingState,
+  toast,
 } from '@/components/design-system';
+import { formatLoginCode } from '@/lib/loginCode';
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -39,6 +41,8 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loginCode, setLoginCode] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
 
   const {
     register,
@@ -72,6 +76,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
             country: data.user.country || '',
             role: data.user.role,
           });
+          setLoginCode(data.user.loginCode || null);
         } else {
           setError('Failed to fetch user details');
         }
@@ -102,6 +107,64 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       }
     } catch (error) {
       setError('An error occurred while updating user');
+    }
+  };
+
+  const handleCopyLoginCode = () => {
+    if (!loginCode) return;
+    navigator.clipboard.writeText(loginCode);
+    toast.success('Login code copied to clipboard');
+  };
+
+  const handleGenerateLoginCode = async () => {
+    setGeneratingCode(true);
+    try {
+      const response = await fetch('/api/users/login-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate login code');
+      }
+
+      setLoginCode(data.loginCode);
+      toast.success('Login code generated successfully');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate login code';
+      toast.error(message);
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
+
+  const handleDeleteLoginCode = async () => {
+    if (!confirm('Are you sure you want to remove this login code? The user will no longer be able to use it to login.')) {
+      return;
+    }
+
+    setGeneratingCode(true);
+    try {
+      const response = await fetch(`/api/users/login-code?userId=${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove login code');
+      }
+
+      setLoginCode(null);
+      toast.success('Login code removed successfully');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to remove login code';
+      toast.error(message);
+    } finally {
+      setGeneratingCode(false);
     }
   };
 
@@ -201,6 +264,103 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
               <Typography color="error" variant="caption" sx={{ mt: 0.5, display: 'block' }}>
                 {errors.role.message}
               </Typography>
+            )}
+          </Box>
+
+          <Divider sx={{ my: 3, borderColor: 'var(--border)' }} />
+
+          {/* Login Code Management Section */}
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Key className="w-4 h-4" />
+              Login Code Management
+            </Typography>
+            
+            {loginCode ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'var(--text-secondary)', mb: 1, display: 'block' }}>
+                    Current Login Code
+                  </Typography>
+                  <Box 
+                    sx={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      bgcolor: 'var(--background)',
+                      border: '2px solid var(--accent-gold)',
+                      borderRadius: 2,
+                      p: 2,
+                    }}
+                  >
+                    <Key className="w-5 h-5" style={{ color: 'var(--accent-gold)' }} />
+                    <Box 
+                      sx={{ 
+                        fontSize: '1.5rem', 
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.2em',
+                        flex: 1,
+                      }}
+                    >
+                      {formatLoginCode(loginCode)}
+                    </Box>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={<Copy className="w-4 h-4" />}
+                      onClick={handleCopyLoginCode}
+                      type="button"
+                    >
+                      Copy
+                    </Button>
+                  </Box>
+                </Box>
+                
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<RefreshCw className="w-4 h-4" />}
+                    onClick={handleGenerateLoginCode}
+                    disabled={generatingCode}
+                    type="button"
+                  >
+                    {generatingCode ? 'Regenerating...' : 'Regenerate Code'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<Trash2 className="w-4 h-4" />}
+                    onClick={handleDeleteLoginCode}
+                    disabled={generatingCode}
+                    type="button"
+                  >
+                    Remove Code
+                  </Button>
+                </Box>
+
+                <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: 1.5 }}>
+                  This user can login using this code at <Box component="span" sx={{ color: 'var(--accent-gold)', fontWeight: 500 }}>/auth/simple-login</Box>
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ textAlign: 'center', py: 3, bgcolor: 'var(--background)', borderRadius: 2, border: '1px dashed var(--border)' }}>
+                <Typography sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)', mb: 2 }}>
+                  No login code set for this user
+                </Typography>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Key className="w-4 h-4" />}
+                  onClick={handleGenerateLoginCode}
+                  disabled={generatingCode}
+                  type="button"
+                >
+                  {generatingCode ? 'Generating...' : 'Generate Login Code'}
+                </Button>
+              </Box>
             )}
           </Box>
 
