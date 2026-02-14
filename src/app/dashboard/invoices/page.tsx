@@ -169,6 +169,17 @@ export default function InvoicesPage() {
 		});
 	};
 
+	// Filter invoices based on search
+	const filteredInvoices = invoices.filter(invoice => {
+		const searchLower = searchTerm.toLowerCase();
+		return (
+			invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
+			invoice.user.email.toLowerCase().includes(searchLower) ||
+			(invoice.user.name && invoice.user.name.toLowerCase().includes(searchLower)) ||
+			invoice.container.containerNumber.toLowerCase().includes(searchLower)
+		);
+	});
+
 	const invoiceRows: InvoiceTableRow[] = filteredInvoices.map((invoice) => ({
 		id: invoice.id,
 		invoiceNumber: invoice.invoiceNumber,
@@ -314,17 +325,6 @@ export default function InvoicesPage() {
 			toast.error('Failed to export invoices');
 		}
 	};
-
-	// Filter invoices based on search
-	const filteredInvoices = invoices.filter(invoice => {
-		const searchLower = searchTerm.toLowerCase();
-		return (
-			invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
-			invoice.user.email.toLowerCase().includes(searchLower) ||
-			(invoice.user.name && invoice.user.name.toLowerCase().includes(searchLower)) ||
-			invoice.container.containerNumber.toLowerCase().includes(searchLower)
-		);
-	});
 
 	// Calculate stats
 	const stats = {
