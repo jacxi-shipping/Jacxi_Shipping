@@ -413,4 +413,3 @@ export function PaymentStatusBadge({
 }: Omit<StatusBadgeProps, 'status'> & { status: PaymentStatus }) {
   return <StatusBadge status={status} {...props} />;
 }
-Badge.tsx
