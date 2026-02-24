@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { autoInvoice } from '@/lib/services/auto-invoice';
+import { validateCronRequest } from '@/lib/cron-auth';
 
 /**
  * Cron job endpoint for auto-generating invoices
@@ -16,10 +17,7 @@ import { autoInvoice } from '@/lib/services/auto-invoice';
 export async function GET(request: NextRequest) {
 	try {
 		// Verify cron secret for security
-		const authHeader = request.headers.get('authorization');
-		const cronSecret = process.env.CRON_SECRET;
-
-		if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+		if (!validateCronRequest(request)) {
 			return NextResponse.json(
 				{ error: 'Unauthorized' },
 				{ status: 401 }
@@ -55,6 +53,14 @@ export async function GET(request: NextRequest) {
 // Manual trigger
 export async function POST(request: NextRequest) {
 	try {
+		// Verify cron secret for security
+		if (!validateCronRequest(request)) {
+			return NextResponse.json(
+				{ error: 'Unauthorized' },
+				{ status: 401 }
+			);
+		}
+
 		const body = await request.json();
 		const { containerId } = body;
 

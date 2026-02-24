@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ContainerLifecycleStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { validateCronRequest } from '@/lib/cron-auth';
 
 // Arrival alert status
 enum ArrivalAlertStatus {
@@ -13,13 +14,10 @@ enum ArrivalAlertStatus {
 // This endpoint can be called by a cron job to check container arrival alerts
 export async function POST(request: NextRequest) {
   try {
-    // Optional: Add authentication for cron jobs
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET || 'your-secret-key';
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    // Verify cron secret for security
+    if (!validateCronRequest(request)) {
       return NextResponse.json(
-        { message: 'Unauthorized' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
