@@ -74,47 +74,34 @@ export default function AdminLedgersPage() {
         page++;
       }
       
-      const userSummaries = await Promise.all(
-        allUsers.map(async (user: { id: string; name: string | null; email: string }) => {
-          try {
-            const ledgerResponse = await fetch(`/api/ledger?userId=${user.id}&limit=1`);
-            if (!ledgerResponse.ok) {
-              return {
-                userId: user.id,
-                userName: user.name || user.email,
-                email: user.email,
-                currentBalance: 0,
-                totalDebit: 0,
-                totalCredit: 0,
-                transactionCount: 0,
-              };
-            }
+      // Fetch ledger summaries in bulk to avoid N+1 API calls
+      let summaryMap: Record<string, any> = {};
+      try {
+        const summaryResponse = await fetch('/api/ledger/summary');
+        if (summaryResponse.ok) {
+          const data = await summaryResponse.json();
+          summaryMap = data.summaries || {};
+        } else {
+          console.error('Failed to fetch ledger summaries:', await summaryResponse.text());
+        }
+      } catch (error) {
+        console.error('Error fetching ledger summaries:', error);
+      }
 
-            const ledgerData = await ledgerResponse.json();
-            return {
-              userId: user.id,
-              userName: user.name || user.email,
-              email: user.email,
-              currentBalance: ledgerData.summary?.currentBalance || 0,
-              totalDebit: ledgerData.summary?.totalDebit || 0,
-              totalCredit: ledgerData.summary?.totalCredit || 0,
-              transactionCount: ledgerData.pagination?.totalCount || 0,
-              lastTransaction: ledgerData.entries?.[0]?.transactionDate,
-            };
-          } catch (error) {
-            console.error(`Error fetching ledger for user ${user.id}:`, error);
-            return {
-              userId: user.id,
-              userName: user.name || user.email,
-              email: user.email,
-              currentBalance: 0,
-              totalDebit: 0,
-              totalCredit: 0,
-              transactionCount: 0,
-            };
-          }
-        })
-      );
+      const userSummaries = allUsers.map((user: { id: string; name: string | null; email: string }) => {
+        const summary = summaryMap[user.id];
+
+        return {
+          userId: user.id,
+          userName: user.name || user.email,
+          email: user.email,
+          currentBalance: summary?.currentBalance || 0,
+          totalDebit: summary?.totalDebit || 0,
+          totalCredit: summary?.totalCredit || 0,
+          transactionCount: summary?.transactionCount || 0,
+          lastTransaction: summary?.lastTransaction || undefined,
+        };
+      });
 
       setUsers(userSummaries);
     } catch (error) {
