@@ -472,11 +472,13 @@ export default function ContainersPage() {
             <EmptyState
               icon={<Package />}
               title="No containers found"
-              description="Create your first container to get started"
+              description={isAdmin ? "Create your first container to get started" : "You have no containers with your shipments yet"}
               action={
-                <Link href="/dashboard/containers/new" style={{ textDecoration: 'none' }}>
-                  <Button variant="primary">Create First Container</Button>
-                </Link>
+                isAdmin ? (
+                  <Link href="/dashboard/containers/new" style={{ textDecoration: 'none' }}>
+                    <Button variant="primary">Create First Container</Button>
+                  </Link>
+                ) : undefined
               }
             />
           ) : showBulkTable ? (

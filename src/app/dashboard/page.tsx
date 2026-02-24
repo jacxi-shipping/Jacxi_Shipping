@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { 
     StatsCard, 
@@ -43,16 +44,24 @@ const formatDateKey = (date: Date) => {
     return normalized.toISOString().slice(0, 10);
 };
 
-async function getDashboardData() {
+async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
     const trendDays = 14;
     const today = new Date();
     const startDate = new Date(today);
     startDate.setDate(startDate.getDate() - (trendDays - 1));
     startDate.setHours(0, 0, 0, 0);
 
+    // Filter by userId for non-admin users
+    // If user is not admin but has no userId, use a non-matching value to return empty results
+    const effectiveUserId = userId ?? '';
+    const shipmentUserFilter = isAdmin ? {} : { userId: effectiveUserId };
+    const containerUserFilter = isAdmin ? {} : { shipments: { some: { userId: effectiveUserId } } };
+    const invoiceUserFilter = isAdmin ? {} : { userId: effectiveUserId };
+
     // 1. KPI Stats
     const activeShipmentsCount = await prisma.shipment.count({
         where: {
+            ...shipmentUserFilter,
             status: {
                 in: ['ON_HAND', 'IN_TRANSIT']
             }
@@ -61,6 +70,7 @@ async function getDashboardData() {
 
     const activeContainersCount = await prisma.container.count({
         where: {
+            ...containerUserFilter,
             status: {
                 in: ['LOADED', 'IN_TRANSIT', 'ARRIVED_PORT', 'CUSTOMS_CLEARANCE']
             }
@@ -72,6 +82,7 @@ async function getDashboardData() {
             total: true
         },
         where: {
+            ...invoiceUserFilter,
             status: {
                 in: ['PENDING', 'OVERDUE']
             }
@@ -81,11 +92,13 @@ async function getDashboardData() {
     // 3. Counts by Status for Chart/Progress
     const shipmentStats = await prisma.shipment.groupBy({
         by: ['status'],
-        _count: true
+        _count: true,
+        where: shipmentUserFilter,
     });
 
     const shipmentsInRange = await prisma.shipment.findMany({
         where: {
+            ...shipmentUserFilter,
             createdAt: {
                 gte: startDate,
             },
@@ -120,6 +133,7 @@ async function getDashboardData() {
     }));
 
     const containerUtilization = await prisma.container.findMany({
+        where: containerUserFilter,
         select: {
             containerNumber: true,
             currentCount: true,
@@ -146,7 +160,9 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-    const data = await getDashboardData();
+    const session = await auth();
+    const isAdmin = session?.user?.role === 'admin';
+    const data = await getDashboardData(session?.user?.id, isAdmin);
 
     return (
         <DashboardSurface>
@@ -240,29 +256,33 @@ export default async function DashboardPage() {
                         noBodyPadding
                     >
                         <div className="divide-y divide-border">
-                            <Link href="/dashboard/shipments/new" className="block p-4 hover:bg-background/50 transition-colors group">
-                                <div className="flex gap-3 items-center">
-                                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                        <Package className="w-5 h-5" />
+                            {isAdmin && (
+                                <Link href="/dashboard/shipments/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                                    <div className="flex gap-3 items-center">
+                                        <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                            <Package className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-primary">New Shipment</p>
+                                            <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-primary">New Shipment</p>
-                                        <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
-                                    </div>
-                                </div>
-                            </Link>
+                                </Link>
+                            )}
 
-                            <Link href="/dashboard/containers/new" className="block p-4 hover:bg-background/50 transition-colors group">
-                                <div className="flex gap-3 items-center">
-                                    <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                                        <Ship className="w-5 h-5" />
+                            {isAdmin && (
+                                <Link href="/dashboard/containers/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                                    <div className="flex gap-3 items-center">
+                                        <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                            <Ship className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-primary">New Container</p>
+                                            <p className="text-xs text-muted-foreground">Create shipping container</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-primary">New Container</p>
-                                        <p className="text-xs text-muted-foreground">Create shipping container</p>
-                                    </div>
-                                </div>
-                            </Link>
+                                </Link>
+                            )}
 
                             <Link href="/dashboard/finance" className="block p-4 hover:bg-background/50 transition-colors group">
                                 <div className="flex gap-3 items-center">
