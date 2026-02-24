@@ -8,6 +8,7 @@ import { ReactNode } from 'react';
  * 
  * Displays status with appropriate colors and styling.
  * Used for shipment status, payment status, etc.
+ * Uses high-contrast color combinations for better readability.
  */
 
 // Shipment Status Types
@@ -54,128 +55,128 @@ export interface StatusBadgeProps {
   className?: string;
 }
 
-// Status color mappings
+// Status color mappings with enhanced contrast
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   // Shipment Statuses
   ON_HAND: {
-    bg: 'rgba(16, 185, 129, 0.15)',
-    text: 'var(--success)',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    text: 'var(--success-dark)', // Darker green for text
     border: 'var(--success)',
   },
   IN_TRANSIT: {
-    bg: 'rgba(59, 130, 246, 0.15)',
-    text: 'var(--info)',
+    bg: 'rgba(59, 130, 246, 0.12)',
+    text: 'var(--info-dark)', // Darker blue for text
     border: 'var(--info)',
   },
   AT_PORT: {
-    bg: 'rgba(245, 158, 11, 0.15)',
-    text: 'var(--warning)',
+    bg: 'rgba(245, 158, 11, 0.12)',
+    text: 'var(--warning-dark)', // Darker amber for text
     border: 'var(--warning)',
   },
   CUSTOMS: {
-    bg: 'rgba(139, 92, 246, 0.15)',
-    text: '#8B5CF6',
+    bg: 'rgba(139, 92, 246, 0.12)',
+    text: '#7C3AED', // Violet-600
     border: '#8B5CF6',
   },
   RELEASED: {
-    bg: 'rgba(16, 185, 129, 0.15)',
-    text: 'var(--success)',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    text: 'var(--success-dark)',
     border: 'var(--success)',
   },
   DELIVERED: {
-    bg: 'rgba(5, 150, 105, 0.15)',
-    text: '#059669',
+    bg: 'rgba(5, 150, 105, 0.12)',
+    text: '#047857', // Emerald-700
     border: '#059669',
   },
   CANCELLED: {
-    bg: 'rgba(107, 114, 128, 0.15)',
-    text: 'var(--text-secondary)',
+    bg: 'rgba(107, 114, 128, 0.12)',
+    text: '#374151', // Gray-700
     border: 'var(--text-secondary)',
   },
   DELAYED: {
-    bg: 'rgba(239, 68, 68, 0.15)',
-    text: 'var(--error)',
+    bg: 'rgba(239, 68, 68, 0.12)',
+    text: 'var(--error-dark)', // Darker red
     border: 'var(--error)',
   },
 
   // Container Statuses
   CREATED: {
-    bg: 'rgba(107, 114, 128, 0.15)',
-    text: 'var(--text-secondary)',
+    bg: 'rgba(107, 114, 128, 0.12)',
+    text: '#374151',
     border: 'var(--text-secondary)',
   },
   WAITING_FOR_LOADING: {
-    bg: 'rgba(245, 158, 11, 0.15)',
-    text: 'var(--warning)',
+    bg: 'rgba(245, 158, 11, 0.12)',
+    text: 'var(--warning-dark)',
     border: 'var(--warning)',
   },
   LOADED: {
-    bg: 'rgba(59, 130, 246, 0.15)',
-    text: 'var(--info)',
+    bg: 'rgba(59, 130, 246, 0.12)',
+    text: 'var(--info-dark)',
     border: 'var(--info)',
   },
   ARRIVED_PORT: {
-    bg: 'rgba(16, 185, 129, 0.15)',
-    text: 'var(--success)',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    text: 'var(--success-dark)',
     border: 'var(--success)',
   },
   CUSTOMS_CLEARANCE: {
-    bg: 'rgba(249, 115, 22, 0.15)',
-    text: '#F97316',
+    bg: 'rgba(249, 115, 22, 0.12)',
+    text: '#C2410C', // Orange-700
     border: '#F97316',
   },
   CLOSED: {
-    bg: 'rgba(75, 85, 99, 0.15)',
-    text: 'rgb(75, 85, 99)',
-    border: 'rgb(75, 85, 99)',
+    bg: 'rgba(75, 85, 99, 0.12)',
+    text: '#1F2937', // Gray-800
+    border: '#4B5563',
   },
 
   // Payment Statuses
   PAID: {
-    bg: 'rgba(16, 185, 129, 0.15)',
-    text: 'var(--success)',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    text: 'var(--success-dark)',
     border: 'var(--success)',
   },
   PENDING: {
-    bg: 'rgba(245, 158, 11, 0.15)',
-    text: 'var(--warning)',
+    bg: 'rgba(245, 158, 11, 0.12)',
+    text: 'var(--warning-dark)',
     border: 'var(--warning)',
   },
   OVERDUE: {
-    bg: 'rgba(239, 68, 68, 0.15)',
-    text: 'var(--error)',
+    bg: 'rgba(239, 68, 68, 0.12)',
+    text: 'var(--error-dark)',
     border: 'var(--error)',
   },
   PARTIAL: {
-    bg: 'rgba(59, 130, 246, 0.15)',
-    text: 'var(--info)',
+    bg: 'rgba(59, 130, 246, 0.12)',
+    text: 'var(--info-dark)',
     border: 'var(--info)',
   },
   REFUNDED: {
-    bg: 'rgba(107, 114, 128, 0.15)',
-    text: 'var(--text-secondary)',
+    bg: 'rgba(107, 114, 128, 0.12)',
+    text: '#374151',
     border: 'var(--text-secondary)',
   },
 
   // Generic Statuses
   SUCCESS: {
-    bg: 'rgba(16, 185, 129, 0.15)',
-    text: 'var(--success)',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    text: 'var(--success-dark)',
     border: 'var(--success)',
   },
   WARNING: {
-    bg: 'rgba(245, 158, 11, 0.15)',
-    text: 'var(--warning)',
+    bg: 'rgba(245, 158, 11, 0.12)',
+    text: 'var(--warning-dark)',
     border: 'var(--warning)',
   },
   ERROR: {
-    bg: 'rgba(239, 68, 68, 0.15)',
-    text: 'var(--error)',
+    bg: 'rgba(239, 68, 68, 0.12)',
+    text: 'var(--error-dark)',
     border: 'var(--error)',
   },
   INFO: {
-    bg: 'rgba(59, 130, 246, 0.15)',
-    text: 'var(--info)',
+    bg: 'rgba(59, 130, 246, 0.12)',
+    text: 'var(--info-dark)',
     border: 'var(--info)',
   },
   DEFAULT: {
@@ -412,3 +413,4 @@ export function PaymentStatusBadge({
 }: Omit<StatusBadgeProps, 'status'> & { status: PaymentStatus }) {
   return <StatusBadge status={status} {...props} />;
 }
+Badge.tsx

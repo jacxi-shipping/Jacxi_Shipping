@@ -20,12 +20,10 @@ import {
     Package, 
     DollarSign, 
     Activity, 
-    AlertCircle,
-    CheckCircle2,
-    Clock
 } from 'lucide-react';
 
 import ShipmentCalculator from '@/components/dashboard/ShipmentCalculator';
+import OnboardingTour from '@/components/onboarding/OnboardingTour';
 
 // Force dynamic rendering (requires database connection)
 export const dynamic = 'force-dynamic';
@@ -168,82 +166,91 @@ export default async function DashboardPage() {
         <DashboardSurface>
             
             {/* Header Section */}
-            <DashboardHeader 
-                title="Overview"
-                description="Welcome back to Jacxi Shipping."
-            />
+            <div id="dashboard-header">
+                <DashboardHeader
+                    title="Overview"
+                    description="Welcome back to Jacxi Shipping."
+                    actions={<OnboardingTour autoStart={true} />}
+                />
+            </div>
 
             {/* KPI Cards */}
-            <DashboardGrid className="grid-cols-1 md:grid-cols-3">
-                <StatsCard 
-                    title="Active Shipments"
-                    value={data.activeShipmentsCount}
-                    icon={<Package className="w-5 h-5" />}
-                    variant="default"
-                    subtitle="vs last month"
-                    trend={{ value: 0, isPositive: true }} 
-                />
-                <StatsCard 
-                    title="Active Containers"
-                    value={data.activeContainersCount}
-                    icon={<Ship className="w-5 h-5" />}
-                    variant="info"
-                />
-                <StatsCard 
-                    title="Pending Revenue"
-                    value={formatMoney(data.pendingRevenue)}
-                    icon={<DollarSign className="w-5 h-5" />}
-                    variant="warning"
-                />
-            </DashboardGrid>
+            <div id="stats-grid">
+                <DashboardGrid className="grid-cols-1 md:grid-cols-3">
+                    <StatsCard
+                        title="Active Shipments"
+                        value={data.activeShipmentsCount}
+                        icon={<Package className="w-5 h-5" />}
+                        variant="default"
+                        subtitle="vs last month"
+                        trend={{ value: 0, isPositive: true }}
+                    />
+                    <StatsCard
+                        title="Active Containers"
+                        value={data.activeContainersCount}
+                        icon={<Ship className="w-5 h-5" />}
+                        variant="info"
+                    />
+                    <StatsCard
+                        title="Pending Revenue"
+                        value={formatMoney(data.pendingRevenue)}
+                        icon={<DollarSign className="w-5 h-5" />}
+                        variant="warning"
+                    />
+                </DashboardGrid>
+            </div>
 
             <DashboardGrid className="grid-cols-1 xl:grid-cols-2">
-                <DashboardPanel
-                    title="Shipment Trends"
-                    description="Last 14 days"
-                >
-                    {data.shipmentTrends.every((item) => item.shipments === 0) ? (
-                        <EmptyState
-                            icon={<Activity className="w-8 h-8" />}
-                            title="No shipment activity yet"
-                            description="Create your first shipment to see trend data here."
-                            action={(
-                                <Button href="/dashboard/shipments/new" variant="primary" size="sm">
-                                    Add Shipment
-                                </Button>
-                            )}
-                        />
-                    ) : (
-                        <ShipmentTrendsChart data={data.shipmentTrends} />
-                    )}
-                </DashboardPanel>
+                <div id="shipment-trends">
+                    <DashboardPanel
+                        title="Shipment Trends"
+                        description="Last 14 days"
+                    >
+                        {data.shipmentTrends.every((item) => item.shipments === 0) ? (
+                            <EmptyState
+                                icon={<Activity className="w-8 h-8" />}
+                                title="No shipment activity yet"
+                                description="Create your first shipment to see trend data here."
+                                action={(
+                                    <Button href="/dashboard/shipments/new" variant="primary" size="sm">
+                                        Add Shipment
+                                    </Button>
+                                )}
+                            />
+                        ) : (
+                            <ShipmentTrendsChart data={data.shipmentTrends} />
+                        )}
+                    </DashboardPanel>
+                </div>
 
-                <DashboardPanel
-                    title="Container Utilization"
-                    description="Most recent containers"
-                >
-                    {data.containerUtilization.length === 0 ? (
-                        <EmptyState
-                            icon={<Ship className="w-8 h-8" />}
-                            title="No containers yet"
-                            description="Create a container to track utilization and capacity."
-                            action={(
-                                <Button href="/dashboard/containers/new" variant="primary" size="sm">
-                                    New Container
-                                </Button>
-                            )}
-                        />
-                    ) : (
-                        <ContainerUtilizationChart data={data.containerUtilization} />
-                    )}
-                </DashboardPanel>
+                <div id="container-utilization">
+                    <DashboardPanel
+                        title="Container Utilization"
+                        description="Most recent containers"
+                    >
+                        {data.containerUtilization.length === 0 ? (
+                            <EmptyState
+                                icon={<Ship className="w-8 h-8" />}
+                                title="No containers yet"
+                                description="Create a container to track utilization and capacity."
+                                action={(
+                                    <Button href="/dashboard/containers/new" variant="primary" size="sm">
+                                        New Container
+                                    </Button>
+                                )}
+                            />
+                        ) : (
+                            <ContainerUtilizationChart data={data.containerUtilization} />
+                        )}
+                    </DashboardPanel>
+                </div>
             </DashboardGrid>
 
             {/* Main Content Grid */}
             <DashboardGrid className="grid-cols-1 lg:grid-cols-3">
                 
                 {/* Left Column: Calculator (2/3 width) */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2" id="shipment-calculator">
                     <ShipmentCalculator />
                 </div>
 
@@ -251,64 +258,66 @@ export default async function DashboardPage() {
                 <div className="space-y-6">
                     
                     {/* Quick Actions */}
-                    <DashboardPanel
-                        title="Quick Actions"
-                        noBodyPadding
-                    >
-                        <div className="divide-y divide-border">
-                            {isAdmin && (
-                                <Link href="/dashboard/shipments/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                    <div id="quick-actions">
+                        <DashboardPanel
+                            title="Quick Actions"
+                            noBodyPadding
+                        >
+                            <div className="divide-y divide-border">
+                                {isAdmin && (
+                                    <Link href="/dashboard/shipments/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                                        <div className="flex gap-3 items-center">
+                                            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                                <Package className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-primary">New Shipment</p>
+                                                <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                )}
+
+                                {isAdmin && (
+                                    <Link href="/dashboard/containers/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                                        <div className="flex gap-3 items-center">
+                                            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                                <Ship className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-primary">New Container</p>
+                                                <p className="text-xs text-muted-foreground">Create shipping container</p>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                )}
+
+                                <Link href="/dashboard/finance" className="block p-4 hover:bg-background/50 transition-colors group">
                                     <div className="flex gap-3 items-center">
-                                        <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                            <Package className="w-5 h-5" />
+                                        <div className="p-2 rounded-lg bg-green-500/10 text-green-500 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                                            <DollarSign className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-primary">New Shipment</p>
-                                            <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
+                                            <p className="text-sm font-medium text-primary">Finance</p>
+                                            <p className="text-xs text-muted-foreground">View ledgers & invoices</p>
                                         </div>
                                     </div>
                                 </Link>
-                            )}
 
-                            {isAdmin && (
-                                <Link href="/dashboard/containers/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                                <Link href="/dashboard/shipments" className="block p-4 hover:bg-background/50 transition-colors group">
                                     <div className="flex gap-3 items-center">
-                                        <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                                            <Ship className="w-5 h-5" />
+                                        <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                                            <Activity className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-primary">New Container</p>
-                                            <p className="text-xs text-muted-foreground">Create shipping container</p>
+                                            <p className="text-sm font-medium text-primary">Track Shipments</p>
+                                            <p className="text-xs text-muted-foreground">View all shipment statuses</p>
                                         </div>
                                     </div>
                                 </Link>
-                            )}
-
-                            <Link href="/dashboard/finance" className="block p-4 hover:bg-background/50 transition-colors group">
-                                <div className="flex gap-3 items-center">
-                                    <div className="p-2 rounded-lg bg-green-500/10 text-green-500 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                                        <DollarSign className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-primary">Finance</p>
-                                        <p className="text-xs text-muted-foreground">View ledgers & invoices</p>
-                                    </div>
-                                </div>
-                            </Link>
-                            
-                            <Link href="/dashboard/shipments" className="block p-4 hover:bg-background/50 transition-colors group">
-                                <div className="flex gap-3 items-center">
-                                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                                        <Activity className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-primary">Track Shipments</p>
-                                        <p className="text-xs text-muted-foreground">View all shipment statuses</p>
-                                    </div>
-                                </div>
-                            </Link>
-                        </div>
-                    </DashboardPanel>
+                            </div>
+                        </DashboardPanel>
+                    </div>
 
                     {/* Shipment Status Distribution */}
                     <DashboardPanel

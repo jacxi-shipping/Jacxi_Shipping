@@ -8,6 +8,7 @@ import { CSSProperties, ReactNode } from 'react';
  * 
  * Multiple variants for different content types.
  * Content-aware skeletons improve perceived performance.
+ * Uses global animations from globals.css for smoother effects.
  */
 
 interface SkeletonProps {
@@ -57,47 +58,21 @@ export function Skeleton({
     }
   };
 
-  const getAnimation = () => {
-    if (animation === 'none') return 'none';
-    if (animation === 'wave') return 'skeleton-wave 1.6s ease-in-out infinite';
-    return 'skeleton-pulse 1.5s ease-in-out infinite';
-  };
-
   return (
     <Box
-      className={className}
+      className={`${className || ''} ${animation === 'wave' ? 'animate-shimmer' : 'animate-pulse'}`}
       sx={{
         width,
         height: height || getDefaultHeight(),
         borderRadius: getBorderRadius(),
         bgcolor: 'rgba(var(--border-rgb), 0.3)',
-        animation: getAnimation(),
         ...style,
-        '@keyframes skeleton-pulse': {
-          '0%, 100%': { opacity: 1 },
-          '50%': { opacity: 0.4 },
-        },
-        '@keyframes skeleton-wave': {
-          '0%': {
-            transform: 'translateX(-100%)',
-          },
-          '50%, 100%': {
-            transform: 'translateX(100%)',
-          },
-        },
         ...(animation === 'wave' && {
           position: 'relative',
           overflow: 'hidden',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(90deg, transparent, rgba(var(--panel-rgb), 0.5), transparent)',
-            animation: 'skeleton-wave 1.6s linear infinite',
-          },
+          // Note: animate-shimmer from globals.css handles the gradient movement
+          background: 'linear-gradient(90deg, transparent, rgba(var(--panel-rgb), 0.5), transparent)',
+          backgroundSize: '200% 100%',
         }),
       }}
     />

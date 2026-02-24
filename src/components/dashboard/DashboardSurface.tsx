@@ -14,6 +14,7 @@ export function DashboardSurface({ children, className, noPadding = false }: Das
 				'relative mx-auto flex w-full max-w-[1380px] flex-col gap-3 px-3 py-4 sm:px-5 lg:px-8',
 				'text-[var(--text-primary)]',
 				'min-w-0 overflow-hidden',
+				'animate-fade-in-up', // Added global animation
 				noPadding && 'px-0 sm:px-0',
 				className,
 			)}
@@ -45,11 +46,12 @@ export function DashboardHeader({ title, description, meta, actions, className }
 			className={cn(
 				'flex flex-col gap-3 rounded-2xl border px-4 py-4 text-[var(--text-primary)]',
 				'sm:flex-row sm:items-center sm:justify-between',
+				'glass-premium', // Added global style
 				className,
 			)}
 			style={{
 				borderColor: 'var(--border)',
-				backgroundColor: 'var(--panel)',
+				// backgroundColor: 'var(--panel)', // Removed in favor of glass-premium which handles bg
 				boxShadow: '0 12px 30px rgba(var(--text-primary-rgb),0.08)',
 			}}
 		>

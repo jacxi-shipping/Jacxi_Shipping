@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackingSync } from '@/lib/services/tracking-sync';
 import { validateCronRequest } from '@/lib/cron-auth';
+import { logger } from '@/lib/logger';
 
 /**
  * Cron job endpoint for syncing tracking data
@@ -26,12 +27,12 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
-		console.log('[CRON] Starting tracking sync...');
+		logger.info('[CRON] Starting tracking sync...');
 
 		// Sync all active containers
 		const result = await trackingSync.syncAllActiveContainers();
 
-		console.log('[CRON] Tracking sync completed:', result);
+		logger.info('[CRON] Tracking sync completed:', result);
 
 		return NextResponse.json({
 			success: true,
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 			timestamp: new Date().toISOString(),
 		});
 	} catch (error) {
-		console.error('[CRON] Error in tracking sync:', error);
+		logger.error('[CRON] Error in tracking sync:', error);
 		return NextResponse.json(
 			{
 				success: false,
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
 			});
 		}
 	} catch (error) {
-		console.error('Error in manual sync:', error);
+		logger.error('Error in manual sync:', error);
 		return NextResponse.json(
 			{ success: false, error: 'Internal server error' },
 			{ status: 500 }
