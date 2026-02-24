@@ -13,13 +13,12 @@ enum ArrivalAlertStatus {
 // This endpoint can be called by a cron job to check container arrival alerts
 export async function POST(request: NextRequest) {
   try {
-    // Optional: Add authentication for cron jobs
+    // Verify cron secret for security
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET || 'your-secret-key';
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json(
-        { message: 'Unauthorized' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }

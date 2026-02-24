@@ -20,8 +20,7 @@ export async function GET(request: NextRequest) {
 		// Verify cron secret for security
 		const authHeader = request.headers.get('authorization');
 		const cronSecret = process.env.CRON_SECRET;
-
-		if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+		if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
 			return NextResponse.json(
 				{ error: 'Unauthorized' },
 				{ status: 401 }
@@ -57,6 +56,16 @@ export async function GET(request: NextRequest) {
 // Alternative: POST method for manual triggers
 export async function POST(request: NextRequest) {
 	try {
+		// Verify cron secret for security
+		const authHeader = request.headers.get('authorization');
+		const cronSecret = process.env.CRON_SECRET;
+		if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+			return NextResponse.json(
+				{ error: 'Unauthorized' },
+				{ status: 401 }
+			);
+		}
+
 		const body = await request.json();
 		const { containerId } = body;
 
