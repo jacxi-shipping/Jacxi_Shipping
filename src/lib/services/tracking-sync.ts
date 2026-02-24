@@ -34,7 +34,6 @@ export class TrackingSyncService {
 			}
 
 			if (!container.trackingNumber) {
-				logger.warn(`No tracking number for container ${containerId}`);
 				return { success: false, newEvents: 0, updatedETA: false };
 			}
 
