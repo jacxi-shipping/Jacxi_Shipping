@@ -256,29 +256,33 @@ export default async function DashboardPage() {
                         noBodyPadding
                     >
                         <div className="divide-y divide-border">
-                            <Link href="/dashboard/shipments/new" className="block p-4 hover:bg-background/50 transition-colors group">
-                                <div className="flex gap-3 items-center">
-                                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                        <Package className="w-5 h-5" />
+                            {isAdmin && (
+                                <Link href="/dashboard/shipments/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                                    <div className="flex gap-3 items-center">
+                                        <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                            <Package className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-primary">New Shipment</p>
+                                            <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-primary">New Shipment</p>
-                                        <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
-                                    </div>
-                                </div>
-                            </Link>
+                                </Link>
+                            )}
 
-                            <Link href="/dashboard/containers/new" className="block p-4 hover:bg-background/50 transition-colors group">
-                                <div className="flex gap-3 items-center">
-                                    <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                                        <Ship className="w-5 h-5" />
+                            {isAdmin && (
+                                <Link href="/dashboard/containers/new" className="block p-4 hover:bg-background/50 transition-colors group">
+                                    <div className="flex gap-3 items-center">
+                                        <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                            <Ship className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-primary">New Container</p>
+                                            <p className="text-xs text-muted-foreground">Create shipping container</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-primary">New Container</p>
-                                        <p className="text-xs text-muted-foreground">Create shipping container</p>
-                                    </div>
-                                </div>
-                            </Link>
+                                </Link>
+                            )}
 
                             <Link href="/dashboard/finance" className="block p-4 hover:bg-background/50 transition-colors group">
                                 <div className="flex gap-3 items-center">
