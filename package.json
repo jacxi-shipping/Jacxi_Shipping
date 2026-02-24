@@ -19,6 +19,7 @@
     "db:reset": "node scripts/reset-db.js",
     "db:setup": "npm run db:generate && npm run db:push && npm run db:seed",
     "db:full-reset": "npm run db:reset && npm run db:seed",
+    "test": "node --experimental-strip-types --test 'src/**/*.test.ts'",
     "postinstall": "prisma generate"
   },
   "dependencies": {
