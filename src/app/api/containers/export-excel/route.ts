@@ -19,6 +19,15 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: Prisma.ContainerWhereInput = {};
 
+    // Non-admin users can only export containers that contain their shipments
+    if (session.user.role !== 'admin') {
+      where.shipments = {
+        some: {
+          userId: session.user.id,
+        },
+      };
+    }
+
     // Filter by status if provided and not 'all'
     if (status && status !== 'all') {
       where.status = status as any;
