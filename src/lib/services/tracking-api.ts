@@ -4,6 +4,8 @@
  * https://tracking.timetocargo.com
  */
 
+import { logger } from '@/lib/logger';
+
 const TIMETOCARGO_ENDPOINT = 'https://tracking.timetocargo.com/webapi/track';
 const DEFAULT_HEADERS = {
 	Accept: 'application/json, text/plain, */*',
@@ -119,21 +121,21 @@ export class TrackingAPIService {
 			});
 
 			if (!response.ok) {
-				console.error('TimeToСargo API error:', response.status);
+				logger.error('TimeToСargo API error:', response.status);
 				return [];
 			}
 
 			const data = (await response.json()) as TimetoCargoResponse;
 
 			if (!data?.success || !Array.isArray(data.data) || data.data.length === 0) {
-				console.log('No tracking data found for:', trackingNumber);
+				logger.warn('No tracking data found for:', trackingNumber);
 				return [];
 			}
 
 			// Transform TimeToСargo response to our format
 			return this.transformAPIResponse(data.data[0]);
 		} catch (error) {
-			console.error('Error fetching tracking data:', error);
+			logger.error('Error fetching tracking data:', error);
 			return [];
 		}
 	}
@@ -175,7 +177,7 @@ export class TrackingAPIService {
 				})
 				.filter((event) => event.status !== 'Status Update'); // Filter out events with no status
 		} catch (error) {
-			console.error('Error transforming TimeToСargo response:', error);
+			logger.error('Error transforming TimeToСargo response:', error);
 			return [];
 		}
 	}
@@ -258,7 +260,7 @@ export class TrackingAPIService {
 
 			return null;
 		} catch (error) {
-			console.error('Error fetching ETA:', error);
+			logger.error('Error fetching ETA:', error);
 			return null;
 		}
 	}
