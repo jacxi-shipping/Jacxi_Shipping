@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ContainerLifecycleStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { validateCronRequest } from '@/lib/cron-auth';
 
 // Arrival alert status
 enum ArrivalAlertStatus {
@@ -14,9 +15,7 @@ enum ArrivalAlertStatus {
 export async function POST(request: NextRequest) {
   try {
     // Verify cron secret for security
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!validateCronRequest(request)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
