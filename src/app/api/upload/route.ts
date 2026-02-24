@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { put } from '@vercel/blob';
 import { randomUUID } from 'crypto';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
 	try {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
 		const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
 		if (!blobToken) {
-			console.error('BLOB_READ_WRITE_TOKEN is not configured');
+			logger.error('BLOB_READ_WRITE_TOKEN is not configured');
 			return NextResponse.json(
 				{ message: 'Blob storage is not configured. Set BLOB_READ_WRITE_TOKEN.' },
 				{ status: 500 },
@@ -87,11 +88,10 @@ export async function POST(request: NextRequest) {
 			{ status: 200 }
 		);
 	} catch (error) {
-		console.error('Error uploading file:', error);
+		logger.error('Error uploading file:', error);
 		return NextResponse.json(
 			{ message: 'Internal server error' },
 			{ status: 500 }
 		);
 	}
 }
-

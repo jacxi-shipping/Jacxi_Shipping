@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { autoInvoice } from '@/lib/services/auto-invoice';
 import { validateCronRequest } from '@/lib/cron-auth';
+import { logger } from '@/lib/logger';
 
 /**
  * Cron job endpoint for auto-generating invoices
@@ -24,12 +25,12 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
-		console.log('[CRON] Starting auto-invoice generation...');
+		logger.info('[CRON] Starting auto-invoice generation...');
 
 		// Generate invoices for all completed containers
 		const result = await autoInvoice.generateInvoicesForCompletedContainers();
 
-		console.log('[CRON] Auto-invoice generation completed:', result);
+		logger.info('[CRON] Auto-invoice generation completed:', result);
 
 		return NextResponse.json({
 			success: true,
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
 			timestamp: new Date().toISOString(),
 		});
 	} catch (error) {
-		console.error('[CRON] Error in auto-invoice generation:', error);
+		logger.error('[CRON] Error in auto-invoice generation:', error);
 		return NextResponse.json(
 			{
 				success: false,
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
 			});
 		}
 	} catch (error) {
-		console.error('Error in manual invoice generation:', error);
+		logger.error('Error in manual invoice generation:', error);
 		return NextResponse.json(
 			{ success: false, error: 'Internal server error' },
 			{ status: 500 }

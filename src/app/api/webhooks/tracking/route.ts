@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /**
  * Webhook endpoint for receiving tracking updates from external API
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
 		});
 
 		if (!container) {
-			console.log(`Container not found for tracking number: ${trackingNumber}`);
+			logger.info(`Container not found for tracking number: ${trackingNumber}`);
 			return NextResponse.json(
 				{ error: 'Container not found' },
 				{ status: 404 }
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
 		});
 
 		if (existingEvent) {
-			console.log('Duplicate event, skipping');
+			logger.info('Duplicate event, skipping');
 			return NextResponse.json({
 				success: true,
 				message: 'Event already exists',
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
 			},
 		});
 
-		console.log(`Tracking event created for container ${container.id}`);
+		logger.info(`Tracking event created for container ${container.id}`);
 
 		return NextResponse.json({
 			success: true,
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
 			eventId: trackingEvent.id,
 		});
 	} catch (error) {
-		console.error('Error processing tracking webhook:', error);
+		logger.error('Error processing tracking webhook:', error);
 		return NextResponse.json(
 			{ success: false, error: 'Internal server error' },
 			{ status: 500 }

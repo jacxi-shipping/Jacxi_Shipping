@@ -1,4 +1,4 @@
-import { Shipment, ContainerExpense } from '@prisma/client';
+import type { Shipment, ContainerExpense } from '@prisma/client';
 
 export type AllocationMethod = 'EQUAL' | 'BY_VALUE' | 'BY_WEIGHT' | 'CUSTOM';
 

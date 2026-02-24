@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ContainerLifecycleStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { validateCronRequest } from '@/lib/cron-auth';
+import { logger } from '@/lib/logger';
 
 // Arrival alert status
 enum ArrivalAlertStatus {
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
         // TODO: Send notification to users with shipments in this container
         // You can implement email/SMS notifications here based on the alert status
       } catch (error) {
-        console.error(`Error checking container ${container.id}:`, error);
+        logger.error(`Error checking container ${container.id}:`, error);
       }
     }
 
@@ -108,11 +109,10 @@ export async function POST(request: NextRequest) {
       results,
     }, { status: 200 });
   } catch (error) {
-    console.error('Error checking delivery alerts:', error);
+    logger.error('Error checking delivery alerts:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
     );
   }
 }
-
