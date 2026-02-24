@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { trackingAPI } from './tracking-api';
 
 export class TrackingSyncService {
@@ -33,7 +34,7 @@ export class TrackingSyncService {
 			}
 
 			if (!container.trackingNumber) {
-				console.log(`No tracking number for container ${containerId}`);
+				logger.warn(`No tracking number for container ${containerId}`);
 				return { success: false, newEvents: 0, updatedETA: false };
 			}
 
@@ -83,7 +84,7 @@ export class TrackingSyncService {
 					});
 					insertedCount++;
 				} catch (error) {
-					console.error('Error inserting tracking event:', error);
+					logger.error('Error inserting tracking event:', error);
 				}
 			}
 
@@ -157,7 +158,7 @@ export class TrackingSyncService {
 				updatedETA,
 			};
 		} catch (error) {
-			console.error('Error syncing container tracking:', error);
+			logger.error('Error syncing container tracking:', error);
 			return { success: false, newEvents: 0, updatedETA: false };
 		}
 	}
@@ -205,7 +206,7 @@ export class TrackingSyncService {
 				totalNewEvents,
 			};
 		} catch (error) {
-			console.error('Error syncing all containers:', error);
+			logger.error('Error syncing all containers:', error);
 			return { processed: 0, successful: 0, totalNewEvents: 0 };
 		}
 	}
