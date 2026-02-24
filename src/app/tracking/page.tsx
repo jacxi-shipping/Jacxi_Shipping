@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/Button';
+import Button from '@/components/design-system/Button';
 import { AlertCircle, CheckCircle2, Clock, MapPin, Search, ArrowLeft, Ship, Package } from 'lucide-react';
 import Link from 'next/link';
 import Footer from '@/components/sections/Footer';
@@ -118,8 +118,7 @@ export default function TrackingPage() {
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-4">
 							<Link href="/">
-								<Button variant="outline" size="sm" className="flex items-center gap-2">
-									<ArrowLeft className="w-4 h-4" />
+								<Button variant="outline" size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
 									Back to Home
 								</Button>
 							</Link>
@@ -195,27 +194,27 @@ export default function TrackingPage() {
 								<Button
 									type="submit"
 									disabled={isLoading}
-									aria-busy={isLoading}
 									aria-label={isLoading ? "Tracking shipment" : "Track shipment"}
-									className="sm:w-auto w-full bg-[rgb(var(--jacxi-blue))] hover:bg-[rgb(var(--jacxi-blue))]/90 text-white px-8 py-4 text-base rounded-xl shadow-lg shadow-[rgb(var(--jacxi-blue))]/25 hover:shadow-xl hover:shadow-[rgb(var(--jacxi-blue))]/35 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group touch-manipulation"
+									sx={{
+										width: { xs: '100%', sm: 'auto' },
+										height: '100%',
+										minHeight: '56px',
+										borderRadius: '0.75rem', // rounded-xl
+										fontSize: '1rem',
+										px: 4,
+										boxShadow: 'var(--shadow-lg)',
+										'&:hover': {
+											boxShadow: 'var(--shadow-xl)',
+										}
+									}}
 								>
-									{isLoading && (
-										<motion.div
-											initial={{ x: "-100%" }}
-											animate={{ x: "200%" }}
-											transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-											className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-											aria-hidden="true"
-										/>
-									)}
 									{isLoading ? (
-										<span className="flex items-center justify-center">
-											<div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" aria-hidden="true" />
+										<span className="flex items-center justify-center gap-2">
 											Tracking...
 										</span>
 									) : (
-										<span className="flex items-center justify-center">
-											<Search className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" aria-hidden="true" />
+										<span className="flex items-center justify-center gap-2">
+											<Search className="w-5 h-5" aria-hidden="true" />
 											Track Now
 										</span>
 									)}
@@ -378,4 +377,3 @@ export default function TrackingPage() {
 		</>
 	);
 }
-

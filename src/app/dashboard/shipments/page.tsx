@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Add, ChevronLeft, ChevronRight, Inventory2 } from '@mui/icons-material';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import ShipmentRow from '@/components/dashboard/ShipmentRow';
 import SmartSearch, { SearchFilters } from '@/components/dashboard/SmartSearch';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
@@ -318,36 +318,39 @@ export default function ShipmentsListPage() {
 				) : (
 					<>
 						{showBulkTable ? (
-							<DataTable
-								data={shipmentTableRows}
-								columns={shipmentColumns}
-								keyField="id"
-								selectable={isAdmin}
-								onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
-								onDelete={isAdmin ? handleBulkDelete : undefined}
-								onExport={isAdmin ? handleBulkExport : undefined}
-								bulkStatusOptions={shipmentStatusOptions}
-								onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
-							/>
-					) : (
-						<Box sx={{ 
-							display: 'flex', 
-							flexDirection: 'column', 
-							gap: { xs: 1, sm: 1.15, md: 1.25 },
-							minWidth: 0,
-							width: '100%',
-							overflow: 'hidden',
-						}}>
-							{shipments.map((shipment, index) => (
-								<ShipmentRow
-									key={shipment.id}
-									{...shipment}
-									showCustomer={isAdmin}
-									delay={index * 0.05}
-								/>
-							))}
-						</Box>
-					)}
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <DataTable
+                  data={shipmentTableRows}
+                  columns={shipmentColumns}
+                  keyField="id"
+                  selectable={isAdmin}
+                  onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
+                  onDelete={isAdmin ? handleBulkDelete : undefined}
+                  onExport={isAdmin ? handleBulkExport : undefined}
+                  bulkStatusOptions={shipmentStatusOptions}
+                  onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
+                />
+              </Box>
+					) : null}
+
+          {/* Mobile/Tablet Card View - Always shown if not bulk table, or if bulk table is active but screen is small */}
+          <Box sx={{
+            display: showBulkTable ? { xs: 'flex', md: 'none' } : 'flex',
+            flexDirection: 'column',
+            gap: { xs: 1, sm: 1.15, md: 1.25 },
+            minWidth: 0,
+            width: '100%',
+            overflow: 'hidden',
+          }}>
+            {shipments.map((shipment, index) => (
+              <ShipmentRow
+                key={shipment.id}
+                {...shipment}
+                showCustomer={isAdmin}
+                delay={index * 0.05}
+              />
+            ))}
+          </Box>
 					
 					{totalPages > 1 && (
 						<Box
@@ -368,7 +371,7 @@ export default function ShipmentsListPage() {
 								iconPosition="start"
 								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
 								disabled={currentPage === 1}
-								sx={{ width: { xs: '100%', sm: 'auto' } }}
+								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }} // Touch target size
 							>
 								Previous
 							</Button>
@@ -382,7 +385,7 @@ export default function ShipmentsListPage() {
 								iconPosition="end"
 								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
 								disabled={currentPage === totalPages}
-								sx={{ width: { xs: '100%', sm: 'auto' } }}
+								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }} // Touch target size
 							>
 								Next
 							</Button>

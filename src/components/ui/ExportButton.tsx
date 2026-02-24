@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Download } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import Button from '@/components/design-system/Button';
 import { exportToCSV, exportToExcel, formatDataForExport } from '@/lib/export';
 import { toast } from '@/lib/toast';
 
@@ -11,8 +11,8 @@ interface ExportButtonProps {
   filename: string;
   headers?: { key: string; label: string }[];
   format?: 'csv' | 'excel';
-  variant?: 'default' | 'outline' | 'ghost';
-  size?: 'default' | 'sm' | 'lg';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
   disabled?: boolean;
 }
@@ -63,9 +63,9 @@ export function ExportButton({
       disabled={disabled || exporting || data.length === 0}
       variant={variant}
       size={size}
-      className={className}
+      sx={{ className }}
+      icon={<Download className="w-4 h-4" />}
     >
-      <Download className="w-4 h-4 mr-2" />
       {exporting ? 'Exporting...' : `Export ${format.toUpperCase()}`}
     </Button>
   );
