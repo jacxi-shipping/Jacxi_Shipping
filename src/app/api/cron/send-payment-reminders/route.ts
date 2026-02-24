@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     const results = [];
     let remindersSent = 0;
-    let updatedToOverdue = 0;
+    const invoiceIdsToUpdateToOverdue: string[] = [];
 
     for (const invoice of overdueInvoices) {
       if (!invoice.dueDate) continue;
@@ -56,13 +56,9 @@ export async function GET(request: Request) {
         if (emailResult.success) {
           remindersSent++;
           
-          // Update invoice status to OVERDUE if not already
+          // Mark for status update to OVERDUE if not already
           if (invoice.status !== 'OVERDUE') {
-            await prisma.userInvoice.update({
-              where: { id: invoice.id },
-              data: { status: 'OVERDUE' },
-            });
-            updatedToOverdue++;
+            invoiceIdsToUpdateToOverdue.push(invoice.id);
           }
 
           results.push({
@@ -82,13 +78,21 @@ export async function GET(request: Request) {
           });
         }
       } else if (daysOverdue > 0 && invoice.status !== 'OVERDUE') {
-        // Update to OVERDUE even if we don't send a reminder
-        await prisma.userInvoice.update({
-          where: { id: invoice.id },
-          data: { status: 'OVERDUE' },
-        });
-        updatedToOverdue++;
+        // Mark for status update to OVERDUE even if we don't send a reminder
+        invoiceIdsToUpdateToOverdue.push(invoice.id);
       }
+    }
+
+    // Batch update invoice statuses to OVERDUE
+    if (invoiceIdsToUpdateToOverdue.length > 0) {
+      await prisma.userInvoice.updateMany({
+        where: {
+          id: { in: invoiceIdsToUpdateToOverdue },
+        },
+        data: {
+          status: 'OVERDUE',
+        },
+      });
     }
 
     return NextResponse.json({
@@ -97,7 +101,7 @@ export async function GET(request: Request) {
       summary: {
         overdueInvoicesChecked: overdueInvoices.length,
         remindersSent: remindersSent,
-        statusUpdatedToOverdue: updatedToOverdue,
+        statusUpdatedToOverdue: invoiceIdsToUpdateToOverdue.length,
       },
       details: results,
     });
