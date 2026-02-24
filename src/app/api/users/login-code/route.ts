@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { generateLoginCode, isValidLoginCode } from '@/lib/loginCode';
+import { isValidLoginCode } from '@/lib/loginCode';
+import { generateLoginCode } from '@/lib/loginCodeGenerator';
 
 /**
  * GET /api/users/login-code?userId=xxx
