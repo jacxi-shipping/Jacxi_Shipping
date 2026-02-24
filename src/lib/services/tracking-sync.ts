@@ -33,7 +33,6 @@ export class TrackingSyncService {
 			}
 
 			if (!container.trackingNumber) {
-				console.log(`No tracking number for container ${containerId}`);
 				return { success: false, newEvents: 0, updatedETA: false };
 			}
 
