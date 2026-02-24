@@ -1,11 +1,7 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import NextAuth from "next-auth";
+import { authConfig } from "./lib/auth.config";
 
-export function middleware(request: NextRequest) {
-  // For now, we'll handle authentication in the components
-  // This can be enhanced later with proper token validation
-  return NextResponse.next();
-}
+export default NextAuth(authConfig).auth;
 
 export const config = {
   matcher: [
@@ -13,4 +9,3 @@ export const config = {
     "/api/protected/:path*",
   ],
 };
-
