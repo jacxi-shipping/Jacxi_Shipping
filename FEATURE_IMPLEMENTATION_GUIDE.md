@@ -135,33 +135,7 @@ import { CommentSection } from '@/components/ui/CommentSection';
 
 ---
 
-### 7. Export to PDF
-
-```typescript
-import { generateInvoicePDF } from '@/lib/pdfGenerator';
-
-const handleExportPDF = () => {
-  generateInvoicePDF({
-    invoiceNumber: 'INV-001',
-    date: '2025-12-07',
-    customer: {
-      name: 'John Doe',
-      email: 'john@example.com',
-      address: '123 Main St'
-    },
-    items: [
-      { description: 'Shipping', quantity: 1, unitPrice: 100, total: 100 }
-    ],
-    subtotal: 100,
-    tax: 10,
-    total: 110
-  });
-};
-```
-
----
-
-### 8. Mobile Card View (Responsive)
+### 7. Mobile Card View (Responsive)
 
 ```typescript
 import { ResponsiveDataView } from '@/components/ui/MobileCardView';
@@ -184,7 +158,7 @@ import { DataTable } from '@/components/ui/DataTable';
 
 ---
 
-### 9. Onboarding Tours
+### 8. Onboarding Tours
 
 ```typescript
 import { useOnboardingTour } from '@/components/ui/OnboardingTour';
@@ -224,7 +198,7 @@ const MyPage = () => {
 
 ---
 
-### 10. Keyboard Shortcuts
+### 9. Keyboard Shortcuts
 
 **In your page component:**
 ```typescript
@@ -261,7 +235,7 @@ const MyPage = () => {
 
 ---
 
-### 11. Skeleton Loaders
+### 10. Skeleton Loaders
 
 ```typescript
 import { SkeletonCard, SkeletonTable } from '@/components/ui/Skeleton';
@@ -278,7 +252,7 @@ import { SkeletonCard, SkeletonTable } from '@/components/ui/Skeleton';
 
 ---
 
-### 12. Optimized Images
+### 11. Optimized Images
 
 ```typescript
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
@@ -295,7 +269,7 @@ import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 ---
 
-### 13. Charts
+### 12. Charts
 
 ```typescript
 import { ShipmentTrendsChart } from '@/components/charts/ShipmentTrendsChart';
@@ -386,9 +360,8 @@ Check that CSS variables are defined in `:root` and `[data-theme='dark']`
 
 1. **Command Palette**: Add your own commands to `/src/components/ui/CommandPalette.tsx`
 2. **Custom Themes**: Create theme variants in `globals.css`
-3. **Export Templates**: Customize PDF layouts in `/src/lib/pdfGenerator.ts`
-4. **Tour Steps**: Add page-specific tours for complex features
-5. **Notifications**: Create a notification queue system with priority levels
+3. **Tour Steps**: Add page-specific tours for complex features
+4. **Notifications**: Create a notification queue system with priority levels
 
 ---
 
