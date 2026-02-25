@@ -198,7 +198,7 @@ export default function ShipmentsListPage() {
 					{ key: 'paymentStatus', label: 'Payment' },
 					{ key: 'container', label: 'Container' },
 					{ key: 'createdAt', label: 'Created' },
-					...(isAdmin ? [{ key: 'customer', label: 'Customer' }] : []),
+					...(isAdmin ? [{ key: 'customer' as const, label: 'Customer' }] : []),
 				],
 				'shipments'
 			);
