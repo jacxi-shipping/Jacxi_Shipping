@@ -633,7 +633,7 @@ export default function UserLedgerManagementPage() {
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6">Add Transaction</Typography>
-            <IconButton onClick={() => setShowAddModal(false)} size="sm">
+            <IconButton onClick={() => setShowAddModal(false)} size="small">
               <Close />
             </IconButton>
           </Box>
@@ -701,7 +701,7 @@ export default function UserLedgerManagementPage() {
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6">Edit Transaction</Typography>
-            <IconButton onClick={() => setShowEditModal(false)} size="sm">
+            <IconButton onClick={() => setShowEditModal(false)} size="small">
               <Close />
             </IconButton>
           </Box>
