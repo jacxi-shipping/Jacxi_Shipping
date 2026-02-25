@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const {
   handlers: { GET, POST },
@@ -26,8 +27,39 @@ export const {
         password: { label: "Password", type: "password" },
         loginCode: { label: "Login Code", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         try {
+          // Rate Limiting Logic
+          let ip = "unknown";
+
+          // Try to extract IP from request
+          if (req) {
+            // Check for standard Web Request object
+            if (typeof req.headers?.get === "function") {
+              const forwarded = req.headers.get("x-forwarded-for");
+              ip = forwarded ? forwarded.split(",")[0].trim() : "unknown";
+            }
+            // Check for Node-like request object
+            else if (req.headers && typeof req.headers === "object") {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const forwarded = (req.headers as any)["x-forwarded-for"];
+              if (typeof forwarded === "string") {
+                ip = forwarded.split(",")[0].trim();
+              } else if (Array.isArray(forwarded) && forwarded.length > 0) {
+                ip = forwarded[0].trim();
+              }
+            }
+          }
+
+          // If we identified an IP, check rate limit
+          if (ip !== "unknown") {
+            const { success } = await checkRateLimit(ip);
+            if (!success) {
+              console.warn(`Login rate limit exceeded for IP: ${ip}`);
+              return null;
+            }
+          }
+
           // Check if login code is provided (simple login)
           if (credentials?.loginCode) {
             const code = (credentials.loginCode as string).trim().toUpperCase();
