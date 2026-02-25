@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { Box, Paper, Typography } from '@mui/material';
 import { MapPin, Navigation, Ship, Anchor } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { getCoordinates } from '@/lib/geocoding';
 
 // Dynamic import for Leaflet components
 const MapContainer = dynamic(
@@ -90,302 +91,83 @@ function getCurvedPath(start: [number, number], end: [number, number], numPoints
   return points;
 }
 
-// Known port coordinates
-
-const PORT_COORDINATES: Record<string, [number, number]> = {
-
-  // North America - East
-
-  'New York': [40.6848, -74.0088],
-
-  'Newark': [40.6895, -74.1745],
-
-  'Savannah': [32.0809, -81.0912],
-
-  'Charleston': [32.7765, -79.9311],
-
-  'Norfolk': [36.8508, -76.2859],
-
-  'Baltimore': [39.2904, -76.6122],
-
-  'Miami': [25.7617, -80.1918],
-
-  'Jacksonville': [30.3322, -81.6557],
-
-  
-
-  // North America - West
-
-  'Los Angeles': [33.7288, -118.2620],
-
-  'Long Beach': [33.7701, -118.1937],
-
-  'Oakland': [37.8044, -122.2712],
-
-  'Seattle': [47.6062, -122.3321],
-
-  'Tacoma': [47.2529, -122.4443],
-
-  'Vancouver': [49.2827, -123.1207],
-
-  'Prince Rupert': [54.3150, -130.3208],
-
-
-
-  // North America - Gulf
-
-  'Houston': [29.7604, -95.3698],
-
-  'New Orleans': [29.9511, -90.0715],
-
-  'Mobile': [30.6954, -88.0399],
-
-
-
-  // Asia
-
-  'Singapore': [1.2644, 103.8298],
-
-  'Shanghai': [31.2304, 121.4737],
-
-  'Ningbo': [29.8683, 121.5440],
-
-  'Shenzhen': [22.5431, 114.0579],
-
-  'Busan': [35.1796, 129.0756],
-
-  'Qingdao': [36.0671, 120.3826],
-
-  'Hong Kong': [22.3193, 114.1694],
-
-  'Tokyo': [35.6762, 139.6503],
-
-  'Yokohama': [35.4437, 139.6380],
-
-  'Kaohsiung': [22.6273, 120.3014],
-
-  'Port Kelang': [22.5167, 101.3833], // Approx
-
-  
-
-  // Middle East & South Asia
-
-  'Jebel Ali': [24.9958, 55.0667],
-
-  'Dubai': [25.2048, 55.2708],
-
-  'Abu Dhabi': [25.276987, 55.296249],
-
-  'Salalah': [16.9455, 54.0063],
-
-  'Jeddah': [21.4858, 39.1925],
-
-  'Port Qasim': [24.7827, 67.3436],
-
-  'Karachi': [24.8415, 66.9748],
-
-  'Mumbai': [24.9600, 67.0600], // Approx
-
-  'Nhava Sheva': [18.9500, 72.9500],
-
-
-
-  // Europe
-
-  'Rotterdam': [51.9566, 4.1257],
-
-  'Antwerp': [51.9502, 4.2570],
-
-  'Hamburg': [53.5356, 9.9678],
-
-  'Bremerhaven': [53.5488, 8.5833],
-
-  'Felixstowe': [51.9614, 1.3513],
-
-  'Southampton': [50.9097, 1.4044],
-
-  'Le Havre': [49.4944, 0.1079],
-
-  'Valencia': [39.4699, -0.3763],
-
-  'Barcelona': [39.4699, -0.3763], // Fix coords
-
-  'Algeciras': [36.1408, -5.4562],
-
-  
-
-  // Africa
-
-  'Mombasa': [-4.0435, 39.6682],
-
-  'Dar es Salaam': [-6.8235, 39.2695],
-
-  'Durban': [-29.8587, 31.0218],
-
-  'Cape Town': [-33.9249, 18.4241],
-
-  'Tanger Med': [35.8866, -5.5133],
-
-};
-
-
-
 interface TrackingMapProps {
-
   origin?: string | null;
-
   destination?: string | null;
-
   currentLocation?: string | null;
-
   currentCoordinates?: { lat: number; lng: number } | null;
-
   className?: string;
-
 }
 
-
-
 export function TrackingMap({ origin, destination, currentLocation, currentCoordinates, className }: TrackingMapProps) {
-
   const [coords, setCoords] = useState<{
-
     origin: [number, number] | null;
-
     destination: [number, number] | null;
-
     current: [number, number] | null;
-
   }>({ origin: null, destination: null, current: null });
 
   const [loading, setLoading] = useState(true);
 
-
-
-  // Helper to get coordinates
-
-  const getCoordinates = async (location: string): Promise<[number, number] | null> => {
-
-    if (!location) return null;
-
-    const cleanLoc = location.trim();
-
-    
-
-    // 1. Check known list
-
-    const knownKey = Object.keys(PORT_COORDINATES).find(key => 
-
-      cleanLoc.toLowerCase().includes(key.toLowerCase())
-
-    );
-
-    if (knownKey) return PORT_COORDINATES[knownKey];
-
-
-
-    // 2. Fallback to OSM
-
-    try {
-
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanLoc)}&limit=1`);
-
-      if (!res.ok) throw new Error(`OSM API Error: ${res.status}`);
-
-      
-
-      const data = await res.json();
-
-      if (data && data.length > 0) {
-
-        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-
-      }
-
-    } catch (e) {
-
-      console.warn(`Failed to geocode ${location}:`, e);
-
-    }
-
-    return null;
-
-  };
-
-
-
   useEffect(() => {
-
     let isMounted = true;
 
-
-
     const loadCoords = async () => {
-
       setLoading(true);
-
       // Initialize fresh to avoid stale state issues
-
       const newCoords: typeof coords = { origin: null, destination: null, current: null };
 
-
-
-      if (origin) newCoords.origin = await getCoordinates(origin);
-
-      if (destination) newCoords.destination = await getCoordinates(destination);
-
+      // Determine unique locations to fetch to avoid duplicate requests
+      const locationsToFetch = new Set<string>();
+      if (origin) locationsToFetch.add(origin);
+      if (destination) locationsToFetch.add(destination);
       
+      const useExplicitCurrent = currentCoordinates && !isNaN(currentCoordinates.lat) && !isNaN(currentCoordinates.lng);
+
+      // Only fetch currentLocation if we aren't using explicit coordinates
+      if (!useExplicitCurrent && currentLocation) {
+        locationsToFetch.add(currentLocation);
+      }
+
+      // Execute fetches in parallel
+      const results = new Map<string, [number, number] | null>();
+      const promises = Array.from(locationsToFetch).map(async (loc) => {
+        const res = await getCoordinates(loc);
+        if (isMounted) {
+            results.set(loc, res);
+        }
+      });
+
+      await Promise.all(promises);
+
+      if (!isMounted) return;
+
+      // Assign results
+      if (origin) newCoords.origin = results.get(origin) || null;
+      if (destination) newCoords.destination = results.get(destination) || null;
 
       // Prioritize explicit currentCoordinates
-
-      if (currentCoordinates && !isNaN(currentCoordinates.lat) && !isNaN(currentCoordinates.lng)) {
-
-        newCoords.current = [currentCoordinates.lat, currentCoordinates.lng];
-
+      if (useExplicitCurrent) {
+        newCoords.current = [currentCoordinates!.lat, currentCoordinates!.lng];
       } else if (currentLocation) {
-
-         if (currentLocation === origin && newCoords.origin) newCoords.current = newCoords.origin;
-
-         else if (currentLocation === destination && newCoords.destination) newCoords.current = newCoords.destination;
-
-         else newCoords.current = await getCoordinates(currentLocation);
-
+        newCoords.current = results.get(currentLocation) || null;
       }
 
-
-
-      if (isMounted) {
-
-        setCoords(newCoords);
-
-        setLoading(false);
-
-      }
-
+      setCoords(newCoords);
+      setLoading(false);
     };
 
-
-
     if (origin || destination || currentCoordinates) {
-
       loadCoords();
-
     } else {
-
       setLoading(false);
-
     }
-
     
-
     return () => { isMounted = false; };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
-
   }, [origin, destination, currentLocation, currentCoordinates]);
 
   // Create custom icons
-  const createIcon = (icon: React.ReactNode, color: string, size: number = 24) => {
+  const createIcon = (icon: ReactNode, color: string, size: number = 24) => {
     if (typeof window === 'undefined') return undefined;
     const L = require('leaflet');
     
@@ -420,53 +202,29 @@ export function TrackingMap({ origin, destination, currentLocation, currentCoord
   const shipIcon = useMemo(() => createIcon(<Ship size={20} />, '#c99b2f', 28), [createIcon]);
 
   if (loading) {
-
     return (
-
       <Paper variant="outlined" sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc' }}>
-
         <Typography color="textSecondary">Loading Map...</Typography>
-
       </Paper>
-
     );
-
   }
 
-
-
   if (!coords.origin && !coords.destination && !coords.current) {
-
     return (
-
       <Paper variant="outlined" sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc' }}>
-
         <Box sx={{ textAlign: 'center', p: 2 }}>
-
             <Navigation className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-
             <Typography color="textSecondary" sx={{ fontWeight: 500 }}>Location data not available</Typography>
-
             <Box sx={{ mt: 2, p: 1, bgcolor: '#f1f5f9', borderRadius: 1, fontSize: '0.75rem', color: 'text.secondary', fontFamily: 'monospace', textAlign: 'left' }}>
-
                <div style={{ marginBottom: 4 }}><strong>Debug Info:</strong></div>
-
                <div>Origin: {origin || 'N/A'} {coords.origin ? '✅' : '❌'}</div>
-
                <div>Dest: {destination || 'N/A'} {coords.destination ? '✅' : '❌'}</div>
-
                <div>Curr Loc: {currentLocation || 'N/A'}</div>
-
                <div>Curr Coords: {currentCoordinates ? `${currentCoordinates.lat.toFixed(2)}, ${currentCoordinates.lng.toFixed(2)}` : 'N/A'} {coords.current ? '✅' : '❌'}</div>
-
             </Box>
-
         </Box>
-
       </Paper>
-
     );
-
   }
 
   const center: [number, number] = coords.current || coords.origin || coords.destination || [20, 0];
