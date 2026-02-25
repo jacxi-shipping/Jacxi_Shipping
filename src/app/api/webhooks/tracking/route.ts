@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { verifySignature } from '@/lib/webhook-auth';
 
 /**
  * Webhook endpoint for receiving tracking updates from external API
@@ -24,17 +25,33 @@ import { logger } from '@/lib/logger';
  */
 export async function POST(request: NextRequest) {
 	try {
+		// Get raw body for signature verification
+		const bodyText = await request.text();
+
 		// Verify webhook signature (if your API provides one)
 		const signature = request.headers.get('x-webhook-signature');
 		const webhookSecret = process.env.TRACKING_WEBHOOK_SECRET;
 
 		if (webhookSecret && signature) {
-			// Verify signature here
-			// const isValid = verifySignature(signature, body, webhookSecret);
-			// if (!isValid) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+			const isValid = verifySignature(signature, bodyText, webhookSecret);
+			if (!isValid) {
+				logger.warn('Invalid webhook signature attempt');
+				return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+			}
+		} else if (webhookSecret && !signature) {
+			// If secret is configured but signature is missing, reject
+			logger.warn('Missing webhook signature');
+			return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
 		}
 
-		const body = await request.json();
+		let body;
+		try {
+			body = JSON.parse(bodyText);
+		} catch (e) {
+			logger.error('Error parsing webhook body:', e);
+			return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+		}
+
 		const { trackingNumber, event } = body;
 
 		if (!trackingNumber || !event) {
