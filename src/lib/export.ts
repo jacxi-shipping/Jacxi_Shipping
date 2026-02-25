@@ -1,5 +1,5 @@
 // CSV Export Utility
-export function exportToCSV(data: any[], filename: string) {
+export function exportToCSV<T extends Record<string, any>>(data: T[], filename: string) {
   if (!data || data.length === 0) {
     throw new Error('No data to export');
   }
@@ -44,9 +44,9 @@ export function exportToCSV(data: any[], filename: string) {
 }
 
 // Export with custom headers
-export function exportToCSVWithHeaders(
-  data: any[],
-  headers: { key: string; label: string }[],
+export function exportToCSVWithHeaders<T extends Record<string, any>>(
+  data: T[],
+  headers: { key: keyof T & string; label: string }[],
   filename: string
 ) {
   if (!data || data.length === 0) {
@@ -86,7 +86,7 @@ export function exportToCSVWithHeaders(
 }
 
 // Export to Excel (using CSV with UTF-8 BOM for Excel compatibility)
-export function exportToExcel(data: any[], filename: string) {
+export function exportToExcel<T extends Record<string, any>>(data: T[], filename: string) {
   if (!data || data.length === 0) {
     throw new Error('No data to export');
   }
@@ -126,9 +126,9 @@ export function exportToExcel(data: any[], filename: string) {
 }
 
 // Format data for export (clean up dates, booleans, etc.)
-export function formatDataForExport(data: any[]) {
+export function formatDataForExport<T extends Record<string, any>>(data: T[]): Record<string, any>[] {
   return data.map(row => {
-    const formatted: any = {};
+    const formatted: Record<string, any> = {};
     for (const [key, value] of Object.entries(row)) {
       if (value instanceof Date) {
         formatted[key] = value.toISOString().split('T')[0];
