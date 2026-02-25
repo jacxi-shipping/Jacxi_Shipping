@@ -50,7 +50,10 @@ export async function checkRateLimit(
       return { success: true, remaining: MAX_ATTEMPTS - updated.count };
     });
   } catch (error) {
+    // If the database is unreachable or any other error occurs, fail open so
+    // that a DB outage does not falsely trigger "rate limit exceeded" and block
+    // all login attempts (authentication itself also requires the DB).
     console.error("Rate limit error:", error);
-    return { success: false, remaining: 0 };
+    return { success: true, remaining: MAX_ATTEMPTS };
   }
 }
