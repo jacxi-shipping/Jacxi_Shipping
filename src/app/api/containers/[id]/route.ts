@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { NotificationType } from '@prisma/client';
 import { createNotifications } from '@/lib/notifications';
 import { z } from 'zod';
@@ -112,7 +113,7 @@ export async function GET(
         const syncResult = await trackingSync.syncContainerTracking(params.id);
         
         if (syncResult.newEvents > 0) {
-          console.log(`Synced ${syncResult.newEvents} new tracking events for container ${params.id}`);
+          logger.info(`Synced ${syncResult.newEvents} new tracking events for container ${params.id}`);
           
           // Re-fetch container with updated tracking events
           const updatedContainer = await prisma.container.findUnique({
@@ -154,7 +155,7 @@ export async function GET(
           }
         }
       } catch (syncError) {
-        console.error('Error auto-syncing tracking:', syncError);
+        logger.error('Error auto-syncing tracking:', syncError);
         // Continue even if sync fails
       }
     }
@@ -183,7 +184,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Error fetching container:', error);
+    logger.error('Error fetching container:', error);
     return NextResponse.json(
       { error: 'Failed to fetch container' },
       { status: 500 }
@@ -263,12 +264,12 @@ export async function PATCH(
         const invoiceResult = await autoInvoice.generateInvoiceForContainer(params.id);
         
         if (invoiceResult.success) {
-          console.log(`✅ Auto-generated invoice for container ${params.id}:`, invoiceResult.message);
+          logger.info(`Auto-generated invoice for container ${params.id}: ${invoiceResult.message}`);
         } else {
-          console.log(`ℹ️ Invoice not generated for container ${params.id}:`, invoiceResult.message);
+          logger.info(`Invoice not generated for container ${params.id}: ${invoiceResult.message}`);
         }
       } catch (error) {
-        console.error('Error auto-generating invoice:', error);
+        logger.error('Error auto-generating invoice:', error);
         // Don't fail the status update if invoice generation fails
       }
     }
@@ -305,7 +306,7 @@ export async function PATCH(
           }))
         );
       } catch (notificationError) {
-        console.error('Failed to create container status notifications:', notificationError);
+        logger.error('Failed to create container status notifications:', notificationError);
       }
 
       // Cascade status to shipments
@@ -360,7 +361,7 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    console.error('Error updating container:', error);
+    logger.error('Error updating container:', error);
     return NextResponse.json(
       { error: 'Failed to update container' },
       { status: 500 }
@@ -414,7 +415,7 @@ export async function DELETE(
       message: 'Container deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting container:', error);
+    logger.error('Error deleting container:', error);
     return NextResponse.json(
       { error: 'Failed to delete container' },
       { status: 500 }
