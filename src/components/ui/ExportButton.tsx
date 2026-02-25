@@ -63,7 +63,7 @@ export function ExportButton({
       disabled={disabled || exporting || data.length === 0}
       variant={variant}
       size={size}
-      sx={{ className }}
+      className={className}
       icon={<Download className="w-4 h-4" />}
     >
       {exporting ? 'Exporting...' : `Export ${format.toUpperCase()}`}
