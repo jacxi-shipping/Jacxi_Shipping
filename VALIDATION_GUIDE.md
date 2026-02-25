@@ -73,18 +73,6 @@ Accepts formats like:
 - `123-456-7890`
 - `123 456 7890`
 
-### 4. Shipment Events Validation
-**Location**: `src/lib/validations/events.ts`
-
-```typescript
-status: string (required)
-location: string (2-200 characters)
-description: string (optional, max 500 chars)
-completed: boolean (optional, default false)
-latitude: string (optional, -90 to 90)
-longitude: string (optional, -180 to 180)
-```
-
 ## Implementation
 
 ### Using React Hook Form
