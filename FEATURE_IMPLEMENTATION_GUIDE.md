@@ -184,47 +184,7 @@ import { DataTable } from '@/components/ui/DataTable';
 
 ---
 
-### 9. Onboarding Tours
-
-```typescript
-import { useOnboardingTour } from '@/components/ui/OnboardingTour';
-
-const MyPage = () => {
-  const { startTour, isCompleted } = useOnboardingTour('my-page');
-
-  useEffect(() => {
-    if (!isCompleted) {
-      startTour([
-        {
-          element: '#step-1',
-          popover: {
-            title: 'Welcome!',
-            description: 'This is the first step'
-          }
-        },
-        {
-          element: '#step-2',
-          popover: {
-            title: 'Next Feature',
-            description: 'Click here to do this'
-          }
-        }
-      ]);
-    }
-  }, [isCompleted]);
-
-  return (
-    <div>
-      <button id="step-1">Click me</button>
-      <div id="step-2">Feature here</div>
-    </div>
-  );
-};
-```
-
----
-
-### 10. Keyboard Shortcuts
+### 9. Keyboard Shortcuts
 
 **In your page component:**
 ```typescript
@@ -261,7 +221,7 @@ const MyPage = () => {
 
 ---
 
-### 11. Skeleton Loaders
+### 10. Skeleton Loaders
 
 ```typescript
 import { SkeletonCard, SkeletonTable } from '@/components/ui/Skeleton';
@@ -278,7 +238,7 @@ import { SkeletonCard, SkeletonTable } from '@/components/ui/Skeleton';
 
 ---
 
-### 12. Optimized Images
+### 11. Optimized Images
 
 ```typescript
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
@@ -295,7 +255,7 @@ import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 ---
 
-### 13. Charts
+### 12. Charts
 
 ```typescript
 import { ShipmentTrendsChart } from '@/components/charts/ShipmentTrendsChart';
@@ -387,8 +347,7 @@ Check that CSS variables are defined in `:root` and `[data-theme='dark']`
 1. **Command Palette**: Add your own commands to `/src/components/ui/CommandPalette.tsx`
 2. **Custom Themes**: Create theme variants in `globals.css`
 3. **Export Templates**: Customize PDF layouts in `/src/lib/pdfGenerator.ts`
-4. **Tour Steps**: Add page-specific tours for complex features
-5. **Notifications**: Create a notification queue system with priority levels
+4. **Notifications**: Create a notification queue system with priority levels
 
 ---
 

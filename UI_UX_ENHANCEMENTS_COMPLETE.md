@@ -392,33 +392,6 @@ generateContainerReportPDF(containers, filename)
 
 ---
 
-### 21. Onboarding Tours ✅
-**Files Created:**
-- `/src/components/ui/OnboardingTour.tsx`
-
-**Features:**
-- Step-by-step guided tours
-- Spotlight effect on elements
-- Progress indicator
-- Skip/Next/Previous navigation
-- LocalStorage persistence (don't show again)
-- Pre-defined tours:
-  - Dashboard tour (7 steps)
-  - Shipments tour (4 steps)
-- `useOnboardingTour` hook
-- Custom styling to match design system
-
-**Library Added:**
-- `driver.js`
-
-**Usage:**
-```typescript
-const { startTour } = useOnboardingTour('dashboard');
-startTour(dashboardTourSteps);
-```
-
----
-
 ## 🎨 Design System Updates
 
 ### CSS Variables
@@ -482,7 +455,6 @@ RGB variants for opacity control
 │   │   ├── KeyboardShortcutsModal.tsx ✅
 │   │   ├── MobileCardView.tsx ✅
 │   │   ├── NotificationCenter.tsx ✅
-│   │   ├── OnboardingTour.tsx ✅
 │   │   ├── OptimizedImage.tsx ✅
 │   │   ├── Skeleton.tsx ✅
 │   │   └── ThemeToggle.tsx ✅
