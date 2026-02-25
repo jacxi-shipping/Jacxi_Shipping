@@ -274,38 +274,7 @@ toast.error('Failed to save', 'Please try again');
 
 ---
 
-### 15. Enhanced PDF Generation ✅
-**Files Created:**
-- `/src/lib/pdfGenerator.ts` - PDF generation class
-
-**Features:**
-- Professional invoice PDFs with:
-  - Company header (gold branding)
-  - Invoice details table
-  - Customer information
-  - Itemized line items
-  - Subtotal, tax, discount calculations
-  - Notes and terms sections
-  - Page numbers and footers
-- Shipment reports
-- Container reports
-- Auto-table formatting
-- Export as file or blob
-
-**Libraries Added:**
-- `jspdf`
-- `jspdf-autotable`
-
-**Functions:**
-```typescript
-generateInvoicePDF(data, filename)
-generateShipmentReportPDF(shipments, filename)
-generateContainerReportPDF(containers, filename)
-```
-
----
-
-### 16. File Upload with Progress ✅
+### 15. File Upload with Progress ✅
 **Files Created:**
 - `/src/components/ui/FileUpload.tsx`
 
@@ -323,7 +292,7 @@ generateContainerReportPDF(containers, filename)
 
 ---
 
-### 17. Enhanced Data Table ✅
+### 16. Enhanced Data Table ✅
 **Files Created:**
 - `/src/components/ui/DataTable.tsx`
 
@@ -340,7 +309,7 @@ generateContainerReportPDF(containers, filename)
 
 ---
 
-### 18. Mobile Card View ✅
+### 17. Mobile Card View ✅
 **Files Created:**
 - `/src/components/ui/MobileCardView.tsx`
 
@@ -355,7 +324,7 @@ generateContainerReportPDF(containers, filename)
 
 ---
 
-### 19. Advanced Filter Builder ✅
+### 18. Advanced Filter Builder ✅
 **Files Created:**
 - `/src/components/ui/FilterBuilder.tsx`
 
@@ -374,7 +343,7 @@ generateContainerReportPDF(containers, filename)
 
 ---
 
-### 20. Comments System ✅
+### 19. Comments System ✅
 **Files Created:**
 - `/src/components/ui/CommentSection.tsx`
 
@@ -472,7 +441,6 @@ RGB variants for opacity control
 │   └── useTheme.ts ✅
 ├── lib/
 │   ├── export.ts ✅
-│   ├── pdfGenerator.ts ✅
 │   └── toast.ts ✅
 └── app/
     ├── globals.css (updated with animations & dark theme) ✅

@@ -135,33 +135,7 @@ import { CommentSection } from '@/components/ui/CommentSection';
 
 ---
 
-### 7. Export to PDF
-
-```typescript
-import { generateInvoicePDF } from '@/lib/pdfGenerator';
-
-const handleExportPDF = () => {
-  generateInvoicePDF({
-    invoiceNumber: 'INV-001',
-    date: '2025-12-07',
-    customer: {
-      name: 'John Doe',
-      email: 'john@example.com',
-      address: '123 Main St'
-    },
-    items: [
-      { description: 'Shipping', quantity: 1, unitPrice: 100, total: 100 }
-    ],
-    subtotal: 100,
-    tax: 10,
-    total: 110
-  });
-};
-```
-
----
-
-### 8. Mobile Card View (Responsive)
+### 7. Mobile Card View (Responsive)
 
 ```typescript
 import { ResponsiveDataView } from '@/components/ui/MobileCardView';
@@ -180,6 +154,46 @@ import { DataTable } from '@/components/ui/DataTable';
   keyField="id"
   onItemClick={(item) => router.push(`/shipments/${item.id}`)}
 />
+```
+
+---
+
+### 8. Onboarding Tours
+
+```typescript
+import { useOnboardingTour } from '@/components/ui/OnboardingTour';
+
+const MyPage = () => {
+  const { startTour, isCompleted } = useOnboardingTour('my-page');
+
+  useEffect(() => {
+    if (!isCompleted) {
+      startTour([
+        {
+          element: '#step-1',
+          popover: {
+            title: 'Welcome!',
+            description: 'This is the first step'
+          }
+        },
+        {
+          element: '#step-2',
+          popover: {
+            title: 'Next Feature',
+            description: 'Click here to do this'
+          }
+        }
+      ]);
+    }
+  }, [isCompleted]);
+
+  return (
+    <div>
+      <button id="step-1">Click me</button>
+      <div id="step-2">Feature here</div>
+    </div>
+  );
+};
 ```
 
 ---

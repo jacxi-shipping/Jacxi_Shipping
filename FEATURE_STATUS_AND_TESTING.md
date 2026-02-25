@@ -44,7 +44,6 @@
 - ✅ Floating action button (FAB)
 - ✅ Onboarding tours (driver.js)
 - ✅ Optimized images
-- ✅ PDF generation
 - ✅ Data tables with sorting/selection
 - ✅ Filter builder
 - ✅ File upload with progress
@@ -302,7 +301,6 @@ src/
 │   └── useTheme.ts ✓
 └── lib/
     ├── export.ts ✓
-    ├── pdfGenerator.ts ✓
     └── toast.ts ✓
 ```
 
