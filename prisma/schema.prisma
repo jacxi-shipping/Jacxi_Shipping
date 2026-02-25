@@ -790,3 +790,19 @@ enum ExpenseAllocationMethod {
   BY_WEIGHT    // Weighted by vehicle weight
   CUSTOM       // Custom allocation percentages
 }
+
+// ============================================
+// RATE LIMIT MODEL (Security)
+// ============================================
+
+model RateLimit {
+  id          String   @id @default(cuid())
+  identifier  String   @unique // IP address or other identifier
+  count       Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([identifier])
+  @@index([expiresAt])
+}
