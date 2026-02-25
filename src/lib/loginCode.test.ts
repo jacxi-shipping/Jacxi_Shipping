@@ -21,6 +21,30 @@ describe('Login Code Generation', () => {
     const code2 = generateLoginCode();
     assert.notStrictEqual(code1, code2);
   });
+
+  // Security test: Ensure randomness is cryptographically secure
+  // We can't easily mock `node:crypto` in this environment as it is a built-in module
+  // and we are running with `node --experimental-strip-types`.
+  // However, we can assert that the function exists and is being used correctly by checking imports if we were parsing the file,
+  // but for a runtime test, we rely on the behavior.
+  // We can check that it doesn't return the same value repeatedly, which we did above.
+
+  // To be absolutely sure, we can check if `Math.random` is NOT used by spying on it.
+  it('should NOT use Math.random()', () => {
+    const originalMathRandom = Math.random;
+    let callCount = 0;
+    Math.random = () => {
+      callCount++;
+      return 0.5; // Return a predictable value if called
+    };
+
+    try {
+      generateLoginCode();
+      assert.strictEqual(callCount, 0, 'Math.random() should not be called during secure code generation');
+    } finally {
+      Math.random = originalMathRandom;
+    }
+  });
 });
 
 describe('Login Code Validation', () => {
@@ -35,12 +59,14 @@ describe('Login Code Validation', () => {
   });
 
   it('should invalidate incorrect characters', () => {
-    // Though generateLoginCode avoids confusing chars, isValidLoginCode allows A-Z0-9 generally
-    // based on the implementation provided earlier.
-    // Let's check the implementation again.
-    // The implementation: const validChars = /^[A-Z0-9]+$/;
     assert.strictEqual(isValidLoginCode('ABC-DEFG'), false);
-    assert.strictEqual(isValidLoginCode('abcdefg'), false); // Assuming case sensitive? No, the regex is ^[A-Z0-9]+$ but test(code.toUpperCase()) is called.
+    assert.strictEqual(isValidLoginCode('abcdefg'), false); // Case sensitive check in test, though function converts to upper case?
+    // Wait, the function does `code.toUpperCase()`, so 'abcdefg' should be valid if it was 8 chars.
+    // Let's re-read isValidLoginCode:
+    // return validChars.test(code.toUpperCase());
+    // So 'abcdefgh' should be true.
+
+    assert.strictEqual(isValidLoginCode('abcdefgh'), true);
     assert.strictEqual(isValidLoginCode('ABCDEFG!'), false);
   });
 });
