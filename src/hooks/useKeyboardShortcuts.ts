@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 
 export type ShortcutAction = () => void;
 
@@ -44,54 +43,6 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[], enabled = tr
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [shortcuts, enabled]);
-}
-
-// Global shortcuts hook with common actions
-export function useGlobalShortcuts() {
-  const router = useRouter();
-
-  const shortcuts: KeyboardShortcut[] = [
-    {
-      key: 'h',
-      meta: true,
-      action: () => router.push('/dashboard'),
-      description: 'Go to Dashboard',
-      category: 'Navigation',
-    },
-    {
-      key: 's',
-      meta: true,
-      action: () => router.push('/dashboard/shipments'),
-      description: 'Go to Shipments',
-      category: 'Navigation',
-    },
-    {
-      key: 'c',
-      meta: true,
-      action: () => router.push('/dashboard/containers'),
-      description: 'Go to Containers',
-      category: 'Navigation',
-    },
-    {
-      key: 'i',
-      meta: true,
-      action: () => router.push('/dashboard/invoices'),
-      description: 'Go to Invoices',
-      category: 'Navigation',
-    },
-    {
-      key: 'n',
-      meta: true,
-      shift: true,
-      action: () => router.push('/dashboard/shipments/new'),
-      description: 'New Shipment',
-      category: 'Actions',
-    },
-  ];
-
-  useKeyboardShortcuts(shortcuts);
-  
-  return shortcuts;
 }
 
 // Format shortcut for display
