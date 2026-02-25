@@ -360,7 +360,7 @@ Check that CSS variables are defined in `:root` and `[data-theme='dark']`
 
 1. **Command Palette**: Add your own commands to `/src/components/ui/CommandPalette.tsx`
 2. **Custom Themes**: Create theme variants in `globals.css`
-3. **Tour Steps**: Add page-specific tours for complex features
+3. **Export Templates**: Customize PDF layouts in `/src/lib/pdfGenerator.ts`
 4. **Notifications**: Create a notification queue system with priority levels
 
 ---

@@ -285,7 +285,6 @@ src/
 │   │   ├── KeyboardShortcutsModal.tsx ✓
 │   │   ├── MobileCardView.tsx ✓
 │   │   ├── NotificationCenter.tsx ✓
-│   │   ├── OnboardingTour.tsx ✓
 │   │   ├── OptimizedImage.tsx ✓
 │   │   ├── Skeleton.tsx ✓
 │   │   └── ThemeToggle.tsx ✓
