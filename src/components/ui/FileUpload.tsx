@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Upload, X, File, CheckCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
+import { runWithConcurrency } from '@/lib/concurrency';
 
 interface UploadFile {
   id: string;
@@ -86,7 +87,7 @@ export function FileUpload({
   };
 
   const uploadFiles = async (uploadFiles: UploadFile[]) => {
-    for (const uploadFile of uploadFiles) {
+    const processFile = async (uploadFile: UploadFile) => {
       try {
         // Update status to uploading
         setFiles((prev) =>
@@ -96,11 +97,11 @@ export function FileUpload({
         );
 
         if (uploadHandler) {
-            // Use provided upload handler
-            await uploadHandler(uploadFile.file);
+          // Use provided upload handler
+          await uploadHandler(uploadFile.file);
         } else {
-            // Simulate progress if no handler provided
-            await simulateUpload(uploadFile.id);
+          // Simulate progress if no handler provided
+          await simulateUpload(uploadFile.id);
         }
 
         // Mark as success
@@ -119,7 +120,10 @@ export function FileUpload({
         );
         toast.error('Upload failed', uploadFile.file.name);
       }
-    }
+    };
+
+    // Process files with concurrency limit of 3
+    await runWithConcurrency(uploadFiles, processFile, 3);
 
     // Call legacy onUpload if provided (passing all files originally requested)
     if (onUpload) {
