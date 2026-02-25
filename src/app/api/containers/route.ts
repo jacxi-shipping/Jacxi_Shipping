@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 // Schema for creating a container
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching containers:', error);
+    logger.error('Error fetching containers:', error);
     return NextResponse.json(
       { error: 'Failed to fetch containers' },
       { status: 500 }
@@ -238,7 +239,7 @@ export async function POST(request: NextRequest) {
         })),
       });
       
-      console.log(`✅ Created ${validatedData.trackingEvents.length} tracking events for container ${container.id}`);
+      logger.info(`Created ${validatedData.trackingEvents.length} tracking events for container ${container.id}`);
     }
 
     // Create audit log
@@ -263,7 +264,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    console.error('Error creating container:', error);
+    logger.error('Error creating container:', error);
     return NextResponse.json(
       { error: 'Failed to create container' },
       { status: 500 }

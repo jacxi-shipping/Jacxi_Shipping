@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { Prisma } from '@prisma/client';
 
 // GET - Export containers as Excel-compatible CSV
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error exporting containers:', error);
+    logger.error('Error exporting containers:', error);
     return NextResponse.json(
       { error: 'Failed to export containers' },
       { status: 500 }

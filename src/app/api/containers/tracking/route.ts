@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 const TIMETOCARGO_ENDPOINT = 'https://tracking.timetocargo.com/webapi/track';
 const DEFAULT_HEADERS = {
@@ -125,7 +126,7 @@ export async function GET(request: NextRequest) {
         trackingData,
       });
     } catch (error) {
-      console.error('Error fetching from tracking API:', error);
+      logger.error('Error fetching from tracking API:', error);
       return NextResponse.json(
         { 
           message: 'Unable to fetch container data from tracking system. Please enter details manually.',
@@ -135,7 +136,7 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Error in tracking route:', error);
+    logger.error('Error in tracking route:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -167,14 +168,14 @@ async function fetchFromTimeToCargoAPI(containerNumber: string) {
     });
 
     if (!response.ok) {
-      console.error('TimeToargo API error:', response.status);
+      logger.error(`TimeToargo API error: ${response.status}`);
       return null;
     }
 
     const data = (await response.json()) as TimetoCargoResponse;
 
     if (!data?.success || !Array.isArray(data.data) || data.data.length === 0) {
-      console.log('No tracking data found for container:', containerNumber);
+      logger.info(`No tracking data found for container: ${containerNumber}`);
       return null;
     }
 
@@ -251,7 +252,7 @@ async function fetchFromTimeToCargoAPI(containerNumber: string) {
       currentLocation: currentLocation,
     };
   } catch (error) {
-    console.error('Error calling TimeToargo API:', error);
+    logger.error('Error calling TimeToargo API:', error);
     return null;
   }
 }
