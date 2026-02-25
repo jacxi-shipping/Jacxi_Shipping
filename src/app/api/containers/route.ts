@@ -79,37 +79,37 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count
-    const totalCount = await prisma.container.count({ where });
-
-    // Fetch containers
-    const containers = await prisma.container.findMany({
-      where,
-      include: {
-        shipments: {
-          select: {
-            id: true,
-            vehicleVIN: true,
-            vehicleMake: true,
-            vehicleModel: true,
-            status: true,
+    // Execute count and fetch in parallel for performance
+    const [totalCount, containers] = await Promise.all([
+      prisma.container.count({ where }),
+      prisma.container.findMany({
+        where,
+        include: {
+          shipments: {
+            select: {
+              id: true,
+              vehicleVIN: true,
+              vehicleMake: true,
+              vehicleModel: true,
+              status: true,
+            },
+          },
+          _count: {
+            select: {
+              shipments: true,
+              expenses: true,
+              invoices: true,
+              documents: true,
+            },
           },
         },
-        _count: {
-          select: {
-            shipments: true,
-            expenses: true,
-            invoices: true,
-            documents: true,
-          },
+        orderBy: {
+          createdAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
 
     // If filtering for active containers, only return those with available space
     let filteredContainers = containers;
