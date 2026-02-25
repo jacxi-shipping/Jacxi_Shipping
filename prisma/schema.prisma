@@ -8,7 +8,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("jacxi_DATABASE_URL")
+  url      = env("jacxi_PRISMA_DATABASE_URL")
   directUrl = env("jacxi_POSTGRES_URL")
 }
 
