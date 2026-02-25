@@ -22,6 +22,7 @@ TAP version 13
 not ok 1 - src/hooks/useInView.test.ts
   ---
   duration_ms: 145.512094
+  duration_ms: 146.109301
   type: 'test'
   location: '/app/src/hooks/useInView.test.ts:1:1'
   failureType: 'testCodeFailure'
@@ -31,6 +32,7 @@ not ok 1 - src/hooks/useInView.test.ts
   code: 'ERR_TEST_FAILURE'
   ...
 # (node:2348) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/auth.config.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2281) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/auth.config.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -39,30 +41,35 @@ not ok 1 - src/hooks/useInView.test.ts
     ok 1 - should allow access to public routes for unauthenticated users
       ---
       duration_ms: 1.030815
+      duration_ms: 1.070898
       type: 'test'
       ...
     # Subtest: should redirect unauthenticated users from /dashboard
     ok 2 - should redirect unauthenticated users from /dashboard
       ---
       duration_ms: 0.235067
+      duration_ms: 0.216674
       type: 'test'
       ...
     # Subtest: should redirect unauthenticated users from /api/protected
     ok 3 - should redirect unauthenticated users from /api/protected
       ---
       duration_ms: 0.270419
+      duration_ms: 0.265217
       type: 'test'
       ...
     # Subtest: should allow authenticated users to access /dashboard
     ok 4 - should allow authenticated users to access /dashboard
       ---
       duration_ms: 0.198867
+      duration_ms: 0.196402
       type: 'test'
       ...
     # Subtest: should allow authenticated users to access /api/protected
     ok 5 - should allow authenticated users to access /api/protected
       ---
       duration_ms: 0.265986
+      duration_ms: 0.227292
       type: 'test'
       ...
     1..5
@@ -72,6 +79,10 @@ ok 2 - authConfig.callbacks.authorized
   type: 'suite'
   ...
 # (node:2352) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/concurrency.test.ts is not specified and it doesn't parse as CommonJS.
+  duration_ms: 3.676296
+  type: 'suite'
+  ...
+# (node:2282) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/concurrency.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -80,6 +91,7 @@ ok 2 - authConfig.callbacks.authorized
     ok 1 - processes all items
       ---
       duration_ms: 2.161826
+      duration_ms: 5.99993
       type: 'test'
       ...
     # Subtest: respects concurrency limit
@@ -94,12 +106,22 @@ ok 2 - authConfig.callbacks.authorized
     ok 3 - performance: concurrent vs sequential
       ---
       duration_ms: 412.892439
+      duration_ms: 42.199582
+      type: 'test'
+      ...
+# Sequential: 256ms
+# Concurrent (limit 2): 151ms
+    # Subtest: performance: concurrent vs sequential
+    ok 3 - performance: concurrent vs sequential
+      ---
+      duration_ms: 408.080219
       type: 'test'
       ...
     1..3
 ok 3 - runWithConcurrency
   ---
   duration_ms: 459.742647
+  duration_ms: 457.909156
   type: 'suite'
   ...
 # node:internal/modules/package_json_reader:314
@@ -121,6 +143,7 @@ ok 3 - runWithConcurrency
 not ok 4 - src/lib/cron-auth.test.ts
   ---
   duration_ms: 124.374394
+  duration_ms: 117.8043
   type: 'test'
   location: '/app/src/lib/cron-auth.test.ts:1:1'
   failureType: 'testCodeFailure'
@@ -130,6 +153,7 @@ not ok 4 - src/lib/cron-auth.test.ts
   code: 'ERR_TEST_FAILURE'
   ...
 # (node:2374) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/expense-allocation.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2307) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/expense-allocation.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -139,30 +163,35 @@ not ok 4 - src/lib/cron-auth.test.ts
         ok 1 - should allocate equally
           ---
           duration_ms: 1.338014
+          duration_ms: 1.135251
           type: 'test'
           ...
         # Subtest: should allocate by value
         ok 2 - should allocate by value
           ---
           duration_ms: 0.358938
+          duration_ms: 0.36955
           type: 'test'
           ...
         # Subtest: should allocate by weight
         ok 3 - should allocate by weight
           ---
           duration_ms: 0.28889
+          duration_ms: 0.245114
           type: 'test'
           ...
         # Subtest: should handle zero value fallback to equal
         ok 4 - should handle zero value fallback to equal
           ---
           duration_ms: 0.201615
+          duration_ms: 0.267266
           type: 'test'
           ...
         1..4
     ok 1 - allocateExpenses
       ---
       duration_ms: 3.350024
+      duration_ms: 3.15964
       type: 'suite'
       ...
     # Subtest: validateAllocationMethod
@@ -170,24 +199,28 @@ not ok 4 - src/lib/cron-auth.test.ts
         ok 1 - should validate EQUAL
           ---
           duration_ms: 0.455432
+          duration_ms: 0.400864
           type: 'test'
           ...
         # Subtest: should validate BY_VALUE with values
         ok 2 - should validate BY_VALUE with values
           ---
           duration_ms: 0.301508
+          duration_ms: 0.322538
           type: 'test'
           ...
         # Subtest: should invalidate BY_VALUE without values
         ok 3 - should invalidate BY_VALUE without values
           ---
           duration_ms: 0.329921
+          duration_ms: 0.312663
           type: 'test'
           ...
         1..3
     ok 2 - validateAllocationMethod
       ---
       duration_ms: 1.604309
+      duration_ms: 1.612544
       type: 'suite'
       ...
     1..2
@@ -197,6 +230,10 @@ ok 5 - Expense Allocation
   type: 'suite'
   ...
 # (node:2382) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/financial/tax.test.ts is not specified and it doesn't parse as CommonJS.
+  duration_ms: 5.730063
+  type: 'suite'
+  ...
+# (node:2315) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/financial/tax.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -205,36 +242,42 @@ ok 5 - Expense Allocation
     ok 1 - validateTaxConfig returns true for valid config
       ---
       duration_ms: 1.693327
+      duration_ms: 1.203698
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for taxRate < 0
     ok 2 - validateTaxConfig returns false for taxRate < 0
       ---
       duration_ms: 0.324107
+      duration_ms: 0.337437
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for taxRate > 100
     ok 3 - validateTaxConfig returns false for taxRate > 100
       ---
       duration_ms: 0.217173
+      duration_ms: 0.192955
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for empty taxName
     ok 4 - validateTaxConfig returns false for empty taxName
       ---
       duration_ms: 0.184619
+      duration_ms: 0.166497
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for whitespace taxName
     ok 5 - validateTaxConfig returns false for whitespace taxName
       ---
       duration_ms: 0.172686
+      duration_ms: 0.29182
       type: 'test'
       ...
     1..5
 ok 6 - Tax Validation
   ---
   duration_ms: 4.437306
+  duration_ms: 3.823932
   type: 'suite'
   ...
 # Subtest: Tax Calculation
@@ -242,30 +285,35 @@ ok 6 - Tax Validation
     ok 1 - calculateTax handles standard sales tax correctly
       ---
       duration_ms: 0.401102
+      duration_ms: 0.520042
       type: 'test'
       ...
     # Subtest: calculateTax handles VAT (applicable to both) correctly
     ok 2 - calculateTax handles VAT (applicable to both) correctly
       ---
       duration_ms: 0.369427
+      duration_ms: 0.323923
       type: 'test'
       ...
     # Subtest: calculateTax handles B2B VAT exemption (reverse charge)
     ok 3 - calculateTax handles B2B VAT exemption (reverse charge)
       ---
       duration_ms: 1.764318
+      duration_ms: 0.636365
       type: 'test'
       ...
     # Subtest: calculateTax handles NONE tax config
     ok 4 - calculateTax handles NONE tax config
       ---
       duration_ms: 0.449721
+      duration_ms: 0.423293
       type: 'test'
       ...
     1..4
 ok 7 - Tax Calculation
   ---
   duration_ms: 3.61313
+  duration_ms: 3.904142
   type: 'suite'
   ...
 # Subtest: Tax Configuration Retrieval
@@ -273,18 +321,21 @@ ok 7 - Tax Calculation
     ok 1 - getTaxConfig returns correct config for valid code
       ---
       duration_ms: 0.286381
+      duration_ms: 0.272107
       type: 'test'
       ...
     # Subtest: getTaxConfig returns NONE config for invalid code
     ok 2 - getTaxConfig returns NONE config for invalid code
       ---
       duration_ms: 0.130834
+      duration_ms: 0.203031
       type: 'test'
       ...
     1..2
 ok 8 - Tax Configuration Retrieval
   ---
   duration_ms: 0.610298
+  duration_ms: 0.682486
   type: 'suite'
   ...
 # Subtest: Custom Duty Calculation
@@ -292,18 +343,21 @@ ok 8 - Tax Configuration Retrieval
     ok 1 - calculateCustomDuty without shipping cost
       ---
       duration_ms: 0.182595
+      duration_ms: 0.195823
       type: 'test'
       ...
     # Subtest: calculateCustomDuty with shipping cost
     ok 2 - calculateCustomDuty with shipping cost
       ---
       duration_ms: 0.117
+      duration_ms: 0.106519
       type: 'test'
       ...
     1..2
 ok 9 - Custom Duty Calculation
   ---
   duration_ms: 0.456771
+  duration_ms: 0.424911
   type: 'suite'
   ...
 # Subtest: Tax Formatting
@@ -311,18 +365,21 @@ ok 9 - Custom Duty Calculation
     ok 1 - formatTaxLine for zero tax
       ---
       duration_ms: 0.201725
+      duration_ms: 0.226832
       type: 'test'
       ...
     # Subtest: formatTaxLine for positive tax
     ok 2 - formatTaxLine for positive tax
       ---
       duration_ms: 0.122706
+      duration_ms: 0.125002
       type: 'test'
       ...
     1..2
 ok 10 - Tax Formatting
   ---
   duration_ms: 0.530783
+  duration_ms: 0.59241
   type: 'suite'
   ...
 # Failed to geocode Error Place: Error: OSM API Error: 500
@@ -331,6 +388,7 @@ ok 10 - Tax Formatting
 #     at async Test.run (node:internal/test_runner/test:1054:7)
 #     at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
 # (node:2389) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/geocoding.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2322) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/geocoding.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -339,24 +397,28 @@ ok 10 - Tax Formatting
     ok 1 - should return known coordinates for known ports synchronously
       ---
       duration_ms: 1.909038
+      duration_ms: 1.730511
       type: 'test'
       ...
     # Subtest: should fetch coordinates for unknown locations
     ok 2 - should fetch coordinates for unknown locations
       ---
       duration_ms: 0.443825
+      duration_ms: 0.817879
       type: 'test'
       ...
     # Subtest: should return null on fetch error
     ok 3 - should return null on fetch error
       ---
       duration_ms: 1.522551
+      duration_ms: 1.407789
       type: 'test'
       ...
     # Subtest: should return null on empty response
     ok 4 - should return null on empty response
       ---
       duration_ms: 0.301212
+      duration_ms: 0.337323
       type: 'test'
       ...
     1..4
@@ -366,6 +428,10 @@ ok 11 - geocoding
   type: 'suite'
   ...
 # (node:2396) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/logger.test.ts is not specified and it doesn't parse as CommonJS.
+  duration_ms: 5.980842
+  type: 'suite'
+  ...
+# (node:2329) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/logger.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -374,24 +440,28 @@ ok 11 - geocoding
     ok 1 - should log info messages correctly in development
       ---
       duration_ms: 2.238456
+      duration_ms: 2.831493
       type: 'test'
       ...
     # Subtest: should log info messages correctly in production
     ok 2 - should log info messages correctly in production
       ---
       duration_ms: 0.460033
+      duration_ms: 0.485829
       type: 'test'
       ...
     # Subtest: should log error messages correctly
     ok 3 - should log error messages correctly
       ---
       duration_ms: 0.385897
+      duration_ms: 0.32414
       type: 'test'
       ...
     # Subtest: should log warn messages correctly
     ok 4 - should log warn messages correctly
       ---
       duration_ms: 0.411611
+      duration_ms: 0.563039
       type: 'test'
       ...
     1..4
@@ -401,6 +471,10 @@ ok 12 - Logger
   type: 'suite'
   ...
 # (node:2402) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/loginCode.test.ts is not specified and it doesn't parse as CommonJS.
+  duration_ms: 6.927722
+  type: 'suite'
+  ...
+# (node:2335) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/loginCode.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -409,30 +483,35 @@ ok 12 - Logger
     ok 1 - should generate an 8-character string
       ---
       duration_ms: 1.2996
+      duration_ms: 1.280438
       type: 'test'
       ...
     # Subtest: should only contain valid characters
     ok 2 - should only contain valid characters
       ---
       duration_ms: 0.555115
+      duration_ms: 0.485743
       type: 'test'
       ...
     # Subtest: should generate different codes
     ok 3 - should generate different codes
       ---
       duration_ms: 0.317238
+      duration_ms: 0.254011
       type: 'test'
       ...
     # Subtest: should NOT use Math.random()
     ok 4 - should NOT use Math.random()
       ---
       duration_ms: 0.392539
+      duration_ms: 1.476165
       type: 'test'
       ...
     1..4
 ok 13 - Login Code Generation
   ---
   duration_ms: 4.121635
+  duration_ms: 5.055256
   type: 'suite'
   ...
 # Subtest: Login Code Validation
@@ -440,24 +519,28 @@ ok 13 - Login Code Generation
     ok 1 - should validate correct codes
       ---
       duration_ms: 1.842553
+      duration_ms: 0.397164
       type: 'test'
       ...
     # Subtest: should invalidate incorrect lengths
     ok 2 - should invalidate incorrect lengths
       ---
       duration_ms: 0.185248
+      duration_ms: 0.189051
       type: 'test'
       ...
     # Subtest: should invalidate incorrect characters
     ok 3 - should invalidate incorrect characters
       ---
       duration_ms: 0.297093
+      duration_ms: 0.446028
       type: 'test'
       ...
     1..3
 ok 14 - Login Code Validation
   ---
   duration_ms: 2.870392
+  duration_ms: 1.477303
   type: 'suite'
   ...
 # Subtest: Login Code Formatting
@@ -465,12 +548,14 @@ ok 14 - Login Code Validation
     ok 1 - should format code with a space in the middle
       ---
       duration_ms: 0.440237
+      duration_ms: 0.395402
       type: 'test'
       ...
     # Subtest: should not format invalid length codes
     ok 2 - should not format invalid length codes
       ---
       duration_ms: 0.257913
+      duration_ms: 0.254839
       type: 'test'
       ...
     1..2
@@ -480,6 +565,10 @@ ok 15 - Login Code Formatting
   type: 'suite'
   ...
 # (node:2410) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/webhook-auth.test.ts is not specified and it doesn't parse as CommonJS.
+  duration_ms: 1.015131
+  type: 'suite'
+  ...
+# (node:2343) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/webhook-auth.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -488,48 +577,56 @@ ok 15 - Login Code Formatting
     ok 1 - should return true for valid signature
       ---
       duration_ms: 1.407826
+      duration_ms: 1.201001
       type: 'test'
       ...
     # Subtest: should return false for invalid signature
     ok 2 - should return false for invalid signature
       ---
       duration_ms: 0.350106
+      duration_ms: 0.305378
       type: 'test'
       ...
     # Subtest: should return false for tampered body
     ok 3 - should return false for tampered body
       ---
       duration_ms: 0.347621
+      duration_ms: 0.332671
       type: 'test'
       ...
     # Subtest: should return false for different secret
     ok 4 - should return false for different secret
       ---
       duration_ms: 0.236198
+      duration_ms: 0.234345
       type: 'test'
       ...
     # Subtest: should return false if signature is missing
     ok 5 - should return false if signature is missing
       ---
       duration_ms: 0.170362
+      duration_ms: 0.168989
       type: 'test'
       ...
     # Subtest: should return false if body is missing
     ok 6 - should return false if body is missing
       ---
       duration_ms: 1.630533
+      duration_ms: 0.161926
       type: 'test'
       ...
     # Subtest: should return false if secret is missing
     ok 7 - should return false if secret is missing
       ---
       duration_ms: 0.182417
+      duration_ms: 1.451307
       type: 'test'
       ...
     1..7
 ok 16 - verifySignature
   ---
   duration_ms: 6.146739
+  duration_ms: 5.764605
   type: 'suite'
   ...
 1..16
@@ -541,3 +638,4 @@ ok 16 - verifySignature
 # skipped 0
 # todo 0
 # duration_ms 765.334166
+# duration_ms 768.105999

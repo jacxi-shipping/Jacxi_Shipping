@@ -44,7 +44,6 @@
 - ✅ Floating action button (FAB)
 - ✅ Onboarding tours (driver.js)
 - ✅ Optimized images
-- ✅ PDF generation
 - ✅ Data tables with sorting/selection
 - ✅ Filter builder
 - ✅ File upload with progress
@@ -286,7 +285,6 @@ src/
 │   │   ├── KeyboardShortcutsModal.tsx ✓
 │   │   ├── MobileCardView.tsx ✓
 │   │   ├── NotificationCenter.tsx ✓
-│   │   ├── OnboardingTour.tsx ✓
 │   │   ├── OptimizedImage.tsx ✓
 │   │   ├── Skeleton.tsx ✓
 │   │   └── ThemeToggle.tsx ✓
@@ -303,7 +301,6 @@ src/
 │   └── useTheme.ts ✓
 └── lib/
     ├── export.ts ✓
-    ├── pdfGenerator.ts ✓
     └── toast.ts ✓
 ```
 
