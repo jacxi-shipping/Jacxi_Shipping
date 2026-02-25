@@ -55,23 +55,17 @@ confirmPassword: string (must match password)
 - At least one lowercase letter
 - At least one number
 
-### 3. Contact Form Validation
-**Location**: `src/lib/validations/contact.ts`
+### 3. Shipment Events Validation
+**Location**: `src/lib/validations/events.ts`
 
 ```typescript
-name: string (2-100 characters)
-email: string (valid email format)
-phone: string (optional, valid phone format)
-subject: string (3-200 characters)
-message: string (10-2000 characters)
+status: string (required)
+location: string (2-200 characters)
+description: string (optional, max 500 chars)
+completed: boolean (optional, default false)
+latitude: string (optional, -90 to 90)
+longitude: string (optional, -180 to 180)
 ```
-
-#### Phone Validation
-Accepts formats like:
-- `+1234567890`
-- `(123) 456-7890`
-- `123-456-7890`
-- `123 456 7890`
 
 ## Implementation
 
