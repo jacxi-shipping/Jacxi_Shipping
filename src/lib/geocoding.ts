@@ -69,6 +69,10 @@ export const PORT_COORDINATES: Record<string, [number, number]> = {
   'Tanger Med': [35.8866, -5.5133],
 };
 
+// In-memory cache for geocoding results
+const geocodeCache = new Map<string, [number, number] | null>();
+const MAX_CACHE_SIZE = 1000;
+
 // Helper to get coordinates
 export const getCoordinates = async (location: string): Promise<[number, number] | null> => {
   if (!location) return null;
@@ -80,14 +84,31 @@ export const getCoordinates = async (location: string): Promise<[number, number]
   );
   if (knownKey) return PORT_COORDINATES[knownKey];
 
-  // 2. Fallback to OSM
+  // 2. Check in-memory cache
+  if (geocodeCache.has(cleanLoc)) {
+    return geocodeCache.get(cleanLoc) || null;
+  }
+
+  // 3. Fallback to OSM
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanLoc)}&limit=1`);
     if (!res.ok) throw new Error(`OSM API Error: ${res.status}`);
 
     const data = await res.json();
+
+    // Manage cache size before adding new entry
+    if (geocodeCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = geocodeCache.keys().next().value;
+      if (firstKey) geocodeCache.delete(firstKey);
+    }
+
     if (data && data.length > 0) {
-      return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      geocodeCache.set(cleanLoc, coords);
+      return coords;
+    } else {
+        // Cache misses too to prevent repeated failed lookups
+        geocodeCache.set(cleanLoc, null);
     }
   } catch (e) {
     console.warn(`Failed to geocode ${location}:`, e);
