@@ -56,56 +56,78 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
     const containerUserFilter = isAdmin ? {} : { shipments: { some: { userId: effectiveUserId } } };
     const invoiceUserFilter = isAdmin ? {} : { userId: effectiveUserId };
 
-    // 1. KPI Stats
-    const activeShipmentsCount = await prisma.shipment.count({
-        where: {
-            ...shipmentUserFilter,
-            status: {
-                in: ['ON_HAND', 'IN_TRANSIT']
+    // Parallelize independent database queries to reduce waterfall latency
+    const [
+        activeShipmentsCount,
+        activeContainersCount,
+        pendingInvoices,
+        shipmentStats,
+        shipmentsInRange,
+        containerUtilization
+    ] = await Promise.all([
+        // 1. KPI Stats - Active Shipments
+        prisma.shipment.count({
+            where: {
+                ...shipmentUserFilter,
+                status: {
+                    in: ['ON_HAND', 'IN_TRANSIT']
+                }
             }
-        }
-    });
-
-    const activeContainersCount = await prisma.container.count({
-        where: {
-            ...containerUserFilter,
-            status: {
-                in: ['LOADED', 'IN_TRANSIT', 'ARRIVED_PORT', 'CUSTOMS_CLEARANCE']
+        }),
+        // 2. KPI Stats - Active Containers
+        prisma.container.count({
+            where: {
+                ...containerUserFilter,
+                status: {
+                    in: ['LOADED', 'IN_TRANSIT', 'ARRIVED_PORT', 'CUSTOMS_CLEARANCE']
+                }
             }
-        }
-    });
-
-    const pendingInvoices = await prisma.userInvoice.aggregate({
-        _sum: {
-            total: true
-        },
-        where: {
-            ...invoiceUserFilter,
-            status: {
-                in: ['PENDING', 'OVERDUE']
-            }
-        }
-    });
-
-    // 3. Counts by Status for Chart/Progress
-    const shipmentStats = await prisma.shipment.groupBy({
-        by: ['status'],
-        _count: true,
-        where: shipmentUserFilter,
-    });
-
-    const shipmentsInRange = await prisma.shipment.findMany({
-        where: {
-            ...shipmentUserFilter,
-            createdAt: {
-                gte: startDate,
+        }),
+        // 3. KPI Stats - Pending Revenue
+        prisma.userInvoice.aggregate({
+            _sum: {
+                total: true
             },
-        },
-        select: {
-            createdAt: true,
-            status: true,
-        },
-    });
+            where: {
+                ...invoiceUserFilter,
+                status: {
+                    in: ['PENDING', 'OVERDUE']
+                }
+            }
+        }),
+        // 4. Counts by Status for Chart/Progress
+        prisma.shipment.groupBy({
+            by: ['status'],
+            _count: true,
+            where: shipmentUserFilter,
+        }),
+        // 5. Shipments in Range for Trends
+        prisma.shipment.findMany({
+            where: {
+                ...shipmentUserFilter,
+                createdAt: {
+                    gte: startDate,
+                },
+            },
+            select: {
+                createdAt: true,
+                status: true,
+            },
+        }),
+        // 6. Container Utilization
+        prisma.container.findMany({
+            where: containerUserFilter,
+            select: {
+                containerNumber: true,
+                currentCount: true,
+                maxCapacity: true,
+            },
+            orderBy: {
+                updatedAt: 'desc',
+            },
+            take: 6,
+        })
+    ]);
 
     const shipmentTrendMap = new Map<string, { shipments: number; inTransit: number }>();
     for (let i = 0; i < trendDays; i += 1) {
@@ -129,19 +151,6 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
         shipments: counts.shipments,
         inTransit: counts.inTransit,
     }));
-
-    const containerUtilization = await prisma.container.findMany({
-        where: containerUserFilter,
-        select: {
-            containerNumber: true,
-            currentCount: true,
-            maxCapacity: true,
-        },
-        orderBy: {
-            updatedAt: 'desc',
-        },
-        take: 6,
-    });
 
     return {
         activeShipmentsCount,
