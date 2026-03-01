@@ -38,28 +38,29 @@ export async function GET(request: NextRequest) {
     }
 
     // counts for stats (total, admins, regularUsers) - always for all users
-    const total = await prisma.user.count({ where });
-    const admins = await prisma.user.count({ where: { ...where, role: 'admin' } });
+    const [total, admins, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.count({ where: { ...where, role: 'admin' } }),
+      prisma.user.findMany({
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          _count: {
+            select: { shipments: true }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      })
+    ]);
     const regularUsers = total - admins;
-
-    const users = await prisma.user.findMany({
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      where,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        _count: {
-          select: { shipments: true }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
 
     return NextResponse.json({ users, total, page, pageSize, admins, regularUsers });
   } catch (error) {
