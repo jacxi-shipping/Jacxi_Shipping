@@ -56,7 +56,7 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
     const containerUserFilter = isAdmin ? {} : { shipments: { some: { userId: effectiveUserId } } };
     const invoiceUserFilter = isAdmin ? {} : { userId: effectiveUserId };
 
-    // Parallelize independent database queries to reduce waterfall latency
+    // Parallelize all independent DB queries
     const [
         activeShipmentsCount,
         activeContainersCount,
@@ -65,7 +65,7 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
         shipmentsInRange,
         containerUtilization
     ] = await Promise.all([
-        // 1. KPI Stats - Active Shipments
+        // 1. KPI Stats
         prisma.shipment.count({
             where: {
                 ...shipmentUserFilter,
@@ -74,7 +74,7 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
                 }
             }
         }),
-        // 2. KPI Stats - Active Containers
+
         prisma.container.count({
             where: {
                 ...containerUserFilter,
@@ -83,7 +83,7 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
                 }
             }
         }),
-        // 3. KPI Stats - Pending Revenue
+
         prisma.userInvoice.aggregate({
             _sum: {
                 total: true
@@ -95,13 +95,14 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
                 }
             }
         }),
-        // 4. Counts by Status for Chart/Progress
+
+        // 3. Counts by Status for Chart/Progress
         prisma.shipment.groupBy({
             by: ['status'],
             _count: true,
             where: shipmentUserFilter,
         }),
-        // 5. Shipments in Range for Trends
+
         prisma.shipment.findMany({
             where: {
                 ...shipmentUserFilter,
@@ -114,7 +115,7 @@ async function getDashboardData(userId: string | undefined, isAdmin: boolean) {
                 status: true,
             },
         }),
-        // 6. Container Utilization
+
         prisma.container.findMany({
             where: containerUserFilter,
             select: {
