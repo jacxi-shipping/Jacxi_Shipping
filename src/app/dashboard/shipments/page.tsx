@@ -83,7 +83,7 @@ export default function ShipmentsListPage() {
 			if (searchFilters.minPrice) params.append('minPrice', searchFilters.minPrice);
 			if (searchFilters.maxPrice) params.append('maxPrice', searchFilters.maxPrice);
 
-			const response = await fetch(`/api/search?${params.toString()}&type=shipments&sortBy=createdAt&sortOrder=desc`);
+			const response = await fetch(`/api/search?${params.toString()}&type=shipments&sortBy=createdAt&sortOrder=desc`, { cache: 'no-store' });
 			const data = await response.json();
 			
 			setShipments(data.shipments ?? []);

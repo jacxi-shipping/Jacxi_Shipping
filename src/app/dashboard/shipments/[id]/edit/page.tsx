@@ -117,7 +117,7 @@ export default function EditShipmentPage() {
         setLoadingUsers(false);
 
         // Fetch shipment
-        const shipmentResponse = await fetch(`/api/shipments/${params.id}`);
+        const shipmentResponse = await fetch(`/api/shipments/${params.id}`, { cache: 'no-store' });
         if (shipmentResponse.ok) {
           const data = await shipmentResponse.json();
           const shipment = data.shipment;
@@ -173,7 +173,7 @@ export default function EditShipmentPage() {
     setLoadingContainers(true);
     try {
       // Fetch all active containers by using a large limit
-      const response = await fetch('/api/containers?status=active&limit=1000');
+      const response = await fetch('/api/containers?status=active&limit=1000', { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         setContainers(data.containers);

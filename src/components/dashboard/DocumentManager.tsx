@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Box, 
@@ -45,14 +45,25 @@ interface DocumentManagerProps {
   entityId: string;
   entityType: 'shipment' | 'container';
   readOnly?: boolean;
+  onDocumentsChange?: () => void;
 }
 
-export function DocumentManager({ documents: initialDocs, entityId, entityType, readOnly = false }: DocumentManagerProps) {
+export function DocumentManager({
+  documents: initialDocs,
+  entityId,
+  entityType,
+  readOnly = false,
+  onDocumentsChange,
+}: DocumentManagerProps) {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>(initialDocs);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [category, setCategory] = useState('OTHER');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    setDocuments(initialDocs);
+  }, [initialDocs]);
 
   const handleFileUpload = async (file: File) => {
     try {
@@ -98,6 +109,28 @@ export function DocumentManager({ documents: initialDocs, entityId, entityType, 
         const error = await createRes.json();
         throw new Error(error.error || error.message || 'Failed to save document metadata');
       }
+
+      const createdData = await createRes.json();
+      const createdDoc = createdData.document;
+
+      if (createdDoc) {
+        const normalizedDoc: Document = {
+          id: createdDoc.id,
+          name: createdDoc.name,
+          fileUrl: createdDoc.fileUrl,
+          fileType: createdDoc.fileType,
+          fileSize: createdDoc.fileSize,
+          category: createdDoc.category || createdDoc.type || category,
+          uploadedBy: createdDoc.uploadedBy,
+          createdAt: (createdDoc.createdAt || createdDoc.uploadedAt || new Date().toISOString()).toString(),
+          type: createdDoc.fileType || createdDoc.type || file.type,
+          size: createdDoc.fileSize || file.size,
+        };
+
+        setDocuments((prev) => [normalizedDoc, ...prev]);
+      }
+
+      onDocumentsChange?.();
       
       router.refresh();
 
@@ -119,6 +152,8 @@ export function DocumentManager({ documents: initialDocs, entityId, entityType, 
 
       if (!response.ok) throw new Error('Failed to delete document');
 
+      setDocuments((prev) => prev.filter((doc) => doc.id !== docId));
+      onDocumentsChange?.();
       toast.success('Document deleted');
       router.refresh();
     } catch (error) {
