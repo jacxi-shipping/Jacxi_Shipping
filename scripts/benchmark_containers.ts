@@ -5,6 +5,8 @@
  * Usage: node --experimental-strip-types scripts/benchmark_containers.ts
  */
 
+export {};
+
 const SIMULATED_DB_LATENCY_MS = 100;
 
 // Simulate Prisma count
