@@ -588,6 +588,47 @@ model LedgerEntry {
   @@index([transactionDate])
 }
 
+model Company {
+  id            String               @id @default(cuid())
+  name          String
+  code          String?              @unique
+  email         String?
+  phone         String?
+  address       String?
+  country       String?
+  notes         String?
+  isActive      Boolean              @default(true)
+  createdBy     String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  ledgerEntries CompanyLedgerEntry[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model CompanyLedgerEntry {
+  id              String           @id @default(cuid())
+  companyId       String
+  transactionDate DateTime         @default(now())
+  description     String
+  type            LedgerEntryType
+  amount          Float
+  balance         Float
+  category        String?
+  reference       String?
+  notes           String?
+  metadata        Json?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([transactionDate])
+  @@index([type])
+}
+
 model AuditLog {
   id            String        @id @default(cuid())
   entityType    String

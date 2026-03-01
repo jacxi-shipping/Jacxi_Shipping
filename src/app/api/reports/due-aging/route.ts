@@ -40,8 +40,9 @@ export async function GET(request: NextRequest) {
           },
         },
         ledgerEntries: {
-          where: {
-            type: 'DEBIT',
+          select: {
+            type: true,
+            amount: true,
           },
         },
       },
@@ -73,8 +74,17 @@ export async function GET(request: NextRequest) {
     let totalAging90 = 0;
 
     for (const shipment of shipments) {
-      // Calculate total debit for this shipment
-      const totalDebit = shipment.ledgerEntries.reduce((sum, entry) => sum + entry.amount, 0);
+      const totalDebit = shipment.ledgerEntries
+        .filter((entry) => entry.type === 'DEBIT')
+        .reduce((sum, entry) => sum + entry.amount, 0);
+      const totalCredit = shipment.ledgerEntries
+        .filter((entry) => entry.type === 'CREDIT')
+        .reduce((sum, entry) => sum + entry.amount, 0);
+      const netDue = Math.max(0, totalDebit - totalCredit);
+
+      if (netDue <= 0) {
+        continue;
+      }
       
       // Get age in days
       const createdDate = new Date(shipment.createdAt);
@@ -85,7 +95,7 @@ export async function GET(request: NextRequest) {
         vehicleMake: shipment.vehicleMake,
         vehicleModel: shipment.vehicleModel,
         user: shipment.user,
-        amountDue: totalDebit,
+        amountDue: netDue,
         createdAt: shipment.createdAt,
         ageInDays,
         price: shipment.price || 0,
@@ -94,16 +104,16 @@ export async function GET(request: NextRequest) {
       // Categorize by age
       if (ageInDays <= 30) {
         agingBuckets.current.push(shipmentData);
-        totalCurrent += totalDebit;
+        totalCurrent += netDue;
       } else if (ageInDays <= 60) {
         agingBuckets.aging30.push(shipmentData);
-        totalAging30 += totalDebit;
+        totalAging30 += netDue;
       } else if (ageInDays <= 90) {
         agingBuckets.aging60.push(shipmentData);
-        totalAging60 += totalDebit;
+        totalAging60 += netDue;
       } else {
         agingBuckets.aging90.push(shipmentData);
-        totalAging90 += totalDebit;
+        totalAging90 += netDue;
       }
     }
 

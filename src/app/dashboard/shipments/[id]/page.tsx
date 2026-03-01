@@ -171,7 +171,7 @@ export default function ShipmentDetailPage() {
   const fetchShipment = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/shipments/${params.id}`);
+      const response = await fetch(`/api/shipments/${params.id}`, { cache: 'no-store' });
       const data = await response.json();
 
       if (response.ok) {
@@ -1230,6 +1230,7 @@ export default function ShipmentDetailPage() {
               entityId={shipment.id}
               entityType="shipment"
               readOnly={!isAdmin && shipment.userId !== session?.user?.id}
+              onDocumentsChange={fetchShipment}
             />
           </DashboardPanel>
         </TabPanel>

@@ -58,6 +58,7 @@ interface Shipment {
   vehicleMake?: string;
   vehicleModel?: string;
   price?: number;
+  amountDue?: number;
   paymentStatus: string;
 }
 
@@ -135,11 +136,13 @@ export default function RecordPaymentPage() {
   const fetchUserShipments = async (userId: string) => {
     try {
       setLoadingShipments(true);
-      const response = await fetch(`/api/shipments?userId=${userId}&limit=100`);
+      const response = await fetch(`/api/shipments?userId=${userId}&limit=100&includeFinancial=true`);
       if (response.ok) {
         const data = await response.json();
         const dueShipments = data.shipments.filter(
-          (s: Shipment) => s.paymentStatus === 'PENDING' || s.paymentStatus === 'FAILED'
+          (s: Shipment) =>
+            (s.paymentStatus === 'PENDING' || s.paymentStatus === 'FAILED') &&
+            (s.amountDue || 0) > 0
         );
         setShipments(dueShipments);
         if (dueShipments.length > 0) {
@@ -172,7 +175,7 @@ export default function RecordPaymentPage() {
   const calculateTotalSelected = () => {
     return shipments
       .filter((s) => selectedShipmentIds.includes(s.id))
-      .reduce((sum, s) => sum + (s.price || 0), 0);
+      .reduce((sum, s) => sum + (s.amountDue || 0), 0);
   };
 
   const calculatePaymentAllocation = (): PaymentAllocation[] => {
@@ -188,11 +191,11 @@ export default function RecordPaymentPage() {
           shipmentId: shipment.id,
           trackingNumber: shipment.trackingNumber,
           vehicleInfo: `${shipment.vehicleMake} ${shipment.vehicleModel}`,
-          amountDue: shipment.price || 0,
+          amountDue: shipment.amountDue || 0,
           amountToPay: 0,
         });
       } else {
-        const amountDue = shipment.price || 0;
+        const amountDue = shipment.amountDue || 0;
         const amountToPay = Math.min(remainingPayment, amountDue);
         remainingPayment -= amountToPay;
 
@@ -443,7 +446,7 @@ export default function RecordPaymentPage() {
                             Amount Due
                           </Box>
                           <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                            {formatCurrency(shipment.price || 0)}
+                            {formatCurrency(shipment.amountDue || 0)}
                           </Box>
                         </Box>
                       </Box>

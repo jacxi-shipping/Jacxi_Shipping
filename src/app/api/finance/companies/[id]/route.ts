@@ -1,0 +1,172 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+
+const updateCompanySchema = z.object({
+  name: z.string().min(1).optional(),
+  code: z.string().min(1).optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+
+export async function GET(
+  _request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
+
+  try {
+    const session = await auth();
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const company = await prisma.company.findUnique({
+      where: { id: params.id },
+      include: {
+        _count: {
+          select: {
+            ledgerEntries: true,
+          },
+        },
+      },
+    });
+
+    if (!company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    const [debitAgg, creditAgg, latestEntry] = await Promise.all([
+      prisma.companyLedgerEntry.aggregate({
+        where: { companyId: company.id, type: 'DEBIT' },
+        _sum: { amount: true },
+      }),
+      prisma.companyLedgerEntry.aggregate({
+        where: { companyId: company.id, type: 'CREDIT' },
+        _sum: { amount: true },
+      }),
+      prisma.companyLedgerEntry.findFirst({
+        where: { companyId: company.id },
+        orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+        select: { balance: true },
+      }),
+    ]);
+
+    return NextResponse.json({
+      company,
+      summary: {
+        totalDebit: debitAgg._sum.amount || 0,
+        totalCredit: creditAgg._sum.amount || 0,
+        currentBalance: latestEntry?.balance || 0,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching company:', error);
+    return NextResponse.json({ error: 'Failed to fetch company' }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
+
+  try {
+    const session = await auth();
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validatedData = updateCompanySchema.parse(body);
+
+    const existing = await prisma.company.findUnique({ where: { id: params.id } });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    const company = await prisma.company.update({
+      where: { id: params.id },
+      data: {
+        ...validatedData,
+      },
+    });
+
+    return NextResponse.json({ company });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid data', details: error.issues }, { status: 400 });
+    }
+
+    console.error('Error updating company:', error);
+    return NextResponse.json({ error: 'Failed to update company' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
+
+  try {
+    const session = await auth();
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const forceDelete = searchParams.get('force') === 'true';
+
+    const company = await prisma.company.findUnique({
+      where: { id: params.id },
+      include: {
+        _count: {
+          select: {
+            ledgerEntries: true,
+          },
+        },
+      },
+    });
+
+    if (!company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    if (company._count.ledgerEntries > 0 && !forceDelete) {
+      return NextResponse.json(
+        { error: 'Company has ledger transactions. Use force=true to delete all records.' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.company.delete({ where: { id: params.id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting company:', error);
+    return NextResponse.json({ error: 'Failed to delete company' }, { status: 500 });
+  }
+}
