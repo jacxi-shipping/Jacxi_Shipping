@@ -225,7 +225,7 @@ export default function ContainerDetailPage() {
 	const fetchContainer = async () => {
 		try {
 			setLoading(true);
-			const response = await fetch(`/api/containers/${params.id}`);
+			const response = await fetch(`/api/containers/${params.id}`, { cache: 'no-store' });
 			const data = await response.json();
 
 			if (response.ok) {
@@ -1422,6 +1422,7 @@ export default function ContainerDetailPage() {
                                 }))}
                                 entityId={container.id}
                                 entityType="container"
+								onDocumentsChange={fetchContainer}
                             />
 						</DashboardPanel>
 					)}

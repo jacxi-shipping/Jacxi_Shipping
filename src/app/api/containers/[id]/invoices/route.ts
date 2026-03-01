@@ -13,6 +13,10 @@ export async function GET(
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
+		if (session.user.role !== 'admin') {
+			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+		}
+
 		const invoices = await prisma.containerInvoice.findMany({
 			where: { containerId: params.id },
 			orderBy: { date: 'desc' },
@@ -37,6 +41,10 @@ export async function POST(
 		const session = await auth();
 		if (!session?.user?.id) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+		}
+
+		if (session.user.role !== 'admin') {
+			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 		}
 
 		const body = await request.json();
@@ -101,6 +109,10 @@ export async function DELETE(request: NextRequest) {
 		const session = await auth();
 		if (!session?.user?.id) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+		}
+
+		if (session.user.role !== 'admin') {
+			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 		}
 
 		const { searchParams } = new URL(request.url);

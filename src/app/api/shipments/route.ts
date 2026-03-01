@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status'); // ON_HAND or IN_TRANSIT
     const containerId = searchParams.get('containerId');
     const search = searchParams.get('search');
+    const includeFinancial = searchParams.get('includeFinancial') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
@@ -50,48 +51,60 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    const baseSelect = {
+      id: true,
+      vehicleType: true,
+      vehicleMake: true,
+      vehicleModel: true,
+      vehicleYear: true,
+      vehicleVIN: true,
+      vehicleColor: true,
+      lotNumber: true,
+      auctionName: true,
+      status: true,
+      createdAt: true,
+      paymentStatus: true,
+      price: true,
+      containerId: true,
+      internalNotes: true,
+      container: {
+        select: {
+          id: true,
+          containerNumber: true,
+          trackingNumber: true,
+          vesselName: true,
+          status: true,
+          estimatedArrival: true,
+          currentLocation: true,
+          loadingPort: true,
+          destinationPort: true,
+          progress: true,
+          shippingLine: true,
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    };
+
     const [shipments, total] = await Promise.all([
       prisma.shipment.findMany({
         where,
-        select: {
-          id: true,
-          vehicleType: true,
-          vehicleMake: true,
-          vehicleModel: true,
-          vehicleYear: true,
-          vehicleVIN: true,
-          vehicleColor: true,
-          lotNumber: true,
-          auctionName: true,
-          status: true,
-          createdAt: true,
-          paymentStatus: true,
-          price: true,
-          containerId: true,
-          internalNotes: true,
-          container: {
-            select: {
-              id: true,
-              containerNumber: true,
-              trackingNumber: true,
-              vesselName: true,
-              status: true,
-              estimatedArrival: true,
-              currentLocation: true,
-              loadingPort: true,
-              destinationPort: true,
-              progress: true,
-              shippingLine: true,
-            },
-          },
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
+        select: includeFinancial
+          ? {
+              ...baseSelect,
+              ledgerEntries: {
+                select: {
+                  type: true,
+                  amount: true,
+                },
+              },
+            }
+          : baseSelect,
         orderBy: {
           createdAt: 'desc',
         },
@@ -101,8 +114,26 @@ export async function GET(request: NextRequest) {
       prisma.shipment.count({ where }),
     ]);
 
+    const normalizedShipments = includeFinancial
+      ? (shipments as Array<any>).map((shipment) => {
+          const totalDebit = shipment.ledgerEntries
+            .filter((entry: { type: string }) => entry.type === 'DEBIT')
+            .reduce((sum: number, entry: { amount: number }) => sum + entry.amount, 0);
+          const totalCredit = shipment.ledgerEntries
+            .filter((entry: { type: string }) => entry.type === 'CREDIT')
+            .reduce((sum: number, entry: { amount: number }) => sum + entry.amount, 0);
+          const amountDue = Math.max(0, totalDebit - totalCredit);
+
+          return {
+            ...shipment,
+            amountDue,
+            ledgerEntries: undefined,
+          };
+        })
+      : shipments;
+
     return NextResponse.json({
-      shipments,
+      shipments: normalizedShipments,
       pagination: {
         total,
         page,

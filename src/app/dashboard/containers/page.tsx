@@ -90,7 +90,7 @@ export default function ContainersPage() {
         params.append('search', searchQuery);
       }
 
-      const response = await fetch(`/api/containers?${params}`);
+      const response = await fetch(`/api/containers?${params}`, { cache: 'no-store' });
       const data = await response.json();
 
       if (response.ok) {

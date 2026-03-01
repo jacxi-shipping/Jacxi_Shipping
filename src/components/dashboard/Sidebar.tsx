@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 
@@ -36,6 +36,12 @@ const financeNavigation: NavigationItem[] = [
 		name: 'Finance',
 		href: '/dashboard/finance',
 		icon: AccountBalance,
+	},
+	{
+		name: 'Company Ledgers',
+		href: '/dashboard/finance/companies',
+		icon: Business,
+		adminOnly: true,
 	},
 ];
 

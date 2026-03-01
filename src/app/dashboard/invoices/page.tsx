@@ -110,7 +110,7 @@ export default function InvoicesPage() {
 				params.append('status', statusFilter.toUpperCase());
 			}
 			
-			const response = await fetch(`/api/invoices?${params}`);
+			const response = await fetch(`/api/invoices?${params}`, { cache: 'no-store' });
 			const data = await response.json();
 
 			if (response.ok) {
@@ -133,7 +133,7 @@ export default function InvoicesPage() {
 			});
 
 			// Fetch full invoice details
-			const response = await fetch(`/api/invoices/${invoice.id}`);
+			const response = await fetch(`/api/invoices/${invoice.id}`, { cache: 'no-store' });
 			const fullInvoice = await response.json();
 
 			// Dynamically import the PDF generator

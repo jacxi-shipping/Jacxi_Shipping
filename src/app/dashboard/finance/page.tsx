@@ -22,6 +22,7 @@ import {
   PlusCircle,
   AlertCircle,
   CheckCircle,
+    Building2,
 } from 'lucide-react';
 
 // Force dynamic rendering (requires database connection)
@@ -256,6 +257,18 @@ export default async function FinancePage() {
                                             <span className="font-semibold text-primary">Financial Reports</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground">Generate detailed analysis</p>
+                                    </div>
+                                </Link>
+
+                                <Link href="/dashboard/finance/companies">
+                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-blue-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                                <Building2 className="w-5 h-5" />
+                                            </div>
+                                            <span className="font-semibold text-primary">Company Ledgers</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Manage partner company accounts</p>
                                     </div>
                                 </Link>
                             </>

@@ -68,66 +68,62 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count
-    const totalCount = await prisma.ledgerEntry.count({ where });
+    // Execute database queries in parallel for performance
+    const [totalCount, entries, debitSum, creditSum, latestEntry] = await Promise.all([
+      // Get total count
+      prisma.ledgerEntry.count({ where }),
 
-    // Fetch ledger entries
-    const entries = await prisma.ledgerEntry.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+      // Fetch ledger entries
+      prisma.ledgerEntry.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          shipment: {
+            select: {
+              id: true,
+              vehicleMake: true,
+              vehicleModel: true,
+              price: true,
+              paymentStatus: true,
+            },
           },
         },
-        shipment: {
-          select: {
-            id: true,
-            vehicleMake: true,
-            vehicleModel: true,
-            price: true,
-            paymentStatus: true,
-          },
+        orderBy: {
+          transactionDate: 'desc',
         },
-      },
-      orderBy: {
-        transactionDate: 'desc',
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
 
-    // Calculate summary
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const summary = await prisma.ledgerEntry.aggregate({
-      where,
-      _sum: {
-        amount: true,
-      },
-    });
+      // Calculate debit summary
+      prisma.ledgerEntry.aggregate({
+        where: { ...where, type: 'DEBIT' },
+        _sum: {
+          amount: true,
+        },
+      }),
 
-    const debitSum = await prisma.ledgerEntry.aggregate({
-      where: { ...where, type: 'DEBIT' },
-      _sum: {
-        amount: true,
-      },
-    });
+      // Calculate credit summary
+      prisma.ledgerEntry.aggregate({
+        where: { ...where, type: 'CREDIT' },
+        _sum: {
+          amount: true,
+        },
+      }),
 
-    const creditSum = await prisma.ledgerEntry.aggregate({
-      where: { ...where, type: 'CREDIT' },
-      _sum: {
-        amount: true,
-      },
-    });
-
-    // Get current balance (latest entry's balance)
-    const latestEntry = await prisma.ledgerEntry.findFirst({
-      where: { userId: targetUserId },
-      orderBy: { transactionDate: 'desc' },
-      select: { balance: true },
-    });
+      // Get current balance (latest entry's balance)
+      prisma.ledgerEntry.findFirst({
+        where: { userId: targetUserId },
+        orderBy: { transactionDate: 'desc' },
+        select: { balance: true },
+      }),
+    ]);
 
     return NextResponse.json({
       entries,
