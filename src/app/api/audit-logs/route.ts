@@ -43,18 +43,18 @@ export async function GET(request: NextRequest) {
       where.action = action;
     }
 
-    // Get total count
-    const totalCount = await prisma.auditLog.count({ where });
-
-    // Fetch audit logs
-    const logs = await prisma.auditLog.findMany({
-      where,
-      orderBy: {
-        performedAt: 'desc',
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    // Get total count and fetch logs
+    const [totalCount, logs] = await Promise.all([
+      prisma.auditLog.count({ where }),
+      prisma.auditLog.findMany({
+        where,
+        orderBy: {
+          performedAt: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
 
     return NextResponse.json({
       logs,
