@@ -68,17 +68,12 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Parallelize independent database queries
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [
-      totalCount,
-      entries,
-      summary,
-      debitSum,
-      creditSum,
-      latestEntry
-    ] = await Promise.all([
+    // Execute database queries in parallel for performance
+    const [totalCount, entries, debitSum, creditSum, latestEntry] = await Promise.all([
+      // Get total count
       prisma.ledgerEntry.count({ where }),
+
+      // Fetch ledger entries
       prisma.ledgerEntry.findMany({
         where,
         include: {
@@ -105,29 +100,29 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.ledgerEntry.aggregate({
-        where,
-        _sum: {
-          amount: true,
-        },
-      }),
+
+      // Calculate debit summary
       prisma.ledgerEntry.aggregate({
         where: { ...where, type: 'DEBIT' },
         _sum: {
           amount: true,
         },
       }),
+
+      // Calculate credit summary
       prisma.ledgerEntry.aggregate({
         where: { ...where, type: 'CREDIT' },
         _sum: {
           amount: true,
         },
       }),
+
+      // Get current balance (latest entry's balance)
       prisma.ledgerEntry.findFirst({
         where: { userId: targetUserId },
         orderBy: { transactionDate: 'desc' },
         select: { balance: true },
-      })
+      }),
     ]);
 
     return NextResponse.json({
