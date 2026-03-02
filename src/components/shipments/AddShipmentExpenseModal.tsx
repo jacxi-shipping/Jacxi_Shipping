@@ -13,6 +13,8 @@ import {
 	MenuItem,
 	Box,
 	InputAdornment,
+	ToggleButton,
+	ToggleButtonGroup,
 } from '@mui/material';
 import { DollarSign, X } from 'lucide-react';
 import { Button, toast } from '@/components/design-system';
@@ -49,6 +51,7 @@ export default function AddShipmentExpenseModal({
 		amount: '',
 		description: '',
 		notes: '',
+		paymentMode: 'DUE' as 'CASH' | 'DUE',
 	});
 
 	const handleChange = (field: string, value: string) => {
@@ -80,11 +83,13 @@ export default function AddShipmentExpenseModal({
 					amount: parseFloat(formData.amount),
 					description: formData.description,
 					notes: formData.notes || undefined,
+					paymentMode: formData.paymentMode,
 				}),
 			});
 
 			if (response.ok) {
-				toast.success('Expense added successfully');
+				const data = await response.json();
+				toast.success(data.message || 'Expense added successfully');
 				onSuccess();
 				handleClose();
 			} else {
@@ -106,6 +111,7 @@ export default function AddShipmentExpenseModal({
 				amount: '',
 				description: '',
 				notes: '',
+				paymentMode: 'DUE',
 			});
 			onClose();
 		}
@@ -186,6 +192,32 @@ export default function AddShipmentExpenseModal({
 							startAdornment: <InputAdornment position="start">$</InputAdornment>,
 						}}
 					/>
+
+					{/* Payment Mode */}
+					<Box>
+						<Box sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>
+							Payment Mode <span style={{ color: 'var(--error)' }}>*</span>
+						</Box>
+						<ToggleButtonGroup
+							value={formData.paymentMode}
+							exclusive
+							onChange={(_, val) => { if (val) handleChange('paymentMode', val); }}
+							size="small"
+							fullWidth
+						>
+							<ToggleButton value="DUE" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
+								Due (Owed)
+							</ToggleButton>
+							<ToggleButton value="CASH" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
+								Cash (Paid)
+							</ToggleButton>
+						</ToggleButtonGroup>
+						<Box sx={{ mt: 1, px: 0.5, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+							{formData.paymentMode === 'CASH'
+								? '✓ Cash: adds a DEBIT charge and a CREDIT payment — customer has already paid.'
+								: '⏳ Due: adds only a DEBIT charge — customer still owes this amount.'}
+						</Box>
+					</Box>
 
 					<TextField
 						size="small"
