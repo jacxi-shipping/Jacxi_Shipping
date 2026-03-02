@@ -14,7 +14,7 @@ type UpdateShipmentPayload = {
   vehicleColor?: string | null;
   lotNumber?: string | null;
   auctionName?: string | null;
-  status?: 'ON_HAND' | 'IN_TRANSIT';
+  status?: 'ON_HAND' | 'IN_TRANSIT' | 'IN_TRANSIT_TO_DESTINATION';
   containerId?: string | null;
   arrivalPhotos?: string[] | null;
   vehiclePhotos?: string[] | null;
@@ -91,6 +91,11 @@ export async function GET(
               },
               take: 10,
             },
+          },
+        },
+        transit: {
+          include: {
+            company: { select: { id: true, name: true } },
           },
         },
         documents: true,

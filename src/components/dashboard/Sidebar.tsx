@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 
@@ -60,6 +60,12 @@ const adminNavigation: NavigationItem[] = [
 		name: 'Containers',
 		href: '/dashboard/containers',
 		icon: AllInbox,
+	},
+	{
+		name: 'Transits',
+		href: '/dashboard/transits',
+		icon: LocalShipping,
+		adminOnly: true,
 	},
 	{
 		name: 'Invoices',
