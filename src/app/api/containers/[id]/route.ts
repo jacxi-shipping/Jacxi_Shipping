@@ -80,6 +80,21 @@ export async function GET(
           orderBy: { timestamp: 'desc' },
           take: 50,
         },
+        userInvoices: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            _count: {
+              select: { lineItems: true },
+            },
+          },
+          orderBy: { issueDate: 'desc' },
+        },
       },
     });
 
@@ -146,6 +161,21 @@ export async function GET(
               auditLogs: {
                 orderBy: { timestamp: 'desc' },
                 take: 50,
+              },
+              userInvoices: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
+                  _count: {
+                    select: { lineItems: true },
+                  },
+                },
+                orderBy: { issueDate: 'desc' },
               },
             },
           });
