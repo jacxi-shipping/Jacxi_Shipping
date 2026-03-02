@@ -8,9 +8,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   TextField,
+  Tooltip,
 } from '@mui/material';
-import { Building2, Plus, Search } from 'lucide-react';
+import { Building2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import AdminRoute from '@/components/auth/AdminRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast } from '@/components/design-system';
@@ -22,6 +24,9 @@ interface Company {
   code: string | null;
   email: string | null;
   phone: string | null;
+  address: string | null;
+  country: string | null;
+  notes: string | null;
   isActive: boolean;
   createdAt: string;
   currentBalance: number;
@@ -32,6 +37,8 @@ interface Company {
   };
 }
 
+const emptyForm = { name: '', code: '', email: '', phone: '', address: '', country: '', notes: '' };
+
 export default function CompanyFinancePage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -39,15 +46,16 @@ export default function CompanyFinancePage() {
   const [search, setSearch] = useState('');
   const [openCreate, setOpenCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    email: '',
-    phone: '',
-    address: '',
-    country: '',
-    notes: '',
-  });
+  const [formData, setFormData] = useState(emptyForm);
+
+  // Edit state
+  const [openEdit, setOpenEdit] = useState(false);
+  const [editCompany, setEditCompany] = useState<Company | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+
+  // Delete state
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const fetchCompanies = async () => {
     try {
@@ -97,15 +105,7 @@ export default function CompanyFinancePage() {
 
       toast.success('Company created');
       setOpenCreate(false);
-      setFormData({
-        name: '',
-        code: '',
-        email: '',
-        phone: '',
-        address: '',
-        country: '',
-        notes: '',
-      });
+      setFormData(emptyForm);
       await fetchCompanies();
     } catch (error) {
       console.error('Error creating company:', error);
@@ -117,6 +117,94 @@ export default function CompanyFinancePage() {
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+
+  const openEditDialog = (company: Company, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditCompany(company);
+    setEditForm({
+      name: company.name,
+      code: company.code || '',
+      email: company.email || '',
+      phone: company.phone || '',
+      address: company.address || '',
+      country: company.country || '',
+      notes: company.notes || '',
+    });
+    setOpenEdit(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editCompany || !editForm.name.trim()) {
+      toast.error('Company name is required');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fetch(`/api/finance/companies/${editCompany.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name,
+          code: editForm.code || null,
+          email: editForm.email || null,
+          phone: editForm.phone || null,
+          address: editForm.address || null,
+          country: editForm.country || null,
+          notes: editForm.notes || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update company');
+      }
+
+      toast.success('Company updated');
+      setOpenEdit(false);
+      setEditCompany(null);
+      await fetchCompanies();
+    } catch (error) {
+      console.error('Error updating company:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update company');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (company: Company, event: React.MouseEvent) => {
+    event.stopPropagation();
+
+    const hasEntries = company._count.ledgerEntries > 0;
+    const message = hasEntries
+      ? `Delete "${company.name}" and all ${company._count.ledgerEntries} transaction(s)? This cannot be undone.`
+      : `Delete company "${company.name}"? This cannot be undone.`;
+
+    if (!confirm(message)) return;
+
+    try {
+      setDeleting(company.id);
+      const url = hasEntries
+        ? `/api/finance/companies/${company.id}?force=true`
+        : `/api/finance/companies/${company.id}`;
+
+      const response = await fetch(url, { method: 'DELETE' });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete company');
+      }
+
+      toast.success('Company deleted');
+      await fetchCompanies();
+    } catch (error) {
+      console.error('Error deleting company:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete company');
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const stats = useMemo(() => {
     const totalDebit = companies.reduce((sum, company) => sum + company.totalDebit, 0);
@@ -178,6 +266,33 @@ export default function CompanyFinancePage() {
         header: 'Transactions',
         align: 'center',
         render: (_, row) => row._count.ledgerEntries,
+      },
+      {
+        key: 'id',
+        header: 'Actions',
+        align: 'center',
+        render: (_, row) => (
+          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+            <Tooltip title="Edit company">
+              <IconButton
+                size="small"
+                onClick={(event) => openEditDialog(row, event)}
+              >
+                <Pencil className="w-4 h-4" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete company">
+              <IconButton
+                size="small"
+                color="error"
+                disabled={deleting === row.id}
+                onClick={(event) => void handleDelete(row, event)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
       },
     ],
     []
@@ -245,6 +360,23 @@ export default function CompanyFinancePage() {
           <DialogActions>
             <Button variant="outline" onClick={() => setOpenCreate(false)} disabled={creating}>Cancel</Button>
             <Button variant="primary" onClick={handleCreate} disabled={creating}>{creating ? 'Creating...' : 'Create'}</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openEdit} onClose={() => !saving && setOpenEdit(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit Company</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
+            <TextField label="Company Name" value={editForm.name} onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))} required />
+            <TextField label="Code" value={editForm.code} onChange={(event) => setEditForm((prev) => ({ ...prev, code: event.target.value }))} />
+            <TextField label="Email" value={editForm.email} onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))} />
+            <TextField label="Phone" value={editForm.phone} onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))} />
+            <TextField label="Address" value={editForm.address} onChange={(event) => setEditForm((prev) => ({ ...prev, address: event.target.value }))} />
+            <TextField label="Country" value={editForm.country} onChange={(event) => setEditForm((prev) => ({ ...prev, country: event.target.value }))} />
+            <TextField label="Notes" multiline rows={3} value={editForm.notes} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
+          </DialogContent>
+          <DialogActions>
+            <Button variant="outline" onClick={() => setOpenEdit(false)} disabled={saving}>Cancel</Button>
+            <Button variant="primary" onClick={handleEdit} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
           </DialogActions>
         </Dialog>
       </DashboardSurface>

@@ -12,8 +12,9 @@ import {
   IconButton,
   MenuItem,
   TextField,
+  Tooltip,
 } from '@mui/material';
-import { ArrowLeft, Building2, DollarSign, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, DollarSign, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react';
 import AdminRoute from '@/components/auth/AdminRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
@@ -57,6 +58,12 @@ interface CompanyReport {
     netMovement: number;
     currentBalance: number;
   };
+  monthlyBreakdown?: Array<{
+    month: string;
+    debit: number;
+    credit: number;
+    net: number;
+  }>;
 }
 
 export default function CompanyLedgerDetailPage() {
@@ -80,6 +87,20 @@ export default function CompanyLedgerDetailPage() {
     reference: '',
     notes: '',
   });
+
+  // Edit entry state
+  const [openEditEntry, setOpenEditEntry] = useState(false);
+  const [editEntry, setEditEntry] = useState<LedgerEntry | null>(null);
+  const [editForm, setEditForm] = useState({
+    description: '',
+    type: 'DEBIT',
+    amount: '',
+    transactionDate: new Date().toISOString().slice(0, 10),
+    category: '',
+    reference: '',
+    notes: '',
+  });
+  const [updating, setUpdating] = useState(false);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -220,6 +241,69 @@ export default function CompanyLedgerDetailPage() {
     }
   };
 
+  const openEditEntryDialog = (entry: LedgerEntry, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditEntry(entry);
+    setEditForm({
+      description: entry.description,
+      type: entry.type,
+      amount: String(entry.amount),
+      transactionDate: new Date(entry.transactionDate).toISOString().slice(0, 10),
+      category: entry.category || '',
+      reference: entry.reference || '',
+      notes: entry.notes || '',
+    });
+    setOpenEditEntry(true);
+  };
+
+  const handleEditEntry = async () => {
+    if (!editEntry) return;
+
+    if (!editForm.description.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+
+    const amount = parseFloat(editForm.amount);
+    if (!amount || amount <= 0) {
+      toast.error('Amount must be greater than 0');
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const response = await fetch(`/api/finance/companies/ledger/${editEntry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: editForm.description,
+          type: editForm.type,
+          amount,
+          transactionDate: editForm.transactionDate,
+          category: editForm.category || null,
+          reference: editForm.reference || null,
+          notes: editForm.notes || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update transaction');
+      }
+
+      toast.success('Transaction updated');
+      setOpenEditEntry(false);
+      setEditEntry(null);
+      await Promise.all([fetchLedger(), fetchReport()]);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update transaction');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const columns = useMemo<Column<LedgerEntry>[]>(
     () => [
       {
@@ -268,16 +352,28 @@ export default function CompanyLedgerDetailPage() {
         header: 'Actions',
         align: 'center',
         render: (_, row) => (
-          <IconButton
-            size="small"
-            onClick={(event) => {
-              event.stopPropagation();
-              void handleDeleteEntry(row.id);
-            }}
-            color="error"
-          >
-            <Trash2 className="w-4 h-4" />
-          </IconButton>
+          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+            <Tooltip title="Edit transaction">
+              <IconButton
+                size="small"
+                onClick={(event) => openEditEntryDialog(row, event)}
+              >
+                <Pencil className="w-4 h-4" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete transaction">
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handleDeleteEntry(row.id);
+                }}
+                color="error"
+              >
+                <Trash2 className="w-4 h-4" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         ),
       },
     ],
@@ -356,6 +452,35 @@ export default function CompanyLedgerDetailPage() {
           <DataTable data={entries} columns={columns} keyField="id" />
         </DashboardPanel>
 
+        {report && report.summary.transactionCount > 0 && (
+          <DashboardPanel title="Monthly Report" description="Transaction breakdown by month">
+            <Box sx={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Month</th>
+                    <th style={{ textAlign: 'right', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Debit</th>
+                    <th style={{ textAlign: 'right', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Credit</th>
+                    <th style={{ textAlign: 'right', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.monthlyBreakdown?.map((row) => (
+                    <tr key={row.month} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 12px', fontWeight: 500 }}>{row.month}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--error)' }}>{formatCurrency(row.debit)}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--success)' }}>{formatCurrency(row.credit)}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: row.net >= 0 ? 'var(--text-primary)' : 'var(--error)' }}>
+                        {formatCurrency(row.net)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+          </DashboardPanel>
+        )}
+
         <Dialog open={openEntry} onClose={() => !posting && setOpenEntry(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Add Company Transaction</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
@@ -377,6 +502,30 @@ export default function CompanyLedgerDetailPage() {
           <DialogActions>
             <Button variant="outline" onClick={() => setOpenEntry(false)} disabled={posting}>Cancel</Button>
             <Button variant="primary" onClick={handleCreateEntry} disabled={posting}>{posting ? 'Saving...' : 'Save Transaction'}</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openEditEntry} onClose={() => !updating && setOpenEditEntry(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit Transaction</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
+            <TextField label="Description" value={editForm.description} onChange={(event) => setEditForm((prev) => ({ ...prev, description: event.target.value }))} required />
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <TextField select label="Type" value={editForm.type} onChange={(event) => setEditForm((prev) => ({ ...prev, type: event.target.value }))}>
+                <MenuItem value="DEBIT">DEBIT</MenuItem>
+                <MenuItem value="CREDIT">CREDIT</MenuItem>
+              </TextField>
+              <TextField label="Amount" type="number" inputProps={{ min: 0.01, step: 0.01 }} value={editForm.amount} onChange={(event) => setEditForm((prev) => ({ ...prev, amount: event.target.value }))} />
+            </Box>
+            <TextField label="Transaction Date" type="date" InputLabelProps={{ shrink: true }} value={editForm.transactionDate} onChange={(event) => setEditForm((prev) => ({ ...prev, transactionDate: event.target.value }))} />
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <TextField label="Category" value={editForm.category} onChange={(event) => setEditForm((prev) => ({ ...prev, category: event.target.value }))} />
+              <TextField label="Reference" value={editForm.reference} onChange={(event) => setEditForm((prev) => ({ ...prev, reference: event.target.value }))} />
+            </Box>
+            <TextField label="Notes" rows={3} multiline value={editForm.notes} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
+          </DialogContent>
+          <DialogActions>
+            <Button variant="outline" onClick={() => setOpenEditEntry(false)} disabled={updating}>Cancel</Button>
+            <Button variant="primary" onClick={handleEditEntry} disabled={updating}>{updating ? 'Saving...' : 'Save Changes'}</Button>
           </DialogActions>
         </Dialog>
       </DashboardSurface>
