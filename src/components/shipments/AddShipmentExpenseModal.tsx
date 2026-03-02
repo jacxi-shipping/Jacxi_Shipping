@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	Dialog,
 	DialogTitle,
@@ -19,10 +19,21 @@ import {
 import { DollarSign, X } from 'lucide-react';
 import { Button, toast } from '@/components/design-system';
 
+interface ShipmentOption {
+	id: string;
+	vehicleMake: string | null;
+	vehicleModel: string | null;
+	vehicleVIN?: string | null;
+	user?: { name: string | null; email: string };
+}
+
 interface AddShipmentExpenseModalProps {
 	open: boolean;
 	onClose: () => void;
-	shipmentId: string;
+	/** Pre-selected shipment. Omit when providing `shipments` for the picker. */
+	shipmentId?: string;
+	/** When provided, shows a shipment selector dropdown. */
+	shipments?: ShipmentOption[];
 	onSuccess: () => void;
 }
 
@@ -42,10 +53,12 @@ const expenseTypes = [
 export default function AddShipmentExpenseModal({
 	open,
 	onClose,
-	shipmentId,
+	shipmentId: shipmentIdProp,
+	shipments,
 	onSuccess,
 }: AddShipmentExpenseModalProps) {
 	const [loading, setLoading] = useState(false);
+	const [selectedShipmentId, setSelectedShipmentId] = useState(shipmentIdProp || '');
 	const [formData, setFormData] = useState({
 		expenseType: 'SHIPPING_FEE',
 		amount: '',
@@ -54,12 +67,24 @@ export default function AddShipmentExpenseModal({
 		paymentMode: 'DUE' as 'CASH' | 'DUE',
 	});
 
+	// Sync pre-selected shipmentId when a different row is clicked
+	useEffect(() => {
+		setSelectedShipmentId(shipmentIdProp || '');
+	}, [shipmentIdProp]);
+
 	const handleChange = (field: string, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+
+		const resolvedShipmentId = selectedShipmentId;
+
+		if (!resolvedShipmentId) {
+			toast.error('Please select a shipment');
+			return;
+		}
 
 		if (!formData.amount || parseFloat(formData.amount) <= 0) {
 			toast.error('Please enter a valid amount');
@@ -78,7 +103,7 @@ export default function AddShipmentExpenseModal({
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					shipmentId,
+					shipmentId: resolvedShipmentId,
 					expenseType: formData.expenseType,
 					amount: parseFloat(formData.amount),
 					description: formData.description,
@@ -113,6 +138,7 @@ export default function AddShipmentExpenseModal({
 				notes: '',
 				paymentMode: 'DUE',
 			});
+			if (!shipmentIdProp) setSelectedShipmentId('');
 			onClose();
 		}
 	};
@@ -156,6 +182,27 @@ export default function AddShipmentExpenseModal({
 
 			<Box component="form" onSubmit={handleSubmit}>
 				<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+					{/* Shipment picker — only shown when a list is provided and no ID is pre-selected */}
+					{shipments && !shipmentIdProp && (
+						<FormControl fullWidth size="small" required>
+							<InputLabel>Shipment</InputLabel>
+							<Select
+								value={selectedShipmentId}
+								onChange={(e) => setSelectedShipmentId(e.target.value)}
+								label="Shipment"
+							>
+								<MenuItem value=""><em>Select a shipment…</em></MenuItem>
+								{shipments.map((s) => (
+									<MenuItem key={s.id} value={s.id}>
+										{s.vehicleMake} {s.vehicleModel}
+										{s.vehicleVIN ? ` — ${s.vehicleVIN}` : ''}
+										{s.user ? ` (${s.user.name || s.user.email})` : ''}
+									</MenuItem>
+								))}
+							</Select>
+						</FormControl>
+					)}
+
 					<FormControl fullWidth size="small" required>
 						<InputLabel>Expense Type</InputLabel>
 						<Select
