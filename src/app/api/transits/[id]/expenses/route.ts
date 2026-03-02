@@ -16,8 +16,11 @@ const createExpenseSchema = z.object({
   // Ledger integration options
   postToCompanyLedger: z.boolean().default(true),
   postToUserLedger: z.boolean().default(false),
-  userId: z.string().optional(), // Required if postToUserLedger is true
-});
+  userId: z.string().optional(),
+}).refine(
+  (data) => !data.postToUserLedger || !!data.userId,
+  { message: 'userId is required when postToUserLedger is true', path: ['userId'] }
+);
 
 export async function GET(
   _request: NextRequest,
@@ -86,13 +89,6 @@ export async function POST(
 
     const body = await request.json();
     const validatedData = createExpenseSchema.parse(body);
-
-    if (validatedData.postToUserLedger && !validatedData.userId) {
-      return NextResponse.json(
-        { error: 'userId is required when postToUserLedger is true' },
-        { status: 400 }
-      );
-    }
 
     // Verify shipment belongs to this transit if provided
     if (validatedData.shipmentId) {

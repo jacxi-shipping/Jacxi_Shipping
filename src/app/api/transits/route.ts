@@ -114,6 +114,9 @@ export async function POST(request: NextRequest) {
       referenceNumber = generateReferenceNumber();
       attempts++;
     }
+    if (attempts >= 5) {
+      return NextResponse.json({ error: 'Could not generate a unique reference number. Please try again.' }, { status: 500 });
+    }
 
     const transit = await prisma.$transaction(async (tx) => {
       const created = await tx.transit.create({

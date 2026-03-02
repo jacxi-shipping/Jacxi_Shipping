@@ -608,7 +608,7 @@ export default function TransitDetailPage() {
                 >
                   <MenuItem value="">Select customer...</MenuItem>
                   {transit.shipments.map(s => (
-                    <MenuItem key={s.user.id} value={s.user.id}>
+                    <MenuItem key={s.id} value={s.user.id}>
                       {s.user.name || s.user.email}
                     </MenuItem>
                   ))}
