@@ -58,6 +58,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AddExpenseModal from '@/components/containers/AddExpenseModal';
 import AddInvoiceModal from '@/components/containers/AddInvoiceModal';
 import AddTrackingEventModal from '@/components/containers/AddTrackingEventModal';
+import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import { ActivityLog } from '@/components/dashboard/ActivityLog';
@@ -214,6 +215,8 @@ export default function ContainerDetailPage() {
     const [refreshingTracking, setRefreshingTracking] = useState(false);
 	const [invoiceGenerationModalOpen, setInvoiceGenerationModalOpen] = useState(false);
     const [qrModalOpen, setQrModalOpen] = useState(false);
+	const [shipmentExpenseModalOpen, setShipmentExpenseModalOpen] = useState(false);
+	const [selectedShipmentForExpense, setSelectedShipmentForExpense] = useState<string | undefined>(undefined);
 
 	useEffect(() => {
 		if (params.id) {
@@ -1075,17 +1078,37 @@ export default function ContainerDetailPage() {
 														/>
 													</TableCell>
 													<TableCell align="right">
-														<Button
-															variant="outline"
-															size="sm"
-															icon={<Eye className="w-3 h-3" />}
-															onClick={(e) => {
-																e.stopPropagation();
-																router.push(`/dashboard/shipments/${shipment.id}`);
-															}}
-														>
-															View
-														</Button>
+														<Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+															{isAdmin && (
+																<Button
+																	variant="outline"
+																	size="sm"
+																	icon={<DollarSign className="w-3 h-3" />}
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		setSelectedShipmentForExpense(shipment.id);
+																		setShipmentExpenseModalOpen(true);
+																	}}
+																	sx={{
+																		color: 'var(--accent-gold)',
+																		borderColor: 'var(--accent-gold)',
+																	}}
+																>
+																	Expense
+																</Button>
+															)}
+															<Button
+																variant="outline"
+																size="sm"
+																icon={<Eye className="w-3 h-3" />}
+																onClick={(e) => {
+																	e.stopPropagation();
+																	router.push(`/dashboard/shipments/${shipment.id}`);
+																}}
+															>
+																View
+															</Button>
+														</Box>
 													</TableCell>
 												</TableRow>
 											))}
@@ -1115,7 +1138,20 @@ export default function ContainerDetailPage() {
 							title="Container Expenses"
 							description="All costs and expenses for this container"
 						>
-							<Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+							<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 2 }}>
+								{isAdmin && (
+									<Button
+										variant="outline"
+										size="sm"
+										icon={<Plus className="w-4 h-4" />}
+										onClick={() => {
+											setSelectedShipmentForExpense(undefined);
+											setShipmentExpenseModalOpen(true);
+										}}
+									>
+										Add Shipment Expense
+									</Button>
+								)}
 								{isAdmin && (
 									<Button
 										variant="primary"
@@ -1123,7 +1159,7 @@ export default function ContainerDetailPage() {
 										icon={<Plus className="w-4 h-4" />}
 										onClick={() => setExpenseModalOpen(true)}
 									>
-										Add Expense
+										Add Container Expense
 									</Button>
 								)}
 							</Box>
@@ -1573,11 +1609,29 @@ export default function ContainerDetailPage() {
                     )}
 				</Box>
 
-				{/* Add Expense Modal */}
+				{/* Add Container Expense Modal */}
 				<AddExpenseModal
 					open={expenseModalOpen}
 					onClose={() => setExpenseModalOpen(false)}
 					containerId={container.id}
+					onSuccess={fetchContainer}
+				/>
+
+				{/* Add Shipment Expense Modal */}
+				<AddShipmentExpenseModal
+					open={shipmentExpenseModalOpen}
+					onClose={() => {
+						setShipmentExpenseModalOpen(false);
+						setSelectedShipmentForExpense(undefined);
+					}}
+					shipmentId={selectedShipmentForExpense}
+					shipments={selectedShipmentForExpense ? undefined : container.shipments.map((s) => ({
+						id: s.id,
+						vehicleMake: s.vehicleMake,
+						vehicleModel: s.vehicleModel,
+						vehicleVIN: s.vehicleVIN,
+						user: s.user,
+					}))}
 					onSuccess={fetchContainer}
 				/>
 

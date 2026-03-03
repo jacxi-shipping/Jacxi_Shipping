@@ -8,7 +8,8 @@ const addExpenseSchema = z.object({
   shipmentId: z.string(),
   description: z.string().min(1),
   amount: z.number().positive(),
-  expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'OTHER']),
+  expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
+  paymentMode: z.enum(['CASH', 'DUE']).default('DUE'),
   notes: z.string().optional(),
 });
 
@@ -44,58 +45,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    // Get current balance for the user
-    const latestEntry = await prisma.ledgerEntry.findFirst({
-      where: { userId: shipment.userId },
-      orderBy: { transactionDate: 'desc' },
-      select: { balance: true },
-    });
-
-    const currentBalance = latestEntry?.balance || 0;
-    const newBalance = currentBalance + validatedData.amount;
-
     // Create expense description
     const expenseTypeLabel = validatedData.expenseType.replace(/_/g, ' ').toLowerCase();
     const vehicleInfo = `${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim() || 'Vehicle';
     const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (Shipment ${shipment.id})`;
 
-    // Create ledger entry for expense
-    const entry = await prisma.ledgerEntry.create({
-      data: {
-        userId: shipment.userId,
-        shipmentId: validatedData.shipmentId,
-        description,
-        type: 'DEBIT',
-        amount: validatedData.amount,
-        balance: newBalance,
-        createdBy: session.user.id as string,
-        notes: validatedData.notes,
-        metadata: {
-          expenseType: validatedData.expenseType,
-          isExpense: true,
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const entries = await prisma.$transaction(async (tx) => {
+      // Get current balance for the user inside transaction
+      const latestEntry = await tx.ledgerEntry.findFirst({
+        where: { userId: shipment.userId },
+        orderBy: { transactionDate: 'desc' },
+        select: { balance: true },
+      });
+
+      const currentBalance = latestEntry?.balance ?? 0;
+      const debitBalance = currentBalance + validatedData.amount;
+
+      // Create the DEBIT entry (always)
+      const debitEntry = await tx.ledgerEntry.create({
+        data: {
+          userId: shipment.userId,
+          shipmentId: validatedData.shipmentId,
+          description,
+          type: 'DEBIT',
+          amount: validatedData.amount,
+          balance: debitBalance,
+          createdBy: session.user!.id as string,
+          notes: validatedData.notes,
+          metadata: {
+            expenseType: validatedData.expenseType,
+            paymentMode: validatedData.paymentMode,
+            isExpense: true,
           },
         },
-        shipment: {
-          select: {
-            id: true,
-            vehicleMake: true,
-            vehicleModel: true,
+      });
+
+      // For CASH payments: also create a CREDIT entry (cash received)
+      if (validatedData.paymentMode === 'CASH') {
+        const creditBalance = debitBalance - validatedData.amount;
+        const creditEntry = await tx.ledgerEntry.create({
+          data: {
+            userId: shipment.userId,
+            shipmentId: validatedData.shipmentId,
+            description: `Cash payment received - ${validatedData.description}`,
+            type: 'CREDIT',
+            amount: validatedData.amount,
+            balance: creditBalance,
+            createdBy: session.user!.id as string,
+            notes: validatedData.notes,
+            metadata: {
+              expenseType: validatedData.expenseType,
+              paymentMode: validatedData.paymentMode,
+              isExpense: true,
+              isCashPayment: true,
+            },
           },
-        },
-      },
+        });
+        return [debitEntry, creditEntry];
+      }
+
+      return [debitEntry];
     });
 
     return NextResponse.json({
-      entry,
-      message: 'Expense added successfully',
+      entries,
+      entry: entries[0],
+      message: validatedData.paymentMode === 'CASH'
+        ? 'Expense added and cash payment recorded successfully'
+        : 'Expense added successfully',
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -155,8 +172,10 @@ export async function GET(request: NextRequest) {
       orderBy: { transactionDate: 'desc' },
     });
 
-    // Calculate total expenses
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    // Calculate total expenses (sum of DEBIT entries only)
+    const totalExpenses = expenses
+      .filter(e => e.type === 'DEBIT')
+      .reduce((sum, expense) => sum + expense.amount, 0);
 
     return NextResponse.json({
       expenses,

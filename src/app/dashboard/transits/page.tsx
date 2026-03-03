@@ -1,0 +1,359 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Box,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  TextField,
+} from '@mui/material';
+import { Package, Plus, Search, Truck } from 'lucide-react';
+import AdminRoute from '@/components/auth/AdminRoute';
+import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
+import { Breadcrumbs, Button, StatsCard, toast } from '@/components/design-system';
+import { DataTable, Column } from '@/components/ui/DataTable';
+
+interface Company {
+  id: string;
+  name: string;
+  code: string | null;
+}
+
+interface Transit {
+  id: string;
+  referenceNumber: string;
+  origin: string;
+  destination: string;
+  status: string;
+  dispatchDate: string | null;
+  estimatedDelivery: string | null;
+  actualDelivery: string | null;
+  cost: number | null;
+  notes: string | null;
+  createdAt: string;
+  company: Company;
+  _count: {
+    shipments: number;
+    events: number;
+    expenses: number;
+  };
+}
+
+const statusColors: Record<string, { bg: string; text: string; border: string }> = {
+  PENDING: { bg: 'rgba(156, 163, 175, 0.15)', text: 'rgb(156, 163, 175)', border: 'rgba(156, 163, 175, 0.3)' },
+  DISPATCHED: { bg: 'rgba(251, 191, 36, 0.15)', text: 'rgb(251, 191, 36)', border: 'rgba(251, 191, 36, 0.3)' },
+  IN_TRANSIT: { bg: 'rgba(99, 102, 241, 0.15)', text: 'rgb(99, 102, 241)', border: 'rgba(99, 102, 241, 0.3)' },
+  ARRIVED: { bg: 'rgba(34, 197, 94, 0.15)', text: 'rgb(34, 197, 94)', border: 'rgba(34, 197, 94, 0.3)' },
+  DELIVERED: { bg: 'rgba(20, 184, 166, 0.15)', text: 'rgb(20, 184, 166)', border: 'rgba(20, 184, 166, 0.3)' },
+  CANCELLED: { bg: 'rgba(239, 68, 68, 0.15)', text: 'rgb(239, 68, 68)', border: 'rgba(239, 68, 68, 0.3)' },
+};
+
+const statusLabels: Record<string, string> = {
+  PENDING: 'Pending',
+  DISPATCHED: 'Dispatched',
+  IN_TRANSIT: 'In Transit',
+  ARRIVED: 'Arrived',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
+};
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+
+export default function TransitsPage() {
+  const router = useRouter();
+  const [transits, setTransits] = useState<Transit[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [openCreate, setOpenCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [formData, setFormData] = useState({
+    companyId: '',
+    origin: 'Dubai, UAE',
+    destination: 'Kabul, Afghanistan',
+    dispatchDate: '',
+    estimatedDelivery: '',
+    cost: '',
+    notes: '',
+  });
+
+  const fetchTransits = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (statusFilter) params.append('status', statusFilter);
+      const response = await fetch(`/api/transits?${params}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch');
+      setTransits(data.transits || []);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load transits');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const response = await fetch('/api/finance/companies?active=true');
+      const data = await response.json();
+      if (response.ok) setCompanies(data.companies || []);
+    } catch (error) {
+      console.error('Failed to load companies:', error);
+    }
+  };
+
+  useEffect(() => {
+    void fetchTransits();
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    void fetchCompanies();
+  }, []);
+
+  const handleCreate = async () => {
+    if (!formData.companyId) {
+      toast.error('Transit company is required');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      const response = await fetch('/api/transits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: formData.companyId,
+          origin: formData.origin,
+          destination: formData.destination,
+          dispatchDate: formData.dispatchDate || undefined,
+          estimatedDelivery: formData.estimatedDelivery || undefined,
+          cost: formData.cost ? parseFloat(formData.cost) : undefined,
+          notes: formData.notes || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to create transit');
+
+      toast.success(`Transit ${data.transit.referenceNumber} created`);
+      setOpenCreate(false);
+      setFormData({ companyId: '', origin: 'Dubai, UAE', destination: 'Kabul, Afghanistan', dispatchDate: '', estimatedDelivery: '', cost: '', notes: '' });
+      await fetchTransits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create transit');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const stats = useMemo(() => ({
+    total: transits.length,
+    active: transits.filter(t => ['DISPATCHED', 'IN_TRANSIT', 'ARRIVED'].includes(t.status)).length,
+    delivered: transits.filter(t => t.status === 'DELIVERED').length,
+    pending: transits.filter(t => t.status === 'PENDING').length,
+  }), [transits]);
+
+  const columns = useMemo<Column<Transit>[]>(() => [
+    {
+      key: 'referenceNumber',
+      header: 'Reference',
+      sortable: true,
+      render: (_, row) => (
+        <Box>
+          <Box sx={{ fontWeight: 600 }}>{row.referenceNumber}</Box>
+          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.company.name}</Box>
+        </Box>
+      ),
+    },
+    {
+      key: 'origin',
+      header: 'Route',
+      render: (_, row) => (
+        <Box sx={{ fontSize: '0.8rem' }}>
+          <Box>{row.origin}</Box>
+          <Box sx={{ color: 'var(--text-secondary)' }}>→ {row.destination}</Box>
+        </Box>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      align: 'center',
+      render: (_, row) => {
+        const color = statusColors[row.status] || statusColors.PENDING;
+        return (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '2px 10px',
+              borderRadius: 9999,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              background: color.bg,
+              color: color.text,
+              border: `1px solid ${color.border}`,
+            }}
+          >
+            {statusLabels[row.status] || row.status}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'estimatedDelivery',
+      header: 'Est. Delivery',
+      render: (_, row) =>
+        row.estimatedDelivery ? new Date(row.estimatedDelivery).toLocaleDateString() : '-',
+    },
+    {
+      key: 'cost',
+      header: 'Cost',
+      align: 'right',
+      render: (_, row) => (row.cost != null ? formatCurrency(row.cost) : '-'),
+    },
+    {
+      key: '_count',
+      header: 'Shipments',
+      align: 'center',
+      render: (_, row) => row._count.shipments,
+    },
+  ], []);
+
+  return (
+    <AdminRoute>
+      <DashboardSurface>
+        <Box sx={{ px: 2, pt: 2 }}>
+          <Breadcrumbs />
+        </Box>
+
+        <DashboardPanel
+          title="Transit Management"
+          description="Manage land transits from UAE to Afghanistan"
+          actions={
+            <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenCreate(true)}>
+              New Transit
+            </Button>
+          }
+        >
+          <DashboardGrid className="grid-cols-2 md:grid-cols-4 mb-4">
+            <StatsCard icon={<Truck className="w-5 h-5" />} title="Total" value={stats.total} variant="default" />
+            <StatsCard icon={<Truck className="w-5 h-5" />} title="Active" value={stats.active} variant="info" />
+            <StatsCard icon={<Truck className="w-5 h-5" />} title="Delivered" value={stats.delivered} variant="success" />
+            <StatsCard icon={<Package className="w-5 h-5" />} title="Pending" value={stats.pending} variant="default" />
+          </DashboardGrid>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px' }, gap: 1.5, mb: 2 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Search by reference or notes"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              InputProps={{ startAdornment: <Search className="w-4 h-4 mr-2 text-[var(--text-secondary)]" /> }}
+            />
+            <TextField
+              select
+              size="small"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <MenuItem value="">All Statuses</MenuItem>
+              {Object.entries(statusLabels).map(([value, label]) => (
+                <MenuItem key={value} value={value}>{label}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          {loading ? (
+            <Box sx={{ py: 3, textAlign: 'center', color: 'var(--text-secondary)' }}>Loading transits...</Box>
+          ) : (
+            <DataTable
+              data={transits}
+              columns={columns}
+              keyField="id"
+              onRowClick={(row) => router.push(`/dashboard/transits/${row.id}`)}
+            />
+          )}
+        </DashboardPanel>
+
+        <Dialog open={openCreate} onClose={() => !creating && setOpenCreate(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Create New Transit</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
+            <TextField
+              select
+              label="Transit Company"
+              value={formData.companyId}
+              onChange={(e) => setFormData(prev => ({ ...prev, companyId: e.target.value }))}
+              required
+            >
+              <MenuItem value="">Select a company...</MenuItem>
+              {companies.map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.code ? ` (${c.code})` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Origin"
+              value={formData.origin}
+              onChange={(e) => setFormData(prev => ({ ...prev, origin: e.target.value }))}
+            />
+            <TextField
+              label="Destination"
+              value={formData.destination}
+              onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
+            />
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <TextField
+                label="Dispatch Date"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={formData.dispatchDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, dispatchDate: e.target.value }))}
+              />
+              <TextField
+                label="Est. Delivery"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={formData.estimatedDelivery}
+                onChange={(e) => setFormData(prev => ({ ...prev, estimatedDelivery: e.target.value }))}
+              />
+            </Box>
+            <TextField
+              label="Agreed Cost (USD)"
+              type="number"
+              inputProps={{ min: 0, step: 0.01 }}
+              value={formData.cost}
+              onChange={(e) => setFormData(prev => ({ ...prev, cost: e.target.value }))}
+            />
+            <TextField
+              label="Notes"
+              multiline
+              rows={3}
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button variant="outline" onClick={() => setOpenCreate(false)} disabled={creating}>Cancel</Button>
+            <Button variant="primary" onClick={handleCreate} disabled={creating}>
+              {creating ? 'Creating...' : 'Create Transit'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </DashboardSurface>
+    </AdminRoute>
+  );
+}

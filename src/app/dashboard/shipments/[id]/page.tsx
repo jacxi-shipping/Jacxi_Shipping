@@ -23,6 +23,7 @@ import {
   PackageCheck,
   PenLine,
   Trash2,
+  Truck,
   Upload,
   Wallet,
   X,
@@ -33,7 +34,7 @@ import {
   User,
   Ship,
 } from 'lucide-react';
-import { Tabs, Tab, Box, ImageList, ImageListItem, ImageListItemBar, IconButton as MuiIconButton } from '@mui/material';
+import { Tabs, Tab, Box, Dialog, DialogActions, DialogContent, DialogTitle, ImageList, ImageListItem, ImageListItemBar, IconButton as MuiIconButton, MenuItem, TextField } from '@mui/material';
 import { Breadcrumbs, toast, EmptyState, Tooltip, StatusBadge } from '@/components/design-system';
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
@@ -72,6 +73,15 @@ interface Container {
   trackingEvents: ShipmentEvent[];
 }
 
+interface ShipmentTransit {
+  id: string;
+  referenceNumber: string;
+  origin: string;
+  destination: string;
+  status: string;
+  company: { id: string; name: string };
+}
+
 interface Shipment {
   id: string;
   userId: string;
@@ -95,7 +105,9 @@ interface Shipment {
   titleStatus: string | null;
   vehicleAge: number | null;
   containerId: string | null;
+  transitId: string | null;
   container: Container | null;
+  transit: ShipmentTransit | null;
   internalNotes: string | null;
   paymentStatus: string;
   paymentMode: string | null;
@@ -167,6 +179,9 @@ export default function ShipmentDetailPage() {
   const [downloading, setDownloading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [openAssignTransit, setOpenAssignTransit] = useState(false);
+  const [transitIdToAssign, setTransitIdToAssign] = useState('');
+  const [assigningTransit, setAssigningTransit] = useState(false);
 
   const fetchShipment = useCallback(async () => {
     try {
@@ -358,6 +373,45 @@ export default function ShipmentDetailPage() {
 
   const formatStatus = (status: string) => {
     return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const handleAssignTransit = async () => {
+    if (!transitIdToAssign.trim()) {
+      toast.error('Transit ID is required');
+      return;
+    }
+
+    try {
+      setAssigningTransit(true);
+      const response = await fetch(`/api/transits/${transitIdToAssign}/shipments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipmentId: params.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to assign transit');
+      toast.success('Shipment assigned to transit');
+      setOpenAssignTransit(false);
+      setTransitIdToAssign('');
+      await fetchShipment();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to assign transit');
+    } finally {
+      setAssigningTransit(false);
+    }
+  };
+
+  const handleRemoveFromTransit = async () => {
+    if (!shipment?.transitId || !confirm('Remove this shipment from its transit?')) return;
+    try {
+      const response = await fetch(`/api/transits/${shipment.transitId}/shipments?shipmentId=${shipment.id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to remove from transit');
+      toast.success('Removed from transit');
+      await fetchShipment();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove from transit');
+    }
   };
 
   const handleDownloadReceipt = async () => {
@@ -681,6 +735,69 @@ export default function ShipmentDetailPage() {
                   </div>
                 </div>
               </div>
+            </DashboardPanel>
+
+            {/* Transit Panel */}
+            <DashboardPanel
+              title="Transit to Destination"
+              description={shipment.transit ? `${shipment.transit.origin} → ${shipment.transit.destination}` : 'Land delivery from UAE to Afghanistan'}
+              actions={
+                isAdmin && !shipment.transit ? (
+                  <button
+                    onClick={() => setOpenAssignTransit(true)}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90"
+                  >
+                    <Truck className="h-3.5 w-3.5" />
+                    Assign to Transit
+                  </button>
+                ) : undefined
+              }
+            >
+              {shipment.transit ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-5 w-5 text-[var(--accent-gold)]" />
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      Ref: <strong>{shipment.transit.referenceNumber}</strong>
+                    </span>
+                    <span className="ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase" style={{ background: 'rgba(99,102,241,0.15)', color: 'rgb(99,102,241)', border: '1px solid rgba(99,102,241,0.3)' }}>
+                      {shipment.transit.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company</p>
+                      <p className="font-medium">{shipment.transit.company.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Route</p>
+                      <p className="font-medium">{shipment.transit.origin} → {shipment.transit.destination}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <a href={`/dashboard/transits/${shipment.transit.id}`} className="text-xs text-[var(--accent-gold)] hover:underline font-medium">
+                      View Transit Details →
+                    </a>
+                    {isAdmin && (
+                      <button
+                        onClick={() => void handleRemoveFromTransit()}
+                        className="ml-auto text-xs text-[var(--error)] hover:underline"
+                      >
+                        Remove from transit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+                  <Truck className="h-8 w-8 text-[var(--text-secondary)] opacity-40" />
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {['ARRIVED_PORT', 'CUSTOMS_CLEARANCE', 'RELEASED', 'CLOSED'].includes(shipment.container?.status || '')
+                      ? 'Container has arrived. Assign to transit for delivery to Afghanistan.'
+                      : 'No transit assigned. Transit can be assigned once the container is released.'}
+                  </p>
+                </div>
+              )}
             </DashboardPanel>
 
             {/* Vehicle Specifications */}
@@ -1598,6 +1715,29 @@ export default function ShipmentDetailPage() {
             </div>
           </div>
         </motion.div>
+      )}
+
+      {/* Assign to Transit Dialog */}
+      {isAdmin && (
+        <Dialog open={openAssignTransit} onClose={() => !assigningTransit && setOpenAssignTransit(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Assign Shipment to Transit</DialogTitle>
+          <DialogContent sx={{ pt: 1.5 }}>
+            <TextField
+              fullWidth
+              label="Transit ID"
+              value={transitIdToAssign}
+              onChange={(e) => setTransitIdToAssign(e.target.value)}
+              helperText="Paste the transit ID from the Transits page"
+              size="small"
+            />
+          </DialogContent>
+          <DialogActions>
+            <button onClick={() => setOpenAssignTransit(false)} disabled={assigningTransit} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)' }}>Cancel</button>
+            <button onClick={() => void handleAssignTransit()} disabled={assigningTransit} style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#000' }}>
+              {assigningTransit ? 'Assigning...' : 'Assign'}
+            </button>
+          </DialogActions>
+        </Dialog>
       )}
     </ProtectedRoute>
   );

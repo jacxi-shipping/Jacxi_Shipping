@@ -43,6 +43,7 @@ export default function AddExpensePage() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [expenseType, setExpenseType] = useState('SHIPPING_FEE');
+  const [paymentMode, setPaymentMode] = useState<'CASH' | 'DUE'>('DUE');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -104,6 +105,7 @@ export default function AddExpensePage() {
           description,
           amount: parseFloat(amount),
           expenseType,
+          paymentMode,
           notes,
         }),
       });
@@ -112,10 +114,10 @@ export default function AddExpensePage() {
 
       if (response.ok) {
         setSuccess(data.message || 'Expense added successfully!');
-        // Reset form
         setDescription('');
         setAmount('');
         setNotes('');
+        setPaymentMode('DUE');
         if (!shipmentIdParam) {
           setSelectedShipmentId('');
         }
@@ -309,6 +311,43 @@ export default function AddExpensePage() {
                     </div>
                   </div>
 
+                  {/* Payment Mode */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-2">
+                      Payment Mode <span className="text-red-400">*</span>
+                    </label>
+                    <div className="flex gap-3">
+                      <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMode === 'DUE' ? 'border-[var(--accent-gold)] bg-[rgba(var(--accent-gold-rgb),0.1)]' : 'border-white/10 bg-white/3 hover:border-white/20'}`}>
+                        <input
+                          type="radio"
+                          name="paymentMode"
+                          value="DUE"
+                          checked={paymentMode === 'DUE'}
+                          onChange={() => setPaymentMode('DUE')}
+                          className="sr-only"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">Due</p>
+                          <p className="text-xs text-[var(--text-secondary)]">Only DEBIT — customer still owes</p>
+                        </div>
+                      </label>
+                      <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMode === 'CASH' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/3 hover:border-white/20'}`}>
+                        <input
+                          type="radio"
+                          name="paymentMode"
+                          value="CASH"
+                          checked={paymentMode === 'CASH'}
+                          onChange={() => setPaymentMode('CASH')}
+                          className="sr-only"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">Cash</p>
+                          <p className="text-xs text-[var(--text-secondary)]">DEBIT + CREDIT — already paid</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
                   <div>
                     <label htmlFor="notes" className="block text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-2">
                       Notes (Optional)
@@ -323,14 +362,17 @@ export default function AddExpensePage() {
                     />
                   </div>
 
-                  <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                  <div className={`p-4 rounded-lg border ${paymentMode === 'CASH' ? 'bg-green-500/10 border-green-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${paymentMode === 'CASH' ? 'text-green-400' : 'text-yellow-400'}`} />
                       <div>
-                        <p className="text-sm font-semibold text-yellow-400">Important</p>
+                        <p className={`text-sm font-semibold ${paymentMode === 'CASH' ? 'text-green-400' : 'text-yellow-400'}`}>
+                          {paymentMode === 'CASH' ? 'Cash Payment' : 'Due Payment'}
+                        </p>
                         <p className="text-xs text-[var(--text-secondary)] mt-1">
-                          This expense will be added to the user&apos;s ledger as a debit (amount owed). 
-                          It will increase their outstanding balance and be linked to this shipment.
+                          {paymentMode === 'CASH'
+                            ? 'Two ledger entries will be created: a DEBIT for the expense and a CREDIT for the cash payment received. Net effect on balance is zero.'
+                            : "One ledger entry will be created: a DEBIT for the expense. This will increase the customer's outstanding balance."}
                         </p>
                       </div>
                     </div>

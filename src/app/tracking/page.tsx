@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Button from '@/components/design-system/Button';
 import { AlertCircle, CheckCircle2, Clock, MapPin, Search, ArrowLeft, Ship, Package } from 'lucide-react';
@@ -52,13 +53,23 @@ const formatDisplayDate = (value?: string) => {
 };
 
 export default function TrackingPage() {
-	const [trackingNumber, setTrackingNumber] = useState('');
+	return (
+		<Suspense fallback={null}>
+			<TrackingPageInner />
+		</Suspense>
+	);
+}
+
+function TrackingPageInner() {
+	const searchParams = useSearchParams();
+	const [trackingNumber, setTrackingNumber] = useState(() => searchParams.get('container') ?? '');
 	const [trackingDetails, setTrackingDetails] = useState<TrackingDetails | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const autoSearchDone = useRef(false);
 
-	const handleTrack = async () => {
-		const value = trackingNumber.trim();
+	const handleTrack = useCallback(async (overrideValue?: string) => {
+		const value = (overrideValue ?? trackingNumber).trim();
 		if (!value) {
 			setErrorMessage('Enter a container or tracking number to continue.');
 			setTrackingDetails(null);
@@ -101,7 +112,16 @@ export default function TrackingPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [trackingNumber]);
+
+	// Auto-search when the page is opened from a QR code scan
+	useEffect(() => {
+		const containerParam = searchParams.get('container');
+		if (containerParam && !autoSearchDone.current) {
+			autoSearchDone.current = true;
+			handleTrack(containerParam);
+		}
+	}, [handleTrack, searchParams]);
 
 	const progressValue = normalizeProgress(trackingDetails?.progress);
 	const timelineEvents = (trackingDetails?.events || []).map((event) => ({
