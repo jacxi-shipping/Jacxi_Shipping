@@ -74,12 +74,18 @@ export async function GET(request: NextRequest) {
     let totalAging90 = 0;
 
     for (const shipment of shipments) {
-      const totalDebit = shipment.ledgerEntries
-        .filter((entry) => entry.type === 'DEBIT')
-        .reduce((sum, entry) => sum + entry.amount, 0);
-      const totalCredit = shipment.ledgerEntries
-        .filter((entry) => entry.type === 'CREDIT')
-        .reduce((sum, entry) => sum + entry.amount, 0);
+      // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop
+      // to calculate totalDebit and totalCredit simultaneously,
+      // preventing intermediate array allocations and reducing iteration overhead from O(3N) to O(N).
+      let totalDebit = 0;
+      let totalCredit = 0;
+      for (const entry of shipment.ledgerEntries) {
+        if (entry.type === 'DEBIT') {
+          totalDebit += entry.amount;
+        } else if (entry.type === 'CREDIT') {
+          totalCredit += entry.amount;
+        }
+      }
       const netDue = Math.max(0, totalDebit - totalCredit);
 
       if (netDue <= 0) {
