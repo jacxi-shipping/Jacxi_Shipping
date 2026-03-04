@@ -48,6 +48,8 @@ export async function GET(
       );
     }
 
+    const isAdmin = session.user?.role === 'admin';
+
     const shipment = await prisma.shipment.findUnique({
       where: { id },
       select: {
@@ -75,8 +77,7 @@ export async function GET(
         userId: true,
         internalNotes: true,
         price: true,
-        companyShippingFare: true,
-              const isAdmin = session.user?.role === 'admin';
+          ...(isAdmin ? { companyShippingFare: true } : {}),
         paymentStatus: true,
         paymentMode: true,
         createdAt: true,
@@ -105,7 +106,6 @@ export async function GET(
             },
           },
         },
-                 ...(isAdmin ? { companyShippingFare: true } : {}),
         transit: {
           include: {
             company: { select: { id: true, name: true } },
