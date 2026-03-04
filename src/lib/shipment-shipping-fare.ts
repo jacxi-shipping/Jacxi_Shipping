@@ -11,7 +11,8 @@ export type SyncShipmentShippingFareInput = {
   shipmentId: string;
   userId: string;
   shippingCompanyId: string | null;
-  amount: number | null;
+  userFareAmount: number | null;
+  companyFareAmount: number | null;
   vehicleLabel: string;
   vehicleVIN?: string | null;
   actorUserId: string;
@@ -68,45 +69,49 @@ export async function syncShipmentShippingFareEntries(
     });
   }
 
-  if (input.shouldPost && input.shippingCompanyId && input.amount && input.amount > 0) {
+  if (input.shouldPost && input.shippingCompanyId) {
     const vinSuffix = input.vehicleVIN ? ` (VIN: ${input.vehicleVIN})` : '';
 
-    await db.ledgerEntry.create({
-      data: {
-        userId: input.userId,
-        shipmentId: input.shipmentId,
-        description: `Shipping fare for ${input.vehicleLabel}${vinSuffix}`,
-        type: 'DEBIT',
-        amount: input.amount,
-        balance: 0,
-        createdBy: input.actorUserId,
-        notes: 'Auto-posted when shipment assigned to container',
-        metadata: {
-          isShipmentShippingFare: true,
-          shipmentId: input.shipmentId,
-          shippingCompanyId: input.shippingCompanyId,
-        } as Prisma.InputJsonValue,
-      },
-    });
-
-    await db.companyLedgerEntry.create({
-      data: {
-        companyId: input.shippingCompanyId,
-        description: `Shipping fare income for ${input.vehicleLabel}${vinSuffix}`,
-        type: 'CREDIT',
-        amount: input.amount,
-        balance: 0,
-        category: 'Shipping Fare',
-        reference: fareReference,
-        notes: 'Auto-posted when shipment assigned to container',
-        createdBy: input.actorUserId,
-        metadata: {
-          isShipmentShippingFare: true,
-          shipmentId: input.shipmentId,
+    if (input.userFareAmount && input.userFareAmount > 0) {
+      await db.ledgerEntry.create({
+        data: {
           userId: input.userId,
-        } as Prisma.InputJsonValue,
-      },
-    });
+          shipmentId: input.shipmentId,
+          description: `Shipping fare for ${input.vehicleLabel}${vinSuffix}`,
+          type: 'DEBIT',
+          amount: input.userFareAmount,
+          balance: 0,
+          createdBy: input.actorUserId,
+          notes: 'Auto-posted when shipment assigned to container',
+          metadata: {
+            isShipmentShippingFare: true,
+            shipmentId: input.shipmentId,
+            shippingCompanyId: input.shippingCompanyId,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    if (input.companyFareAmount && input.companyFareAmount > 0) {
+      await db.companyLedgerEntry.create({
+        data: {
+          companyId: input.shippingCompanyId,
+          description: `Shipping company charge for ${input.vehicleLabel}${vinSuffix}`,
+          type: 'DEBIT',
+          amount: input.companyFareAmount,
+          balance: 0,
+          category: 'Shipping Fare',
+          reference: fareReference,
+          notes: 'Auto-posted when shipment assigned to container',
+          createdBy: input.actorUserId,
+          metadata: {
+            isShipmentShippingFare: true,
+            shipmentId: input.shipmentId,
+            userId: input.userId,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    }
   }
 
   await recalculateUserLedgerBalances(db, input.userId);

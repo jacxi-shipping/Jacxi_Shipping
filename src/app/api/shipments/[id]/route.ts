@@ -26,6 +26,7 @@ type UpdateShipmentPayload = {
   specialInstructions?: string | null;
   insuranceValue?: number | string | null;
   price?: number | string | null;
+  companyShippingFare?: number | string | null;
   internalNotes?: string | null;
   hasKey?: boolean | null;
   hasTitle?: boolean | null;
@@ -74,6 +75,8 @@ export async function GET(
         userId: true,
         internalNotes: true,
         price: true,
+        companyShippingFare: true,
+              const isAdmin = session.user?.role === 'admin';
         paymentStatus: true,
         paymentMode: true,
         createdAt: true,
@@ -102,6 +105,7 @@ export async function GET(
             },
           },
         },
+                 ...(isAdmin ? { companyShippingFare: true } : {}),
         transit: {
           include: {
             company: { select: { id: true, name: true } },
@@ -178,6 +182,8 @@ export async function PATCH(
 
     const data = (await request.json()) as UpdateShipmentPayload;
     const updateData: Prisma.ShipmentUpdateInput = {};
+    let parsedPriceValue: number | null | undefined;
+    let parsedCompanyShippingFareValue: number | null | undefined;
     const resolvedShippingCompanyId = data.shippingCompanyId ?? existingShipment.shippingCompanyId;
 
     if (!resolvedShippingCompanyId) {
@@ -323,12 +329,46 @@ export async function PATCH(
     }
 
     if (data.price !== undefined) {
-      updateData.price =
+      parsedPriceValue =
         typeof data.price === 'number'
           ? data.price
           : typeof data.price === 'string'
           ? parseFloat(data.price)
           : null;
+      updateData.price = parsedPriceValue;
+    }
+
+    if (data.companyShippingFare !== undefined) {
+      parsedCompanyShippingFareValue =
+        typeof data.companyShippingFare === 'number'
+          ? data.companyShippingFare
+          : typeof data.companyShippingFare === 'string'
+          ? parseFloat(data.companyShippingFare)
+          : null;
+      updateData.companyShippingFare = parsedCompanyShippingFareValue;
+    }
+
+    const resolvedStatus = (updateData.status as string | undefined) ?? existingShipment.status;
+    const resolvedContainerId = data.containerId !== undefined ? data.containerId : existingShipment.containerId;
+    const resolvedCustomerFare = parsedPriceValue !== undefined ? parsedPriceValue : existingShipment.price;
+    const resolvedCompanyFare =
+      parsedCompanyShippingFareValue !== undefined ? parsedCompanyShippingFareValue : existingShipment.companyShippingFare;
+
+    const hasCustomerFare = !!(resolvedCustomerFare && resolvedCustomerFare > 0);
+    const hasCompanyFare = !!(resolvedCompanyFare && resolvedCompanyFare > 0);
+
+    if (hasCustomerFare !== hasCompanyFare) {
+      return NextResponse.json(
+        { message: 'Both customer shipping fare and company shipping fare are required together' },
+        { status: 400 }
+      );
+    }
+
+    if (resolvedStatus === 'IN_TRANSIT' && !!resolvedContainerId && !hasCustomerFare) {
+      return NextResponse.json(
+        { message: 'Customer shipping fare and company shipping fare are required for in-transit shipment assignment' },
+        { status: 400 }
+      );
     }
 
     // Other fields
@@ -374,7 +414,8 @@ export async function PATCH(
         shipmentId: shipment.id,
         userId: shipment.userId,
         shippingCompanyId: shipment.shippingCompanyId,
-        amount: shipment.price,
+        userFareAmount: shipment.price,
+        companyFareAmount: shipment.companyShippingFare,
         vehicleLabel,
         vehicleVIN: shipment.vehicleVIN,
         actorUserId: session.user?.id as string,

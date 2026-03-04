@@ -95,6 +95,7 @@ interface Shipment {
   auctionName: string | null;
   status: string;
   price: number | null;
+  companyShippingFare?: number | null;
   weight: number | null;
   dimensions: string | null;
   insuranceValue: number | null;
@@ -1008,8 +1009,14 @@ export default function ShipmentDetailPage() {
               <div className="space-y-4">
                 {shipment.price && (
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
-                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Total Price</p>
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Customer Shipping Fare</p>
                     <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">${shipment.price.toFixed(2)}</p>
+                  </div>
+                )}
+                {isAdmin && shipment.companyShippingFare && (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company Shipping Cost</p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">${shipment.companyShippingFare.toFixed(2)}</p>
                   </div>
                 )}
                 {shipment.insuranceValue && (

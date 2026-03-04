@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause based on user role
     const where: Prisma.ShipmentWhereInput = {};
+    const isAdmin = session.user?.role === 'admin';
     
     // Regular users can only see their own shipments
     if (session.user?.role !== 'admin') {
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
       createdAt: true,
       paymentStatus: true,
       price: true,
+      ...(isAdmin ? { companyShippingFare: true } : {}),
       shippingCompanyId: true,
       containerId: true,
       internalNotes: true,
@@ -175,6 +177,7 @@ type CreateShipmentPayload = {
   specialInstructions?: string | null;
   insuranceValue?: number | string | null;
   price?: number | string | null;
+  companyShippingFare?: number | string | null;
   vehiclePhotos?: string[] | null;
   status?: 'ON_HAND' | 'IN_TRANSIT' | null;
   containerId?: string | null;
@@ -227,6 +230,7 @@ export async function POST(request: NextRequest) {
       dimensions,
       insuranceValue,
       price,
+      companyShippingFare,
       vehiclePhotos,
       status: providedStatus,
       containerId,
@@ -354,6 +358,29 @@ export async function POST(request: NextRequest) {
         : null;
     const parsedPrice =
       typeof price === 'number' ? price : typeof price === 'string' ? parseFloat(price) : null;
+    const parsedCompanyShippingFare =
+      typeof companyShippingFare === 'number'
+        ? companyShippingFare
+        : typeof companyShippingFare === 'string'
+        ? parseFloat(companyShippingFare)
+        : null;
+
+    const hasCustomerFare = !!(parsedPrice && parsedPrice > 0);
+    const hasCompanyFare = !!(parsedCompanyShippingFare && parsedCompanyShippingFare > 0);
+
+    if (hasCustomerFare !== hasCompanyFare) {
+      return NextResponse.json(
+        { message: 'Both customer shipping fare and company shipping fare are required together' },
+        { status: 400 }
+      );
+    }
+
+    if (normalizedStatus === 'IN_TRANSIT' && !hasCustomerFare) {
+      return NextResponse.json(
+        { message: 'Customer shipping fare and company shipping fare are required for in-transit shipment assignment' },
+        { status: 400 }
+      );
+    }
     const parsedPurchasePrice =
       typeof purchasePrice === 'number' ? purchasePrice : typeof purchasePrice === 'string' ? parseFloat(purchasePrice) : null;
     
@@ -400,6 +427,7 @@ export async function POST(request: NextRequest) {
           dimensions,
           insuranceValue: parsedInsuranceValue,
           price: parsedPrice,
+          companyShippingFare: parsedCompanyShippingFare,
           vehiclePhotos: sanitizedVehiclePhotos,
           paymentStatus: finalPaymentStatus as PaymentStatus,
           paymentMode: paymentMode || null,
@@ -427,7 +455,8 @@ export async function POST(request: NextRequest) {
         shipmentId: createdShipment.id,
         userId: createdShipment.userId,
         shippingCompanyId: createdShipment.shippingCompanyId,
-        amount: createdShipment.price,
+        userFareAmount: createdShipment.price,
+        companyFareAmount: createdShipment.companyShippingFare,
         vehicleLabel,
         vehicleVIN: createdShipment.vehicleVIN,
         actorUserId: session.user?.id as string,

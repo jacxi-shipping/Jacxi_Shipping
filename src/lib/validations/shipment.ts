@@ -56,6 +56,10 @@ export const shipmentSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Price must be greater than 0' }
   ),
+  companyShippingFare: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Company shipping fare must be greater than 0' }
+  ),
   vehiclePhotos: z.array(z.string()).default([]),
   hasKey: z.boolean().optional(),
   hasTitle: z.boolean().optional(),
@@ -91,6 +95,13 @@ export const shipmentSchema = z.object({
 }, {
   message: 'Purchase price is required for Purchase + Shipping service',
   path: ['purchasePrice'],
+}).refine((data) => {
+  const hasUserFare = !!data.price;
+  const hasCompanyFare = !!data.companyShippingFare;
+  return hasUserFare === hasCompanyFare;
+}, {
+  message: 'Enter both customer shipping fare and company shipping fare',
+  path: ['companyShippingFare'],
 });
 
 export const shipmentUpdateSchema = z.object({
@@ -145,6 +156,10 @@ export const shipmentUpdateSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Price must be greater than 0' }
   ),
+  companyShippingFare: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Company shipping fare must be greater than 0' }
+  ),
   hasKey: z.boolean().optional(),
   hasTitle: z.boolean().optional(),
   titleStatus: z.enum(['PENDING', 'DELIVERED']).optional(),
@@ -159,6 +174,16 @@ export const shipmentUpdateSchema = z.object({
     (val) => !val || val.length <= 2000,
     { message: 'Internal notes cannot exceed 2000 characters' }
   ),
+}).refine((data) => {
+  const hasUserFare = !!data.price;
+  const hasCompanyFare = !!data.companyShippingFare;
+  if (!hasUserFare && !hasCompanyFare) {
+    return true;
+  }
+  return hasUserFare === hasCompanyFare;
+}, {
+  message: 'Enter both customer shipping fare and company shipping fare',
+  path: ['companyShippingFare'],
 });
 
 export type ShipmentFormData = z.input<typeof shipmentSchema>;

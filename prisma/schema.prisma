@@ -145,7 +145,8 @@ model Shipment {
   internalNotes String?
 
   // Financial (shipping service price)
-  price         Float? // Shipping service price (separate from purchase price)
+  price              Float? // Customer shipping fare (separate from purchase price)
+  companyShippingFare Float? // Internal company shipping cost
   paymentStatus PaymentStatus @default(PENDING)
   paymentMode   PaymentMode?
 

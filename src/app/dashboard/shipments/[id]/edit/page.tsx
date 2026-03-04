@@ -153,6 +153,7 @@ export default function EditShipmentPage() {
             dimensions: shipment.dimensions || '',
             insuranceValue: shipment.insuranceValue?.toString() || '',
             price: shipment.price?.toString() || '',
+            companyShippingFare: shipment.companyShippingFare?.toString() || '',
             hasKey: shipment.hasKey,
             hasTitle: shipment.hasTitle,
             titleStatus: shipment.titleStatus || undefined,
@@ -1060,11 +1061,21 @@ export default function EditShipmentPage() {
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                   <FormField
                     id="price"
-                    label="Price ($)"
+                    label="Customer Shipping Fare ($)"
                     type="number"
                     error={!!errors.price}
                     helperText={errors.price?.message}
                     {...register('price')}
+                    inputProps={{ step: '0.01' }}
+                    leftIcon={<DollarSign className="w-4 h-4 text-[var(--text-secondary)]" />}
+                  />
+                  <FormField
+                    id="companyShippingFare"
+                    label="Company Shipping Cost ($)"
+                    type="number"
+                    error={!!errors.companyShippingFare}
+                    helperText={errors.companyShippingFare?.message || 'Internal only - hidden from customer and invoice'}
+                    {...register('companyShippingFare')}
                     inputProps={{ step: '0.01' }}
                     leftIcon={<DollarSign className="w-4 h-4 text-[var(--text-secondary)]" />}
                   />

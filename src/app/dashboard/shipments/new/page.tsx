@@ -84,6 +84,7 @@ export default function NewShipmentPage() {
 			status: 'ON_HAND',
 			serviceType: 'SHIPPING_ONLY',
 			shippingCompanyId: '',
+			companyShippingFare: '',
 		},
 	});
 
@@ -1249,12 +1250,23 @@ export default function NewShipmentPage() {
 								<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
 									<FormField
 										id="price"
-										label="Price ($)"
+										label="Customer Shipping Fare ($)"
 										type="number"
 										placeholder="0.00"
 										error={!!errors.price}
 										helperText={errors.price?.message}
 										{...register('price')}
+										inputProps={{ step: '0.01' }}
+										leftIcon={<DollarSign style={{ fontSize: 18, color: 'var(--text-secondary)' }} />}
+									/>
+									<FormField
+										id="companyShippingFare"
+										label="Company Shipping Cost ($)"
+										type="number"
+										placeholder="0.00"
+										error={!!errors.companyShippingFare}
+										helperText={errors.companyShippingFare?.message || 'Internal only - hidden from customer and invoice'}
+										{...register('companyShippingFare')}
 										inputProps={{ step: '0.01' }}
 										leftIcon={<DollarSign style={{ fontSize: 18, color: 'var(--text-secondary)' }} />}
 									/>
@@ -1438,10 +1450,18 @@ export default function NewShipmentPage() {
 										)}
 										<Box>
 											<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
-												{formValues.serviceType === 'PURCHASE_AND_SHIPPING' ? 'Shipping Price' : 'Price'}
+												Customer Shipping Fare
 											</Typography>
 											<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
 												${formValues.price || '0.00'}
+											</Typography>
+										</Box>
+										<Box>
+											<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+												Company Shipping Cost
+											</Typography>
+											<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+												${formValues.companyShippingFare || '0.00'}
 											</Typography>
 										</Box>
 										<Box>
