@@ -140,6 +140,7 @@ model Shipment {
   status        ShipmentSimpleStatus @default(ON_HAND)
   containerId   String?
   transitId     String?
+  shippingCompanyId String?
   userId        String // Owner/Customer
   internalNotes String?
 
@@ -155,6 +156,7 @@ model Shipment {
   // Relations
   container        Container?        @relation(fields: [containerId], references: [id], onDelete: SetNull)
   transit          Transit?          @relation(fields: [transitId], references: [id], onDelete: SetNull)
+  shippingCompany  Company?          @relation("ShipmentShippingCompany", fields: [shippingCompanyId], references: [id], onDelete: SetNull)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents        Document[]
   payments         Payment[]
@@ -166,6 +168,7 @@ model Shipment {
   @@index([userId])
   @@index([containerId])
   @@index([transitId])
+  @@index([shippingCompanyId])
   @@index([status])
   @@index([vehicleVIN])
   @@index([serviceType])
@@ -607,6 +610,7 @@ model Company {
   updatedAt     DateTime             @updatedAt
   ledgerEntries CompanyLedgerEntry[]
   transits      Transit[]
+  shipments     Shipment[]           @relation("ShipmentShippingCompany")
 
   @@index([name])
   @@index([isActive])

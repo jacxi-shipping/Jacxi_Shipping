@@ -5,6 +5,7 @@ import { z } from 'zod';
 export const shipmentSchema = z.object({
   // Owner/Customer
   userId: z.string().min(1, 'User assignment is required'),
+  shippingCompanyId: z.string().min(1, 'Shipping company is required'),
   
   // Service Type - NEW: Determines if this is purchase+shipping or shipping-only
   serviceType: z.enum(['PURCHASE_AND_SHIPPING', 'SHIPPING_ONLY']).default('SHIPPING_ONLY'),
@@ -93,6 +94,8 @@ export const shipmentSchema = z.object({
 });
 
 export const shipmentUpdateSchema = z.object({
+  shippingCompanyId: z.string().min(1, 'Shipping company is required').optional(),
+
   // Service Type
   serviceType: z.enum(['PURCHASE_AND_SHIPPING', 'SHIPPING_ONLY']).optional(),
   

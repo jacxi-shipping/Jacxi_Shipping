@@ -31,6 +31,12 @@ interface ContainerOption {
 	destinationPort: string | null;
 }
 
+interface CompanyOption {
+	id: string;
+	name: string;
+	isActive: boolean;
+}
+
 const steps = [
 	{ label: 'Vehicle Info', icon: Package },
 	{ label: 'Photos', icon: Upload },
@@ -44,8 +50,10 @@ export default function NewShipmentPage() {
 	const router = useRouter();
 	const [activeStep, setActiveStep] = useState(0);
 	const [users, setUsers] = useState<UserOption[]>([]);
+	const [companies, setCompanies] = useState<CompanyOption[]>([]);
 	const [containers, setContainers] = useState<ContainerOption[]>([]);
 	const [loadingUsers, setLoadingUsers] = useState(true);
+	const [loadingCompanies, setLoadingCompanies] = useState(true);
 	const [loadingContainers, setLoadingContainers] = useState(false);
 	const [vehiclePhotos, setVehiclePhotos] = useState<string[]>([]);
 	const [uploading, setUploading] = useState(false);
@@ -75,6 +83,7 @@ export default function NewShipmentPage() {
 			vehiclePhotos: [],
 			status: 'ON_HAND',
 			serviceType: 'SHIPPING_ONLY',
+			shippingCompanyId: '',
 		},
 	});
 
@@ -101,6 +110,24 @@ export default function NewShipmentPage() {
 		};
 
 		void fetchUsers();
+	}, []);
+
+	useEffect(() => {
+		const fetchCompanies = async () => {
+			try {
+				const response = await fetch('/api/finance/companies?active=true');
+				if (response.ok) {
+					const data = await response.json();
+					setCompanies(data.companies || []);
+				}
+			} catch (error) {
+				console.error('Error fetching companies:', error);
+			} finally {
+				setLoadingCompanies(false);
+			}
+		};
+
+		void fetchCompanies();
 	}, []);
 
 	// Fetch containers when status changes to IN_TRANSIT
@@ -362,7 +389,7 @@ export default function NewShipmentPage() {
 				}
 				break;
 			case 3: // Customer & Financial
-				fieldsToValidate = ['userId', 'price'];
+				fieldsToValidate = ['userId', 'shippingCompanyId', 'price'];
 				break;
 		}
 
@@ -1157,6 +1184,67 @@ export default function NewShipmentPage() {
 									)}
 								</Box>
 
+								<Box>
+									<Typography
+										component="label"
+										htmlFor="shippingCompanyId"
+										sx={{
+											display: 'block',
+											fontSize: '0.875rem',
+											fontWeight: 500,
+											color: 'var(--text-primary)',
+											mb: 1,
+										}}
+									>
+										Shipping Company *
+									</Typography>
+									{loadingCompanies ? (
+										<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'var(--text-secondary)' }}>
+											<Loader2 style={{ fontSize: 18 }} className="animate-spin" />
+											<Typography sx={{ fontSize: '0.85rem' }}>Loading shipping companies...</Typography>
+										</Box>
+									) : (
+										<Autocomplete
+											options={companies}
+											getOptionLabel={(option) => option.name}
+											value={companies.find((company) => company.id === watch('shippingCompanyId')) || null}
+											onChange={(_, newValue) => {
+												setValue('shippingCompanyId', newValue?.id || '', { shouldValidate: true });
+											}}
+											renderInput={(params) => (
+												<TextField
+													{...params}
+													placeholder="Select shipping company"
+													error={!!errors.shippingCompanyId}
+													helperText={errors.shippingCompanyId?.message}
+													sx={{
+														'& .MuiOutlinedInput-root': {
+															borderRadius: '16px',
+															backgroundColor: 'var(--background)',
+															'& fieldset': {
+																borderColor: errors.shippingCompanyId ? 'var(--error)' : 'rgba(var(--border-rgb), 0.9)',
+															},
+															'&:hover fieldset': {
+																borderColor: errors.shippingCompanyId ? 'var(--error)' : 'var(--accent-gold)',
+															},
+															'&.Mui-focused fieldset': {
+																borderColor: errors.shippingCompanyId ? 'var(--error)' : 'var(--accent-gold)',
+															},
+														},
+														'& .MuiInputBase-input': {
+															color: 'var(--text-primary)',
+															fontSize: '0.875rem',
+														},
+														'& .MuiInputLabel-root': {
+															color: 'var(--text-secondary)',
+														},
+													}}
+												/>
+											)}
+										/>
+									)}
+								</Box>
+
 								{/* Financial Fields */}
 								<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
 									<FormField
@@ -1362,6 +1450,14 @@ export default function NewShipmentPage() {
 											</Typography>
 											<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
 												{formValues.paymentMode || 'N/A'}
+											</Typography>
+										</Box>
+										<Box>
+											<Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 0.5 }}>
+												Shipping Company
+											</Typography>
+											<Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+												{companies.find((company) => company.id === formValues.shippingCompanyId)?.name || 'N/A'}
 											</Typography>
 										</Box>
 									</Box>

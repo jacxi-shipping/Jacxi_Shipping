@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, TitleStatus, PaymentStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,8 +66,15 @@ export async function GET(request: NextRequest) {
       createdAt: true,
       paymentStatus: true,
       price: true,
+      shippingCompanyId: true,
       containerId: true,
       internalNotes: true,
+      shippingCompany: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       container: {
         select: {
           id: true,
@@ -152,6 +160,7 @@ export async function GET(request: NextRequest) {
 
 type CreateShipmentPayload = {
   userId: string;
+  shippingCompanyId: string;
   serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
   vehicleType: string;
   vehicleMake?: string | null;
@@ -204,6 +213,7 @@ export async function POST(request: NextRequest) {
     const data = (await request.json()) as CreateShipmentPayload;
     const { 
       userId, // Admin must specify which user this shipment is for
+      shippingCompanyId,
       serviceType,
       vehicleType, 
       vehicleMake, 
@@ -234,9 +244,9 @@ export async function POST(request: NextRequest) {
     } = data;
 
     // Validate required fields
-    if (!vehicleType || !userId) {
+    if (!vehicleType || !userId || !shippingCompanyId) {
       return NextResponse.json(
-        { message: 'Missing required fields: vehicleType and userId are required' },
+        { message: 'Missing required fields: vehicleType, userId, and shippingCompanyId are required' },
         { status: 400 }
       );
     }
@@ -284,6 +294,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const shippingCompany = await prisma.company.findUnique({
+      where: { id: shippingCompanyId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!shippingCompany || !shippingCompany.isActive) {
+      return NextResponse.json(
+        { message: 'Valid active shipping company is required' },
+        { status: 400 }
+      );
+    }
+
     // Check for duplicate VIN if provided
     if (vehicleVIN && vehicleVIN.trim()) {
       const existingShipment = await prisma.shipment.findFirst({
@@ -312,7 +334,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const normalizedStatus = providedStatus || 'ON_HAND';
+    const normalizedStatus = containerId ? 'IN_TRANSIT' : (providedStatus || 'ON_HAND');
     const sanitizedVehiclePhotos = Array.isArray(vehiclePhotos)
       ? vehiclePhotos.filter((photo): photo is string => typeof photo === 'string')
       : [];
@@ -373,6 +395,7 @@ export async function POST(request: NextRequest) {
           auctionName,
           status: normalizedStatus,
           containerId: containerId || null,
+          shippingCompanyId,
           weight: parsedWeight,
           dimensions,
           insuranceValue: parsedInsuranceValue,
@@ -395,65 +418,21 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create ledger entries based on payment mode
-      if (paymentMode && parsedPrice && parsedPrice > 0) {
-        // Get current balance for the user
-        const latestEntry = await tx.ledgerEntry.findFirst({
-          where: { userId: userId },
-          orderBy: { transactionDate: 'desc' },
-          select: { balance: true },
-        });
+      const vehicleLabel =
+        [createdShipment.vehicleYear, createdShipment.vehicleMake, createdShipment.vehicleModel]
+          .filter(Boolean)
+          .join(' ') || createdShipment.vehicleType;
 
-        const currentBalance = latestEntry?.balance || 0;
-        
-        const vehicleInfo = [vehicleMake, vehicleModel, vehicleYear].filter(Boolean).join(' ') || 'Vehicle';
-        const vinInfo = vehicleVIN ? ` (VIN: ${vehicleVIN})` : '';
-        
-        if (paymentMode === 'CASH') {
-          // Cash payment: Create both debit and credit entries (net zero)
-          const debitBalance = currentBalance + parsedPrice;
-          await tx.ledgerEntry.create({
-            data: {
-              userId: userId,
-              shipmentId: createdShipment.id,
-              description: `Shipment charge for ${vehicleInfo}${vinInfo} - Cash`,
-              type: 'DEBIT',
-              amount: parsedPrice,
-              balance: debitBalance,
-              createdBy: session.user?.id as string,
-              notes: 'Shipment cost charged',
-            },
-          });
-
-          await tx.ledgerEntry.create({
-            data: {
-              userId: userId,
-              shipmentId: createdShipment.id,
-              description: `Cash payment received for ${vehicleInfo}${vinInfo}`,
-              type: 'CREDIT',
-              amount: parsedPrice,
-              balance: currentBalance, // Back to original balance
-              createdBy: session.user?.id as string,
-              notes: 'Cash payment settled immediately',
-            },
-          });
-        } else if (paymentMode === 'DUE') {
-          // Due payment: Create only debit entry
-          const newBalance = currentBalance + parsedPrice;
-          await tx.ledgerEntry.create({
-            data: {
-              userId: userId,
-              shipmentId: createdShipment.id,
-              description: `Shipment charge for ${vehicleInfo}${vinInfo} - Due`,
-              type: 'DEBIT',
-              amount: parsedPrice,
-              balance: newBalance,
-              createdBy: session.user?.id as string,
-              notes: 'Payment due - not yet received',
-            },
-          });
-        }
-      }
+      await syncShipmentShippingFareEntries(tx, {
+        shipmentId: createdShipment.id,
+        userId: createdShipment.userId,
+        shippingCompanyId: createdShipment.shippingCompanyId,
+        amount: createdShipment.price,
+        vehicleLabel,
+        vehicleVIN: createdShipment.vehicleVIN,
+        actorUserId: session.user?.id as string,
+        shouldPost: createdShipment.status === 'IN_TRANSIT' && !!createdShipment.containerId,
+      });
 
       // Update container count if assigned
       if (containerId) {

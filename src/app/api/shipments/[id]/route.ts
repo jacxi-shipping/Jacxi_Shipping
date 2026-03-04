@@ -3,9 +3,11 @@ import { Prisma, TitleStatus, NotificationType } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createNotification } from '@/lib/notifications';
+import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
 
 type UpdateShipmentPayload = {
   userId?: string;
+  shippingCompanyId?: string;
   vehicleType?: string;
   vehicleMake?: string | null;
   vehicleModel?: string | null;
@@ -68,6 +70,7 @@ export async function GET(
         vehiclePhotos: true,
         status: true,
         containerId: true,
+        shippingCompanyId: true,
         userId: true,
         internalNotes: true,
         price: true,
@@ -81,6 +84,12 @@ export async function GET(
             name: true,
             email: true,
             phone: true,
+          },
+        },
+        shippingCompany: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         container: {
@@ -169,6 +178,37 @@ export async function PATCH(
 
     const data = (await request.json()) as UpdateShipmentPayload;
     const updateData: Prisma.ShipmentUpdateInput = {};
+    const resolvedShippingCompanyId = data.shippingCompanyId ?? existingShipment.shippingCompanyId;
+
+    if (!resolvedShippingCompanyId) {
+      return NextResponse.json(
+        { message: 'Shipping company is required' },
+        { status: 400 }
+      );
+    }
+
+    if (data.shippingCompanyId !== undefined) {
+      if (!data.shippingCompanyId) {
+        return NextResponse.json(
+          { message: 'Shipping company is required' },
+          { status: 400 }
+        );
+      }
+
+      const shippingCompany = await prisma.company.findUnique({
+        where: { id: data.shippingCompanyId },
+        select: { id: true, isActive: true },
+      });
+
+      if (!shippingCompany || !shippingCompany.isActive) {
+        return NextResponse.json(
+          { message: 'Valid active shipping company is required' },
+          { status: 400 }
+        );
+      }
+
+      updateData.shippingCompany = { connect: { id: data.shippingCompanyId } };
+    }
 
     // Basic vehicle info
     if (data.userId !== undefined) updateData.user = { connect: { id: data.userId } };
@@ -304,18 +344,44 @@ export async function PATCH(
 
     // ... (previous code)
 
-    const updatedShipment = await prisma.shipment.update({
-      where: { id },
-      data: updateData,
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
+    const updatedShipment = await prisma.$transaction(async (tx) => {
+      const shipment = await tx.shipment.update({
+        where: { id },
+        data: updateData,
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          container: true,
+          shippingCompany: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-        container: true,
-      },
+      });
+
+      const vehicleLabel =
+        [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
+          .filter(Boolean)
+          .join(' ') || shipment.vehicleType;
+
+      await syncShipmentShippingFareEntries(tx, {
+        shipmentId: shipment.id,
+        userId: shipment.userId,
+        shippingCompanyId: shipment.shippingCompanyId,
+        amount: shipment.price,
+        vehicleLabel,
+        vehicleVIN: shipment.vehicleVIN,
+        actorUserId: session.user?.id as string,
+        shouldPost: shipment.status === 'IN_TRANSIT' && !!shipment.containerId,
+      });
+
+      return shipment;
     });
 
     if (updatedShipment.status !== existingShipment.status) {
