@@ -38,49 +38,47 @@ export async function GET(request: NextRequest) {
       // Overall financial summary
       const where = userId ? { ...dateWhere, userId } : dateWhere;
 
-      // Get total debits and credits
-      const ledgerSummary = await prisma.ledgerEntry.groupBy({
-        by: ['type'],
-        where,
-        _sum: {
-          amount: true,
-        },
-        _count: {
-          id: true,
-        },
-      });
+      // Parallelize independent queries: ledger aggregation, shipment aggregation, and user balances
+      const [ledgerSummary, shipmentSummary, userBalances] = await Promise.all([
+        prisma.ledgerEntry.groupBy({
+          by: ['type'],
+          where,
+          _sum: {
+            amount: true,
+          },
+          _count: {
+            id: true,
+          },
+        }),
+        prisma.shipment.groupBy({
+          by: ['paymentStatus'],
+          where: userId ? { userId, ...dateWhere } : dateWhere,
+          _sum: {
+            price: true,
+          },
+          _count: {
+            id: true,
+          },
+        }),
+        prisma.user.findMany({
+          where: userId ? { id: userId } : undefined,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            ledgerEntries: {
+              orderBy: { transactionDate: 'desc' },
+              take: 1,
+              select: { balance: true },
+            },
+          },
+        }),
+      ]);
 
       const totalDebit = ledgerSummary.find(e => e.type === 'DEBIT')?._sum.amount || 0;
       const totalCredit = ledgerSummary.find(e => e.type === 'CREDIT')?._sum.amount || 0;
       const debitCount = ledgerSummary.find(e => e.type === 'DEBIT')?._count.id || 0;
       const creditCount = ledgerSummary.find(e => e.type === 'CREDIT')?._count.id || 0;
-
-      // Get shipment payment summary
-      const shipmentSummary = await prisma.shipment.groupBy({
-        by: ['paymentStatus'],
-        where: userId ? { userId, ...dateWhere } : dateWhere,
-        _sum: {
-          price: true,
-        },
-        _count: {
-          id: true,
-        },
-      });
-
-      // Get user-wise balance summary
-      const userBalances = await prisma.user.findMany({
-        where: userId ? { id: userId } : undefined,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          ledgerEntries: {
-            orderBy: { transactionDate: 'desc' },
-            take: 1,
-            select: { balance: true },
-          },
-        },
-      });
 
       const userBalanceSummary = userBalances.map(user => ({
         userId: user.id,
@@ -136,13 +134,17 @@ export async function GET(request: NextRequest) {
       });
 
       const userReports = users.map(user => {
-        const totalDebit = user.ledgerEntries
-          .filter(e => e.type === 'DEBIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-        
-        const totalCredit = user.ledgerEntries
-          .filter(e => e.type === 'CREDIT')
-          .reduce((sum, e) => sum + e.amount, 0);
+        // ⚡ Bolt: Calculate totalDebit and totalCredit in a single O(N) loop
+        // to avoid chained array allocations and repeated iteration over ledgerEntries.
+        let totalDebit = 0;
+        let totalCredit = 0;
+        for (const e of user.ledgerEntries) {
+          if (e.type === 'DEBIT') {
+            totalDebit += e.amount;
+          } else if (e.type === 'CREDIT') {
+            totalCredit += e.amount;
+          }
+        }
 
         const currentBalance = user.ledgerEntries[0]?.balance || 0;
 
@@ -206,30 +208,33 @@ export async function GET(request: NextRequest) {
       });
 
       const shipmentReports = shipments.map(shipment => {
-        // Separate expenses from regular transactions
-        const expenses = shipment.ledgerEntries.filter(e => 
-          e.metadata && 
-          typeof e.metadata === 'object' && 
-          'isExpense' in e.metadata && 
-          (e.metadata as Record<string, unknown>).isExpense === true
-        );
+        // ⚡ Bolt: Single pass loop for evaluating transactions, separating expenses
+        // from totalDebit and totalCredit to eliminate 4x iteration over ledgerEntries
+        // and reduce memory allocation of intermediate arrays.
+        let totalDebit = 0;
+        let totalCredit = 0;
+        let totalExpenses = 0;
+        const expenses: typeof shipment.ledgerEntries = [];
 
-        const regularTransactions = shipment.ledgerEntries.filter(e => 
-          !e.metadata || 
-          typeof e.metadata !== 'object' || 
-          !('isExpense' in e.metadata) ||
-          (e.metadata as Record<string, unknown>).isExpense !== true
-        );
+        for (const e of shipment.ledgerEntries) {
+          const isExpense = Boolean(
+            e.metadata &&
+            typeof e.metadata === 'object' &&
+            'isExpense' in e.metadata &&
+            (e.metadata as Record<string, unknown>).isExpense === true
+          );
 
-        const totalDebit = regularTransactions
-          .filter(e => e.type === 'DEBIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-        
-        const totalCredit = regularTransactions
-          .filter(e => e.type === 'CREDIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-
-        const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+          if (isExpense) {
+            expenses.push(e);
+            totalExpenses += e.amount;
+          } else {
+            if (e.type === 'DEBIT') {
+              totalDebit += e.amount;
+            } else if (e.type === 'CREDIT') {
+              totalCredit += e.amount;
+            }
+          }
+        }
 
         const amountDue = totalDebit - totalCredit;
         const revenue = totalCredit; // What was actually paid

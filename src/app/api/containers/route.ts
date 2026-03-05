@@ -7,6 +7,7 @@ import { z } from 'zod';
 // Schema for creating a container
 const createContainerSchema = z.object({
   containerNumber: z.string().min(1),
+  companyId: z.string().min(1),
   trackingNumber: z.string().optional(),
   vesselName: z.string().optional(),
   voyageNumber: z.string().optional(),
@@ -86,6 +87,13 @@ export async function GET(request: NextRequest) {
       prisma.container.findMany({
         where,
         include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
           shipments: {
             select: {
               id: true,
@@ -183,6 +191,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const company = await prisma.company.findUnique({
+      where: { id: validatedData.companyId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!company || !company.isActive) {
+      return NextResponse.json(
+        { error: 'Valid active company is required for container assignment' },
+        { status: 400 }
+      );
+    }
+
     // Parse dates
     const loadingDate = validatedData.loadingDate ? new Date(validatedData.loadingDate) : null;
     const departureDate = validatedData.departureDate ? new Date(validatedData.departureDate) : null;
@@ -192,6 +212,7 @@ export async function POST(request: NextRequest) {
     const container = await prisma.container.create({
       data: {
         containerNumber: validatedData.containerNumber,
+        companyId: validatedData.companyId,
         trackingNumber: validatedData.trackingNumber,
         vesselName: validatedData.vesselName,
         voyageNumber: validatedData.voyageNumber,
@@ -211,6 +232,13 @@ export async function POST(request: NextRequest) {
         currentLocation: validatedData.currentLocation,
       },
       include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
         shipments: true,
         trackingEvents: true,
         _count: {

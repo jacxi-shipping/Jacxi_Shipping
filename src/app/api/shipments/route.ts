@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, TitleStatus, PaymentStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
+import { syncShipmentDamageEntries } from '@/lib/shipment-damage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause based on user role
     const where: Prisma.ShipmentWhereInput = {};
+    const isAdmin = session.user?.role === 'admin';
     
     // Regular users can only see their own shipments
     if (session.user?.role !== 'admin') {
@@ -65,8 +68,16 @@ export async function GET(request: NextRequest) {
       createdAt: true,
       paymentStatus: true,
       price: true,
+      ...(isAdmin ? { companyShippingFare: true } : {}),
+      shippingCompanyId: true,
       containerId: true,
       internalNotes: true,
+      shippingCompany: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       container: {
         select: {
           id: true,
@@ -116,12 +127,17 @@ export async function GET(request: NextRequest) {
 
     const normalizedShipments = includeFinancial
       ? (shipments as Array<any>).map((shipment) => {
-          const totalDebit = shipment.ledgerEntries
-            .filter((entry: { type: string }) => entry.type === 'DEBIT')
-            .reduce((sum: number, entry: { amount: number }) => sum + entry.amount, 0);
-          const totalCredit = shipment.ledgerEntries
-            .filter((entry: { type: string }) => entry.type === 'CREDIT')
-            .reduce((sum: number, entry: { amount: number }) => sum + entry.amount, 0);
+          // ⚡ Bolt: Removed array iterations .filter().reduce() chaining
+          // replacing it with an O(N) loop to compute debits and credits efficiently.
+          let totalDebit = 0;
+          let totalCredit = 0;
+          for (const entry of shipment.ledgerEntries) {
+            if (entry.type === 'DEBIT') {
+              totalDebit += entry.amount;
+            } else if (entry.type === 'CREDIT') {
+              totalCredit += entry.amount;
+            }
+          }
           const amountDue = Math.max(0, totalDebit - totalCredit);
 
           return {
@@ -152,6 +168,7 @@ export async function GET(request: NextRequest) {
 
 type CreateShipmentPayload = {
   userId: string;
+  shippingCompanyId: string;
   serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
   vehicleType: string;
   vehicleMake?: string | null;
@@ -166,6 +183,9 @@ type CreateShipmentPayload = {
   specialInstructions?: string | null;
   insuranceValue?: number | string | null;
   price?: number | string | null;
+  companyShippingFare?: number | string | null;
+  damageCost?: number | string | null;
+  damageCredit?: number | string | null;
   vehiclePhotos?: string[] | null;
   status?: 'ON_HAND' | 'IN_TRANSIT' | null;
   containerId?: string | null;
@@ -204,6 +224,7 @@ export async function POST(request: NextRequest) {
     const data = (await request.json()) as CreateShipmentPayload;
     const { 
       userId, // Admin must specify which user this shipment is for
+      shippingCompanyId,
       serviceType,
       vehicleType, 
       vehicleMake, 
@@ -217,6 +238,9 @@ export async function POST(request: NextRequest) {
       dimensions,
       insuranceValue,
       price,
+      companyShippingFare,
+      damageCost,
+      damageCredit,
       vehiclePhotos,
       status: providedStatus,
       containerId,
@@ -234,9 +258,9 @@ export async function POST(request: NextRequest) {
     } = data;
 
     // Validate required fields
-    if (!vehicleType || !userId) {
+    if (!vehicleType || !userId || !shippingCompanyId) {
       return NextResponse.json(
-        { message: 'Missing required fields: vehicleType and userId are required' },
+        { message: 'Missing required fields: vehicleType, userId, and shippingCompanyId are required' },
         { status: 400 }
       );
     }
@@ -284,6 +308,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const shippingCompany = await prisma.company.findUnique({
+      where: { id: shippingCompanyId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!shippingCompany || !shippingCompany.isActive) {
+      return NextResponse.json(
+        { message: 'Valid active shipping company is required' },
+        { status: 400 }
+      );
+    }
+
     // Check for duplicate VIN if provided
     if (vehicleVIN && vehicleVIN.trim()) {
       const existingShipment = await prisma.shipment.findFirst({
@@ -312,7 +348,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const normalizedStatus = providedStatus || 'ON_HAND';
+    const normalizedStatus = containerId ? 'IN_TRANSIT' : (providedStatus || 'ON_HAND');
     const sanitizedVehiclePhotos = Array.isArray(vehiclePhotos)
       ? vehiclePhotos.filter((photo): photo is string => typeof photo === 'string')
       : [];
@@ -332,6 +368,41 @@ export async function POST(request: NextRequest) {
         : null;
     const parsedPrice =
       typeof price === 'number' ? price : typeof price === 'string' ? parseFloat(price) : null;
+    const parsedCompanyShippingFare =
+      typeof companyShippingFare === 'number'
+        ? companyShippingFare
+        : typeof companyShippingFare === 'string'
+        ? parseFloat(companyShippingFare)
+        : null;
+    const parsedDamageCost =
+      typeof damageCost === 'number'
+        ? damageCost
+        : typeof damageCost === 'string'
+        ? parseFloat(damageCost)
+        : null;
+    const parsedDamageCredit =
+      typeof damageCredit === 'number'
+        ? damageCredit
+        : typeof damageCredit === 'string'
+        ? parseFloat(damageCredit)
+        : null;
+
+    const hasCustomerFare = !!(parsedPrice && parsedPrice > 0);
+    const hasCompanyFare = !!(parsedCompanyShippingFare && parsedCompanyShippingFare > 0);
+
+    if (hasCustomerFare !== hasCompanyFare) {
+      return NextResponse.json(
+        { message: 'Both customer shipping fare and company shipping fare are required together' },
+        { status: 400 }
+      );
+    }
+
+    if (normalizedStatus === 'IN_TRANSIT' && !hasCustomerFare) {
+      return NextResponse.json(
+        { message: 'Customer shipping fare and company shipping fare are required for in-transit shipment assignment' },
+        { status: 400 }
+      );
+    }
     const parsedPurchasePrice =
       typeof purchasePrice === 'number' ? purchasePrice : typeof purchasePrice === 'string' ? parseFloat(purchasePrice) : null;
     
@@ -373,10 +444,14 @@ export async function POST(request: NextRequest) {
           auctionName,
           status: normalizedStatus,
           containerId: containerId || null,
+          shippingCompanyId,
           weight: parsedWeight,
           dimensions,
           insuranceValue: parsedInsuranceValue,
           price: parsedPrice,
+          companyShippingFare: parsedCompanyShippingFare,
+          damageCost: parsedDamageCost,
+          damageCredit: parsedDamageCredit,
           vehiclePhotos: sanitizedVehiclePhotos,
           paymentStatus: finalPaymentStatus as PaymentStatus,
           paymentMode: paymentMode || null,
@@ -395,65 +470,34 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create ledger entries based on payment mode
-      if (paymentMode && parsedPrice && parsedPrice > 0) {
-        // Get current balance for the user
-        const latestEntry = await tx.ledgerEntry.findFirst({
-          where: { userId: userId },
-          orderBy: { transactionDate: 'desc' },
-          select: { balance: true },
-        });
+      const vehicleLabel =
+        [createdShipment.vehicleYear, createdShipment.vehicleMake, createdShipment.vehicleModel]
+          .filter(Boolean)
+          .join(' ') || createdShipment.vehicleType;
 
-        const currentBalance = latestEntry?.balance || 0;
-        
-        const vehicleInfo = [vehicleMake, vehicleModel, vehicleYear].filter(Boolean).join(' ') || 'Vehicle';
-        const vinInfo = vehicleVIN ? ` (VIN: ${vehicleVIN})` : '';
-        
-        if (paymentMode === 'CASH') {
-          // Cash payment: Create both debit and credit entries (net zero)
-          const debitBalance = currentBalance + parsedPrice;
-          await tx.ledgerEntry.create({
-            data: {
-              userId: userId,
-              shipmentId: createdShipment.id,
-              description: `Shipment charge for ${vehicleInfo}${vinInfo} - Cash`,
-              type: 'DEBIT',
-              amount: parsedPrice,
-              balance: debitBalance,
-              createdBy: session.user?.id as string,
-              notes: 'Shipment cost charged',
-            },
-          });
+      await syncShipmentShippingFareEntries(tx, {
+        shipmentId: createdShipment.id,
+        userId: createdShipment.userId,
+        shippingCompanyId: createdShipment.shippingCompanyId,
+        userFareAmount: createdShipment.price,
+        companyFareAmount: createdShipment.companyShippingFare,
+        vehicleLabel,
+        vehicleVIN: createdShipment.vehicleVIN,
+        actorUserId: session.user?.id as string,
+        shouldPost: createdShipment.status === 'IN_TRANSIT' && !!createdShipment.containerId,
+      });
 
-          await tx.ledgerEntry.create({
-            data: {
-              userId: userId,
-              shipmentId: createdShipment.id,
-              description: `Cash payment received for ${vehicleInfo}${vinInfo}`,
-              type: 'CREDIT',
-              amount: parsedPrice,
-              balance: currentBalance, // Back to original balance
-              createdBy: session.user?.id as string,
-              notes: 'Cash payment settled immediately',
-            },
-          });
-        } else if (paymentMode === 'DUE') {
-          // Due payment: Create only debit entry
-          const newBalance = currentBalance + parsedPrice;
-          await tx.ledgerEntry.create({
-            data: {
-              userId: userId,
-              shipmentId: createdShipment.id,
-              description: `Shipment charge for ${vehicleInfo}${vinInfo} - Due`,
-              type: 'DEBIT',
-              amount: parsedPrice,
-              balance: newBalance,
-              createdBy: session.user?.id as string,
-              notes: 'Payment due - not yet received',
-            },
-          });
-        }
-      }
+      await syncShipmentDamageEntries(tx, {
+        shipmentId: createdShipment.id,
+        userId: createdShipment.userId,
+        shippingCompanyId: createdShipment.shippingCompanyId,
+        damageCost: createdShipment.damageCost,
+        damageCredit: createdShipment.damageCredit,
+        vehicleLabel,
+        vehicleVIN: createdShipment.vehicleVIN,
+        actorUserId: session.user?.id as string,
+        shouldPost: createdShipment.status === 'IN_TRANSIT' && !!createdShipment.containerId,
+      });
 
       // Update container count if assigned
       if (containerId) {

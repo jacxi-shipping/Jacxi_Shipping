@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
+import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { z } from 'zod';
 
 // Schema for adding an expense
@@ -8,7 +10,8 @@ const addExpenseSchema = z.object({
   shipmentId: z.string(),
   description: z.string().min(1),
   amount: z.number().positive(),
-  expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'OTHER']),
+  expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
+  paymentMode: z.enum(['CASH', 'DUE']).default('DUE'),
   notes: z.string().optional(),
 });
 
@@ -37,6 +40,12 @@ export async function POST(request: NextRequest) {
         userId: true,
         vehicleMake: true,
         vehicleModel: true,
+        shippingCompanyId: true,
+        container: {
+          select: {
+            companyId: true,
+          },
+        },
       },
     });
 
@@ -44,58 +53,108 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    // Get current balance for the user
-    const latestEntry = await prisma.ledgerEntry.findFirst({
-      where: { userId: shipment.userId },
-      orderBy: { transactionDate: 'desc' },
-      select: { balance: true },
-    });
+    const resolvedCompanyId = shipment.shippingCompanyId ?? shipment.container?.companyId;
 
-    const currentBalance = latestEntry?.balance || 0;
-    const newBalance = currentBalance + validatedData.amount;
+    if (!resolvedCompanyId) {
+      return NextResponse.json(
+        { error: 'Shipment must be linked to a company (directly or through container) before adding expenses' },
+        { status: 400 }
+      );
+    }
 
     // Create expense description
     const expenseTypeLabel = validatedData.expenseType.replace(/_/g, ' ').toLowerCase();
     const vehicleInfo = `${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim() || 'Vehicle';
     const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (Shipment ${shipment.id})`;
 
-    // Create ledger entry for expense
-    const entry = await prisma.ledgerEntry.create({
-      data: {
-        userId: shipment.userId,
-        shipmentId: validatedData.shipmentId,
-        description,
-        type: 'DEBIT',
-        amount: validatedData.amount,
-        balance: newBalance,
-        createdBy: session.user.id as string,
-        notes: validatedData.notes,
-        metadata: {
-          expenseType: validatedData.expenseType,
-          isExpense: true,
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const entries = await prisma.$transaction(async (tx) => {
+      const debitEntry = await tx.ledgerEntry.create({
+        data: {
+          userId: shipment.userId,
+          shipmentId: validatedData.shipmentId,
+          description,
+          type: 'DEBIT',
+          amount: validatedData.amount,
+          balance: 0,
+          createdBy: session.user!.id as string,
+          notes: validatedData.notes,
+          metadata: {
+            expenseType: validatedData.expenseType,
+            paymentMode: validatedData.paymentMode,
+            isExpense: true,
+            linkedCompanyId: resolvedCompanyId,
+            expenseSource: 'SHIPMENT',
           },
         },
-        shipment: {
-          select: {
-            id: true,
-            vehicleMake: true,
-            vehicleModel: true,
+      });
+
+      const reference = `shipment-expense:${debitEntry.id}`;
+
+      const companyCreditEntry = await tx.companyLedgerEntry.create({
+        data: {
+          companyId: resolvedCompanyId,
+          description: `Expense recovery - ${description}`,
+          type: 'CREDIT',
+          amount: validatedData.amount,
+          balance: 0,
+          category: 'Shipment Expense Recovery',
+          reference,
+          notes: validatedData.notes,
+          createdBy: session.user!.id as string,
+          metadata: {
+            isExpenseRecovery: true,
+            expenseSource: 'SHIPMENT',
+            shipmentId: shipment.id,
+            userId: shipment.userId,
+            expenseType: validatedData.expenseType,
+            paymentMode: validatedData.paymentMode,
           },
         },
-      },
+      });
+
+      const createdEntries = [debitEntry];
+
+      // For CASH payments: also create a CREDIT entry (cash received)
+      if (validatedData.paymentMode === 'CASH') {
+        const creditEntry = await tx.ledgerEntry.create({
+          data: {
+            userId: shipment.userId,
+            shipmentId: validatedData.shipmentId,
+            description: `Cash payment received - ${validatedData.description}`,
+            type: 'CREDIT',
+            amount: validatedData.amount,
+            balance: 0,
+            createdBy: session.user!.id as string,
+            notes: validatedData.notes,
+            metadata: {
+              expenseType: validatedData.expenseType,
+              paymentMode: validatedData.paymentMode,
+              isExpense: true,
+              isCashPayment: true,
+              linkedCompanyId: resolvedCompanyId,
+              expenseSource: 'SHIPMENT',
+            },
+          },
+        });
+        createdEntries.push(creditEntry);
+      }
+
+      await recalculateUserLedgerBalances(tx, shipment.userId);
+      await recalculateCompanyLedgerBalances(tx, resolvedCompanyId);
+
+      return {
+        userEntries: createdEntries,
+        companyEntry: companyCreditEntry,
+      };
     });
 
     return NextResponse.json({
-      entry,
-      message: 'Expense added successfully',
+      entries: entries.userEntries,
+      entry: entries.userEntries[0],
+      companyEntry: entries.companyEntry,
+      message: validatedData.paymentMode === 'CASH'
+        ? 'Expense added and cash payment recorded successfully'
+        : 'Expense added successfully',
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -155,8 +214,10 @@ export async function GET(request: NextRequest) {
       orderBy: { transactionDate: 'desc' },
     });
 
-    // Calculate total expenses
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    // Calculate total expenses (sum of DEBIT entries only)
+    const totalExpenses = expenses
+      .filter(e => e.type === 'DEBIT')
+      .reduce((sum, expense) => sum + expense.amount, 0);
 
     return NextResponse.json({
       expenses,

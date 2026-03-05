@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 // Schema for updating container
 const updateContainerSchema = z.object({
+  companyId: z.string().min(1).optional(),
   trackingNumber: z.string().optional(),
   vesselName: z.string().optional(),
   voyageNumber: z.string().optional(),
@@ -52,6 +53,13 @@ export async function GET(
     const container = await prisma.container.findUnique({
       where: { id: params.id },
       include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
         shipments: {
           include: {
             user: {
@@ -79,6 +87,21 @@ export async function GET(
         auditLogs: {
           orderBy: { timestamp: 'desc' },
           take: 50,
+        },
+        userInvoices: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            _count: {
+              select: { lineItems: true },
+            },
+          },
+          orderBy: { issueDate: 'desc' },
         },
       },
     });
@@ -119,6 +142,13 @@ export async function GET(
           const updatedContainer = await prisma.container.findUnique({
             where: { id: params.id },
             include: {
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                },
+              },
               shipments: {
                 include: {
                   user: {
@@ -146,6 +176,21 @@ export async function GET(
               auditLogs: {
                 orderBy: { timestamp: 'desc' },
                 take: 50,
+              },
+              userInvoices: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
+                  _count: {
+                    select: { lineItems: true },
+                  },
+                },
+                orderBy: { issueDate: 'desc' },
               },
             },
           });
@@ -221,6 +266,20 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateContainerSchema.parse(body);
 
+    if (validatedData.companyId !== undefined) {
+      const company = await prisma.company.findUnique({
+        where: { id: validatedData.companyId },
+        select: { id: true, isActive: true },
+      });
+
+      if (!company || !company.isActive) {
+        return NextResponse.json(
+          { error: 'Valid active company is required for container assignment' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Parse dates if provided
     const updateData: Record<string, unknown> = { ...validatedData };
     if (validatedData.loadingDate) {
@@ -241,6 +300,13 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData,
       include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
         shipments: true,
         _count: {
           select: {

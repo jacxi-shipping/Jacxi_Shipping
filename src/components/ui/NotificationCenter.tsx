@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell, X, Check, Package, Ship, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { IconButton, Badge, Drawer, Box, Typography, Divider } from '@mui/material';
 import { toast } from '@/components/design-system';
@@ -16,6 +17,7 @@ interface Notification {
 }
 
 export function NotificationCenter() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -29,6 +31,7 @@ export function NotificationCenter() {
   }, []);
 
   const fetchNotifications = async () => {
+    setLoading(true);
     try {
       const response = await fetch('/api/notifications');
       if (response.ok) {
@@ -42,6 +45,8 @@ export function NotificationCenter() {
       }
     } catch (error) {
       console.error('Failed to fetch notifications', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -189,7 +194,18 @@ export function NotificationCenter() {
 
         {/* Notifications List */}
         <Box sx={{ flex: 1, overflow: 'auto' }}>
-          {notifications.length === 0 ? (
+          {loading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                py: 8,
+              }}
+            >
+              <RefreshCw className="w-6 h-6 text-[var(--text-secondary)] animate-spin" />
+            </Box>
+          ) : notifications.length === 0 ? (
             <Box
               sx={{
                 display: 'flex',
@@ -219,7 +235,13 @@ export function NotificationCenter() {
                     },
                     transition: 'background-color 0.2s',
                   }}
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={() => {
+                    markAsRead(notification.id);
+                    if (notification.link) {
+                      setOpen(false);
+                      router.push(notification.link);
+                    }
+                  }}
                 >
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <Box

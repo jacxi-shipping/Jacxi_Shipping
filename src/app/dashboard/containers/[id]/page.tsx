@@ -18,6 +18,8 @@ import {
 	Divider,
 	Chip,
 	Typography,
+	TextField,
+	MenuItem,
 } from '@mui/material';
 import {
 	ArrowLeft,
@@ -58,6 +60,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AddExpenseModal from '@/components/containers/AddExpenseModal';
 import AddInvoiceModal from '@/components/containers/AddInvoiceModal';
 import AddTrackingEventModal from '@/components/containers/AddTrackingEventModal';
+import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import { ActivityLog } from '@/components/dashboard/ActivityLog';
@@ -145,6 +148,12 @@ interface AuditLogEntry {
 interface Container {
 	id: string;
 	containerNumber: string;
+	companyId: string | null;
+	company?: {
+		id: string;
+		name: string;
+		code?: string | null;
+	} | null;
 	trackingNumber: string | null;
 	vesselName: string | null;
 	voyageNumber: string | null;
@@ -177,6 +186,12 @@ interface Container {
 		expenses: number;
 		invoices: number;
 	};
+}
+
+interface CompanyOption {
+	id: string;
+	name: string;
+	code?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
@@ -214,6 +229,10 @@ export default function ContainerDetailPage() {
     const [refreshingTracking, setRefreshingTracking] = useState(false);
 	const [invoiceGenerationModalOpen, setInvoiceGenerationModalOpen] = useState(false);
     const [qrModalOpen, setQrModalOpen] = useState(false);
+	const [shipmentExpenseModalOpen, setShipmentExpenseModalOpen] = useState(false);
+	const [selectedShipmentForExpense, setSelectedShipmentForExpense] = useState<string | undefined>(undefined);
+	const [companies, setCompanies] = useState<CompanyOption[]>([]);
+	const [selectedCompanyId, setSelectedCompanyId] = useState('');
 
 	useEffect(() => {
 		if (params.id) {
@@ -221,6 +240,23 @@ export default function ContainerDetailPage() {
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [params.id]);
+
+	useEffect(() => {
+		const fetchCompanies = async () => {
+			if (!isAdmin) return;
+			try {
+				const response = await fetch('/api/finance/companies?active=true');
+				const data = await response.json();
+				if (response.ok) {
+					setCompanies(data.companies || []);
+				}
+			} catch (error) {
+				console.error('Failed to load companies:', error);
+			}
+		};
+
+		void fetchCompanies();
+	}, [isAdmin]);
 
 	const fetchContainer = async () => {
 		try {
@@ -241,6 +277,7 @@ export default function ContainerDetailPage() {
 				if (typeof containerData.progress !== 'number') {
 					containerData.progress = 0;
 				}
+				setSelectedCompanyId(containerData.companyId || '');
 				setContainer(containerData);
 			} else {
 				toast.error('Container not found');
@@ -307,6 +344,34 @@ export default function ContainerDetailPage() {
 		} catch (error) {
 			console.error('Error updating status:', error);
 			toast.error('An error occurred');
+		} finally {
+			setUpdating(false);
+		}
+	};
+
+	const handleCompanyUpdate = async () => {
+		if (!container || !selectedCompanyId) {
+			toast.error('Please select a company');
+			return;
+		}
+
+		try {
+			setUpdating(true);
+			const response = await fetch(`/api/containers/${params.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ companyId: selectedCompanyId }),
+			});
+
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || 'Failed to update company');
+			}
+
+			toast.success('Container company updated successfully');
+			await fetchContainer();
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Failed to update company');
 		} finally {
 			setUpdating(false);
 		}
@@ -424,11 +489,17 @@ export default function ContainerDetailPage() {
 			return;
 		}
 
+		if (!container.companyId) {
+			toast.error('Assign a company before duplicating this container');
+			return;
+		}
+
 		setDuplicating(true);
 		try {
 			// Create new container with same details but new number
 			const payload = {
 				containerNumber: newContainerNumber.trim(),
+				companyId: container.companyId,
 				trackingNumber: container.trackingNumber,
 				vesselName: container.vesselName,
 				voyageNumber: container.voyageNumber,
@@ -800,6 +871,33 @@ export default function ContainerDetailPage() {
 												{container.containerNumber}
 											</Box>
 										</Box>
+										{isAdmin && (
+											<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+												<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Assigned Company</Box>
+												<TextField
+													select
+													size="small"
+													value={selectedCompanyId}
+													onChange={(e) => setSelectedCompanyId(e.target.value)}
+													disabled={updating}
+												>
+													<MenuItem value="">Select a company...</MenuItem>
+													{companies.map((company) => (
+														<MenuItem key={company.id} value={company.id}>
+															{company.name}{company.code ? ` (${company.code})` : ''}
+														</MenuItem>
+													))}
+												</TextField>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={handleCompanyUpdate}
+													disabled={updating || !selectedCompanyId || selectedCompanyId === (container.companyId || '')}
+												>
+													{updating ? 'Saving...' : 'Save Company'}
+												</Button>
+											</Box>
+										)}
 										{container.trackingNumber && (
 											<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
 												<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Tracking Number</Box>
@@ -1075,17 +1173,37 @@ export default function ContainerDetailPage() {
 														/>
 													</TableCell>
 													<TableCell align="right">
-														<Button
-															variant="outline"
-															size="sm"
-															icon={<Eye className="w-3 h-3" />}
-															onClick={(e) => {
-																e.stopPropagation();
-																router.push(`/dashboard/shipments/${shipment.id}`);
-															}}
-														>
-															View
-														</Button>
+														<Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+															{isAdmin && (
+																<Button
+																	variant="outline"
+																	size="sm"
+																	icon={<DollarSign className="w-3 h-3" />}
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		setSelectedShipmentForExpense(shipment.id);
+																		setShipmentExpenseModalOpen(true);
+																	}}
+																	sx={{
+																		color: 'var(--accent-gold)',
+																		borderColor: 'var(--accent-gold)',
+																	}}
+																>
+																	Expense
+																</Button>
+															)}
+															<Button
+																variant="outline"
+																size="sm"
+																icon={<Eye className="w-3 h-3" />}
+																onClick={(e) => {
+																	e.stopPropagation();
+																	router.push(`/dashboard/shipments/${shipment.id}`);
+																}}
+															>
+																View
+															</Button>
+														</Box>
 													</TableCell>
 												</TableRow>
 											))}
@@ -1115,7 +1233,20 @@ export default function ContainerDetailPage() {
 							title="Container Expenses"
 							description="All costs and expenses for this container"
 						>
-							<Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+							<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 2 }}>
+								{isAdmin && (
+									<Button
+										variant="outline"
+										size="sm"
+										icon={<Plus className="w-4 h-4" />}
+										onClick={() => {
+											setSelectedShipmentForExpense(undefined);
+											setShipmentExpenseModalOpen(true);
+										}}
+									>
+										Add Shipment Expense
+									</Button>
+								)}
 								{isAdmin && (
 									<Button
 										variant="primary"
@@ -1123,7 +1254,7 @@ export default function ContainerDetailPage() {
 										icon={<Plus className="w-4 h-4" />}
 										onClick={() => setExpenseModalOpen(true)}
 									>
-										Add Expense
+										Add Container Expense
 									</Button>
 								)}
 							</Box>
@@ -1573,11 +1704,29 @@ export default function ContainerDetailPage() {
                     )}
 				</Box>
 
-				{/* Add Expense Modal */}
+				{/* Add Container Expense Modal */}
 				<AddExpenseModal
 					open={expenseModalOpen}
 					onClose={() => setExpenseModalOpen(false)}
 					containerId={container.id}
+					onSuccess={fetchContainer}
+				/>
+
+				{/* Add Shipment Expense Modal */}
+				<AddShipmentExpenseModal
+					open={shipmentExpenseModalOpen}
+					onClose={() => {
+						setShipmentExpenseModalOpen(false);
+						setSelectedShipmentForExpense(undefined);
+					}}
+					shipmentId={selectedShipmentForExpense}
+					shipments={selectedShipmentForExpense ? undefined : container.shipments.map((s) => ({
+						id: s.id,
+						vehicleMake: s.vehicleMake,
+						vehicleModel: s.vehicleModel,
+						vehicleVIN: s.vehicleVIN,
+						user: s.user,
+					}))}
 					onSuccess={fetchContainer}
 				/>
 

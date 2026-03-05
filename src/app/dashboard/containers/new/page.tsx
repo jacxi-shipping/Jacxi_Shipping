@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -12,6 +12,12 @@ import { Breadcrumbs, Button, toast, EmptyState, SkeletonCard, SkeletonTable, To
 
 const steps = ['Basic Info', 'Shipping Details', 'Ports', 'Dates', 'Additional Info'];
 
+interface CompanyOption {
+  id: string;
+  name: string;
+  code?: string | null;
+}
+
 export default function NewContainerPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -19,8 +25,10 @@ export default function NewContainerPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fetchSuccess, setFetchSuccess] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState(0);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [formData, setFormData] = useState({
     containerNumber: '',
+    companyId: '',
     trackingNumber: '',
     vesselName: '',
     voyageNumber: '',
@@ -131,6 +139,22 @@ export default function NewContainerPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await fetch('/api/finance/companies?active=true');
+        const data = await response.json();
+        if (response.ok) {
+          setCompanies(data.companies || []);
+        }
+      } catch (error) {
+        console.error('Failed to load companies:', error);
+      }
+    };
+
+    void fetchCompanies();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({
@@ -296,6 +320,30 @@ export default function NewContainerPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                      Container Company *
+                    </label>
+                    <select
+                      id="companyId"
+                      name="companyId"
+                      value={formData.companyId}
+                      onChange={handleChange}
+                      required
+                      className="w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--text-primary)]"
+                    >
+                      <option value="">Select a company...</option>
+                      {companies.map((company) => (
+                        <option key={company.id} value={company.id}>
+                          {company.name}{company.code ? ` (${company.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                      All container and shipment expenses will post to this company ledger.
+                    </p>
+                  </div>
+
                   <FormField
                     label="Tracking Number"
                     id="trackingNumber"
@@ -554,7 +602,7 @@ export default function NewContainerPage() {
                   <Button
                     type="button"
                     onClick={handleNext}
-                    disabled={loading || (activeStep === 0 && !formData.containerNumber)}
+                    disabled={loading || (activeStep === 0 && (!formData.containerNumber || !formData.companyId))}
                     className="bg-[var(--accent-gold)] hover:bg-[var(--accent-gold)] shadow-cyan-500/30"
                     style={{ color: 'white' }}
                   >
@@ -564,7 +612,7 @@ export default function NewContainerPage() {
                 ) : (
                   <Button
                     type="submit"
-                    disabled={loading || !formData.containerNumber}
+                    disabled={loading || !formData.containerNumber || !formData.companyId}
                     className="bg-[var(--accent-gold)] hover:bg-[var(--accent-gold)] shadow-cyan-500/30"
                     style={{ color: 'white' }}
                   >

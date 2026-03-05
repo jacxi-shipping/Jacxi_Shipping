@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	Dialog,
 	DialogTitle,
@@ -13,14 +13,27 @@ import {
 	MenuItem,
 	Box,
 	InputAdornment,
+	ToggleButton,
+	ToggleButtonGroup,
 } from '@mui/material';
 import { DollarSign, X } from 'lucide-react';
 import { Button, toast } from '@/components/design-system';
 
+interface ShipmentOption {
+	id: string;
+	vehicleMake: string | null;
+	vehicleModel: string | null;
+	vehicleVIN?: string | null;
+	user?: { name: string | null; email: string };
+}
+
 interface AddShipmentExpenseModalProps {
 	open: boolean;
 	onClose: () => void;
-	shipmentId: string;
+	/** Pre-selected shipment. Omit when providing `shipments` for the picker. */
+	shipmentId?: string;
+	/** When provided, shows a shipment selector dropdown. */
+	shipments?: ShipmentOption[];
 	onSuccess: () => void;
 }
 
@@ -40,16 +53,24 @@ const expenseTypes = [
 export default function AddShipmentExpenseModal({
 	open,
 	onClose,
-	shipmentId,
+	shipmentId: shipmentIdProp,
+	shipments,
 	onSuccess,
 }: AddShipmentExpenseModalProps) {
 	const [loading, setLoading] = useState(false);
+	const [selectedShipmentId, setSelectedShipmentId] = useState(shipmentIdProp || '');
 	const [formData, setFormData] = useState({
 		expenseType: 'SHIPPING_FEE',
 		amount: '',
 		description: '',
 		notes: '',
+		paymentMode: 'DUE' as 'CASH' | 'DUE',
 	});
+
+	// Sync pre-selected shipmentId when a different row is clicked
+	useEffect(() => {
+		setSelectedShipmentId(shipmentIdProp || '');
+	}, [shipmentIdProp]);
 
 	const handleChange = (field: string, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -57,6 +78,13 @@ export default function AddShipmentExpenseModal({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+
+		const resolvedShipmentId = selectedShipmentId;
+
+		if (!resolvedShipmentId) {
+			toast.error('Please select a shipment');
+			return;
+		}
 
 		if (!formData.amount || parseFloat(formData.amount) <= 0) {
 			toast.error('Please enter a valid amount');
@@ -75,16 +103,18 @@ export default function AddShipmentExpenseModal({
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					shipmentId,
+					shipmentId: resolvedShipmentId,
 					expenseType: formData.expenseType,
 					amount: parseFloat(formData.amount),
 					description: formData.description,
 					notes: formData.notes || undefined,
+					paymentMode: formData.paymentMode,
 				}),
 			});
 
 			if (response.ok) {
-				toast.success('Expense added successfully');
+				const data = await response.json();
+				toast.success(data.message || 'Expense added successfully');
 				onSuccess();
 				handleClose();
 			} else {
@@ -106,7 +136,9 @@ export default function AddShipmentExpenseModal({
 				amount: '',
 				description: '',
 				notes: '',
+				paymentMode: 'DUE',
 			});
+			if (!shipmentIdProp) setSelectedShipmentId('');
 			onClose();
 		}
 	};
@@ -150,6 +182,27 @@ export default function AddShipmentExpenseModal({
 
 			<Box component="form" onSubmit={handleSubmit}>
 				<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+					{/* Shipment picker — only shown when a list is provided and no ID is pre-selected */}
+					{shipments && !shipmentIdProp && (
+						<FormControl fullWidth size="small" required>
+							<InputLabel>Shipment</InputLabel>
+							<Select
+								value={selectedShipmentId}
+								onChange={(e) => setSelectedShipmentId(e.target.value)}
+								label="Shipment"
+							>
+								<MenuItem value=""><em>Select a shipment…</em></MenuItem>
+								{shipments.map((s) => (
+									<MenuItem key={s.id} value={s.id}>
+										{s.vehicleMake} {s.vehicleModel}
+										{s.vehicleVIN ? ` — ${s.vehicleVIN}` : ''}
+										{s.user ? ` (${s.user.name || s.user.email})` : ''}
+									</MenuItem>
+								))}
+							</Select>
+						</FormControl>
+					)}
+
 					<FormControl fullWidth size="small" required>
 						<InputLabel>Expense Type</InputLabel>
 						<Select
@@ -186,6 +239,32 @@ export default function AddShipmentExpenseModal({
 							startAdornment: <InputAdornment position="start">$</InputAdornment>,
 						}}
 					/>
+
+					{/* Payment Mode */}
+					<Box>
+						<Box sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>
+							Payment Mode <span style={{ color: 'var(--error)' }}>*</span>
+						</Box>
+						<ToggleButtonGroup
+							value={formData.paymentMode}
+							exclusive
+							onChange={(_, val) => { if (val) handleChange('paymentMode', val); }}
+							size="small"
+							fullWidth
+						>
+							<ToggleButton value="DUE" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
+								Due (Owed)
+							</ToggleButton>
+							<ToggleButton value="CASH" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
+								Cash (Paid)
+							</ToggleButton>
+						</ToggleButtonGroup>
+						<Box sx={{ mt: 1, px: 0.5, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+							{formData.paymentMode === 'CASH'
+								? '✓ Cash: adds a DEBIT charge and a CREDIT payment — customer has already paid.'
+								: '⏳ Due: adds only a DEBIT charge — customer still owes this amount.'}
+						</Box>
+					</Box>
 
 					<TextField
 						size="small"
