@@ -12,6 +12,7 @@ const updateCompanySchema = z.object({
   address: z.string().optional().nullable(),
   country: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  companyType: z.enum(['SHIPPING', 'TRANSIT']).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -35,9 +36,54 @@ export async function GET(
     const company = await prisma.company.findUnique({
       where: { id: params.id },
       include: {
+        containers: {
+          select: {
+            id: true,
+            containerNumber: true,
+            status: true,
+            currentCount: true,
+            maxCapacity: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        },
+        shipments: {
+          select: {
+            id: true,
+            vehicleVIN: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            status: true,
+            createdAt: true,
+            transitId: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
+        },
+        transits: {
+          select: {
+            id: true,
+            referenceNumber: true,
+            status: true,
+            origin: true,
+            destination: true,
+            createdAt: true,
+            _count: {
+              select: {
+                shipments: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        },
         _count: {
           select: {
             ledgerEntries: true,
+            containers: true,
+            shipments: true,
+            transits: true,
           },
         },
       },

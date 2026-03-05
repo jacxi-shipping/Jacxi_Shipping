@@ -245,7 +245,7 @@ export default function ContainerDetailPage() {
 		const fetchCompanies = async () => {
 			if (!isAdmin) return;
 			try {
-				const response = await fetch('/api/finance/companies?active=true');
+				const response = await fetch('/api/finance/companies?active=true&companyType=SHIPPING');
 				const data = await response.json();
 				if (response.ok) {
 					setCompanies(data.companies || []);

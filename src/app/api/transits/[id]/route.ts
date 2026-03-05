@@ -86,6 +86,17 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateTransitSchema.parse(body);
 
+    if (validatedData.companyId) {
+      const company = await prisma.company.findUnique({
+        where: { id: validatedData.companyId },
+        select: { id: true, isActive: true, companyType: true },
+      });
+
+      if (!company || !company.isActive || company.companyType !== 'TRANSIT') {
+        return NextResponse.json({ error: 'Valid active transit company is required' }, { status: 400 });
+      }
+    }
+
     const transit = await prisma.$transaction(async (tx) => {
       const updated = await tx.transit.update({
         where: { id: params.id },

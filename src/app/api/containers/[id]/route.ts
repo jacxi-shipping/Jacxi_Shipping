@@ -269,12 +269,12 @@ export async function PATCH(
     if (validatedData.companyId !== undefined) {
       const company = await prisma.company.findUnique({
         where: { id: validatedData.companyId },
-        select: { id: true, isActive: true },
+        select: { id: true, isActive: true, companyType: true },
       });
 
-      if (!company || !company.isActive) {
+      if (!company || !company.isActive || company.companyType !== 'SHIPPING') {
         return NextResponse.json(
-          { error: 'Valid active company is required for container assignment' },
+          { error: 'Valid active shipping company is required for container assignment' },
           { status: 400 }
         );
       }

@@ -33,12 +33,15 @@ import {
   History,
   User,
   Ship,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Tabs, Tab, Box, Dialog, DialogActions, DialogContent, DialogTitle, ImageList, ImageListItem, ImageListItemBar, IconButton as MuiIconButton, MenuItem, TextField } from '@mui/material';
 import { Breadcrumbs, toast, EmptyState, Tooltip, StatusBadge } from '@/components/design-system';
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
 import { downloadShipmentInvoicePDF } from '@/lib/utils/generateShipmentInvoicePDF';
+import { downloadReleaseTokenPDF } from '@/lib/utils/generateReleaseTokenPDF';
 
 interface ShipmentEvent {
   id: string;
@@ -85,6 +88,7 @@ interface ShipmentTransit {
 interface Shipment {
   id: string;
   userId: string;
+  serviceType?: string;
   vehicleType: string;
   vehicleMake: string | null;
   vehicleModel: string | null;
@@ -114,6 +118,8 @@ interface Shipment {
   internalNotes: string | null;
   paymentStatus: string;
   paymentMode: string | null;
+  releaseToken: string | null;
+  releaseTokenCreatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   user: {
@@ -121,6 +127,9 @@ interface Shipment {
     name: string | null;
     email: string;
     phone: string | null;
+    address?: string | null;
+    city?: string | null;
+    country?: string | null;
   };
   documents: Array<{
     id: string;
@@ -184,7 +193,10 @@ export default function ShipmentDetailPage() {
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [openAssignTransit, setOpenAssignTransit] = useState(false);
   const [transitIdToAssign, setTransitIdToAssign] = useState('');
+  const [releaseTokenToAssign, setReleaseTokenToAssign] = useState('');
+  const [showReleaseToken, setShowReleaseToken] = useState(false);
   const [assigningTransit, setAssigningTransit] = useState(false);
+  const [creatingReleaseToken, setCreatingReleaseToken] = useState(false);
 
   const fetchShipment = useCallback(async () => {
     try {
@@ -384,23 +396,61 @@ export default function ShipmentDetailPage() {
       return;
     }
 
+    if (!releaseTokenToAssign.trim()) {
+      toast.error('Release token is required');
+      return;
+    }
+
     try {
       setAssigningTransit(true);
       const response = await fetch(`/api/transits/${transitIdToAssign}/shipments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shipmentId: params.id }),
+        body: JSON.stringify({ shipmentId: params.id, releaseToken: releaseTokenToAssign.trim() }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to assign transit');
       toast.success('Shipment assigned to transit');
       setOpenAssignTransit(false);
       setTransitIdToAssign('');
+      setReleaseTokenToAssign('');
       await fetchShipment();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to assign transit');
     } finally {
       setAssigningTransit(false);
+    }
+  };
+
+  const handleGenerateReleaseToken = async () => {
+    if (!shipment) return;
+
+    try {
+      setCreatingReleaseToken(true);
+      const response = await fetch(`/api/shipments/${shipment.id}/release-token`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate release token');
+      }
+
+      setShipment((prev) =>
+        prev
+          ? {
+              ...prev,
+              releaseToken: data.shipment.releaseToken,
+              releaseTokenCreatedAt: data.shipment.releaseTokenCreatedAt,
+            }
+          : prev
+      );
+
+      toast.success('Release token generated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to generate release token');
+    } finally {
+      setCreatingReleaseToken(false);
     }
   };
 
@@ -449,6 +499,61 @@ export default function ShipmentDetailPage() {
     } catch (error) {
         console.error('Error generating receipt:', error);
         toast.error('Failed to generate receipt');
+    }
+  };
+
+  const handleDownloadReleaseToken = () => {
+    if (!shipment) {
+      toast.error('Shipment is not loaded yet');
+      return;
+    }
+
+    if (!shipment.releaseToken) {
+      toast.error('Generate release token first');
+      return;
+    }
+
+    try {
+      downloadReleaseTokenPDF({
+        id: shipment.id,
+        serviceType: shipment.serviceType,
+        vehicleType: shipment.vehicleType,
+        vehicleMake: shipment.vehicleMake,
+        vehicleModel: shipment.vehicleModel,
+        vehicleYear: shipment.vehicleYear,
+        vehicleVIN: shipment.vehicleVIN,
+        vehicleColor: shipment.vehicleColor,
+        lotNumber: shipment.lotNumber,
+        auctionName: shipment.auctionName,
+        hasKey: shipment.hasKey,
+        hasTitle: shipment.hasTitle,
+        titleStatus: shipment.titleStatus,
+        price: shipment.price,
+        insuranceValue: shipment.insuranceValue,
+        paymentStatus: shipment.paymentStatus,
+        paymentMode: shipment.paymentMode,
+        releaseToken: shipment.releaseToken,
+        releaseTokenCreatedAt: shipment.releaseTokenCreatedAt,
+        container: shipment.container
+          ? {
+              containerNumber: shipment.container.containerNumber,
+              loadingPort: shipment.container.loadingPort,
+              destinationPort: shipment.container.destinationPort,
+            }
+          : null,
+        user: {
+          name: shipment.user.name,
+          email: shipment.user.email,
+          phone: shipment.user.phone,
+          address: shipment.user.address,
+          city: shipment.user.city,
+          country: shipment.user.country,
+        },
+      });
+      toast.success('Release token PDF downloaded');
+    } catch (error) {
+      console.error('Error generating release token PDF:', error);
+      toast.error('Failed to generate release token PDF');
     }
   };
 
@@ -559,6 +664,7 @@ export default function ShipmentDetailPage() {
 
   const statusStyles = useMemo(() => statusColors, []);
   const isAdmin = session?.user?.role === 'admin';
+  const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
 
   const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
     return (
@@ -632,6 +738,14 @@ export default function ShipmentDetailPage() {
                       Download Receipt
                   </Button>
                 </Tooltip>
+                {shipment.releaseToken && (
+                  <Tooltip title="Download release token document as PDF with customer, vehicle, and payment details.">
+                    <Button variant="outline" size="sm" onClick={handleDownloadReleaseToken}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Release Token PDF
+                    </Button>
+                  </Tooltip>
+                )}
                 {isAdmin && (
                   <>
                     <Link href={`/dashboard/shipments/${shipment.id}/edit`}>
@@ -746,13 +860,25 @@ export default function ShipmentDetailPage() {
               description={shipment.transit ? `${shipment.transit.origin} → ${shipment.transit.destination}` : 'Land delivery from UAE to Afghanistan'}
               actions={
                 isAdmin && !shipment.transit ? (
-                  <button
-                    onClick={() => setOpenAssignTransit(true)}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90"
-                  >
-                    <Truck className="h-3.5 w-3.5" />
-                    Assign to Transit
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {isReleasedForTransit && !shipment.releaseToken && (
+                      <button
+                        onClick={() => void handleGenerateReleaseToken()}
+                        disabled={creatingReleaseToken}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--accent-gold)] disabled:opacity-50"
+                      >
+                        {creatingReleaseToken ? 'Generating...' : 'Generate Release Token'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setOpenAssignTransit(true)}
+                      disabled={!isReleasedForTransit}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Truck className="h-3.5 w-3.5" />
+                      Assign to Transit
+                    </button>
+                  </div>
                 ) : undefined
               }
             >
@@ -795,10 +921,27 @@ export default function ShipmentDetailPage() {
                 <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
                   <Truck className="h-8 w-8 text-[var(--text-secondary)] opacity-40" />
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {['ARRIVED_PORT', 'CUSTOMS_CLEARANCE', 'RELEASED', 'CLOSED'].includes(shipment.container?.status || '')
-                      ? 'Container has arrived. Assign to transit for delivery to Afghanistan.'
-                      : 'No transit assigned. Transit can be assigned once the container is released.'}
+                    {isReleasedForTransit
+                      ? 'Shipment is released and ready for transit assignment.'
+                      : 'No transit assigned. Transit can be assigned only after shipment release.'}
                   </p>
+                  {shipment.releaseToken && (
+                    <div className="mt-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-left">
+                      <p className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">Release Token</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <code className="text-xs font-semibold text-[var(--text-primary)]">{shipment.releaseToken}</code>
+                        <button
+                          onClick={() => {
+                            void navigator.clipboard.writeText(shipment.releaseToken || '');
+                            toast.success('Release token copied');
+                          }}
+                          className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-primary)] hover:border-[var(--accent-gold)]"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </DashboardPanel>
@@ -1769,6 +1912,27 @@ export default function ShipmentDetailPage() {
               onChange={(e) => setTransitIdToAssign(e.target.value)}
               helperText="Paste the transit ID from the Transits page"
               size="small"
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Release Token"
+              type={showReleaseToken ? 'text' : 'password'}
+              value={releaseTokenToAssign}
+              onChange={(e) => setReleaseTokenToAssign(e.target.value)}
+              helperText="Paste the shipment release token to verify"
+              size="small"
+              InputProps={{
+                endAdornment: (
+                  <button
+                    type="button"
+                    onClick={() => setShowReleaseToken((prev) => !prev)}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                  >
+                    {showReleaseToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                ),
+              }}
             />
           </DialogContent>
           <DialogActions>

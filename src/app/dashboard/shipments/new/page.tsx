@@ -116,7 +116,7 @@ export default function NewShipmentPage() {
 	useEffect(() => {
 		const fetchCompanies = async () => {
 			try {
-				const response = await fetch('/api/finance/companies?active=true');
+				const response = await fetch('/api/finance/companies?active=true&companyType=SHIPPING');
 				if (response.ok) {
 					const data = await response.json();
 					setCompanies(data.companies || []);

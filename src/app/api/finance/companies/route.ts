@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CompanyType, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -12,6 +13,7 @@ const createCompanySchema = z.object({
   address: z.string().optional(),
   country: z.string().optional(),
   notes: z.string().optional(),
+  companyType: z.enum(['SHIPPING', 'TRANSIT']).default('SHIPPING'),
   isActive: z.boolean().optional().default(true),
 });
 
@@ -30,11 +32,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const active = searchParams.get('active');
+    const companyType = searchParams.get('companyType');
 
-    const where: {
-      OR?: Array<{ name?: { contains: string; mode: 'insensitive' }; code?: { contains: string; mode: 'insensitive' }; email?: { contains: string; mode: 'insensitive' } }>;
-      isActive?: boolean;
-    } = {};
+    const where: Prisma.CompanyWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
 
     if (active === 'true' || active === 'false') {
       where.isActive = active === 'true';
+    }
+
+    if (companyType && Object.values(CompanyType).includes(companyType as CompanyType)) {
+      where.companyType = companyType as CompanyType;
     }
 
     // Parallelize independent queries: fetching companies and calculating aggregate ledgers
@@ -132,6 +136,7 @@ export async function POST(request: NextRequest) {
         address: validatedData.address || null,
         country: validatedData.country || null,
         notes: validatedData.notes || null,
+        companyType: validatedData.companyType,
         isActive: validatedData.isActive,
         createdBy: session.user.id as string,
       },

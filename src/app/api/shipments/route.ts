@@ -311,10 +311,10 @@ export async function POST(request: NextRequest) {
 
     const shippingCompany = await prisma.company.findUnique({
       where: { id: shippingCompanyId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, companyType: true },
     });
 
-    if (!shippingCompany || !shippingCompany.isActive) {
+    if (!shippingCompany || !shippingCompany.isActive || shippingCompany.companyType !== 'SHIPPING') {
       return NextResponse.json(
         { message: 'Valid active shipping company is required' },
         { status: 400 }

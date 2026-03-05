@@ -88,10 +88,10 @@ export async function POST(request: NextRequest) {
     // Verify the company exists
     const company = await prisma.company.findUnique({
       where: { id: validatedData.companyId },
-      select: { id: true },
+      select: { id: true, isActive: true, companyType: true },
     });
 
-    if (!company) {
+    if (!company || !company.isActive || company.companyType !== 'TRANSIT') {
       return NextResponse.json({ error: 'Transit company not found' }, { status: 404 });
     }
 
@@ -99,10 +99,32 @@ export async function POST(request: NextRequest) {
     if (validatedData.shipmentIds?.length) {
       const shipments = await prisma.shipment.findMany({
         where: { id: { in: validatedData.shipmentIds } },
-        select: { id: true },
+        select: {
+          id: true,
+          status: true,
+          container: {
+            select: {
+              status: true,
+            },
+          },
+        },
       });
       if (shipments.length !== validatedData.shipmentIds.length) {
         return NextResponse.json({ error: 'One or more shipments not found' }, { status: 404 });
+      }
+
+      const notReleased = shipments.filter(
+        (shipment) => String(shipment.status) !== 'RELEASED' && shipment.container?.status !== 'RELEASED'
+      );
+
+      if (notReleased.length > 0) {
+        return NextResponse.json(
+          {
+            error: 'Only released shipments can be assigned to transit',
+            shipmentIds: notReleased.map((shipment) => shipment.id),
+          },
+          { status: 400 }
+        );
       }
     }
 

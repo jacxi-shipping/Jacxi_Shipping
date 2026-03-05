@@ -154,6 +154,8 @@ model Shipment {
   
   paymentStatus PaymentStatus @default(PENDING)
   paymentMode   PaymentMode?
+  releaseToken  String?       @unique
+  releaseTokenCreatedAt DateTime?
 
   // Metadata
   createdAt DateTime @default(now())
@@ -613,6 +615,7 @@ model Company {
   address       String?
   country       String?
   notes         String?
+  companyType   CompanyType          @default(SHIPPING) // Type: SHIPPING or TRANSIT
   isActive      Boolean              @default(true)
   createdBy     String?
   createdAt     DateTime             @default(now())
@@ -624,6 +627,7 @@ model Company {
 
   @@index([name])
   @@index([isActive])
+  @@index([companyType])
 }
 
 model CompanyLedgerEntry {
@@ -734,6 +738,11 @@ model AuditLog {
 // ============================================
 // ENUMS
 // ============================================
+
+enum CompanyType {
+  SHIPPING // Shipping company managing containers and shipments
+  TRANSIT  // Transit company managing inter-city transportation
+}
 
 enum ServiceType {
   PURCHASE_AND_SHIPPING // Company buys car for customer + shipping

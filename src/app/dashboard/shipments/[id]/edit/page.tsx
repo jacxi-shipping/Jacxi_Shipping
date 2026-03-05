@@ -125,7 +125,7 @@ export default function EditShipmentPage() {
         }
         setLoadingUsers(false);
 
-        const companiesResponse = await fetch('/api/finance/companies?active=true');
+        const companiesResponse = await fetch('/api/finance/companies?active=true&companyType=SHIPPING');
         if (companiesResponse.ok) {
           const companiesData = await companiesResponse.json();
           setCompanies(companiesData.companies || []);

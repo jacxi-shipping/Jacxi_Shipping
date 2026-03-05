@@ -85,6 +85,8 @@ export async function GET(
         ...(canReadAllShipments ? { companyShippingFare: true, damageCost: true } : {}),
         paymentStatus: true,
         paymentMode: true,
+        releaseToken: true,
+        releaseTokenCreatedAt: true,
         createdAt: true,
         updatedAt: true,
         user: {
@@ -93,6 +95,9 @@ export async function GET(
             name: true,
             email: true,
             phone: true,
+            address: true,
+            city: true,
+            country: true,
           },
         },
         shippingCompany: {
@@ -207,10 +212,10 @@ export async function PATCH(
 
       const shippingCompany = await prisma.company.findUnique({
         where: { id: data.shippingCompanyId },
-        select: { id: true, isActive: true },
+        select: { id: true, isActive: true, companyType: true },
       });
 
-      if (!shippingCompany || !shippingCompany.isActive) {
+      if (!shippingCompany || !shippingCompany.isActive || shippingCompany.companyType !== 'SHIPPING') {
         return NextResponse.json(
           { message: 'Valid active shipping company is required' },
           { status: 400 }

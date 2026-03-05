@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./print.css";
 import ConditionalLayout from "@/components/layout/ConditionalLayout";
 import { Providers } from "@/components/providers/Providers";
 import { Toaster } from "@/components/design-system";
 import Script from "next/script";
+import PWARegister from "@/components/pwa/PWARegister";
+import OfflineStatusBanner from "@/components/pwa/OfflineStatusBanner";
 
 // Use system fonts as fallback when Google Fonts aren't available
 const fontVariables = '';
@@ -13,10 +15,20 @@ export const metadata: Metadata = {
   title: "JACXI Shipping - Vehicle Shipping from USA to Afghanistan via UAE",
   description: "Professional vehicle shipping from USA through Dubai UAE to Herat and all Afghan provinces. Complete door-to-door service with customs clearance, insurance, and tracking. Serving Kabul, Kandahar, Mazar-i-Sharif and more.",
   keywords: "vehicle shipping USA to Afghanistan, car shipping to Herat, USA to UAE to Afghanistan, vehicle transport Kabul, Jacxi Shipping, Afghanistan car import",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "JACXI",
+  },
   robots: {
     index: true,
     follow: true,
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#DAA520",
 };
 
 export default function RootLayout({
@@ -35,6 +47,8 @@ export default function RootLayout({
 })(window,document,'https://api.uxsniff.com/cdn/js/uxsnf_track','.js');`}
           </Script>
         <Providers>
+          <PWARegister />
+          <OfflineStatusBanner />
           <div className="relative flex min-h-screen flex-col">
             <ConditionalLayout>
               {children}

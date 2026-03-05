@@ -143,7 +143,7 @@ export default function NewContainerPage() {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const response = await fetch('/api/finance/companies?active=true');
+        const response = await fetch('/api/finance/companies?active=true&companyType=SHIPPING');
         const data = await response.json();
         if (response.ok) {
           setCompanies(data.companies || []);

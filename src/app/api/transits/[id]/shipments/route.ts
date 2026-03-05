@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/rbac';
 
 const addShipmentSchema = z.object({
   shipmentId: z.string().min(1),
+  releaseToken: z.string().min(1),
 });
 
 // POST - Assign a shipment to this transit
@@ -39,11 +40,47 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { shipmentId } = addShipmentSchema.parse(body);
+    const { shipmentId, releaseToken } = addShipmentSchema.parse(body);
 
-    const shipment = await prisma.shipment.findUnique({ where: { id: shipmentId } });
+    const shipment = await prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      select: {
+        id: true,
+        status: true,
+        transitId: true,
+        releaseToken: true,
+        container: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
     if (!shipment) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
+    }
+
+    const isReleased = String(shipment.status) === 'RELEASED' || shipment.container?.status === 'RELEASED';
+
+    if (!isReleased) {
+      return NextResponse.json(
+        { error: 'Shipment can be assigned to transit only after release' },
+        { status: 400 }
+      );
+    }
+
+    if (!shipment.releaseToken) {
+      return NextResponse.json(
+        { error: 'Shipment has no release token. Generate a release token first.' },
+        { status: 400 }
+      );
+    }
+
+    if (shipment.releaseToken !== releaseToken.trim()) {
+      return NextResponse.json(
+        { error: 'Invalid release token for this shipment' },
+        { status: 400 }
+      );
     }
 
     if (shipment.transitId && shipment.transitId !== params.id) {

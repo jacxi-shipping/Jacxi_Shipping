@@ -24,12 +24,47 @@ interface Company {
   id: string;
   name: string;
   code: string | null;
+  companyType: 'SHIPPING' | 'TRANSIT';
   email: string | null;
   phone: string | null;
   address: string | null;
   country: string | null;
   notes: string | null;
   isActive: boolean;
+  _count?: {
+    ledgerEntries: number;
+    containers: number;
+    shipments: number;
+    transits: number;
+  };
+  containers?: Array<{
+    id: string;
+    containerNumber: string;
+    status: string;
+    currentCount: number;
+    maxCapacity: number;
+    createdAt: string;
+  }>;
+  shipments?: Array<{
+    id: string;
+    vehicleVIN: string | null;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    status: string;
+    createdAt: string;
+    transitId: string | null;
+  }>;
+  transits?: Array<{
+    id: string;
+    referenceNumber: string;
+    status: string;
+    origin: string;
+    destination: string;
+    createdAt: string;
+    _count: {
+      shipments: number;
+    };
+  }>;
 }
 
 interface CompanySummary {
@@ -411,7 +446,7 @@ export default function CompanyLedgerDetailPage() {
 
         <DashboardPanel
           title={company.name}
-          description={`Company Ledger${company.code ? ` • ${company.code}` : ''}`}
+          description={`${company.companyType === 'SHIPPING' ? 'Shipping' : 'Transit'} Company Ledger${company.code ? ` • ${company.code}` : ''}`}
           actions={
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Link href="/dashboard/finance/companies" style={{ textDecoration: 'none' }}>
@@ -451,6 +486,116 @@ export default function CompanyLedgerDetailPage() {
 
           <DataTable data={entries} columns={columns} keyField="id" />
         </DashboardPanel>
+
+        {company.companyType === 'SHIPPING' && (
+          <DashboardPanel
+            title="Shipping Operations"
+            description="Containers and shipments linked to this shipping company"
+          >
+            <DashboardGrid className="grid-cols-1 md:grid-cols-2 mb-4">
+              <StatsCard icon={<Building2 className="w-5 h-5" />} title="Containers" value={company._count?.containers || 0} variant="default" />
+              <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Shipments" value={company._count?.shipments || 0} variant="info" />
+            </DashboardGrid>
+
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ fontWeight: 600, mb: 1 }}>Recent Containers</Box>
+              <DataTable
+                data={company.containers || []}
+                keyField="id"
+                columns={[
+                  { key: 'containerNumber', header: 'Container', sortable: true },
+                  { key: 'status', header: 'Status', sortable: true },
+                  {
+                    key: 'currentCount',
+                    header: 'Capacity',
+                    render: (_, row) => `${row.currentCount}/${row.maxCapacity}`,
+                  },
+                  {
+                    key: 'createdAt',
+                    header: 'Created',
+                    render: (_, row) => new Date(row.createdAt).toLocaleDateString(),
+                  },
+                ]}
+              />
+            </Box>
+
+            <Box>
+              <Box sx={{ fontWeight: 600, mb: 1 }}>Recent Shipments</Box>
+              <DataTable
+                data={company.shipments || []}
+                keyField="id"
+                columns={[
+                  {
+                    key: 'vehicleVIN',
+                    header: 'Vehicle',
+                    render: (_, row) => row.vehicleVIN || [row.vehicleMake, row.vehicleModel].filter(Boolean).join(' ') || '-',
+                  },
+                  { key: 'status', header: 'Status', sortable: true },
+                  {
+                    key: 'createdAt',
+                    header: 'Created',
+                    render: (_, row) => new Date(row.createdAt).toLocaleDateString(),
+                  },
+                ]}
+              />
+            </Box>
+          </DashboardPanel>
+        )}
+
+        {company.companyType === 'TRANSIT' && (
+          <DashboardPanel
+            title="Transit Operations"
+            description="Transits and assigned shipments linked to this transit company"
+          >
+            <DashboardGrid className="grid-cols-1 md:grid-cols-2 mb-4">
+              <StatsCard icon={<Building2 className="w-5 h-5" />} title="Transits" value={company._count?.transits || 0} variant="default" />
+              <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Shipments" value={(company.shipments || []).filter((shipment) => Boolean(shipment.transitId)).length} variant="info" />
+            </DashboardGrid>
+
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ fontWeight: 600, mb: 1 }}>Recent Transits</Box>
+              <DataTable
+                data={company.transits || []}
+                keyField="id"
+                columns={[
+                  { key: 'referenceNumber', header: 'Reference', sortable: true },
+                  {
+                    key: 'origin',
+                    header: 'Route',
+                    render: (_, row) => `${row.origin} -> ${row.destination}`,
+                  },
+                  { key: 'status', header: 'Status', sortable: true },
+                  {
+                    key: '_count',
+                    header: 'Shipments',
+                    render: (_, row) => row._count.shipments,
+                  },
+                ]}
+              />
+            </Box>
+
+            <Box>
+              <Box sx={{ fontWeight: 600, mb: 1 }}>Transit Shipments</Box>
+              <DataTable
+                data={(company.shipments || []).filter((shipment) => Boolean(shipment.transitId))}
+                keyField="id"
+                columns={[
+                  {
+                    key: 'vehicleVIN',
+                    header: 'Vehicle',
+                    render: (_, row) => row.vehicleVIN || [row.vehicleMake, row.vehicleModel].filter(Boolean).join(' ') || '-',
+                  },
+                  { key: 'status', header: 'Status', sortable: true },
+                  {
+                    key: 'createdAt',
+                    header: 'Created',
+                    render: (_, row) => new Date(row.createdAt).toLocaleDateString(),
+                  },
+                ]}
+              />
+            </Box>
+          </DashboardPanel>
+        )}
 
         {report && report.summary.transactionCount > 0 && (
           <DashboardPanel title="Monthly Report" description="Transaction breakdown by month">

@@ -26,6 +26,8 @@ import {
   Trash2,
   Truck,
   User,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import AdminRoute from '@/components/auth/AdminRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
@@ -133,6 +135,8 @@ export default function TransitDetailPage() {
   // Add shipment to transit
   const [openAddShipment, setOpenAddShipment] = useState(false);
   const [shipmentIdToAdd, setShipmentIdToAdd] = useState('');
+  const [shipmentReleaseToken, setShipmentReleaseToken] = useState('');
+  const [showShipmentReleaseToken, setShowShipmentReleaseToken] = useState(false);
   const [addingShipment, setAddingShipment] = useState(false);
 
   const fetchTransit = async () => {
@@ -259,18 +263,20 @@ export default function TransitDetailPage() {
 
   const handleAddShipment = async () => {
     if (!shipmentIdToAdd.trim()) { toast.error('Shipment ID is required'); return; }
+    if (!shipmentReleaseToken.trim()) { toast.error('Release token is required'); return; }
     try {
       setAddingShipment(true);
       const response = await fetch(`/api/transits/${transitId}/shipments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shipmentId: shipmentIdToAdd }),
+        body: JSON.stringify({ shipmentId: shipmentIdToAdd, releaseToken: shipmentReleaseToken.trim() }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to add shipment');
       toast.success('Shipment added to transit');
       setOpenAddShipment(false);
       setShipmentIdToAdd('');
+      setShipmentReleaseToken('');
       await fetchTransit();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to add shipment');
@@ -631,7 +637,27 @@ export default function TransitDetailPage() {
               label="Shipment ID"
               value={shipmentIdToAdd}
               onChange={(e) => setShipmentIdToAdd(e.target.value)}
-              helperText="Paste the shipment ID from the Shipments page"
+              helperText="Paste shipment ID. Only released shipments can be assigned."
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Release Token"
+              type={showShipmentReleaseToken ? 'text' : 'password'}
+              value={shipmentReleaseToken}
+              onChange={(e) => setShipmentReleaseToken(e.target.value)}
+              helperText="Paste the shipment release token for verification"
+              InputProps={{
+                endAdornment: (
+                  <button
+                    type="button"
+                    onClick={() => setShowShipmentReleaseToken((prev) => !prev)}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                  >
+                    {showShipmentReleaseToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                ),
+              }}
             />
           </DialogContent>
           <DialogActions>

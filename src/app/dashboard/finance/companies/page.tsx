@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  MenuItem,
   TextField,
   Tooltip,
 } from '@mui/material';
@@ -22,6 +23,7 @@ interface Company {
   id: string;
   name: string;
   code: string | null;
+  companyType: 'SHIPPING' | 'TRANSIT';
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -37,13 +39,14 @@ interface Company {
   };
 }
 
-const emptyForm = { name: '', code: '', email: '', phone: '', address: '', country: '', notes: '' };
+const emptyForm = { name: '', code: '', email: '', phone: '', address: '', country: '', notes: '', companyType: 'SHIPPING' as 'SHIPPING' | 'TRANSIT' };
 
 export default function CompanyFinancePage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'SHIPPING' | 'TRANSIT'>('ALL');
   const [openCreate, setOpenCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -57,11 +60,19 @@ export default function CompanyFinancePage() {
   // Delete state
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  const activeTypeLabel =
+    typeFilter === 'ALL'
+      ? 'All Companies'
+      : typeFilter === 'SHIPPING'
+      ? 'Shipping Companies'
+      : 'Transit Companies';
+
   const fetchCompanies = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       if (search) params.append('search', search);
+      if (typeFilter !== 'ALL') params.append('companyType', typeFilter);
 
       const response = await fetch(`/api/finance/companies?${params}`);
       const data = await response.json();
@@ -81,7 +92,7 @@ export default function CompanyFinancePage() {
 
   useEffect(() => {
     void fetchCompanies();
-  }, [search]);
+  }, [search, typeFilter]);
 
   const handleCreate = async () => {
     if (!formData.name.trim()) {
@@ -124,6 +135,7 @@ export default function CompanyFinancePage() {
     setEditForm({
       name: company.name,
       code: company.code || '',
+      companyType: company.companyType,
       email: company.email || '',
       phone: company.phone || '',
       address: company.address || '',
@@ -147,6 +159,7 @@ export default function CompanyFinancePage() {
         body: JSON.stringify({
           name: editForm.name,
           code: editForm.code || null,
+          companyType: editForm.companyType,
           email: editForm.email || null,
           phone: editForm.phone || null,
           address: editForm.address || null,
@@ -235,6 +248,12 @@ export default function CompanyFinancePage() {
         ),
       },
       {
+        key: 'companyType',
+        header: 'Type',
+        align: 'center',
+        render: (_, row) => row.companyType === 'SHIPPING' ? 'Shipping' : 'Transit',
+      },
+      {
         key: 'phone',
         header: 'Contact',
         render: (_, row) => row.phone || row.email || '-',
@@ -321,7 +340,7 @@ export default function CompanyFinancePage() {
             <StatsCard icon={<Building2 className="w-5 h-5" />} title="Net Balance" value={formatCurrency(stats.netBalance)} variant="info" />
           </DashboardGrid>
 
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 220px' }, gap: 1.5 }}>
             <TextField
               fullWidth
               size="small"
@@ -332,6 +351,37 @@ export default function CompanyFinancePage() {
                 startAdornment: <Search className="w-4 h-4 mr-2 text-[var(--text-secondary)]" />,
               }}
             />
+            <TextField
+              select
+              size="small"
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.target.value as 'ALL' | 'SHIPPING' | 'TRANSIT')}
+            >
+              <MenuItem value="ALL">All Types</MenuItem>
+              <MenuItem value="SHIPPING">Shipping</MenuItem>
+              <MenuItem value="TRANSIT">Transit</MenuItem>
+            </TextField>
+          </Box>
+
+          <Box sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                px: 1.25,
+                py: 0.5,
+                borderRadius: 9999,
+                border: '1px solid var(--border)',
+                background: 'var(--panel)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.75rem',
+              }}
+            >
+              Showing:
+              <Box component="span" sx={{ ml: 0.75, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {activeTypeLabel}
+              </Box>
+            </Box>
           </Box>
 
           {loading ? (
@@ -351,6 +401,15 @@ export default function CompanyFinancePage() {
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
             <TextField label="Company Name" value={formData.name} onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))} required />
             <TextField label="Code" value={formData.code} onChange={(event) => setFormData((prev) => ({ ...prev, code: event.target.value }))} />
+            <TextField
+              select
+              label="Company Type"
+              value={formData.companyType}
+              onChange={(event) => setFormData((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'TRANSIT' }))}
+            >
+              <MenuItem value="SHIPPING">Shipping Company</MenuItem>
+              <MenuItem value="TRANSIT">Transit Company</MenuItem>
+            </TextField>
             <TextField label="Email" value={formData.email} onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))} />
             <TextField label="Phone" value={formData.phone} onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))} />
             <TextField label="Address" value={formData.address} onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))} />
@@ -368,6 +427,15 @@ export default function CompanyFinancePage() {
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
             <TextField label="Company Name" value={editForm.name} onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))} required />
             <TextField label="Code" value={editForm.code} onChange={(event) => setEditForm((prev) => ({ ...prev, code: event.target.value }))} />
+            <TextField
+              select
+              label="Company Type"
+              value={editForm.companyType}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'TRANSIT' }))}
+            >
+              <MenuItem value="SHIPPING">Shipping Company</MenuItem>
+              <MenuItem value="TRANSIT">Transit Company</MenuItem>
+            </TextField>
             <TextField label="Email" value={editForm.email} onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))} />
             <TextField label="Phone" value={editForm.phone} onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))} />
             <TextField label="Address" value={editForm.address} onChange={(event) => setEditForm((prev) => ({ ...prev, address: event.target.value }))} />

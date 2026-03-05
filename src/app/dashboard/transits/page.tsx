@@ -103,7 +103,7 @@ export default function TransitsPage() {
 
   const fetchCompanies = async () => {
     try {
-      const response = await fetch('/api/finance/companies?active=true');
+      const response = await fetch('/api/finance/companies?active=true&companyType=TRANSIT');
       const data = await response.json();
       if (response.ok) setCompanies(data.companies || []);
     } catch (error) {
