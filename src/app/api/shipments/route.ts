@@ -127,12 +127,17 @@ export async function GET(request: NextRequest) {
 
     const normalizedShipments = includeFinancial
       ? (shipments as Array<any>).map((shipment) => {
-          const totalDebit = shipment.ledgerEntries
-            .filter((entry: { type: string }) => entry.type === 'DEBIT')
-            .reduce((sum: number, entry: { amount: number }) => sum + entry.amount, 0);
-          const totalCredit = shipment.ledgerEntries
-            .filter((entry: { type: string }) => entry.type === 'CREDIT')
-            .reduce((sum: number, entry: { amount: number }) => sum + entry.amount, 0);
+          // ⚡ Bolt: Removed array iterations .filter().reduce() chaining
+          // replacing it with an O(N) loop to compute debits and credits efficiently.
+          let totalDebit = 0;
+          let totalCredit = 0;
+          for (const entry of shipment.ledgerEntries) {
+            if (entry.type === 'DEBIT') {
+              totalDebit += entry.amount;
+            } else if (entry.type === 'CREDIT') {
+              totalCredit += entry.amount;
+            }
+          }
           const amountDue = Math.max(0, totalDebit - totalCredit);
 
           return {

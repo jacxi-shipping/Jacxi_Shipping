@@ -136,13 +136,17 @@ export async function GET(request: NextRequest) {
       });
 
       const userReports = users.map(user => {
-        const totalDebit = user.ledgerEntries
-          .filter(e => e.type === 'DEBIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-        
-        const totalCredit = user.ledgerEntries
-          .filter(e => e.type === 'CREDIT')
-          .reduce((sum, e) => sum + e.amount, 0);
+        // ⚡ Bolt: Calculate totalDebit and totalCredit in a single O(N) loop
+        // to avoid chained array allocations and repeated iteration over ledgerEntries.
+        let totalDebit = 0;
+        let totalCredit = 0;
+        for (const e of user.ledgerEntries) {
+          if (e.type === 'DEBIT') {
+            totalDebit += e.amount;
+          } else if (e.type === 'CREDIT') {
+            totalCredit += e.amount;
+          }
+        }
 
         const currentBalance = user.ledgerEntries[0]?.balance || 0;
 
@@ -206,30 +210,33 @@ export async function GET(request: NextRequest) {
       });
 
       const shipmentReports = shipments.map(shipment => {
-        // Separate expenses from regular transactions
-        const expenses = shipment.ledgerEntries.filter(e => 
-          e.metadata && 
-          typeof e.metadata === 'object' && 
-          'isExpense' in e.metadata && 
-          (e.metadata as Record<string, unknown>).isExpense === true
-        );
+        // ⚡ Bolt: Single pass loop for evaluating transactions, separating expenses
+        // from totalDebit and totalCredit to eliminate 4x iteration over ledgerEntries
+        // and reduce memory allocation of intermediate arrays.
+        let totalDebit = 0;
+        let totalCredit = 0;
+        let totalExpenses = 0;
+        const expenses: typeof shipment.ledgerEntries = [];
 
-        const regularTransactions = shipment.ledgerEntries.filter(e => 
-          !e.metadata || 
-          typeof e.metadata !== 'object' || 
-          !('isExpense' in e.metadata) ||
-          (e.metadata as Record<string, unknown>).isExpense !== true
-        );
+        for (const e of shipment.ledgerEntries) {
+          const isExpense = Boolean(
+            e.metadata &&
+            typeof e.metadata === 'object' &&
+            'isExpense' in e.metadata &&
+            (e.metadata as Record<string, unknown>).isExpense === true
+          );
 
-        const totalDebit = regularTransactions
-          .filter(e => e.type === 'DEBIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-        
-        const totalCredit = regularTransactions
-          .filter(e => e.type === 'CREDIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-
-        const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+          if (isExpense) {
+            expenses.push(e);
+            totalExpenses += e.amount;
+          } else {
+            if (e.type === 'DEBIT') {
+              totalDebit += e.amount;
+            } else if (e.type === 'CREDIT') {
+              totalCredit += e.amount;
+            }
+          }
+        }
 
         const amountDue = totalDebit - totalCredit;
         const revenue = totalCredit; // What was actually paid
