@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 
 const createEventSchema = z.object({
   status: z.string().min(1),
@@ -23,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'transits:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -57,7 +58,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'transits:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

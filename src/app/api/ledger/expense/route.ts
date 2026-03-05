@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
+import { hasAnyPermission } from '@/lib/rbac';
 import { z } from 'zod';
 
 // Schema for adding an expense
@@ -24,8 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can add expenses
-    if (session.user.role !== 'admin') {
+    if (!hasAnyPermission(session.user?.role, ['finance:manage', 'shipments:manage'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -197,8 +197,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    // Non-admin users can only view their own shipment expenses
-    if (session.user.role !== 'admin' && shipment.userId !== session.user.id) {
+    const canReadAllFinance = hasAnyPermission(session.user?.role, ['finance:view', 'shipments:read_all']);
+    if (!canReadAllFinance && shipment.userId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

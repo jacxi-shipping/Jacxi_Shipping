@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 import { z } from 'zod';
 
 const assignShipmentsSchema = z.object({
@@ -60,8 +61,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can assign shipments
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'containers:manage') || !hasPermission(session.user?.role, 'shipments:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -198,7 +198,7 @@ export async function DELETE(
   try {
     const session = await auth();
     
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!session?.user || !hasPermission(session.user?.role, 'containers:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

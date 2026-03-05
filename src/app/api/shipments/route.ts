@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
 import { syncShipmentDamageEntries } from '@/lib/shipment-damage';
+import { hasPermission } from '@/lib/rbac';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,10 +28,10 @@ export async function GET(request: NextRequest) {
 
     // Build where clause based on user role
     const where: Prisma.ShipmentWhereInput = {};
-    const isAdmin = session.user?.role === 'admin';
+    const canReadAllShipments = hasPermission(session.user?.role, 'shipments:read_all');
     
     // Regular users can only see their own shipments
-    if (session.user?.role !== 'admin') {
+    if (!canReadAllShipments) {
       where.userId = session.user?.id;
     }
 
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
       createdAt: true,
       paymentStatus: true,
       price: true,
-      ...(isAdmin ? { companyShippingFare: true } : {}),
+      ...(canReadAllShipments ? { companyShippingFare: true } : {}),
       shippingCompanyId: true,
       containerId: true,
       internalNotes: true,
@@ -214,7 +215,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only admins can create shipments and assign them to users
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'shipments:manage')) {
       return NextResponse.json(
         { message: 'Forbidden: Only admins can create shipments' },
         { status: 403 }

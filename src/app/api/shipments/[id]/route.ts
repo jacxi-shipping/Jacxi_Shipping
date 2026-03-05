@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { createNotification } from '@/lib/notifications';
 import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
 import { syncShipmentDamageEntries } from '@/lib/shipment-damage';
+import { hasPermission } from '@/lib/rbac';
 
 type UpdateShipmentPayload = {
   userId?: string;
@@ -51,7 +52,7 @@ export async function GET(
       );
     }
 
-    const isAdmin = session.user?.role === 'admin';
+    const canReadAllShipments = hasPermission(session.user?.role, 'shipments:read_all');
 
     const shipment = await prisma.shipment.findUnique({
       where: { id },
@@ -81,7 +82,7 @@ export async function GET(
         internalNotes: true,
         price: true,
         damageCredit: true,
-        ...(isAdmin ? { companyShippingFare: true, damageCost: true } : {}),
+        ...(canReadAllShipments ? { companyShippingFare: true, damageCost: true } : {}),
         paymentStatus: true,
         paymentMode: true,
         createdAt: true,
@@ -132,7 +133,7 @@ export async function GET(
     }
 
     // Regular users can only see their own shipments
-    if (session.user?.role !== 'admin' && shipment.userId !== session.user?.id) {
+    if (!canReadAllShipments && shipment.userId !== session.user?.id) {
       return NextResponse.json(
         { message: 'Forbidden' },
         { status: 403 }
@@ -164,8 +165,7 @@ export async function PATCH(
       );
     }
 
-    // Only admins can update shipments
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'shipments:manage')) {
       return NextResponse.json(
         { message: 'Forbidden: Only admins can update shipments' },
         { status: 403 }
@@ -544,8 +544,7 @@ export async function DELETE(
       );
     }
 
-    // Only admins can delete shipments
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'shipments:manage')) {
       return NextResponse.json(
         { message: 'Forbidden: Only admins can delete shipments' },
         { status: 403 }

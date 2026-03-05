@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
+import { hasAnyPermission } from '@/lib/rbac';
 
 const createExpenseSchema = z.object({
   description: z.string().min(1),
@@ -35,7 +36,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasAnyPermission(session.user?.role, ['finance:view', 'transits:manage'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -74,7 +75,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasAnyPermission(session.user?.role, ['finance:manage', 'transits:manage'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

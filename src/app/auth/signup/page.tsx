@@ -10,8 +10,8 @@ export default function SignUpPage() {
 
 	useEffect(() => {
 		if (status !== 'loading') {
-			// Redirect to dashboard users/new page
-			router.replace('/dashboard/users/new');
+			// Redirect to customer creation flow
+			router.replace('/dashboard/customers/new');
 		}
 	}, [status, router]);
 

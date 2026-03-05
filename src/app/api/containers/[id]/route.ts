@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { NotificationType } from '@prisma/client';
 import { createNotifications } from '@/lib/notifications';
+import { hasPermission } from '@/lib/rbac';
 import { z } from 'zod';
 
 // Schema for updating container
@@ -111,9 +112,9 @@ export async function GET(
     }
 
     // Role-based access control
-    const isAdmin = session.user.role === 'admin';
+    const canReadAllContainers = hasPermission(session.user?.role, 'containers:read_all');
     
-    if (!isAdmin) {
+    if (!canReadAllContainers) {
       // Check if user has any shipments in this container
       const userShipments = container.shipments.filter(s => s.userId === session.user.id);
       
@@ -130,7 +131,7 @@ export async function GET(
     }
 
     // Auto-sync tracking if enabled and has tracking number
-    if (isAdmin && container.autoTrackingEnabled && container.trackingNumber) {
+    if (canReadAllContainers && container.autoTrackingEnabled && container.trackingNumber) {
       try {
         const { trackingSync } = await import('@/lib/services/tracking-sync');
         const syncResult = await trackingSync.syncContainerTracking(params.id);
@@ -206,8 +207,8 @@ export async function GET(
     }
 
     // Calculate totals
-    const totalExpenses = isAdmin ? container.expenses.reduce((sum, exp) => sum + exp.amount, 0) : 0;
-    const totalInvoices = isAdmin ? container.invoices.reduce((sum, inv) => sum + inv.amount, 0) : 0;
+    const totalExpenses = canReadAllContainers ? container.expenses.reduce((sum, exp) => sum + exp.amount, 0) : 0;
+    const totalInvoices = canReadAllContainers ? container.invoices.reduce((sum, inv) => sum + inv.amount, 0) : 0;
     const currentCount = container.shipments.length; // This will reflect the filtered count for users? No, container.currentCount is from DB property usually, or I should use shipments.length.
     // Wait, `container.currentCount` property exists on the model (synced).
     // If I use `container.shipments.length`, it will be 1 for user, but the container physically has 4.
@@ -250,8 +251,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can update containers
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'containers:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -448,8 +448,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can delete containers
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'containers:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -3,6 +3,7 @@ import { TransitStatus } from '@prisma/client';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 
 const createTransitSchema = z.object({
   companyId: z.string().min(1),
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'transits:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'transits:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

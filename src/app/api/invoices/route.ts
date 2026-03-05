@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 
 /**
  * GET /api/invoices
@@ -25,7 +26,8 @@ export async function GET(req: NextRequest) {
     const where: any = {};
 
     // If not admin, only show user's own invoices
-    if (session.user.role !== 'admin') {
+    const canReadAllInvoices = hasPermission(session.user?.role, 'invoices:manage');
+    if (!canReadAllInvoices) {
       where.userId = session.user.id;
     } else if (userId) {
       // Admin can filter by userId

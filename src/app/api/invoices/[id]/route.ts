@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { NotificationType } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
 import { z } from 'zod';
+import { hasPermission } from '@/lib/rbac';
 
 /**
  * GET /api/invoices/[id]
@@ -73,7 +74,8 @@ export async function GET(
     }
 
     // Check permissions: users can only view their own invoices
-    if (session.user.role !== 'admin' && invoice.userId !== session.user.id) {
+    const canReadAllInvoices = hasPermission(session.user?.role, 'invoices:manage');
+    if (!canReadAllInvoices && invoice.userId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -105,7 +107,7 @@ export async function PATCH(
     }
 
     // Only admins can update invoices
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'invoices:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -223,7 +225,7 @@ export async function DELETE(
     }
 
     // Only admins can delete invoices
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'invoices:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

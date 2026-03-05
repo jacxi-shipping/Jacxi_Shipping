@@ -14,6 +14,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SmartSearch, { SearchFilters } from '@/components/dashboard/SmartSearch';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import UserCard from '@/components/dashboard/UserCard';
+import { hasPermission } from '@/lib/rbac';
 
 interface UserData {
 	id: string;
@@ -51,7 +52,7 @@ export default function UsersPage() {
 		if (status === 'loading') return;
 
 		const role = session?.user?.role;
-		if (!session || role !== 'admin') {
+		if (!session || !hasPermission(role, 'users:manage')) {
 			router.replace('/dashboard');
 			return;
 		}
@@ -62,7 +63,7 @@ export default function UsersPage() {
 	const fetchUsers = useCallback(async (page: number = 1, query: string = searchFilters.query) => {
 		try {
 			setLoading(true);
-			const url = `/api/users?page=${page}&pageSize=${PAGE_SIZE}${query ? `&query=${encodeURIComponent(query)}` : ''}`;
+			const url = `/api/users?page=${page}&pageSize=${PAGE_SIZE}&roleType=users${query ? `&query=${encodeURIComponent(query)}` : ''}`;
 			const response = await fetch(url);
 			if (response.ok) {
 				const data = await response.json();
@@ -142,7 +143,7 @@ export default function UsersPage() {
 	useEffect(() => {
 		if (status === 'loading') return;
 		const role = session?.user?.role;
-		if (!session || role !== 'admin') return;
+		if (!session || !hasPermission(role, 'users:manage')) return;
 		fetchUsers(currentPage);
 	}, [session, status, router, currentPage, fetchUsers]);
 
@@ -357,7 +358,7 @@ export default function UsersPage() {
 	}
 
 	const role = session?.user?.role;
-	if (!session || role !== 'admin') {
+	if (!session || !hasPermission(role, 'users:manage')) {
 		return null;
 	}
 
@@ -369,14 +370,14 @@ export default function UsersPage() {
 				</Box>
 			{/* Search Panel */}
 			<DashboardPanel
-				title="Team directory"
-				description="All users in one view"
+				title="Users Directory"
+				description="Internal users (admin accounts)"
 				noBodyPadding
 				actions={
-					<Link href="/dashboard/users/new" style={{ textDecoration: 'none' }}>
+					<Link href="/dashboard/users/new?accountType=user" style={{ textDecoration: 'none' }}>
 						<Button variant="primary" size="sm" sx={{ textTransform: 'none', fontWeight: 600 }}>
 							<UserPlus style={{ width: 16, height: 16, marginRight: 8 }} />
-							Create User
+							Create Internal User
 						</Button>
 					</Link>
 				}
@@ -384,7 +385,7 @@ export default function UsersPage() {
 				<Box sx={{ px: 1.5, py: 1.5 }}>
 					<SmartSearch
 						onSearch={handleSearch}
-						placeholder="Search users by name or email..."
+						placeholder="Search internal users by name or email..."
 						showTypeFilter={false}
 						showStatusFilter={false}
 						showDateFilter
@@ -396,12 +397,12 @@ export default function UsersPage() {
 			</DashboardPanel>
 
 			{/* Results Panel */}
-			<DashboardPanel title={`All Users (${totalUsers})`} fullHeight>
+			<DashboardPanel title={`All Internal Users (${totalUsers})`} fullHeight>
 				{/* Stats */}
 				<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, mb: 2 }}>
 					<Box sx={{ p: 2, bgcolor: 'var(--text-primary)/0.04', borderRadius: 1, border: '1px solid rgba(6,182,212,0.12)' }}>
 						<Typography variant="caption" color="text.secondary">
-							Total Users
+							Total Internal Users
 						</Typography>
 						<Typography variant="h5" sx={{ fontWeight: 700 }}>
 							{statsTotal}
@@ -410,7 +411,7 @@ export default function UsersPage() {
 
 					<Box sx={{ p: 2, bgcolor: 'var(--text-primary)/0.04', borderRadius: 1, border: '1px solid rgba(124,58,237,0.08)' }}>
 						<Typography variant="caption" color="text.secondary">
-							Admins
+							Admin Accounts
 						</Typography>
 						<Typography variant="h5" sx={{ fontWeight: 700 }}>
 							{statsAdmins}
@@ -419,7 +420,7 @@ export default function UsersPage() {
 
 					<Box sx={{ p: 2, bgcolor: 'var(--text-primary)/0.04', borderRadius: 1, border: '1px solid rgba(16,185,129,0.08)' }}>
 						<Typography variant="caption" color="text.secondary">
-							Regular Users
+							Customer Accounts
 						</Typography>
 						<Typography variant="h5" sx={{ fontWeight: 700 }}>
 							{statsRegularUsers}
@@ -446,10 +447,10 @@ export default function UsersPage() {
 				) : paginatedUsers.length === 0 ? (
 					<Box sx={{ minHeight: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
 						<User style={{ width: 48, height: 48, color: 'rgba(255,255,255,0.25)' }} />
-						<Typography sx={{ color: 'var(--text-secondary)' }}>No users found</Typography>
-						<Link href="/dashboard/users/new" style={{ textDecoration: 'none' }}>
+						<Typography sx={{ color: 'var(--text-secondary)' }}>No internal users found</Typography>
+						<Link href="/dashboard/users/new?accountType=user" style={{ textDecoration: 'none' }}>
 							<Button variant="primary" size="sm" sx={{ mt: 1, textTransform: 'none' }}>
-								<UserPlus style={{ width: 16, height: 16, marginRight: 8 }} /> Create User
+								<UserPlus style={{ width: 16, height: 16, marginRight: 8 }} /> Create Internal User
 							</Button>
 						</Link>
 					</Box>
@@ -503,7 +504,7 @@ export default function UsersPage() {
 				<DialogTitle id="confirm-delete-title">Confirm delete</DialogTitle>
 				<DialogContent>
 					<DialogContentText>
-						Are you sure you want to delete this user? This action cannot be undone.
+						Are you sure you want to delete this internal user? This action cannot be undone.
 					</DialogContentText>
 				</DialogContent>
 				<DialogActions>

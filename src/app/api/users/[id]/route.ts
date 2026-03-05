@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ message: 'User ID required' }, { status: 400 });
     }
 
-    // Users can view their own profile, admins can view any profile
-    if (session.user?.role !== 'admin' && session.user?.id !== userId) {
+    const canManageUsers = hasPermission(session.user?.role, 'users:manage') || hasPermission(session.user?.role, 'customers:view');
+    if (!canManageUsers && session.user?.id !== userId) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
@@ -90,8 +91,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ message: 'User ID required' }, { status: 400 });
     }
 
-    // Only admins can update other users (except maybe self-update, but usually user settings are separate)
-    if (session.user?.role !== 'admin' && session.user?.id !== userId) {
+    const canManageUsers = hasPermission(session.user?.role, 'users:manage') || hasPermission(session.user?.role, 'customers:manage');
+    if (!canManageUsers && session.user?.id !== userId) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
@@ -106,8 +107,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    // Only admins can change roles
-    if (role && session.user.role !== 'admin') {
+    if (role && !hasPermission(session.user?.role, 'users:manage')) {
       return NextResponse.json({ message: 'Forbidden: Cannot change role' }, { status: 403 });
     }
 
@@ -137,8 +137,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!session) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    // Only admins can delete users
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'users:manage') && !hasPermission(session.user?.role, 'customers:manage')) {
       return NextResponse.json({ message: 'Forbidden: Only admins can delete users' }, { status: 403 });
     }
     const { id } = await params;

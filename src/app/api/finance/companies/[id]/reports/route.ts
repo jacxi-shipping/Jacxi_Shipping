@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'finance:view')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
+import { hasPermission, hasAnyPermission } from '@/lib/rbac';
 import { z } from 'zod';
 
 function allocateContainerExpense(
@@ -77,7 +78,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasAnyPermission(session.user?.role, ['finance:view', 'containers:read_all'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -116,7 +117,7 @@ export async function POST(
     }
 
     // Only admins can add expenses
-    if (session.user.role !== 'admin') {
+    if (!hasAnyPermission(session.user?.role, ['finance:manage', 'containers:manage'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -294,7 +295,7 @@ export async function DELETE(
   try {
     const session = await auth();
     
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!session?.user || !hasAnyPermission(session.user?.role, ['finance:manage', 'containers:manage'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

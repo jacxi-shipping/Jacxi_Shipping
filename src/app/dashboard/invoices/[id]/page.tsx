@@ -427,7 +427,7 @@ export default function InvoiceDetailPage() {
 									variant="outline"
 									size="sm"
 									icon={<User className="w-3 h-3" />}
-									onClick={() => router.push(`/dashboard/users?search=${invoice.user.email}`)}
+									onClick={() => router.push(`/dashboard/customers?search=${invoice.user.email}`)}
 								>
 									View Customer
 								</Button>

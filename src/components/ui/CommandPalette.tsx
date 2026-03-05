@@ -138,6 +138,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
           <Command.Group heading="Settings" className="px-2 py-2 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             <Command.Item
+              onSelect={() => runCommand(() => router.push('/dashboard/customers'))}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-[var(--text-primary)] hover:bg-[var(--background)] data-[selected=true]:bg-[var(--background)]"
+            >
+              <Users className="w-4 h-4" />
+              <span>Customers</span>
+            </Command.Item>
+
+            <Command.Item
               onSelect={() => runCommand(() => router.push('/dashboard/users'))}
               className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-[var(--text-primary)] hover:bg-[var(--background)] data-[selected=true]:bg-[var(--background)]"
             >

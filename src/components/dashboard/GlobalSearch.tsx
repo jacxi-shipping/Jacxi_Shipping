@@ -139,7 +139,7 @@ export default function GlobalSearch() {
             type: 'user',
             title: user.name || user.email,
             subtitle: user.email,
-            link: `/dashboard/users`,
+            link: `/dashboard/customers`,
           });
         });
       }

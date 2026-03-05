@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -27,7 +28,7 @@ export async function GET() {
 			return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (session.user.role !== 'admin') {
+		if (!hasPermission(session.user?.role, 'analytics:view')) {
 			return NextResponse.json({ message: 'Forbidden: admin access required' }, { status: 403 });
 		}
 

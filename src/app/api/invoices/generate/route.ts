@@ -6,6 +6,7 @@ import { allocateExpenses } from '@/lib/expense-allocation';
 import { sendInvoiceEmail } from '@/lib/email';
 import { NotificationType } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
+import { hasPermission } from '@/lib/rbac';
 
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Only admins can generate invoices
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'invoices:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

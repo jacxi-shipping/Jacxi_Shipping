@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import PersonIcon from '@mui/icons-material/Person';
@@ -24,25 +24,30 @@ import {
 	InputAdornment,
 	IconButton,
 	Button as MuiButton,
-  MenuItem,
+	MenuItem,
   Stepper,
   Step,
   StepLabel,
 } from '@mui/material';
 import { toast, FormPageSkeleton } from '@/components/design-system';
+import { hasPermission } from '@/lib/rbac';
 
 const steps = ['Basic Info', 'Contact Details', 'Security'];
 
 export default function CreateUserPage() {
 	const router = useRouter();
+  const searchParams = useSearchParams();
 	const { data: session, status } = useSession();
+  const accountType = searchParams.get('accountType') === 'user' ? 'user' : 'customer';
+  const defaultRole = accountType === 'user' ? 'admin' : 'user';
+  const successRedirect = accountType === 'user' ? '/dashboard/users' : '/dashboard/customers';
 	const [activeStep, setActiveStep] = useState(0);
 	const [formData, setFormData] = useState({
 		name: '',
 		email: '',
 		password: '',
 		confirmPassword: '',
-		role: 'user',
+    role: defaultRole,
 		phone: '',
 		address: '',
 		city: '',
@@ -57,12 +62,16 @@ export default function CreateUserPage() {
 	}
 
 	const role = session?.user?.role;
-	if (!session || role !== 'admin') {
+  const canCreateCustomers = hasPermission(role, 'customers:manage');
+  const canCreateInternalUsers = hasPermission(role, 'users:manage');
+  const hasAccess = accountType === 'user' ? canCreateInternalUsers : canCreateCustomers;
+
+  if (!session || !hasAccess) {
 		return (
 			<Box sx={{ py: 12 }}>
 				<Paper elevation={0} sx={{ maxWidth: 960, mx: 'auto', p: 6, textAlign: 'center', bgcolor: 'var(--text-primary)', color: 'white' }}>
 					<Typography variant="h4" sx={{ mb: 2, fontWeight: 700 }}>Access Restricted</Typography>
-					<Typography sx={{ mb: 3 }}>Only administrators can create user accounts.</Typography>
+          <Typography sx={{ mb: 3 }}>You do not have permission to create this account type.</Typography>
 					<Link href="/dashboard" style={{ textDecoration: 'none' }}>
 					<MuiButton variant="contained" sx={{ bgcolor: 'var(--accent-gold)', color: 'var(--background)', '&:hover': { bgcolor: 'var(--accent-gold)' } }}>
 						Go to Dashboard
@@ -148,7 +157,7 @@ export default function CreateUserPage() {
 				}
 
 				toast.success('User created successfully');
-				setTimeout(() => router.push('/dashboard/users'), 800);
+        setTimeout(() => router.push(successRedirect), 800);
 			} else {
 				const msg = data?.message || 'Registration failed';
 				toast.error(msg);
@@ -203,7 +212,7 @@ export default function CreateUserPage() {
 									mb: 1,
 								}}
 							>
-								Create User
+                {accountType === 'user' ? 'Create Internal User' : 'Create Customer'}
 							</Typography>
 							<Typography
 								variant="body1"
@@ -211,7 +220,7 @@ export default function CreateUserPage() {
 									color: 'var(--text-secondary)',
 								}}
 							>
-								Create a new user account
+                {accountType === 'user' ? 'Create a new internal admin account' : 'Create a new customer account'}
 							</Typography>
 						</Box>
 
@@ -261,16 +270,29 @@ export default function CreateUserPage() {
                   {/* Role */}
                   <Box sx={{ gridColumn: '1 / -1' }}>
                     <Typography component="label" htmlFor="role" sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}>Role</Typography>
-                    <TextField
-                      id="role" name="role" select fullWidth value={formData.role} onChange={handleChange} required
-                      InputProps={{ startAdornment: (<InputAdornment position="start"><BadgeIcon sx={{ fontSize: 20, color: 'var(--text-secondary)' }} /></InputAdornment>) }}
-                      sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'var(--background)', borderRadius: 2, color: 'var(--text-primary)' } }}
-                    >
-                      <MenuItem value="user">User</MenuItem>
-                      <MenuItem value="admin">Admin</MenuItem>
-                      <MenuItem value="manager">Manager</MenuItem>
-                      <MenuItem value="customer_service">Customer Service</MenuItem>
-                    </TextField>
+                    {accountType === 'customer' ? (
+                      <TextField
+                        id="role"
+                        name="role"
+                        fullWidth
+                        value="Customer"
+                        disabled
+                        InputProps={{ startAdornment: (<InputAdornment position="start"><BadgeIcon sx={{ fontSize: 20, color: 'var(--text-secondary)' }} /></InputAdornment>) }}
+                        sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'var(--background)', borderRadius: 2, color: 'var(--text-primary)' } }}
+                      />
+                    ) : (
+                      <TextField
+                        id="role" name="role" select fullWidth value={formData.role} onChange={handleChange} required
+                        InputProps={{ startAdornment: (<InputAdornment position="start"><BadgeIcon sx={{ fontSize: 20, color: 'var(--text-secondary)' }} /></InputAdornment>) }}
+                        sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'var(--background)', borderRadius: 2, color: 'var(--text-primary)' } }}
+                      >
+                        <MenuItem value="admin">Admin</MenuItem>
+                        <MenuItem value="manager">Manager</MenuItem>
+                        <MenuItem value="finance">Finance</MenuItem>
+                        <MenuItem value="operations">Operations</MenuItem>
+                        <MenuItem value="customer_service">Customer Service</MenuItem>
+                      </TextField>
+                    )}
                   </Box>
                 </Box>
               )}
@@ -368,7 +390,7 @@ export default function CreateUserPage() {
               <Box sx={{ flex: '1 1 auto' }} />
               {activeStep === 0 && (
                  <MuiButton
-                  onClick={() => router.push('/dashboard/users')}
+                  onClick={() => router.push(successRedirect)}
                   color="inherit"
                   sx={{ color: 'var(--text-secondary)', mr: 1 }}
                 >

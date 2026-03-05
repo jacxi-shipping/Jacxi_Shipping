@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
+import { hasPermission } from '@/lib/rbac';
 
 const updateEntrySchema = z.object({
   description: z.string().min(1).optional(),
@@ -29,7 +30,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'finance:view')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -70,7 +71,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'finance:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -132,7 +133,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'finance:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +15,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only admins can list users
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'users:manage') && !hasPermission(session.user?.role, 'customers:view')) {
       return NextResponse.json(
         { message: 'Forbidden: Only admins can view users' },
         { status: 403 }
@@ -27,6 +27,15 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
     const pageSize = Math.max(1, parseInt(url.searchParams.get('pageSize') || '9', 10));
     const query = url.searchParams.get('query')?.trim() || '';
+    const roleType = url.searchParams.get('roleType')?.trim() || 'all';
+
+    if (roleType === 'users' && !hasPermission(session.user?.role, 'users:manage')) {
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    }
+
+    if (roleType === 'customers' && !hasPermission(session.user?.role, 'customers:view')) {
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    }
 
     // Build search filter
     const where: Prisma.UserWhereInput = {};
@@ -35,6 +44,12 @@ export async function GET(request: NextRequest) {
         { name: { contains: query, mode: 'insensitive' } },
         { email: { contains: query, mode: 'insensitive' } },
       ];
+    }
+
+    if (roleType === 'customers') {
+      where.role = 'user';
+    } else if (roleType === 'users') {
+      where.role = 'admin';
     }
 
     // Execute database queries in parallel for performance

@@ -7,12 +7,13 @@ import type { SvgIconComponent } from '@mui/icons-material';
 import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { hasPermission, type Permission } from '@/lib/rbac';
 
 type NavigationItem = {
 	name: string;
 	href: string;
 	icon: SvgIconComponent;
-	adminOnly?: boolean;
+	requiredPermission?: Permission;
 };
 
 const mainNavigation: NavigationItem[] = [
@@ -28,6 +29,7 @@ const shipmentNavigation: NavigationItem[] = [
 		name: 'Shipments',
 		href: '/dashboard/shipments',
 		icon: Inventory2,
+		requiredPermission: 'shipments:view',
 	},
 ];
 
@@ -36,12 +38,13 @@ const financeNavigation: NavigationItem[] = [
 		name: 'Finance',
 		href: '/dashboard/finance',
 		icon: AccountBalance,
+		requiredPermission: 'finance:view',
 	},
 	{
 		name: 'Company Ledgers',
 		href: '/dashboard/finance/companies',
 		icon: Business,
-		adminOnly: true,
+		requiredPermission: 'finance:manage',
 	},
 ];
 
@@ -50,27 +53,37 @@ const adminNavigation: NavigationItem[] = [
 		name: 'Analytics',
 		href: '/dashboard/analytics',
 		icon: Analytics,
+		requiredPermission: 'analytics:view',
+	},
+	{
+		name: 'Customers',
+		href: '/dashboard/customers',
+		icon: Group,
+		requiredPermission: 'customers:view',
 	},
 	{
 		name: 'Users',
 		href: '/dashboard/users',
 		icon: Group,
+		requiredPermission: 'users:manage',
 	},
 	{
 		name: 'Containers',
 		href: '/dashboard/containers',
 		icon: AllInbox,
+		requiredPermission: 'containers:view',
 	},
 	{
 		name: 'Transits',
 		href: '/dashboard/transits',
 		icon: LocalShipping,
-		adminOnly: true,
+		requiredPermission: 'transits:manage',
 	},
 	{
 		name: 'Invoices',
 		href: '/dashboard/invoices',
 		icon: Receipt,
+		requiredPermission: 'invoices:view',
 	},
 ];
 
@@ -79,11 +92,13 @@ const otherNavigation: NavigationItem[] = [
 		name: 'Track Shipments',
 		href: '/dashboard/tracking',
 		icon: Search,
+		requiredPermission: 'tracking:view',
 	},
 	{
 		name: 'Documents',
 		href: '/dashboard/documents',
 		icon: Description,
+		requiredPermission: 'documents:view',
 	},
 ];
 
@@ -222,12 +237,12 @@ function NavItem({ item, isActive, onNavClick }: NavItemProps) {
 type NavSectionProps = {
 	title?: string;
 	items: NavigationItem[];
-	isAdmin: boolean;
+	role?: string;
 	isActive: (href: string) => boolean;
 	onNavClick?: () => void;
 };
 
-function NavSection({ title, items, isAdmin, isActive, onNavClick }: NavSectionProps) {
+function NavSection({ title, items, role, isActive, onNavClick }: NavSectionProps) {
 	return (
 		<Box sx={{ mb: 0.5 }}>
 			{title && (
@@ -248,7 +263,7 @@ function NavSection({ title, items, isAdmin, isActive, onNavClick }: NavSectionP
 			)}
 			<List sx={{ py: 0 }}>
 				{items
-					.filter((item) => !item.adminOnly || isAdmin)
+					.filter((item) => !item.requiredPermission || hasPermission(role, item.requiredPermission))
 				.map((item) => (
 					<NavItem key={item.name} item={item} isActive={isActive} onNavClick={onNavClick} />
 				))}
@@ -268,7 +283,7 @@ function SidebarContent({
 }) {
 	type AppUser = Session['user'] & { role?: string };
 	const appUser = session?.user as AppUser | undefined;
-	const isAdmin = appUser?.role === 'admin';
+	const userRole = appUser?.role;
 
 	const isActive = (href: string) => {
 		if (href === '/dashboard') {
@@ -298,21 +313,19 @@ function SidebarContent({
 				}}
 			>
 				{/* Main */}
-				<NavSection items={mainNavigation} isAdmin={isAdmin} isActive={isActive} onNavClick={onNavClick} />
+				<NavSection items={mainNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 			{/* Shipments */}
-			<NavSection title="Shipments" items={shipmentNavigation} isAdmin={isAdmin} isActive={isActive} onNavClick={onNavClick} />
+			<NavSection title="Shipments" items={shipmentNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 			{/* Finance */}
-			<NavSection title="Finance" items={financeNavigation} isAdmin={isAdmin} isActive={isActive} onNavClick={onNavClick} />
+			<NavSection title="Finance" items={financeNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
-			{/* Admin Section */}
-			{isAdmin && (
-				<NavSection title="Admin" items={adminNavigation} isAdmin={isAdmin} isActive={isActive} onNavClick={onNavClick} />
-			)}
+			{/* Admin / Internal Section */}
+			<NavSection title="Admin" items={adminNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 				{/* Other */}
-				<NavSection items={otherNavigation} isAdmin={isAdmin} isActive={isActive} onNavClick={onNavClick} />
+				<NavSection items={otherNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 			</Box>
 		</Box>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { hasPermission } from '@/lib/rbac';
 import { z } from 'zod';
 
 // Schema for creating a container
@@ -44,8 +45,9 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {};
 
-    // Non-admin users can only see containers with their shipments
-    if (session.user.role !== 'admin') {
+    const canReadAllContainers = hasPermission(session.user?.role, 'containers:read_all');
+
+    if (!canReadAllContainers) {
       where.shipments = {
         some: {
           userId: session.user.id
@@ -171,8 +173,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can create containers
-    if (session.user.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'containers:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

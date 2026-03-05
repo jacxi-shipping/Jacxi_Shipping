@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { hasPermission } from '@/lib/rbac';
 
 /**
  * GET /api/analytics/ar-aging
@@ -10,7 +11,7 @@ import { prisma } from "@/lib/db";
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.role !== "admin") {
+    if (!session?.user || !hasPermission(session.user?.role, 'analytics:view')) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

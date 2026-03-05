@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import { hasPermission, normalizeRole } from '@/lib/rbac';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,8 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only admins can create user accounts
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'customers:manage') && !hasPermission(session.user?.role, 'users:manage')) {
       return NextResponse.json(
         { message: 'Forbidden: Only admins can create user accounts' },
         { status: 403 }
@@ -24,6 +24,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, password, role, phone, address, city, country } = await request.json();
+    const requestedRole = normalizeRole(role);
+
+    if (requestedRole !== 'user' && !hasPermission(session.user?.role, 'users:manage')) {
+      return NextResponse.json(
+        { message: 'Forbidden: You cannot create internal user roles' },
+        { status: 403 }
+      );
+    }
 
     // Validate input
     if (!name || !email || !password) {
@@ -54,7 +62,7 @@ export async function POST(request: NextRequest) {
         name,
         email,
         passwordHash: hashedPassword,
-        role: role || 'user',
+        role: requestedRole,
         phone,
         address,
         city,
