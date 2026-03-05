@@ -489,26 +489,31 @@ export async function PATCH(
 
     // Update container counts if container assignment changed
     if (data.containerId !== undefined && data.containerId !== existingShipment.containerId) {
-      // 1. Update old container count if it existed
+      const countUpdates = [];
+
+      // 1. Decrement old container count if it existed
       if (existingShipment.containerId) {
-        const oldContainerShipmentCount = await prisma.shipment.count({
-          where: { containerId: existingShipment.containerId }
-        });
-        await prisma.container.update({
-          where: { id: existingShipment.containerId },
-          data: { currentCount: oldContainerShipmentCount }
-        });
+        countUpdates.push(
+          prisma.container.update({
+            where: { id: existingShipment.containerId },
+            data: { currentCount: { decrement: 1 } }
+          })
+        );
       }
 
-      // 2. Update new container count if it exists (and is not null)
+      // 2. Increment new container count if it exists (and is not null)
       if (data.containerId) {
-        const newContainerShipmentCount = await prisma.shipment.count({
-          where: { containerId: data.containerId }
-        });
-        await prisma.container.update({
-          where: { id: data.containerId },
-          data: { currentCount: newContainerShipmentCount }
-        });
+        countUpdates.push(
+          prisma.container.update({
+            where: { id: data.containerId },
+            data: { currentCount: { increment: 1 } }
+          })
+        );
+      }
+
+      // Execute independent container count updates in parallel for performance, avoiding O(N) count queries
+      if (countUpdates.length > 0) {
+        await Promise.all(countUpdates);
       }
     }
 
@@ -577,12 +582,10 @@ export async function DELETE(
 
     // Update container count if shipment was in a container
     if (shipment.containerId) {
-      const containerShipmentCount = await prisma.shipment.count({
-        where: { containerId: shipment.containerId }
-      });
+      // Optimize performance by using atomic decrement instead of an O(N) count query
       await prisma.container.update({
         where: { id: shipment.containerId },
-        data: { currentCount: containerShipmentCount }
+        data: { currentCount: { decrement: 1 } }
       });
     }
 
