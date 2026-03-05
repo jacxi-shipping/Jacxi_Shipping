@@ -38,49 +38,47 @@ export async function GET(request: NextRequest) {
       // Overall financial summary
       const where = userId ? { ...dateWhere, userId } : dateWhere;
 
-      // Get total debits and credits
-      const ledgerSummary = await prisma.ledgerEntry.groupBy({
-        by: ['type'],
-        where,
-        _sum: {
-          amount: true,
-        },
-        _count: {
-          id: true,
-        },
-      });
+      // Parallelize independent queries: ledger aggregation, shipment aggregation, and user balances
+      const [ledgerSummary, shipmentSummary, userBalances] = await Promise.all([
+        prisma.ledgerEntry.groupBy({
+          by: ['type'],
+          where,
+          _sum: {
+            amount: true,
+          },
+          _count: {
+            id: true,
+          },
+        }),
+        prisma.shipment.groupBy({
+          by: ['paymentStatus'],
+          where: userId ? { userId, ...dateWhere } : dateWhere,
+          _sum: {
+            price: true,
+          },
+          _count: {
+            id: true,
+          },
+        }),
+        prisma.user.findMany({
+          where: userId ? { id: userId } : undefined,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            ledgerEntries: {
+              orderBy: { transactionDate: 'desc' },
+              take: 1,
+              select: { balance: true },
+            },
+          },
+        }),
+      ]);
 
       const totalDebit = ledgerSummary.find(e => e.type === 'DEBIT')?._sum.amount || 0;
       const totalCredit = ledgerSummary.find(e => e.type === 'CREDIT')?._sum.amount || 0;
       const debitCount = ledgerSummary.find(e => e.type === 'DEBIT')?._count.id || 0;
       const creditCount = ledgerSummary.find(e => e.type === 'CREDIT')?._count.id || 0;
-
-      // Get shipment payment summary
-      const shipmentSummary = await prisma.shipment.groupBy({
-        by: ['paymentStatus'],
-        where: userId ? { userId, ...dateWhere } : dateWhere,
-        _sum: {
-          price: true,
-        },
-        _count: {
-          id: true,
-        },
-      });
-
-      // Get user-wise balance summary
-      const userBalances = await prisma.user.findMany({
-        where: userId ? { id: userId } : undefined,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          ledgerEntries: {
-            orderBy: { transactionDate: 'desc' },
-            take: 1,
-            select: { balance: true },
-          },
-        },
-      });
 
       const userBalanceSummary = userBalances.map(user => ({
         userId: user.id,

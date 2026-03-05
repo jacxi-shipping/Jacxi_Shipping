@@ -47,31 +47,33 @@ export async function GET(request: NextRequest) {
       where.isActive = active === 'true';
     }
 
-    const companies = await prisma.company.findMany({
-      where,
-      include: {
-        _count: {
-          select: {
-            ledgerEntries: true,
+    // Parallelize independent queries: fetching companies and calculating aggregate ledgers
+    const [companies, grouped] = await Promise.all([
+      prisma.company.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              ledgerEntries: true,
+            },
+          },
+          ledgerEntries: {
+            take: 1,
+            orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+            select: {
+              balance: true,
+            },
           },
         },
-        ledgerEntries: {
-          take: 1,
-          orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
-          select: {
-            balance: true,
-          },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.companyLedgerEntry.groupBy({
+        by: ['companyId', 'type'],
+        _sum: {
+          amount: true,
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const grouped = await prisma.companyLedgerEntry.groupBy({
-      by: ['companyId', 'type'],
-      _sum: {
-        amount: true,
-      },
-    });
+      }),
+    ]);
 
     const summaryMap: Record<string, { totalDebit: number; totalCredit: number }> = {};
 
