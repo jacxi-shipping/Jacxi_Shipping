@@ -60,6 +60,17 @@ export const shipmentSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Company shipping fare must be greater than 0' }
   ),
+  
+  // Damage Tracking
+  damageCost: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage cost must be greater than 0' }
+  ),
+  damageCredit: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage credit must be greater than 0' }
+  ),
+  
   vehiclePhotos: z.array(z.string()).default([]),
   hasKey: z.boolean().optional(),
   hasTitle: z.boolean().optional(),
@@ -160,6 +171,17 @@ export const shipmentUpdateSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Company shipping fare must be greater than 0' }
   ),
+  
+  // Damage Tracking
+  damageCost: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage cost must be greater than 0' }
+  ),
+  damageCredit: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage credit must be greater than 0' }
+  ),
+  
   hasKey: z.boolean().optional(),
   hasTitle: z.boolean().optional(),
   titleStatus: z.enum(['PENDING', 'DELIVERED']).optional(),

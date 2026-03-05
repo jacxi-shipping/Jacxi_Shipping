@@ -16,6 +16,7 @@ interface Shipment {
   vehicleVIN: string | null;
   price: number | null;
   insuranceValue: number | null;
+  damageCredit: number | null;
   container?: {
     containerNumber: string;
     vesselName: string | null;
@@ -189,6 +190,18 @@ export const generateShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
     tableRows.push([exp.description, 'Expense', '1', formatCurrency(amount), formatCurrency(amount)]);
     subtotal += amount;
   });
+
+  // 4. Damage Credit (company-absorbed damage shown as customer deduction)
+  if (data.shipment.damageCredit && data.shipment.damageCredit > 0) {
+    tableRows.push([
+      'Damage Credit (Company Absorbed)',
+      'Credit',
+      '1',
+      formatCurrency(-data.shipment.damageCredit),
+      formatCurrency(-data.shipment.damageCredit),
+    ]);
+    subtotal -= data.shipment.damageCredit;
+  }
 
   // Table
   autoTable(doc, {

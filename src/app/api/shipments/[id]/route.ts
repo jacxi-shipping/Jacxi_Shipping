@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createNotification } from '@/lib/notifications';
 import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
+import { syncShipmentDamageEntries } from '@/lib/shipment-damage';
 
 type UpdateShipmentPayload = {
   userId?: string;
@@ -27,6 +28,8 @@ type UpdateShipmentPayload = {
   insuranceValue?: number | string | null;
   price?: number | string | null;
   companyShippingFare?: number | string | null;
+  damageCost?: number | string | null;
+  damageCredit?: number | string | null;
   internalNotes?: string | null;
   hasKey?: boolean | null;
   hasTitle?: boolean | null;
@@ -77,7 +80,8 @@ export async function GET(
         userId: true,
         internalNotes: true,
         price: true,
-          ...(isAdmin ? { companyShippingFare: true } : {}),
+        damageCredit: true,
+        ...(isAdmin ? { companyShippingFare: true, damageCost: true } : {}),
         paymentStatus: true,
         paymentMode: true,
         createdAt: true,
@@ -348,6 +352,29 @@ export async function PATCH(
       updateData.companyShippingFare = parsedCompanyShippingFareValue;
     }
 
+    let parsedDamageCostValue: number | null | undefined;
+    let parsedDamageCreditValue: number | null | undefined;
+
+    if (data.damageCost !== undefined) {
+      parsedDamageCostValue =
+        typeof data.damageCost === 'number'
+          ? data.damageCost
+          : typeof data.damageCost === 'string'
+          ? parseFloat(data.damageCost)
+          : null;
+      updateData.damageCost = parsedDamageCostValue;
+    }
+
+    if (data.damageCredit !== undefined) {
+      parsedDamageCreditValue =
+        typeof data.damageCredit === 'number'
+          ? data.damageCredit
+          : typeof data.damageCredit === 'string'
+          ? parseFloat(data.damageCredit)
+          : null;
+      updateData.damageCredit = parsedDamageCreditValue;
+    }
+
     const resolvedStatus = (updateData.status as string | undefined) ?? existingShipment.status;
     const resolvedContainerId = data.containerId !== undefined ? data.containerId : existingShipment.containerId;
     const resolvedCustomerFare = parsedPriceValue !== undefined ? parsedPriceValue : existingShipment.price;
@@ -416,6 +443,18 @@ export async function PATCH(
         shippingCompanyId: shipment.shippingCompanyId,
         userFareAmount: shipment.price,
         companyFareAmount: shipment.companyShippingFare,
+        vehicleLabel,
+        vehicleVIN: shipment.vehicleVIN,
+        actorUserId: session.user?.id as string,
+        shouldPost: shipment.status === 'IN_TRANSIT' && !!shipment.containerId,
+      });
+
+      await syncShipmentDamageEntries(tx, {
+        shipmentId: shipment.id,
+        userId: shipment.userId,
+        shippingCompanyId: shipment.shippingCompanyId,
+        damageCost: shipment.damageCost,
+        damageCredit: shipment.damageCredit,
         vehicleLabel,
         vehicleVIN: shipment.vehicleVIN,
         actorUserId: session.user?.id as string,

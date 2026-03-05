@@ -147,6 +147,11 @@ model Shipment {
   // Financial (shipping service price)
   price              Float? // Customer shipping fare (separate from purchase price)
   companyShippingFare Float? // Internal company shipping cost
+  
+  // Damage Tracking
+  damageCost    Float? // Cost of damage charged to company (company ledger debit)
+  damageCredit  Float? // Credit given to customer for damage assumed by company (user ledger credit)
+  
   paymentStatus PaymentStatus @default(PENDING)
   paymentMode   PaymentMode?
 
@@ -182,6 +187,7 @@ model Shipment {
 model Container {
   id              String @id @default(cuid())
   containerNumber String @unique
+  companyId       String?
 
   // Shipping Information
   trackingNumber String? @unique
@@ -223,6 +229,7 @@ model Container {
   updatedAt DateTime @updatedAt
 
   // Relations
+  company        Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   shipments      Shipment[]
   expenses       ContainerExpense[]
   invoices       ContainerInvoice[]
@@ -232,6 +239,7 @@ model Container {
   userInvoices   UserInvoice[]
 
   @@index([status])
+  @@index([companyId])
   @@index([shippingLine])
   @@index([destinationPort])
   @@index([estimatedArrival])
@@ -612,6 +620,7 @@ model Company {
   ledgerEntries CompanyLedgerEntry[]
   transits      Transit[]
   shipments     Shipment[]           @relation("ShipmentShippingCompany")
+  containers    Container[]
 
   @@index([name])
   @@index([isActive])

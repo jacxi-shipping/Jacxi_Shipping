@@ -3,6 +3,7 @@ import { Prisma, TitleStatus, PaymentStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
+import { syncShipmentDamageEntries } from '@/lib/shipment-damage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -178,6 +179,8 @@ type CreateShipmentPayload = {
   insuranceValue?: number | string | null;
   price?: number | string | null;
   companyShippingFare?: number | string | null;
+  damageCost?: number | string | null;
+  damageCredit?: number | string | null;
   vehiclePhotos?: string[] | null;
   status?: 'ON_HAND' | 'IN_TRANSIT' | null;
   containerId?: string | null;
@@ -231,6 +234,8 @@ export async function POST(request: NextRequest) {
       insuranceValue,
       price,
       companyShippingFare,
+      damageCost,
+      damageCredit,
       vehiclePhotos,
       status: providedStatus,
       containerId,
@@ -364,6 +369,18 @@ export async function POST(request: NextRequest) {
         : typeof companyShippingFare === 'string'
         ? parseFloat(companyShippingFare)
         : null;
+    const parsedDamageCost =
+      typeof damageCost === 'number'
+        ? damageCost
+        : typeof damageCost === 'string'
+        ? parseFloat(damageCost)
+        : null;
+    const parsedDamageCredit =
+      typeof damageCredit === 'number'
+        ? damageCredit
+        : typeof damageCredit === 'string'
+        ? parseFloat(damageCredit)
+        : null;
 
     const hasCustomerFare = !!(parsedPrice && parsedPrice > 0);
     const hasCompanyFare = !!(parsedCompanyShippingFare && parsedCompanyShippingFare > 0);
@@ -428,6 +445,8 @@ export async function POST(request: NextRequest) {
           insuranceValue: parsedInsuranceValue,
           price: parsedPrice,
           companyShippingFare: parsedCompanyShippingFare,
+          damageCost: parsedDamageCost,
+          damageCredit: parsedDamageCredit,
           vehiclePhotos: sanitizedVehiclePhotos,
           paymentStatus: finalPaymentStatus as PaymentStatus,
           paymentMode: paymentMode || null,
@@ -457,6 +476,18 @@ export async function POST(request: NextRequest) {
         shippingCompanyId: createdShipment.shippingCompanyId,
         userFareAmount: createdShipment.price,
         companyFareAmount: createdShipment.companyShippingFare,
+        vehicleLabel,
+        vehicleVIN: createdShipment.vehicleVIN,
+        actorUserId: session.user?.id as string,
+        shouldPost: createdShipment.status === 'IN_TRANSIT' && !!createdShipment.containerId,
+      });
+
+      await syncShipmentDamageEntries(tx, {
+        shipmentId: createdShipment.id,
+        userId: createdShipment.userId,
+        shippingCompanyId: createdShipment.shippingCompanyId,
+        damageCost: createdShipment.damageCost,
+        damageCredit: createdShipment.damageCredit,
         vehicleLabel,
         vehicleVIN: createdShipment.vehicleVIN,
         actorUserId: session.user?.id as string,

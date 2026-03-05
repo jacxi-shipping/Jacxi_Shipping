@@ -1129,6 +1129,66 @@ export default function EditShipmentPage() {
               </Box>
             </DashboardPanel>
 
+            {/* 4. Financial Information (Admin) */}
+            {isAdmin && (
+              <DashboardPanel title="Financial Information" description="Manage costs and credits">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                    <FormField
+                      id="price"
+                      label="Customer Shipping Fare ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.price}
+                      helperText={errors.price?.message || 'Amount charged to customer'}
+                      {...register('price')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="companyShippingFare"
+                      label="Company Shipping Cost ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.companyShippingFare}
+                      helperText={errors.companyShippingFare?.message || 'Internal cost - not visible to customer'}
+                      {...register('companyShippingFare')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="insuranceValue"
+                      label="Insurance Value ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.insuranceValue}
+                      helperText={errors.insuranceValue?.message}
+                      {...register('insuranceValue')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="damageCost"
+                      label="Damage Cost to Company ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.damageCost}
+                      helperText={errors.damageCost?.message || 'Posted to company ledger as debit'}
+                      {...register('damageCost')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="damageCredit"
+                      label="Damage Credit to Customer ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.damageCredit}
+                      helperText={errors.damageCredit?.message || 'Discount visible on customer invoice'}
+                      {...register('damageCredit')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                  </Box>
+                </Box>
+              </DashboardPanel>
+            )}
+
             {/* 5. Internal Notes */}
             <DashboardPanel title="Internal Notes" description="Private notes for staff">
                 <FormField

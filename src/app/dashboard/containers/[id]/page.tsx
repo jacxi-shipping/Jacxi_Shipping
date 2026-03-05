@@ -18,6 +18,8 @@ import {
 	Divider,
 	Chip,
 	Typography,
+	TextField,
+	MenuItem,
 } from '@mui/material';
 import {
 	ArrowLeft,
@@ -146,6 +148,12 @@ interface AuditLogEntry {
 interface Container {
 	id: string;
 	containerNumber: string;
+	companyId: string | null;
+	company?: {
+		id: string;
+		name: string;
+		code?: string | null;
+	} | null;
 	trackingNumber: string | null;
 	vesselName: string | null;
 	voyageNumber: string | null;
@@ -178,6 +186,12 @@ interface Container {
 		expenses: number;
 		invoices: number;
 	};
+}
+
+interface CompanyOption {
+	id: string;
+	name: string;
+	code?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
@@ -217,6 +231,8 @@ export default function ContainerDetailPage() {
     const [qrModalOpen, setQrModalOpen] = useState(false);
 	const [shipmentExpenseModalOpen, setShipmentExpenseModalOpen] = useState(false);
 	const [selectedShipmentForExpense, setSelectedShipmentForExpense] = useState<string | undefined>(undefined);
+	const [companies, setCompanies] = useState<CompanyOption[]>([]);
+	const [selectedCompanyId, setSelectedCompanyId] = useState('');
 
 	useEffect(() => {
 		if (params.id) {
@@ -224,6 +240,23 @@ export default function ContainerDetailPage() {
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [params.id]);
+
+	useEffect(() => {
+		const fetchCompanies = async () => {
+			if (!isAdmin) return;
+			try {
+				const response = await fetch('/api/finance/companies?active=true');
+				const data = await response.json();
+				if (response.ok) {
+					setCompanies(data.companies || []);
+				}
+			} catch (error) {
+				console.error('Failed to load companies:', error);
+			}
+		};
+
+		void fetchCompanies();
+	}, [isAdmin]);
 
 	const fetchContainer = async () => {
 		try {
@@ -244,6 +277,7 @@ export default function ContainerDetailPage() {
 				if (typeof containerData.progress !== 'number') {
 					containerData.progress = 0;
 				}
+				setSelectedCompanyId(containerData.companyId || '');
 				setContainer(containerData);
 			} else {
 				toast.error('Container not found');
@@ -310,6 +344,34 @@ export default function ContainerDetailPage() {
 		} catch (error) {
 			console.error('Error updating status:', error);
 			toast.error('An error occurred');
+		} finally {
+			setUpdating(false);
+		}
+	};
+
+	const handleCompanyUpdate = async () => {
+		if (!container || !selectedCompanyId) {
+			toast.error('Please select a company');
+			return;
+		}
+
+		try {
+			setUpdating(true);
+			const response = await fetch(`/api/containers/${params.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ companyId: selectedCompanyId }),
+			});
+
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || 'Failed to update company');
+			}
+
+			toast.success('Container company updated successfully');
+			await fetchContainer();
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Failed to update company');
 		} finally {
 			setUpdating(false);
 		}
@@ -427,11 +489,17 @@ export default function ContainerDetailPage() {
 			return;
 		}
 
+		if (!container.companyId) {
+			toast.error('Assign a company before duplicating this container');
+			return;
+		}
+
 		setDuplicating(true);
 		try {
 			// Create new container with same details but new number
 			const payload = {
 				containerNumber: newContainerNumber.trim(),
+				companyId: container.companyId,
 				trackingNumber: container.trackingNumber,
 				vesselName: container.vesselName,
 				voyageNumber: container.voyageNumber,
@@ -803,6 +871,33 @@ export default function ContainerDetailPage() {
 												{container.containerNumber}
 											</Box>
 										</Box>
+										{isAdmin && (
+											<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+												<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Assigned Company</Box>
+												<TextField
+													select
+													size="small"
+													value={selectedCompanyId}
+													onChange={(e) => setSelectedCompanyId(e.target.value)}
+													disabled={updating}
+												>
+													<MenuItem value="">Select a company...</MenuItem>
+													{companies.map((company) => (
+														<MenuItem key={company.id} value={company.id}>
+															{company.name}{company.code ? ` (${company.code})` : ''}
+														</MenuItem>
+													))}
+												</TextField>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={handleCompanyUpdate}
+													disabled={updating || !selectedCompanyId || selectedCompanyId === (container.companyId || '')}
+												>
+													{updating ? 'Saving...' : 'Save Company'}
+												</Button>
+											</Box>
+										)}
 										{container.trackingNumber && (
 											<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
 												<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Tracking Number</Box>

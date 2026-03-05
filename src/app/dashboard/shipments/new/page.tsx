@@ -1281,6 +1281,28 @@ export default function NewShipmentPage() {
 										inputProps={{ step: '0.01' }}
 										leftIcon={<DollarSign style={{ fontSize: 18, color: 'var(--text-secondary)' }} />}
 									/>
+									<FormField
+										id="damageCost"
+										label="Damage Cost to Company ($)"
+										type="number"
+										placeholder="0.00"
+										error={!!errors.damageCost}
+										helperText={errors.damageCost?.message || 'Charged to company ledger - hidden from customer'}
+										{...register('damageCost')}
+										inputProps={{ step: '0.01' }}
+										leftIcon={<DollarSign style={{ fontSize: 18, color: 'var(--text-secondary)' }} />}
+									/>
+									<FormField
+										id="damageCredit"
+										label="Damage Credit to Customer ($)"
+										type="number"
+										placeholder="0.00"
+										error={!!errors.damageCredit}
+										helperText={errors.damageCredit?.message || 'Customer discount visible on invoice'}
+										{...register('damageCredit')}
+										inputProps={{ step: '0.01' }}
+										leftIcon={<DollarSign style={{ fontSize: 18, color: 'var(--text-secondary)' }} />}
+									/>
 								</Box>
 
 								{/* Payment Mode */}
