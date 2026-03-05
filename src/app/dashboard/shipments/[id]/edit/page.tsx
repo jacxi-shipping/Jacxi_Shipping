@@ -42,6 +42,12 @@ interface ContainerOption {
   destinationPort: string | null;
 }
 
+interface CompanyOption {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 export default function EditShipmentPage() {
   const params = useParams();
   const router = useRouter();
@@ -49,8 +55,10 @@ export default function EditShipmentPage() {
   
   const [loadingData, setLoadingData] = useState(true);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [containers, setContainers] = useState<ContainerOption[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [loadingContainers, setLoadingContainers] = useState(false);
   const [vehiclePhotos, setVehiclePhotos] = useState<string[]>([]);
   const [arrivalPhotos, setArrivalPhotos] = useState<string[]>([]);
@@ -94,6 +102,7 @@ export default function EditShipmentPage() {
     defaultValues: {
       vehiclePhotos: [],
       status: 'ON_HAND',
+      shippingCompanyId: '',
     },
   });
 
@@ -116,6 +125,13 @@ export default function EditShipmentPage() {
         }
         setLoadingUsers(false);
 
+        const companiesResponse = await fetch('/api/finance/companies?active=true');
+        if (companiesResponse.ok) {
+          const companiesData = await companiesResponse.json();
+          setCompanies(companiesData.companies || []);
+        }
+        setLoadingCompanies(false);
+
         // Fetch shipment
         const shipmentResponse = await fetch(`/api/shipments/${params.id}`, { cache: 'no-store' });
         if (shipmentResponse.ok) {
@@ -137,12 +153,14 @@ export default function EditShipmentPage() {
             dimensions: shipment.dimensions || '',
             insuranceValue: shipment.insuranceValue?.toString() || '',
             price: shipment.price?.toString() || '',
+            companyShippingFare: shipment.companyShippingFare?.toString() || '',
             hasKey: shipment.hasKey,
             hasTitle: shipment.hasTitle,
             titleStatus: shipment.titleStatus || undefined,
             paymentMode: shipment.paymentMode || undefined,
             status: shipment.status,
             containerId: shipment.containerId || '',
+            shippingCompanyId: shipment.shippingCompanyId || '',
             internalNotes: shipment.internalNotes || '',
             vehiclePhotos: shipment.vehiclePhotos || [],
           });
@@ -162,6 +180,8 @@ export default function EditShipmentPage() {
         console.error('Error loading data:', error);
         toast.error('An error occurred while loading data');
       } finally {
+        setLoadingUsers(false);
+        setLoadingCompanies(false);
         setLoadingData(false);
       }
     };
@@ -712,6 +732,57 @@ export default function EditShipmentPage() {
                       fontSize: '0.875rem',
                     }}
                   >
+
+                  <Box>
+                    <Typography component="label" htmlFor="shippingCompanyId" sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}>
+                      Shipping Company *
+                    </Typography>
+                    {loadingCompanies ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Loader2 className="animate-spin w-4 h-4" />
+                        <Typography variant="body2">Loading shipping companies...</Typography>
+                      </Box>
+                    ) : (
+                      <Autocomplete
+                        options={companies}
+                        getOptionLabel={(option) => option.name}
+                        value={companies.find((company) => company.id === watch('shippingCompanyId')) || null}
+                        onChange={(_, newValue) => {
+                          setValue('shippingCompanyId', newValue?.id || '', { shouldValidate: true });
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Select shipping company"
+                            error={!!errors.shippingCompanyId}
+                            helperText={errors.shippingCompanyId?.message}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '16px',
+                                backgroundColor: 'var(--background)',
+                                '& fieldset': {
+                                  borderColor: errors.shippingCompanyId ? 'var(--error)' : 'rgba(var(--border-rgb), 0.9)',
+                                },
+                                '&:hover fieldset': {
+                                  borderColor: errors.shippingCompanyId ? 'var(--error)' : 'var(--accent-gold)',
+                                },
+                                '&.Mui-focused fieldset': {
+                                  borderColor: errors.shippingCompanyId ? 'var(--error)' : 'var(--accent-gold)',
+                                },
+                              },
+                              '& .MuiInputBase-input': {
+                                color: 'var(--text-primary)',
+                                fontSize: '0.875rem',
+                              },
+                              '& .MuiInputLabel-root': {
+                                color: 'var(--text-secondary)',
+                              },
+                            }}
+                          />
+                        )}
+                      />
+                    )}
+                  </Box>
                     <option value="ON_HAND">On Hand</option>
                     <option value="IN_TRANSIT">In Transit</option>
                   </select>
@@ -990,11 +1061,21 @@ export default function EditShipmentPage() {
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                   <FormField
                     id="price"
-                    label="Price ($)"
+                    label="Customer Shipping Fare ($)"
                     type="number"
                     error={!!errors.price}
                     helperText={errors.price?.message}
                     {...register('price')}
+                    inputProps={{ step: '0.01' }}
+                    leftIcon={<DollarSign className="w-4 h-4 text-[var(--text-secondary)]" />}
+                  />
+                  <FormField
+                    id="companyShippingFare"
+                    label="Company Shipping Cost ($)"
+                    type="number"
+                    error={!!errors.companyShippingFare}
+                    helperText={errors.companyShippingFare?.message || 'Internal only - hidden from customer and invoice'}
+                    {...register('companyShippingFare')}
                     inputProps={{ step: '0.01' }}
                     leftIcon={<DollarSign className="w-4 h-4 text-[var(--text-secondary)]" />}
                   />
@@ -1047,6 +1128,66 @@ export default function EditShipmentPage() {
                 </Box>
               </Box>
             </DashboardPanel>
+
+            {/* 4. Financial Information (Admin) */}
+            {isAdmin && (
+              <DashboardPanel title="Financial Information" description="Manage costs and credits">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                    <FormField
+                      id="price"
+                      label="Customer Shipping Fare ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.price}
+                      helperText={errors.price?.message || 'Amount charged to customer'}
+                      {...register('price')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="companyShippingFare"
+                      label="Company Shipping Cost ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.companyShippingFare}
+                      helperText={errors.companyShippingFare?.message || 'Internal cost - not visible to customer'}
+                      {...register('companyShippingFare')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="insuranceValue"
+                      label="Insurance Value ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.insuranceValue}
+                      helperText={errors.insuranceValue?.message}
+                      {...register('insuranceValue')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="damageCost"
+                      label="Damage Cost to Company ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.damageCost}
+                      helperText={errors.damageCost?.message || 'Posted to company ledger as debit'}
+                      {...register('damageCost')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                    <FormField
+                      id="damageCredit"
+                      label="Damage Credit to Customer ($)"
+                      type="number"
+                      placeholder="0.00"
+                      error={!!errors.damageCredit}
+                      helperText={errors.damageCredit?.message || 'Discount visible on customer invoice'}
+                      {...register('damageCredit')}
+                      inputProps={{ step: '0.01' }}
+                    />
+                  </Box>
+                </Box>
+              </DashboardPanel>
+            )}
 
             {/* 5. Internal Notes */}
             <DashboardPanel title="Internal Notes" description="Private notes for staff">

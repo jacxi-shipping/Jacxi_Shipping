@@ -77,6 +77,13 @@ export async function POST(
       return NextResponse.json({ error: 'Container not found' }, { status: 404 });
     }
 
+    if (!container.companyId) {
+      return NextResponse.json(
+        { error: 'Assign a company to this container before adding shipments' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { shipmentIds } = assignShipmentsSchema.parse(body);
 
@@ -115,14 +122,33 @@ export async function POST(
       );
     }
 
-    // Assign shipments to container
-    await prisma.shipment.updateMany({
-      where: { id: { in: shipmentIds } },
-      data: {
-        containerId: params.id,
-        status: 'IN_TRANSIT',
-      },
-    });
+    const companyMismatch = shipments.find(
+      (shipment) => shipment.shippingCompanyId && shipment.shippingCompanyId !== container.companyId
+    );
+
+    if (companyMismatch) {
+      return NextResponse.json(
+        {
+          error:
+            'One or more shipments are linked to a different company. Update shipment company first or assign them to a matching container.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Assign shipments to container and ensure company linkage for expense accounting
+    await prisma.$transaction(
+      shipmentIds.map((shipmentId) =>
+        prisma.shipment.update({
+          where: { id: shipmentId },
+          data: {
+            containerId: params.id,
+            status: 'IN_TRANSIT',
+            shippingCompanyId: container.companyId,
+          },
+        })
+      )
+    );
 
     // Update container count
     await prisma.container.update({

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
+import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { z } from 'zod';
 
 // Schema for adding an expense
@@ -38,11 +40,26 @@ export async function POST(request: NextRequest) {
         userId: true,
         vehicleMake: true,
         vehicleModel: true,
+        shippingCompanyId: true,
+        container: {
+          select: {
+            companyId: true,
+          },
+        },
       },
     });
 
     if (!shipment) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
+    }
+
+    const resolvedCompanyId = shipment.shippingCompanyId ?? shipment.container?.companyId;
+
+    if (!resolvedCompanyId) {
+      return NextResponse.json(
+        { error: 'Shipment must be linked to a company (directly or through container) before adding expenses' },
+        { status: 400 }
+      );
     }
 
     // Create expense description
@@ -51,17 +68,6 @@ export async function POST(request: NextRequest) {
     const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (Shipment ${shipment.id})`;
 
     const entries = await prisma.$transaction(async (tx) => {
-      // Get current balance for the user inside transaction
-      const latestEntry = await tx.ledgerEntry.findFirst({
-        where: { userId: shipment.userId },
-        orderBy: { transactionDate: 'desc' },
-        select: { balance: true },
-      });
-
-      const currentBalance = latestEntry?.balance ?? 0;
-      const debitBalance = currentBalance + validatedData.amount;
-
-      // Create the DEBIT entry (always)
       const debitEntry = await tx.ledgerEntry.create({
         data: {
           userId: shipment.userId,
@@ -69,20 +75,47 @@ export async function POST(request: NextRequest) {
           description,
           type: 'DEBIT',
           amount: validatedData.amount,
-          balance: debitBalance,
+          balance: 0,
           createdBy: session.user!.id as string,
           notes: validatedData.notes,
           metadata: {
             expenseType: validatedData.expenseType,
             paymentMode: validatedData.paymentMode,
             isExpense: true,
+            linkedCompanyId: resolvedCompanyId,
+            expenseSource: 'SHIPMENT',
           },
         },
       });
 
+      const reference = `shipment-expense:${debitEntry.id}`;
+
+      const companyCreditEntry = await tx.companyLedgerEntry.create({
+        data: {
+          companyId: resolvedCompanyId,
+          description: `Expense recovery - ${description}`,
+          type: 'CREDIT',
+          amount: validatedData.amount,
+          balance: 0,
+          category: 'Shipment Expense Recovery',
+          reference,
+          notes: validatedData.notes,
+          createdBy: session.user!.id as string,
+          metadata: {
+            isExpenseRecovery: true,
+            expenseSource: 'SHIPMENT',
+            shipmentId: shipment.id,
+            userId: shipment.userId,
+            expenseType: validatedData.expenseType,
+            paymentMode: validatedData.paymentMode,
+          },
+        },
+      });
+
+      const createdEntries = [debitEntry];
+
       // For CASH payments: also create a CREDIT entry (cash received)
       if (validatedData.paymentMode === 'CASH') {
-        const creditBalance = debitBalance - validatedData.amount;
         const creditEntry = await tx.ledgerEntry.create({
           data: {
             userId: shipment.userId,
@@ -90,7 +123,7 @@ export async function POST(request: NextRequest) {
             description: `Cash payment received - ${validatedData.description}`,
             type: 'CREDIT',
             amount: validatedData.amount,
-            balance: creditBalance,
+            balance: 0,
             createdBy: session.user!.id as string,
             notes: validatedData.notes,
             metadata: {
@@ -98,18 +131,27 @@ export async function POST(request: NextRequest) {
               paymentMode: validatedData.paymentMode,
               isExpense: true,
               isCashPayment: true,
+              linkedCompanyId: resolvedCompanyId,
+              expenseSource: 'SHIPMENT',
             },
           },
         });
-        return [debitEntry, creditEntry];
+        createdEntries.push(creditEntry);
       }
 
-      return [debitEntry];
+      await recalculateUserLedgerBalances(tx, shipment.userId);
+      await recalculateCompanyLedgerBalances(tx, resolvedCompanyId);
+
+      return {
+        userEntries: createdEntries,
+        companyEntry: companyCreditEntry,
+      };
     });
 
     return NextResponse.json({
-      entries,
-      entry: entries[0],
+      entries: entries.userEntries,
+      entry: entries.userEntries[0],
+      companyEntry: entries.companyEntry,
       message: validatedData.paymentMode === 'CASH'
         ? 'Expense added and cash payment recorded successfully'
         : 'Expense added successfully',

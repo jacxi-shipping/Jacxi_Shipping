@@ -180,6 +180,19 @@ export async function POST(req: NextRequest) {
           });
           subtotal += allocatedExpense;
         }
+
+        // Damage credit (deduction from invoice if company absorbed damage)
+        if (shipment.damageCredit && shipment.damageCredit > 0) {
+          lineItems.push({
+            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Damage Credit (Company Absorbed)`.trim(),
+            shipmentId: shipment.id,
+            type: 'DISCOUNT' as const,
+            quantity: 1,
+            unitPrice: -shipment.damageCredit,
+            amount: -shipment.damageCredit,
+          });
+          subtotal -= shipment.damageCredit;
+        }
       }
 
       // Apply discount if any

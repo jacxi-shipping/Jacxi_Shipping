@@ -140,11 +140,18 @@ model Shipment {
   status        ShipmentSimpleStatus @default(ON_HAND)
   containerId   String?
   transitId     String?
+  shippingCompanyId String?
   userId        String // Owner/Customer
   internalNotes String?
 
   // Financial (shipping service price)
-  price         Float? // Shipping service price (separate from purchase price)
+  price              Float? // Customer shipping fare (separate from purchase price)
+  companyShippingFare Float? // Internal company shipping cost
+  
+  // Damage Tracking
+  damageCost    Float? // Cost of damage charged to company (company ledger debit)
+  damageCredit  Float? // Credit given to customer for damage assumed by company (user ledger credit)
+  
   paymentStatus PaymentStatus @default(PENDING)
   paymentMode   PaymentMode?
 
@@ -155,6 +162,7 @@ model Shipment {
   // Relations
   container        Container?        @relation(fields: [containerId], references: [id], onDelete: SetNull)
   transit          Transit?          @relation(fields: [transitId], references: [id], onDelete: SetNull)
+  shippingCompany  Company?          @relation("ShipmentShippingCompany", fields: [shippingCompanyId], references: [id], onDelete: SetNull)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents        Document[]
   payments         Payment[]
@@ -166,6 +174,7 @@ model Shipment {
   @@index([userId])
   @@index([containerId])
   @@index([transitId])
+  @@index([shippingCompanyId])
   @@index([status])
   @@index([vehicleVIN])
   @@index([serviceType])
@@ -178,6 +187,7 @@ model Shipment {
 model Container {
   id              String @id @default(cuid())
   containerNumber String @unique
+  companyId       String?
 
   // Shipping Information
   trackingNumber String? @unique
@@ -219,6 +229,7 @@ model Container {
   updatedAt DateTime @updatedAt
 
   // Relations
+  company        Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   shipments      Shipment[]
   expenses       ContainerExpense[]
   invoices       ContainerInvoice[]
@@ -228,6 +239,7 @@ model Container {
   userInvoices   UserInvoice[]
 
   @@index([status])
+  @@index([companyId])
   @@index([shippingLine])
   @@index([destinationPort])
   @@index([estimatedArrival])
@@ -607,6 +619,8 @@ model Company {
   updatedAt     DateTime             @updatedAt
   ledgerEntries CompanyLedgerEntry[]
   transits      Transit[]
+  shipments     Shipment[]           @relation("ShipmentShippingCompany")
+  containers    Container[]
 
   @@index([name])
   @@index([isActive])

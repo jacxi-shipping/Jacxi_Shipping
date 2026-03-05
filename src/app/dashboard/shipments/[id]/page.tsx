@@ -95,6 +95,9 @@ interface Shipment {
   auctionName: string | null;
   status: string;
   price: number | null;
+  companyShippingFare?: number | null;
+  damageCost?: number | null;
+  damageCredit: number | null;
   weight: number | null;
   dimensions: string | null;
   insuranceValue: number | null;
@@ -1006,16 +1009,53 @@ export default function ShipmentDetailPage() {
             {/* Financial Snapshot */}
             <DashboardPanel title="Financial Snapshot">
               <div className="space-y-4">
+                {(shipment.damageCost || shipment.damageCredit) && (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Damage Accountability</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {isAdmin && shipment.damageCost && (
+                        <span className="rounded-full border border-[var(--error)]/35 bg-[var(--error)]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--error)]">
+                          Charged To Company Ledger
+                        </span>
+                      )}
+                      {shipment.damageCredit && (
+                        <span className="rounded-full border border-[var(--success)]/35 bg-[var(--success)]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--success)]">
+                          Credited To Customer Invoice/Receipt
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {shipment.price && (
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
-                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Total Price</p>
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Customer Shipping Fare</p>
                     <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">${shipment.price.toFixed(2)}</p>
+                  </div>
+                )}
+                {isAdmin && shipment.companyShippingFare && (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company Shipping Cost</p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">${shipment.companyShippingFare.toFixed(2)}</p>
                   </div>
                 )}
                 {shipment.insuranceValue && (
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
                     <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Insurance Value</p>
                     <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">${shipment.insuranceValue.toFixed(2)}</p>
+                  </div>
+                )}
+                {shipment.damageCredit && (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Damage Credit (Discount)</p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--success)]">-${shipment.damageCredit.toFixed(2)}</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">Company absorbed damage cost</p>
+                  </div>
+                )}
+                {isAdmin && shipment.damageCost && (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Damage Cost to Company</p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--error)]">${shipment.damageCost.toFixed(2)}</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">Charged to company ledger</p>
                   </div>
                 )}
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">

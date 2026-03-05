@@ -5,6 +5,7 @@ import { z } from 'zod';
 export const shipmentSchema = z.object({
   // Owner/Customer
   userId: z.string().min(1, 'User assignment is required'),
+  shippingCompanyId: z.string().min(1, 'Shipping company is required'),
   
   // Service Type - NEW: Determines if this is purchase+shipping or shipping-only
   serviceType: z.enum(['PURCHASE_AND_SHIPPING', 'SHIPPING_ONLY']).default('SHIPPING_ONLY'),
@@ -55,6 +56,21 @@ export const shipmentSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Price must be greater than 0' }
   ),
+  companyShippingFare: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Company shipping fare must be greater than 0' }
+  ),
+  
+  // Damage Tracking
+  damageCost: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage cost must be greater than 0' }
+  ),
+  damageCredit: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage credit must be greater than 0' }
+  ),
+  
   vehiclePhotos: z.array(z.string()).default([]),
   hasKey: z.boolean().optional(),
   hasTitle: z.boolean().optional(),
@@ -90,9 +106,18 @@ export const shipmentSchema = z.object({
 }, {
   message: 'Purchase price is required for Purchase + Shipping service',
   path: ['purchasePrice'],
+}).refine((data) => {
+  const hasUserFare = !!data.price;
+  const hasCompanyFare = !!data.companyShippingFare;
+  return hasUserFare === hasCompanyFare;
+}, {
+  message: 'Enter both customer shipping fare and company shipping fare',
+  path: ['companyShippingFare'],
 });
 
 export const shipmentUpdateSchema = z.object({
+  shippingCompanyId: z.string().min(1, 'Shipping company is required').optional(),
+
   // Service Type
   serviceType: z.enum(['PURCHASE_AND_SHIPPING', 'SHIPPING_ONLY']).optional(),
   
@@ -142,6 +167,21 @@ export const shipmentUpdateSchema = z.object({
     (val) => !val || (parseFloat(val) > 0),
     { message: 'Price must be greater than 0' }
   ),
+  companyShippingFare: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Company shipping fare must be greater than 0' }
+  ),
+  
+  // Damage Tracking
+  damageCost: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage cost must be greater than 0' }
+  ),
+  damageCredit: z.string().optional().refine(
+    (val) => !val || (parseFloat(val) > 0),
+    { message: 'Damage credit must be greater than 0' }
+  ),
+  
   hasKey: z.boolean().optional(),
   hasTitle: z.boolean().optional(),
   titleStatus: z.enum(['PENDING', 'DELIVERED']).optional(),
@@ -156,6 +196,16 @@ export const shipmentUpdateSchema = z.object({
     (val) => !val || val.length <= 2000,
     { message: 'Internal notes cannot exceed 2000 characters' }
   ),
+}).refine((data) => {
+  const hasUserFare = !!data.price;
+  const hasCompanyFare = !!data.companyShippingFare;
+  if (!hasUserFare && !hasCompanyFare) {
+    return true;
+  }
+  return hasUserFare === hasCompanyFare;
+}, {
+  message: 'Enter both customer shipping fare and company shipping fare',
+  path: ['companyShippingFare'],
 });
 
 export type ShipmentFormData = z.input<typeof shipmentSchema>;
