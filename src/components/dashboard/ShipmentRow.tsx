@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { Visibility, Edit, LocalShipping, CreditCard, LocationOn, CalendarToday } from '@mui/icons-material';
-import { Box, Typography, Slide, LinearProgress } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { Box, Typography, LinearProgress } from '@mui/material';
 import { StatusBadge, Button } from '@/components/design-system';
 
 interface ShipmentRowProps {
@@ -58,20 +57,18 @@ export default function ShipmentRow({
 	showCustomer = false,
 	delay = 0,
 }: ShipmentRowProps) {
-	const [isVisible, setIsVisible] = useState(false);
-
-	useEffect(() => {
-		const timer = setTimeout(() => setIsVisible(true), delay * 1000);
-		return () => clearTimeout(timer);
-	}, [delay]);
-
 	const vehicleInfo = [vehicleMake, vehicleModel, vehicleYear].filter(Boolean).join(' ') || vehicleType;
 
+	// ⚡ Bolt: Removed `useState` and `useEffect` for visibility and replaced `<Slide>` with a pure CSS animation
+	// from `globals.css` (`className="animate-fade-in-up"`) applying the delay using inline styles.
+	// This eliminates the double-render on mount for each row, significantly boosting list rendering performance.
 	return (
-		<Slide in={isVisible} direction="up" timeout={600}>
 			<Box
 				component="article"
+				className="animate-fade-in-up"
 				sx={{
+					animationDelay: `${delay}s`,
+					animationFillMode: 'both',
 					background: 'var(--panel)',
 					border: '1px solid rgba(var(--panel-rgb), 0.9)',
 					borderRadius: 2,
@@ -296,6 +293,5 @@ export default function ShipmentRow({
 				</Link>
 				</Box>
 			</Box>
-		</Slide>
 	);
 }
