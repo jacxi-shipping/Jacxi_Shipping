@@ -128,11 +128,6 @@ export async function POST(
         companyId: true,
         expenseAllocationMethod: true,
         shipments: {
-          where: {
-            userId: {
-              not: null,
-            },
-          },
           select: {
             id: true,
             userId: true,

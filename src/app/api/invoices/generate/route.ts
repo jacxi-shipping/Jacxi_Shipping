@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
           lineItems.push({
             description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Damage Credit (Company Absorbed)`.trim(),
             shipmentId: shipment.id,
-            type: 'DAMAGE_CREDIT' as const,
+            type: 'DISCOUNT' as const,
             quantity: 1,
             unitPrice: -shipment.damageCredit,
             amount: -shipment.damageCredit,
