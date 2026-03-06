@@ -15,6 +15,8 @@ import {
 	InputAdornment,
 	ToggleButton,
 	ToggleButtonGroup,
+	FormControlLabel,
+	Checkbox,
 } from '@mui/material';
 import { DollarSign, X } from 'lucide-react';
 import { Button, toast } from '@/components/design-system';
@@ -59,9 +61,11 @@ export default function AddShipmentExpenseModal({
 }: AddShipmentExpenseModalProps) {
 	const [loading, setLoading] = useState(false);
 	const [selectedShipmentId, setSelectedShipmentId] = useState(shipmentIdProp || '');
+	const [useSplitAmounts, setUseSplitAmounts] = useState(false);
 	const [formData, setFormData] = useState({
 		expenseType: 'SHIPPING_FEE',
 		amount: '',
+		companyAmount: '',
 		description: '',
 		notes: '',
 		paymentMode: 'DUE' as 'CASH' | 'DUE',
@@ -91,6 +95,11 @@ export default function AddShipmentExpenseModal({
 			return;
 		}
 
+		if (useSplitAmounts && (!formData.companyAmount || parseFloat(formData.companyAmount) <= 0)) {
+			toast.error('Please enter a valid company amount');
+			return;
+		}
+
         if (!formData.description) {
             toast.error('Please enter a description');
             return;
@@ -106,6 +115,7 @@ export default function AddShipmentExpenseModal({
 					shipmentId: resolvedShipmentId,
 					expenseType: formData.expenseType,
 					amount: parseFloat(formData.amount),
+					...(useSplitAmounts ? { companyAmount: parseFloat(formData.companyAmount) } : {}),
 					description: formData.description,
 					notes: formData.notes || undefined,
 					paymentMode: formData.paymentMode,
@@ -134,10 +144,12 @@ export default function AddShipmentExpenseModal({
 			setFormData({
 				expenseType: 'SHIPPING_FEE',
 				amount: '',
+				companyAmount: '',
 				description: '',
 				notes: '',
 				paymentMode: 'DUE',
 			});
+			setUseSplitAmounts(false);
 			if (!shipmentIdProp) setSelectedShipmentId('');
 			onClose();
 		}
@@ -227,6 +239,22 @@ export default function AddShipmentExpenseModal({
 						placeholder="e.g. Extra towing fee"
 					/>
 
+					<FormControlLabel
+					control={
+						<Checkbox
+							checked={useSplitAmounts}
+							onChange={(e) => setUseSplitAmounts(e.target.checked)}
+							size="small"
+						/>
+					}
+					label={
+						<Box component="span" sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+							Use different company and user amounts
+						</Box>
+					}
+				/>
+
+				{!useSplitAmounts ? (
 					<TextField
 						size="small"
 						label="Amount (USD)"
@@ -238,7 +266,38 @@ export default function AddShipmentExpenseModal({
 						InputProps={{
 							startAdornment: <InputAdornment position="start">$</InputAdornment>,
 						}}
+						helperText="Same amount charged to customer ledger and company ledger"
 					/>
+				) : (
+					<>
+						<TextField
+							size="small"
+							label="User Amount (USD)"
+							type="number"
+							value={formData.amount}
+							onChange={(e) => handleChange('amount', e.target.value)}
+							required
+							inputProps={{ min: 0, step: 0.01 }}
+							InputProps={{
+								startAdornment: <InputAdornment position="start">$</InputAdornment>,
+							}}
+							helperText="Amount debited to customer ledger"
+						/>
+						<TextField
+							size="small"
+							label="Company Amount (USD)"
+							type="number"
+							value={formData.companyAmount}
+							onChange={(e) => handleChange('companyAmount', e.target.value)}
+							required
+							inputProps={{ min: 0, step: 0.01 }}
+							InputProps={{
+								startAdornment: <InputAdornment position="start">$</InputAdornment>,
+							}}
+							helperText="Amount credited to company ledger (internal — not visible to customer)"
+						/>
+					</>
+				)}
 
 					{/* Payment Mode */}
 					<Box>

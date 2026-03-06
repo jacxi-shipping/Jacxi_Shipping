@@ -75,6 +75,22 @@ export async function GET(
         expenses: {
           orderBy: { date: 'desc' },
         },
+        damages: {
+          include: {
+            shipment: {
+              select: {
+                id: true,
+                vehicleMake: true,
+                vehicleModel: true,
+                vehicleVIN: true,
+                user: {
+                  select: { id: true, name: true, email: true },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         invoices: {
           orderBy: { date: 'desc' },
         },
@@ -124,6 +140,7 @@ export async function GET(
 
       // Filter sensitive data for non-admins
       container.expenses = [];
+      (container as any).damages = [];
       container.invoices = [];
       container.auditLogs = [];
       container.shipments = userShipments;
