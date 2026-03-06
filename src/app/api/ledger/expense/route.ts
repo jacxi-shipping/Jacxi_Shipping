@@ -11,6 +11,7 @@ const addExpenseSchema = z.object({
   shipmentId: z.string(),
   description: z.string().min(1),
   amount: z.number().positive(),
+  companyAmount: z.number().positive().optional(),
   expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
   paymentMode: z.enum(['CASH', 'DUE']).default('DUE'),
   notes: z.string().optional(),
@@ -40,7 +41,6 @@ export async function POST(request: NextRequest) {
         userId: true,
         vehicleMake: true,
         vehicleModel: true,
-        shippingCompanyId: true,
         container: {
           select: {
             companyId: true,
@@ -53,14 +53,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    const resolvedCompanyId = shipment.shippingCompanyId ?? shipment.container?.companyId;
+    const resolvedCompanyId = shipment.container?.companyId;
 
     if (!resolvedCompanyId) {
       return NextResponse.json(
-        { error: 'Shipment must be linked to a company (directly or through container) before adding expenses' },
+        { error: 'Shipment must be linked to a container with a company before adding expenses' },
         { status: 400 }
       );
     }
+
+    // The user (debit) amount is always `amount`. Company (credit) amount defaults to `amount` unless overridden.
+    const userAmount = validatedData.amount;
+    const companyAmount = validatedData.companyAmount ?? validatedData.amount;
 
     // Create expense description
     const expenseTypeLabel = validatedData.expenseType.replace(/_/g, ' ').toLowerCase();
@@ -74,7 +78,7 @@ export async function POST(request: NextRequest) {
           shipmentId: validatedData.shipmentId,
           description,
           type: 'DEBIT',
-          amount: validatedData.amount,
+          amount: userAmount,
           balance: 0,
           createdBy: session.user!.id as string,
           notes: validatedData.notes,
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
           companyId: resolvedCompanyId,
           description: `Expense recovery - ${description}`,
           type: 'CREDIT',
-          amount: validatedData.amount,
+          amount: companyAmount,
           balance: 0,
           category: 'Shipment Expense Recovery',
           reference,
@@ -122,7 +126,7 @@ export async function POST(request: NextRequest) {
             shipmentId: validatedData.shipmentId,
             description: `Cash payment received - ${validatedData.description}`,
             type: 'CREDIT',
-            amount: validatedData.amount,
+            amount: userAmount,
             balance: 0,
             createdBy: session.user!.id as string,
             notes: validatedData.notes,

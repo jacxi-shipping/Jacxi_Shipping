@@ -49,6 +49,12 @@ export async function GET(
           take: 100,
         },
         shipments: {
+          where: {
+            OR: [
+              { containerId: { not: null } },
+              { transitId: { not: null } },
+            ],
+          },
           select: {
             id: true,
             vehicleVIN: true,
@@ -57,6 +63,7 @@ export async function GET(
             status: true,
             createdAt: true,
             transitId: true,
+            containerId: true,
           },
           orderBy: { createdAt: 'desc' },
           take: 200,

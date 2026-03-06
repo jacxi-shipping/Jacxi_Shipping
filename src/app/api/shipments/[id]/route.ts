@@ -3,13 +3,10 @@ import { Prisma, TitleStatus, NotificationType } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createNotification } from '@/lib/notifications';
-import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
-import { syncShipmentDamageEntries } from '@/lib/shipment-damage';
 import { hasPermission } from '@/lib/rbac';
 
 type UpdateShipmentPayload = {
   userId?: string;
-  shippingCompanyId?: string;
   vehicleType?: string;
   vehicleMake?: string | null;
   vehicleModel?: string | null;
@@ -26,11 +23,6 @@ type UpdateShipmentPayload = {
   weight?: number | string | null;
   dimensions?: string | null;
   specialInstructions?: string | null;
-  insuranceValue?: number | string | null;
-  price?: number | string | null;
-  companyShippingFare?: number | string | null;
-  damageCost?: number | string | null;
-  damageCredit?: number | string | null;
   internalNotes?: string | null;
   hasKey?: boolean | null;
   hasTitle?: boolean | null;
@@ -72,17 +64,12 @@ export async function GET(
         vehicleAge: true,
         weight: true,
         dimensions: true,
-        insuranceValue: true,
         arrivalPhotos: true,
         vehiclePhotos: true,
         status: true,
         containerId: true,
-        shippingCompanyId: true,
         userId: true,
         internalNotes: true,
-        price: true,
-        damageCredit: true,
-        ...(canReadAllShipments ? { companyShippingFare: true, damageCost: true } : {}),
         paymentStatus: true,
         paymentMode: true,
         releaseToken: true,
@@ -98,12 +85,6 @@ export async function GET(
             address: true,
             city: true,
             country: true,
-          },
-        },
-        shippingCompany: {
-          select: {
-            id: true,
-            name: true,
           },
         },
         container: {
@@ -191,39 +172,6 @@ export async function PATCH(
 
     const data = (await request.json()) as UpdateShipmentPayload;
     const updateData: Prisma.ShipmentUpdateInput = {};
-    let parsedPriceValue: number | null | undefined;
-    let parsedCompanyShippingFareValue: number | null | undefined;
-    const resolvedShippingCompanyId = data.shippingCompanyId ?? existingShipment.shippingCompanyId;
-
-    if (!resolvedShippingCompanyId) {
-      return NextResponse.json(
-        { message: 'Shipping company is required' },
-        { status: 400 }
-      );
-    }
-
-    if (data.shippingCompanyId !== undefined) {
-      if (!data.shippingCompanyId) {
-        return NextResponse.json(
-          { message: 'Shipping company is required' },
-          { status: 400 }
-        );
-      }
-
-      const shippingCompany = await prisma.company.findUnique({
-        where: { id: data.shippingCompanyId },
-        select: { id: true, isActive: true, companyType: true },
-      });
-
-      if (!shippingCompany || !shippingCompany.isActive || shippingCompany.companyType !== 'SHIPPING') {
-        return NextResponse.json(
-          { message: 'Valid active shipping company is required' },
-          { status: 400 }
-        );
-      }
-
-      updateData.shippingCompany = { connect: { id: data.shippingCompanyId } };
-    }
 
     // Basic vehicle info
     if (data.userId !== undefined) updateData.user = { connect: { id: data.userId } };
@@ -328,81 +276,6 @@ export async function PATCH(
           : null;
     }
 
-    if (data.insuranceValue !== undefined) {
-      updateData.insuranceValue =
-        typeof data.insuranceValue === 'number'
-          ? data.insuranceValue
-          : typeof data.insuranceValue === 'string'
-          ? parseFloat(data.insuranceValue)
-          : null;
-    }
-
-    if (data.price !== undefined) {
-      parsedPriceValue =
-        typeof data.price === 'number'
-          ? data.price
-          : typeof data.price === 'string'
-          ? parseFloat(data.price)
-          : null;
-      updateData.price = parsedPriceValue;
-    }
-
-    if (data.companyShippingFare !== undefined) {
-      parsedCompanyShippingFareValue =
-        typeof data.companyShippingFare === 'number'
-          ? data.companyShippingFare
-          : typeof data.companyShippingFare === 'string'
-          ? parseFloat(data.companyShippingFare)
-          : null;
-      updateData.companyShippingFare = parsedCompanyShippingFareValue;
-    }
-
-    let parsedDamageCostValue: number | null | undefined;
-    let parsedDamageCreditValue: number | null | undefined;
-
-    if (data.damageCost !== undefined) {
-      parsedDamageCostValue =
-        typeof data.damageCost === 'number'
-          ? data.damageCost
-          : typeof data.damageCost === 'string'
-          ? parseFloat(data.damageCost)
-          : null;
-      updateData.damageCost = parsedDamageCostValue;
-    }
-
-    if (data.damageCredit !== undefined) {
-      parsedDamageCreditValue =
-        typeof data.damageCredit === 'number'
-          ? data.damageCredit
-          : typeof data.damageCredit === 'string'
-          ? parseFloat(data.damageCredit)
-          : null;
-      updateData.damageCredit = parsedDamageCreditValue;
-    }
-
-    const resolvedStatus = (updateData.status as string | undefined) ?? existingShipment.status;
-    const resolvedContainerId = data.containerId !== undefined ? data.containerId : existingShipment.containerId;
-    const resolvedCustomerFare = parsedPriceValue !== undefined ? parsedPriceValue : existingShipment.price;
-    const resolvedCompanyFare =
-      parsedCompanyShippingFareValue !== undefined ? parsedCompanyShippingFareValue : existingShipment.companyShippingFare;
-
-    const hasCustomerFare = !!(resolvedCustomerFare && resolvedCustomerFare > 0);
-    const hasCompanyFare = !!(resolvedCompanyFare && resolvedCompanyFare > 0);
-
-    if (hasCustomerFare !== hasCompanyFare) {
-      return NextResponse.json(
-        { message: 'Both customer shipping fare and company shipping fare are required together' },
-        { status: 400 }
-      );
-    }
-
-    if (resolvedStatus === 'IN_TRANSIT' && !!resolvedContainerId && !hasCustomerFare) {
-      return NextResponse.json(
-        { message: 'Customer shipping fare and company shipping fare are required for in-transit shipment assignment' },
-        { status: 400 }
-      );
-    }
-
     // Other fields
     if (data.dimensions !== undefined) updateData.dimensions = data.dimensions;
     if (data.internalNotes !== undefined) updateData.internalNotes = data.internalNotes;
@@ -413,8 +286,6 @@ export async function PATCH(
     if (data.titleStatus !== undefined) {
       updateData.titleStatus = (data.hasTitle === true && data.titleStatus) ? data.titleStatus as TitleStatus : null;
     }
-
-    // ... (previous code)
 
     const updatedShipment = await prisma.$transaction(async (tx) => {
       const shipment = await tx.shipment.update({
@@ -428,42 +299,7 @@ export async function PATCH(
             },
           },
           container: true,
-          shippingCompany: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
         },
-      });
-
-      const vehicleLabel =
-        [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
-          .filter(Boolean)
-          .join(' ') || shipment.vehicleType;
-
-      await syncShipmentShippingFareEntries(tx, {
-        shipmentId: shipment.id,
-        userId: shipment.userId,
-        shippingCompanyId: shipment.shippingCompanyId,
-        userFareAmount: shipment.price,
-        companyFareAmount: shipment.companyShippingFare,
-        vehicleLabel,
-        vehicleVIN: shipment.vehicleVIN,
-        actorUserId: session.user?.id as string,
-        shouldPost: shipment.status === 'IN_TRANSIT' && !!shipment.containerId,
-      });
-
-      await syncShipmentDamageEntries(tx, {
-        shipmentId: shipment.id,
-        userId: shipment.userId,
-        shippingCompanyId: shipment.shippingCompanyId,
-        damageCost: shipment.damageCost,
-        damageCredit: shipment.damageCredit,
-        vehicleLabel,
-        vehicleVIN: shipment.vehicleVIN,
-        actorUserId: session.user?.id as string,
-        shouldPost: shipment.status === 'IN_TRANSIT' && !!shipment.containerId,
       });
 
       return shipment;

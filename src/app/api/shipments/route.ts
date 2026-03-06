@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, TitleStatus, PaymentStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { syncShipmentShippingFareEntries } from '@/lib/shipment-shipping-fare';
-import { syncShipmentDamageEntries } from '@/lib/shipment-damage';
 import { hasPermission } from '@/lib/rbac';
 
 export async function GET(request: NextRequest) {
@@ -68,17 +66,8 @@ export async function GET(request: NextRequest) {
       status: true,
       createdAt: true,
       paymentStatus: true,
-      price: true,
-      ...(canReadAllShipments ? { companyShippingFare: true } : {}),
-      shippingCompanyId: true,
       containerId: true,
       internalNotes: true,
-      shippingCompany: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
       container: {
         select: {
           id: true,
@@ -169,7 +158,6 @@ export async function GET(request: NextRequest) {
 
 type CreateShipmentPayload = {
   userId: string;
-  shippingCompanyId: string;
   serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
   vehicleType: string;
   vehicleMake?: string | null;
@@ -182,11 +170,6 @@ type CreateShipmentPayload = {
   weight?: number | string | null;
   dimensions?: string | null;
   specialInstructions?: string | null;
-  insuranceValue?: number | string | null;
-  price?: number | string | null;
-  companyShippingFare?: number | string | null;
-  damageCost?: number | string | null;
-  damageCredit?: number | string | null;
   vehiclePhotos?: string[] | null;
   status?: 'ON_HAND' | 'IN_TRANSIT' | null;
   containerId?: string | null;
@@ -225,7 +208,6 @@ export async function POST(request: NextRequest) {
     const data = (await request.json()) as CreateShipmentPayload;
     const { 
       userId, // Admin must specify which user this shipment is for
-      shippingCompanyId,
       serviceType,
       vehicleType, 
       vehicleMake, 
@@ -237,11 +219,6 @@ export async function POST(request: NextRequest) {
       auctionName,
       weight,
       dimensions,
-      insuranceValue,
-      price,
-      companyShippingFare,
-      damageCost,
-      damageCredit,
       vehiclePhotos,
       status: providedStatus,
       containerId,
@@ -259,9 +236,9 @@ export async function POST(request: NextRequest) {
     } = data;
 
     // Validate required fields
-    if (!vehicleType || !userId || !shippingCompanyId) {
+    if (!vehicleType || !userId) {
       return NextResponse.json(
-        { message: 'Missing required fields: vehicleType, userId, and shippingCompanyId are required' },
+        { message: 'Missing required fields: vehicleType and userId are required' },
         { status: 400 }
       );
     }
@@ -309,18 +286,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const shippingCompany = await prisma.company.findUnique({
-      where: { id: shippingCompanyId },
-      select: { id: true, isActive: true, companyType: true },
-    });
-
-    if (!shippingCompany || !shippingCompany.isActive || shippingCompany.companyType !== 'SHIPPING') {
-      return NextResponse.json(
-        { message: 'Valid active shipping company is required' },
-        { status: 400 }
-      );
-    }
-
     // Check for duplicate VIN if provided
     if (vehicleVIN && vehicleVIN.trim()) {
       const existingShipment = await prisma.shipment.findFirst({
@@ -361,49 +326,6 @@ export async function POST(request: NextRequest) {
         : null;
     const parsedWeight =
       typeof weight === 'number' ? weight : typeof weight === 'string' ? parseFloat(weight) : null;
-    const parsedInsuranceValue =
-      typeof insuranceValue === 'number'
-        ? insuranceValue
-        : typeof insuranceValue === 'string'
-        ? parseFloat(insuranceValue)
-        : null;
-    const parsedPrice =
-      typeof price === 'number' ? price : typeof price === 'string' ? parseFloat(price) : null;
-    const parsedCompanyShippingFare =
-      typeof companyShippingFare === 'number'
-        ? companyShippingFare
-        : typeof companyShippingFare === 'string'
-        ? parseFloat(companyShippingFare)
-        : null;
-    const parsedDamageCost =
-      typeof damageCost === 'number'
-        ? damageCost
-        : typeof damageCost === 'string'
-        ? parseFloat(damageCost)
-        : null;
-    const parsedDamageCredit =
-      typeof damageCredit === 'number'
-        ? damageCredit
-        : typeof damageCredit === 'string'
-        ? parseFloat(damageCredit)
-        : null;
-
-    const hasCustomerFare = !!(parsedPrice && parsedPrice > 0);
-    const hasCompanyFare = !!(parsedCompanyShippingFare && parsedCompanyShippingFare > 0);
-
-    if (hasCustomerFare !== hasCompanyFare) {
-      return NextResponse.json(
-        { message: 'Both customer shipping fare and company shipping fare are required together' },
-        { status: 400 }
-      );
-    }
-
-    if (normalizedStatus === 'IN_TRANSIT' && !hasCustomerFare) {
-      return NextResponse.json(
-        { message: 'Customer shipping fare and company shipping fare are required for in-transit shipment assignment' },
-        { status: 400 }
-      );
-    }
     const parsedPurchasePrice =
       typeof purchasePrice === 'number' ? purchasePrice : typeof purchasePrice === 'string' ? parseFloat(purchasePrice) : null;
     
@@ -445,14 +367,8 @@ export async function POST(request: NextRequest) {
           auctionName,
           status: normalizedStatus,
           containerId: containerId || null,
-          shippingCompanyId,
           weight: parsedWeight,
           dimensions,
-          insuranceValue: parsedInsuranceValue,
-          price: parsedPrice,
-          companyShippingFare: parsedCompanyShippingFare,
-          damageCost: parsedDamageCost,
-          damageCredit: parsedDamageCredit,
           vehiclePhotos: sanitizedVehiclePhotos,
           paymentStatus: finalPaymentStatus as PaymentStatus,
           paymentMode: paymentMode || null,
@@ -469,35 +385,6 @@ export async function POST(request: NextRequest) {
           dealerName: dealerName || null,
           purchaseNotes: purchaseNotes || null,
         },
-      });
-
-      const vehicleLabel =
-        [createdShipment.vehicleYear, createdShipment.vehicleMake, createdShipment.vehicleModel]
-          .filter(Boolean)
-          .join(' ') || createdShipment.vehicleType;
-
-      await syncShipmentShippingFareEntries(tx, {
-        shipmentId: createdShipment.id,
-        userId: createdShipment.userId,
-        shippingCompanyId: createdShipment.shippingCompanyId,
-        userFareAmount: createdShipment.price,
-        companyFareAmount: createdShipment.companyShippingFare,
-        vehicleLabel,
-        vehicleVIN: createdShipment.vehicleVIN,
-        actorUserId: session.user?.id as string,
-        shouldPost: createdShipment.status === 'IN_TRANSIT' && !!createdShipment.containerId,
-      });
-
-      await syncShipmentDamageEntries(tx, {
-        shipmentId: createdShipment.id,
-        userId: createdShipment.userId,
-        shippingCompanyId: createdShipment.shippingCompanyId,
-        damageCost: createdShipment.damageCost,
-        damageCredit: createdShipment.damageCredit,
-        vehicleLabel,
-        vehicleVIN: createdShipment.vehicleVIN,
-        actorUserId: session.user?.id as string,
-        shouldPost: createdShipment.status === 'IN_TRANSIT' && !!createdShipment.containerId,
       });
 
       // Update container count if assigned
