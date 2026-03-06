@@ -87,6 +87,9 @@ interface Expense {
 	currency: string;
 	date: string;
 	vendor: string | null;
+	source?: 'CONTAINER' | 'SHIPMENT';
+	shipmentId?: string | null;
+	description?: string;
 }
 
 interface Damage {
@@ -312,6 +315,11 @@ export default function ContainerDetailPage() {
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const refreshContainerPage = async () => {
+		await fetchContainer();
+		router.refresh();
 	};
 
     const handleRefreshTracking = async () => {
@@ -643,7 +651,7 @@ export default function ContainerDetailPage() {
 				toast.success('Invoices generated successfully!', {
 					description: `Created ${data.summary.newInvoices} new invoice(s)`
 				});
-				fetchContainer();
+				await refreshContainerPage();
 				setInvoiceGenerationModalOpen(false);
 			} else {
 				toast.error('Failed to generate invoices', {
@@ -1335,20 +1343,24 @@ export default function ContainerDetailPage() {
 														{formatCurrency(expense.amount, expense.currency)}
 													</TableCell>
 													<TableCell align="right">
-														<Button
-															variant="outline"
-															size="sm"
-															icon={<Trash2 className="w-3 h-3" />}
-															onClick={() => handleDeleteExpense(expense.id)}
-															disabled={deletingExpenseId === expense.id}
-															sx={{ 
-																color: 'var(--error)',
-																borderColor: 'var(--error)',
-																'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
-															}}
-														>
-															{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
-														</Button>
+														{expense.source === 'SHIPMENT' ? (
+															<Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>View on shipment</Box>
+														) : (
+															<Button
+																variant="outline"
+																size="sm"
+																icon={<Trash2 className="w-3 h-3" />}
+																onClick={() => handleDeleteExpense(expense.id)}
+																disabled={deletingExpenseId === expense.id}
+																sx={{ 
+																	color: 'var(--error)',
+																	borderColor: 'var(--error)',
+																	'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
+																}}
+															>
+																{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
+															</Button>
+														)}
 													</TableCell>
 												</TableRow>
 											))}
@@ -1707,7 +1719,9 @@ export default function ContainerDetailPage() {
                                 }))}
                                 entityId={container.id}
                                 entityType="container"
-								onDocumentsChange={fetchContainer}
+								onDocumentsChange={() => {
+									void refreshContainerPage();
+								}}
                             />
 						</DashboardPanel>
 					)}
@@ -1863,7 +1877,9 @@ export default function ContainerDetailPage() {
 					open={expenseModalOpen}
 					onClose={() => setExpenseModalOpen(false)}
 					containerId={container.id}
-					onSuccess={fetchContainer}
+					onSuccess={() => {
+						void refreshContainerPage();
+					}}
 				/>
 
 				{/* Add Damage Modal */}
@@ -1872,7 +1888,9 @@ export default function ContainerDetailPage() {
 					onClose={() => setDamageModalOpen(false)}
 					containerId={container.id}
 					shipments={container.shipments}
-					onSuccess={fetchContainer}
+					onSuccess={() => {
+						void refreshContainerPage();
+					}}
 				/>
 
 				{/* Add Shipment Expense Modal */}
@@ -1890,7 +1908,9 @@ export default function ContainerDetailPage() {
 						vehicleVIN: s.vehicleVIN,
 						user: s.user,
 					}))}
-					onSuccess={fetchContainer}
+					onSuccess={() => {
+						void refreshContainerPage();
+					}}
 				/>
 
 				{/* Add Invoice Modal */}

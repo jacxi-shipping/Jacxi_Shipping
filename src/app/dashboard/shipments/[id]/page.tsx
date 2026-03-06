@@ -211,6 +211,11 @@ export default function ShipmentDetailPage() {
     }
   }, [params.id]);
 
+  const refreshShipmentPage = useCallback(async () => {
+    await fetchShipment();
+    router.refresh();
+  }, [fetchShipment, router]);
+
   useEffect(() => {
     void fetchShipment();
   }, [fetchShipment]);
@@ -1218,7 +1223,9 @@ export default function ShipmentDetailPage() {
               entityId={shipment.id}
               entityType="shipment"
               readOnly={!isAdmin && shipment.userId !== session?.user?.id}
-              onDocumentsChange={fetchShipment}
+              onDocumentsChange={() => {
+                void refreshShipmentPage();
+              }}
             />
           </DashboardPanel>
         </TabPanel>

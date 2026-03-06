@@ -129,6 +129,71 @@ export async function GET(
 
     // Role-based access control
     const canReadAllContainers = hasPermission(session.user?.role, 'containers:read_all');
+
+    if (canReadAllContainers) {
+      const shipmentExpenses = await prisma.ledgerEntry.findMany({
+        where: {
+          shipment: {
+            containerId: params.id,
+          },
+          type: 'DEBIT',
+          metadata: {
+            path: ['isExpense'],
+            equals: true,
+          },
+          NOT: [
+            {
+              metadata: {
+                path: ['isContainerExpense'],
+                equals: true,
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          shipmentId: true,
+          amount: true,
+          description: true,
+          transactionDate: true,
+          metadata: true,
+          shipment: {
+            select: {
+              vehicleMake: true,
+              vehicleModel: true,
+              vehicleVIN: true,
+            },
+          },
+        },
+        orderBy: {
+          transactionDate: 'desc',
+        },
+      });
+
+      const mappedShipmentExpenses = shipmentExpenses.map((entry) => {
+        const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+        const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'SHIPMENT_EXPENSE';
+        const vehicleLabel = [entry.shipment?.vehicleMake, entry.shipment?.vehicleModel].filter(Boolean).join(' ').trim();
+        const vinLabel = entry.shipment?.vehicleVIN ? ` (${entry.shipment.vehicleVIN})` : '';
+
+        return {
+          id: `shipment-${entry.id}`,
+          shipmentId: entry.shipmentId,
+          type: expenseType,
+          amount: entry.amount,
+          currency: 'USD',
+          date: entry.transactionDate,
+          vendor: vehicleLabel ? `${vehicleLabel}${vinLabel}` : 'Shipment expense',
+          description: entry.description,
+          source: 'SHIPMENT',
+        };
+      });
+
+      (container as any).expenses = [
+        ...container.expenses,
+        ...mappedShipmentExpenses,
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
     
     if (!canReadAllContainers) {
       // Check if user has any shipments in this container
@@ -224,7 +289,7 @@ export async function GET(
     }
 
     // Calculate totals
-    const totalExpenses = canReadAllContainers ? container.expenses.reduce((sum, exp) => sum + exp.amount, 0) : 0;
+    const totalExpenses = canReadAllContainers ? (container as any).expenses.reduce((sum: number, exp: { amount: number }) => sum + exp.amount, 0) : 0;
     const totalInvoices = canReadAllContainers ? container.invoices.reduce((sum, inv) => sum + inv.amount, 0) : 0;
     const currentCount = container.shipments.length; // This will reflect the filtered count for users? No, container.currentCount is from DB property usually, or I should use shipments.length.
     // Wait, `container.currentCount` property exists on the model (synced).
