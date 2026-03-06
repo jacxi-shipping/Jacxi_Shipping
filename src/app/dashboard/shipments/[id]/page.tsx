@@ -13,9 +13,6 @@ import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
   CalendarCheck,
-  ChevronLeft,
-  ChevronRight,
-  Download,
   FileText,
   DollarSign,
   Image as ImageIcon,
@@ -24,11 +21,7 @@ import {
   PenLine,
   Trash2,
   Truck,
-  Upload,
   Wallet,
-  X,
-  ZoomIn,
-  ZoomOut,
   Info,
   History,
   User,
@@ -36,10 +29,12 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { Tabs, Tab, Box, Dialog, DialogActions, DialogContent, DialogTitle, ImageList, ImageListItem, ImageListItemBar, IconButton as MuiIconButton, MenuItem, TextField } from '@mui/material';
+import { Tabs, Tab, Box, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
 import { Breadcrumbs, toast, EmptyState, Tooltip, StatusBadge } from '@/components/design-system';
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
+import PhotoGallery from '@/components/shipments/PhotoGallery';
+import PhotoLightbox from '@/components/shipments/PhotoLightbox';
 import { downloadShipmentInvoicePDF } from '@/lib/utils/generateShipmentInvoicePDF';
 import { downloadReleaseTokenPDF } from '@/lib/utils/generateReleaseTokenPDF';
 
@@ -185,9 +180,8 @@ export default function ShipmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [arrivalPhotos, setArrivalPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [showArrivalUpload, setShowArrivalUpload] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Array<{ name: string; progress: number }>>([]);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number; title: string } | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
   const [downloading, setDownloading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
@@ -222,53 +216,18 @@ export default function ShipmentDetailPage() {
     void fetchShipment();
   }, [fetchShipment]);
 
-  useEffect(() => {
-    if (lightbox) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!lightbox) return;
-      if (event.key === 'Escape') {
-        setLightbox(null);
-      }
-      if (event.key === 'ArrowLeft') {
-        setLightbox((prev) => {
-          if (!prev) return prev;
-          const nextIndex = (prev.index - 1 + prev.images.length) % prev.images.length;
-          return { ...prev, index: nextIndex };
-        });
-      }
-      if (event.key === 'ArrowRight') {
-        setLightbox((prev) => {
-          if (!prev) return prev;
-          const nextIndex = (prev.index + 1) % prev.images.length;
-          return { ...prev, index: nextIndex };
-        });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [lightbox]);
-
   const openLightbox = (images: string[], index: number, title: string) => {
     if (!images.length) return;
     setLightbox({ images, index, title });
-    setZoomLevel(1);
   };
 
-  const downloadPhoto = async (url: string, filename: string) => {
+  const downloadPhoto = async (url: string, index: number) => {
+    const title = lightbox?.title ?? 'photo';
+    const filename = `${title.replace(/\s+/g, '-')}-${index + 1}.jpg`;
     try {
       setDownloading(true);
       const response = await fetch(`/api/photos/download?url=${encodeURIComponent(url)}`);
       if (!response.ok) throw new Error('Download failed');
-      
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -285,84 +244,6 @@ export default function ShipmentDetailPage() {
       setDownloading(false);
     }
   };
-
-  const downloadAllPhotos = async (images: string[], title: string) => {
-    try {
-      setDownloading(true);
-      const response = await fetch('/api/photos/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          photos: images,
-          filename: `${title.replace(/\s+/g, '-')}-${shipment?.vehicleVIN || shipment?.id || 'photos'}`
-        }),
-      });
-      
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `${title.replace(/\s+/g, '-')}-${shipment?.vehicleVIN || shipment?.id || 'photos'}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error('Error downloading photos:', error);
-      toast.error('Failed to download photos', { description: 'Please try again' });
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const goPrevious = () => {
-    setLightbox((prev) => {
-      if (!prev || prev.images.length <= 1) return prev;
-      const nextIndex = (prev.index - 1 + prev.images.length) % prev.images.length;
-      setZoomLevel(1);
-      return { ...prev, index: nextIndex };
-    });
-  };
-
-  const goNext = () => {
-    setLightbox((prev) => {
-      if (!prev || prev.images.length <= 1) return prev;
-      const nextIndex = (prev.index + 1) % prev.images.length;
-      setZoomLevel(1);
-      return { ...prev, index: nextIndex };
-    });
-  };
-
-  const zoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 3));
-  const zoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.5));
-
-  useEffect(() => {
-    if (!lightbox) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        goPrevious();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        goNext();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        setLightbox(null);
-      } else if (e.key === '+' || e.key === '=') {
-        e.preventDefault();
-        zoomIn();
-      } else if (e.key === '-' || e.key === '_') {
-        e.preventDefault();
-        zoomOut();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightbox]);
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this shipment?')) {
@@ -557,74 +438,61 @@ export default function ShipmentDetailPage() {
     }
   };
 
-  const handleArrivalPhotoUpload = async (file: File) => {
+  /** Upload multiple arrival photo files, tracking per-file progress */
+  const handleArrivalPhotosUpload = async (files: File[]) => {
+    if (!files.length) return;
     setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        const newPhotos = [...arrivalPhotos, result.url];
-        setArrivalPhotos(newPhotos);
-        return result.url;
-      } else {
-        const error = await response.json();
-        throw new Error(error.message || 'Upload failed');
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      const message = error instanceof Error ? error.message : 'Failed to upload image';
-      toast.error(message);
-      return null;
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    // Initialise progress items
+    const initialProgress = files.map(f => ({ name: f.name, progress: 0 }));
+    setUploadProgress(initialProgress);
 
     const uploadedUrls: string[] = [];
+
     for (let i = 0; i < files.length; i++) {
-      const url = await handleArrivalPhotoUpload(files[i]);
-      if (url) uploadedUrls.push(url);
+      try {
+        const formData = new FormData();
+        formData.append('file', files[i]);
+        const response = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (response.ok) {
+          const result = await response.json();
+          uploadedUrls.push(result.url as string);
+          setUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, progress: 100 } : p));
+        } else {
+          const err = await response.json();
+          throw new Error((err as { message?: string }).message || 'Upload failed');
+        }
+      } catch (err) {
+        console.error('Error uploading file:', err);
+        setUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, progress: -1 } : p));
+        toast.error(`Failed to upload ${files[i].name}`);
+      }
     }
 
     if (uploadedUrls.length > 0) {
       try {
         const response = await fetch(`/api/shipments/${params.id}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            arrivalPhotos: uploadedUrls,
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ arrivalPhotos: uploadedUrls }),
         });
-
         if (response.ok) {
           const data = await response.json();
           setShipment(data.shipment);
-          setArrivalPhotos(data.shipment.arrivalPhotos || []);
-          setShowArrivalUpload(false);
+          setArrivalPhotos((data.shipment as { arrivalPhotos: string[] }).arrivalPhotos || []);
+          toast.success(`${uploadedUrls.length} photo${uploadedUrls.length > 1 ? 's' : ''} uploaded`);
         } else {
-          const error = await response.json();
-          toast.error('Failed to save photos', error.message || 'Please try again');
+          const err = await response.json();
+          toast.error('Failed to save photos', { description: (err as { message?: string }).message || 'Please try again' });
         }
-      } catch (error) {
-        console.error('Error saving arrival photos:', error);
+      } catch (err) {
+        console.error('Error saving arrival photos:', err);
         toast.error('Failed to save photos', { description: 'An error occurred. Please try again' });
       }
     }
 
-    e.target.value = '';
+    setUploading(false);
+    setTimeout(() => setUploadProgress([]), 2000);
   };
 
   const removeArrivalPhoto = async (index: number) => {
@@ -634,12 +502,8 @@ export default function ShipmentDetailPage() {
     try {
       const response = await fetch(`/api/shipments/${params.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          arrivalPhotos: newPhotos,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arrivalPhotos: newPhotos }),
       });
 
       if (response.ok) {
@@ -647,12 +511,12 @@ export default function ShipmentDetailPage() {
         setShipment(data.shipment);
       } else {
         setArrivalPhotos(arrivalPhotos);
-        const error = await response.json();
-        toast.error('Failed to remove photo', error.message || 'Please try again');
+        const err = await response.json();
+        toast.error('Failed to remove photo', { description: (err as { message?: string }).message || 'Please try again' });
       }
-    } catch (error) {
+    } catch (err) {
       setArrivalPhotos(arrivalPhotos);
-      console.error('Error removing photo:', error);
+      console.error('Error removing photo:', err);
       toast.error('Failed to remove photo', { description: 'An error occurred. Please try again' });
     }
   };
@@ -1309,211 +1173,29 @@ export default function ShipmentDetailPage() {
 
         {/* Photos Tab */}
         <TabPanel value={activeTab} index={2}>
-          <DashboardGrid className="grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="space-y-6">
             {/* Vehicle Photos */}
-            <DashboardPanel title="Vehicle Photos">
-              {shipment.vehiclePhotos && shipment.vehiclePhotos.length > 0 ? (
-                <ImageList
-                  sx={{
-                    width: '100%',
-                    maxHeight: 500,
-                    borderRadius: 2,
-                  }}
-                  cols={3}
-                  gap={12}
-                  rowHeight={164}
-                >
-                  {shipment.vehiclePhotos.map((photo, index) => (
-                    <ImageListItem
-                      key={index}
-                      sx={{
-                        cursor: 'pointer',
-                        overflow: 'hidden',
-                        borderRadius: 2,
-                        border: '1px solid var(--border)',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                          transform: 'scale(1.05)',
-                          boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-                          '& .MuiImageListItemBar-root': {
-                            opacity: 1,
-                          },
-                        },
-                      }}
-                      onClick={() => openLightbox(shipment.vehiclePhotos, index, 'Vehicle Photos')}
-                    >
-                      <Image
-                        src={photo}
-                        alt={`Vehicle photo ${index + 1}`}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        style={{ objectFit: 'cover' }}
-                        unoptimized
-                      />
-                      <ImageListItemBar
-                        title={`Photo ${index + 1}`}
-                        sx={{
-                          opacity: 0,
-                          transition: 'opacity 0.2s',
-                          background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)',
-                          '& .MuiImageListItemBar-title': {
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                          },
-                        }}
-                        position="top"
-                        actionIcon={
-                          <MuiIconButton
-                            sx={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                            aria-label={`View photo ${index + 1}`}
-                          >
-                            <ImageIcon className="h-5 w-5" />
-                          </MuiIconButton>
-                        }
-                      />
-                    </ImageListItem>
-                  ))}
-                </ImageList>
-              ) : (
-                <p className="rounded-lg border border-[var(--border)] bg-[var(--background)] py-8 text-center text-sm text-[var(--text-secondary)]">
-                  No vehicle photos available.
-                </p>
-              )}
+            <DashboardPanel title={`Vehicle Photos${shipment.vehiclePhotos?.length ? ' (' + shipment.vehiclePhotos.length + ')' : ''}`}>
+              <PhotoGallery
+                photos={(shipment.vehiclePhotos || []).map(url => ({ url, label: 'Vehicle' }))}
+                onPhotoClick={(idx) => openLightbox(shipment.vehiclePhotos, idx, 'Vehicle Photos')}
+              />
             </DashboardPanel>
 
             {/* Arrival Photos */}
-            <DashboardPanel
-              title="Arrival Photos"
-              actions={
-                canUploadArrivalPhotos ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowArrivalUpload((prev) => !prev)}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {showArrivalUpload ? 'Cancel' : 'Upload Photos'}
-                  </Button>
-                ) : undefined
-              }
-            >
-              <div className="space-y-4">
-                {showArrivalUpload && canUploadArrivalPhotos && (
-                  <label
-                    htmlFor="arrival-photos"
-                    className="relative flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--background)] transition-all hover:border-[var(--accent-gold)]"
-                  >
-                    <input
-                      id="arrival-photos"
-                      type="file"
-                      multiple
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                      disabled={uploading}
-                    />
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      {uploading ? (
-                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent-gold)] border-t-transparent" />
-                      ) : (
-                        <Upload className="h-8 w-8 text-[var(--accent-gold)]" />
-                      )}
-                      <p className="text-sm text-[var(--text-secondary)]">
-                        <span className="font-semibold text-[var(--accent-gold)]">Click to upload</span> or drag and drop
-                      </p>
-                      <p className="text-xs text-[var(--text-secondary)]">PNG, JPG, JPEG, WEBP (MAX. 5MB per file)</p>
-                    </div>
-                  </label>
-                )}
-
-                {arrivalPhotos.length > 0 ? (
-                  <ImageList
-                    sx={{
-                      width: '100%',
-                      maxHeight: 500,
-                      borderRadius: 2,
-                    }}
-                    cols={3}
-                    gap={12}
-                    rowHeight={164}
-                  >
-                    {arrivalPhotos.map((photo, index) => (
-                      <ImageListItem
-                        key={index}
-                        sx={{
-                          cursor: 'pointer',
-                          overflow: 'hidden',
-                          borderRadius: 2,
-                          border: '1px solid var(--border)',
-                          transition: 'all 0.2s',
-                          position: 'relative',
-                          '&:hover': {
-                            transform: 'scale(1.05)',
-                            boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-                            '& .MuiImageListItemBar-root': {
-                              opacity: 1,
-                            },
-                            '& .delete-button': {
-                              opacity: 1,
-                            },
-                          },
-                        }}
-                        onClick={() => openLightbox(arrivalPhotos, index, 'Arrival Photos')}
-                      >
-                        <Image
-                          src={photo}
-                          alt={`Arrival photo ${index + 1}`}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          style={{ objectFit: 'cover' }}
-                          unoptimized
-                        />
-                        <ImageListItemBar
-                          title={`Photo ${index + 1}`}
-                          sx={{
-                            opacity: 0,
-                            transition: 'opacity 0.2s',
-                            background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)',
-                            '& .MuiImageListItemBar-title': {
-                              fontSize: '0.875rem',
-                              fontWeight: 600,
-                            },
-                          }}
-                          position="top"
-                          actionIcon={
-                            <MuiIconButton
-                              sx={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                              aria-label={`View photo ${index + 1}`}
-                            >
-                              <ImageIcon className="h-5 w-5" />
-                            </MuiIconButton>
-                          }
-                        />
-                        {canUploadArrivalPhotos && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              removeArrivalPhoto(index);
-                            }}
-                            className="delete-button absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--error)]/90 text-white opacity-0 transition-opacity hover:bg-[var(--error)]"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
-                      </ImageListItem>
-                    ))}
-                  </ImageList>
-                ) : (
-                  <p className="rounded-lg border border-[var(--border)] bg-[var(--background)] py-8 text-center text-sm text-[var(--text-secondary)]">
-                    {canUploadArrivalPhotos
-                      ? 'No arrival photos uploaded yet. Upload photos when the container arrives.'
-                      : 'No arrival photos available.'}
-                  </p>
-                )}
-              </div>
+            <DashboardPanel title={`Arrival Photos${arrivalPhotos.length ? ' (' + arrivalPhotos.length + ')' : ''}`}>
+              <PhotoGallery
+                photos={arrivalPhotos.map(url => ({ url, label: 'Arrival' }))}
+                onPhotoClick={(idx) => openLightbox(arrivalPhotos, idx, 'Arrival Photos')}
+                canUpload={canUploadArrivalPhotos}
+                onUpload={handleArrivalPhotosUpload}
+                onDelete={canUploadArrivalPhotos ? removeArrivalPhoto : undefined}
+                uploading={uploading}
+                uploadProgress={uploadProgress}
+                uploadLabel="Add Arrival Photos"
+              />
             </DashboardPanel>
-          </DashboardGrid>
+          </div>
         </TabPanel>
 
         {/* Documents Tab */}
@@ -1728,176 +1410,19 @@ export default function ShipmentDetailPage() {
         onSuccess={fetchShipment}
       />
 
-      {/* Lightbox */}
+      {/* Photo Lightbox */}
       {lightbox && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl"
-          onClick={(event) => {
-            if (event.currentTarget === event.target) {
-              setLightbox(null);
-            }
-          }}
-        >
-          {/* Header Bar */}
-          <div className="absolute left-0 right-0 top-0 z-10 bg-gradient-to-b from-black/80 to-transparent">
-            <div className="flex items-center justify-between p-4 sm:p-6">
-              <div className="flex-1">
-                <p className="text-sm font-medium uppercase tracking-wider text-[var(--text-secondary)]">{lightbox.title}</p>
-                <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">
-                  Photo {lightbox.index + 1} <span className="text-[var(--text-secondary)]">of {lightbox.images.length}</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLightbox(null)}
-                className="rounded-full bg-[var(--panel)] p-2.5 text-[var(--text-primary)] transition-all duration-200 hover:scale-110 hover:bg-[var(--border)]"
-                aria-label="Close gallery"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-
-          {/* Bottom Control Bar */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent">
-            <div className="flex items-center justify-between gap-4 p-4 sm:p-6">
-              {/* Zoom Controls */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={zoomOut}
-                  disabled={zoomLevel <= 0.5}
-                  className="rounded-lg bg-[var(--panel)] p-2 text-[var(--text-primary)] transition-all duration-200 hover:bg-[var(--border)] disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label="Zoom out"
-                >
-                  <ZoomOut className="h-5 w-5" />
-                </button>
-                <span className="min-w-[60px] text-center text-sm font-medium text-[var(--text-primary)]">
-                  {Math.round(zoomLevel * 100)}%
-                </span>
-                <button
-                  type="button"
-                  onClick={zoomIn}
-                  disabled={zoomLevel >= 3}
-                  className="rounded-lg bg-[var(--panel)] p-2 text-[var(--text-primary)] transition-all duration-200 hover:bg-[var(--border)] disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label="Zoom in"
-                >
-                  <ZoomIn className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Download Buttons */}
-              <div className="flex items-center gap-2">
-                {lightbox.images.length > 1 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadAllPhotos(lightbox.images, lightbox.title)}
-                    disabled={downloading}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    {downloading ? 'Downloading...' : `All (${lightbox.images.length})`}
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => downloadPhoto(
-                    lightbox.images[lightbox.index],
-                    `${lightbox.title.replace(/\s+/g, '-')}-${lightbox.index + 1}.jpg`
-                  )}
-                  disabled={downloading}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {downloading ? 'Downloading...' : 'Current'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Thumbnail Strip */}
-            {lightbox.images.length > 1 && (
-              <div className="px-4 pb-4 sm:px-6">
-                <div className="flex gap-2 overflow-x-auto py-2">
-                  {lightbox.images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setLightbox({ ...lightbox, index: idx });
-                        setZoomLevel(1);
-                      }}
-                      className={cn(
-                        'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-200',
-                        idx === lightbox.index
-                          ? 'scale-110 border-[var(--accent-gold)] ring-2 ring-[var(--accent-gold)]/50'
-                          : 'border-[var(--border)] opacity-60 hover:opacity-100'
-                      )}
-                    >
-                      <Image
-                        src={img}
-                        alt={`Thumbnail ${idx + 1}`}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Main Image Container */}
-          <div className="absolute inset-0 flex items-center justify-center px-4 py-24 sm:px-20">
-            <div className="group relative flex h-full w-full max-w-7xl items-center justify-center">
-              {/* Navigation Arrows */}
-              {lightbox.images.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={goPrevious}
-                    className="absolute left-0 top-1/2 z-20 -translate-x-2 -translate-y-1/2 rounded-full border-2 border-[var(--border)] bg-black/70 p-2.5 text-[var(--text-primary)] shadow-2xl transition-all duration-300 hover:scale-110 hover:border-[var(--accent-gold)] hover:bg-black/90 sm:-translate-x-6 sm:p-4 sm:opacity-0 sm:group-hover:opacity-100"
-                    aria-label="Previous photo"
-                  >
-                    <ChevronLeft className="h-5 w-5 sm:h-8 sm:w-8" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={goNext}
-                    className="absolute right-0 top-1/2 z-20 -translate-y-1/2 translate-x-2 rounded-full border-2 border-[var(--border)] bg-black/70 p-2.5 text-[var(--text-primary)] shadow-2xl transition-all duration-300 hover:scale-110 hover:border-[var(--accent-gold)] hover:bg-black/90 sm:translate-x-6 sm:p-4 sm:opacity-0 sm:group-hover:opacity-100"
-                    aria-label="Next photo"
-                  >
-                    <ChevronRight className="h-5 w-5 sm:h-8 sm:w-8" />
-                  </button>
-                </>
-              )}
-
-              {/* Image with zoom */}
-              <motion.div
-                animate={{ scale: zoomLevel }}
-                transition={{ duration: 0.2 }}
-                className="relative flex h-full w-full items-center justify-center"
-                style={{ 
-                  cursor: zoomLevel > 1 ? 'grab' : 'default'
-                }}
-              >
-                <div className="relative h-full w-full">
-                  <Image
-                    src={lightbox.images[lightbox.index]}
-                    alt={`${lightbox.title} ${lightbox.index + 1}`}
-                    fill
-                    className="object-contain"
-                    unoptimized
-                    priority
-                  />
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </motion.div>
+        <PhotoLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          title={lightbox.title}
+          canDelete={canUploadArrivalPhotos && lightbox.title === 'Arrival Photos'}
+          onClose={() => setLightbox(null)}
+          onNavigate={(idx) => setLightbox(prev => prev ? { ...prev, index: idx } : prev)}
+          onDelete={canUploadArrivalPhotos ? async (idx) => { await removeArrivalPhoto(idx); setLightbox(null); } : undefined}
+          onDownload={downloadPhoto}
+          downloading={downloading}
+        />
       )}
 
       {/* Assign to Transit Dialog */}
