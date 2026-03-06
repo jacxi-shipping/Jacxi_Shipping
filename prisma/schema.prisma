@@ -172,6 +172,7 @@ model Shipment {
   ledgerEntries    LedgerEntry[]
   invoiceLineItems InvoiceLineItem[]
   transitExpenses  TransitExpense[]
+  containerDamages ContainerDamage[]
 
   @@index([userId])
   @@index([containerId])
@@ -234,6 +235,7 @@ model Container {
   company        Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   shipments      Shipment[]
   expenses       ContainerExpense[]
+  damages        ContainerDamage[]
   invoices       ContainerInvoice[]
   documents      ContainerDocument[]
   trackingEvents ContainerTrackingEvent[]
@@ -269,6 +271,24 @@ model ContainerExpense {
 
   @@index([containerId])
   @@index([type])
+}
+
+model ContainerDamage {
+  id          String     @id @default(cuid())
+  containerId String
+  shipmentId  String
+  damageType  DamageType
+  amount      Float
+  description String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  shipment  Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([containerId])
+  @@index([shipmentId])
+  @@index([damageType])
 }
 
 model ContainerInvoice {
@@ -925,6 +945,11 @@ enum ExpenseAllocationMethod {
   BY_VALUE // Weighted by insurance value
   BY_WEIGHT // Weighted by vehicle weight
   CUSTOM // Custom allocation percentages
+}
+
+enum DamageType {
+  WE_PAY      // Business compensates the customer (credit user ledger)
+  COMPANY_PAYS // Shipping company is responsible (debit company ledger)
 }
 
 enum TransitStatus {
