@@ -32,7 +32,7 @@ import {
 import { Tabs, Tab, Box, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
 import { Breadcrumbs, toast, EmptyState, Tooltip, StatusBadge } from '@/components/design-system';
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
-import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
+
 import PhotoGallery from '@/components/shipments/PhotoGallery';
 import PhotoLightbox from '@/components/shipments/PhotoLightbox';
 import { downloadShipmentInvoicePDF } from '@/lib/utils/generateShipmentInvoicePDF';
@@ -184,7 +184,6 @@ export default function ShipmentDetailPage() {
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number; title: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
-  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [openAssignTransit, setOpenAssignTransit] = useState(false);
   const [transitIdToAssign, setTransitIdToAssign] = useState('');
   const [releaseTokenToAssign, setReleaseTokenToAssign] = useState('');
@@ -1229,14 +1228,6 @@ export default function ShipmentDetailPage() {
           <DashboardPanel 
             title="Shipment Financials" 
             description="Costs and expenses associated with this shipment"
-            actions={
-                isAdmin ? (
-                    <Button size="sm" onClick={() => setExpenseModalOpen(true)}>
-                        <DollarSign className="mr-2 h-4 w-4" />
-                        Add Expense
-                    </Button>
-                ) : undefined
-            }
           >
             <div className="space-y-4">
                 {/* Base Costs */}
@@ -1408,14 +1399,6 @@ export default function ShipmentDetailPage() {
           </TabPanel>
         )}
       </DashboardSurface>
-
-      {/* Add Expense Modal */}
-      <AddShipmentExpenseModal
-        open={expenseModalOpen}
-        onClose={() => setExpenseModalOpen(false)}
-        shipmentId={shipment.id}
-        onSuccess={fetchShipment}
-      />
 
       {/* Photo Lightbox */}
       {lightbox && (
