@@ -96,11 +96,13 @@ export default function PhotoLightbox({
     });
   }, [zoom]);
 
-  // Double-click to zoom toggle
   const handleDoubleClick = useCallback(() => {
-    setZoom(z => z > 1 ? 1 : 2);
-    if (zoom > 1) setPanOffset({ x: 0, y: 0 });
-  }, [zoom]);
+    setZoom(z => {
+      const next = z > 1 ? 1 : 2;
+      if (next === 1) setPanOffset({ x: 0, y: 0 });
+      return next;
+    });
+  }, []);
 
   // Touch swipe
   const handleTouchStart = (e: React.TouchEvent) => {

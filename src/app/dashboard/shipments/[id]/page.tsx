@@ -492,7 +492,8 @@ export default function ShipmentDetailPage() {
     }
 
     setUploading(false);
-    setTimeout(() => setUploadProgress([]), 2000);
+    const UPLOAD_PROGRESS_CLEAR_DELAY_MS = 2000;
+    setTimeout(() => setUploadProgress([]), UPLOAD_PROGRESS_CLEAR_DELAY_MS);
   };
 
   const removeArrivalPhoto = async (index: number) => {
@@ -525,6 +526,12 @@ export default function ShipmentDetailPage() {
     (shipment?.container?.status === 'ARRIVED_PORT' || 
      shipment?.container?.status === 'CUSTOMS_CLEARANCE' ||
      shipment?.container?.status === 'RELEASED');
+
+  /** Delete handler passed to PhotoLightbox — removes the photo and closes the viewer */
+  const handleLightboxDelete = useCallback(async (idx: number) => {
+    await removeArrivalPhoto(idx);
+    setLightbox(null);
+  }, [arrivalPhotos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const statusStyles = useMemo(() => statusColors, []);
   const isAdmin = session?.user?.role === 'admin';
@@ -1419,7 +1426,7 @@ export default function ShipmentDetailPage() {
           canDelete={canUploadArrivalPhotos && lightbox.title === 'Arrival Photos'}
           onClose={() => setLightbox(null)}
           onNavigate={(idx) => setLightbox(prev => prev ? { ...prev, index: idx } : prev)}
-          onDelete={canUploadArrivalPhotos ? async (idx) => { await removeArrivalPhoto(idx); setLightbox(null); } : undefined}
+          onDelete={canUploadArrivalPhotos ? handleLightboxDelete : undefined}
           onDownload={downloadPhoto}
           downloading={downloading}
         />
