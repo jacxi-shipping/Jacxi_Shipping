@@ -11,3 +11,6 @@
 ## 2024-05-18 - Atomic Updates for Performance and Race Condition Prevention
 **Learning:** Using sequential `count()` followed by `update()` queries in Prisma to maintain counter fields (like `currentCount` on a `Container` model) is an O(N) operation and susceptible to race conditions if multiple relations are modified simultaneously.
 **Action:** Replace sequential read-then-write counting operations with Prisma's atomic `increment: 1` and `decrement: 1` operators to achieve O(1) performance and natively prevent race conditions. Group independent atomic updates into a `Promise.all` array to parallelize database round-trips when transferring items between parent records.
+## 2026-03-06 - Prevent N+1 query in invoice generation
+**Learning:** Sequential string or number generation inside a loop (like invoice numbers) should pre-fetch the base count outside the loop and increment in-memory, avoiding an O(N) database count query.
+**Action:** Always extract `count()` queries from loops when used purely for generating sequential identifiers.

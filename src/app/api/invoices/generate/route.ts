@@ -101,6 +101,9 @@ export async function POST(req: NextRequest) {
     // Generate invoices for each user
     const generatedInvoices = [];
     
+    // ⚡ Bolt: Removed N+1 query inside loop by pre-fetching the count once and incrementing.
+    let invoiceCount = await prisma.userInvoice.count();
+
     for (const [userId, { user, shipments }] of Object.entries(shipmentsByUser)) {
       // Check if invoice already exists for this user and container
       const existingInvoice = await prisma.userInvoice.findFirst({
@@ -125,8 +128,8 @@ export async function POST(req: NextRequest) {
       }
 
       // Generate invoice number
-      const invoiceCount = await prisma.userInvoice.count();
-      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
+      invoiceCount++;
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount).padStart(4, '0')}`;
 
       // Calculate line items for this user
       const lineItems = [];
