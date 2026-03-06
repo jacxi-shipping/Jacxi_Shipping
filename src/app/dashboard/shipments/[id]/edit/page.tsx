@@ -161,7 +161,6 @@ export default function EditShipmentPage() {
         toast.error('An error occurred while loading data');
       } finally {
         setLoadingUsers(false);
-        setLoadingCompanies(false);
         setLoadingData(false);
       }
     };
