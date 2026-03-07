@@ -130,71 +130,6 @@ export async function GET(
     // Role-based access control
     const canReadAllContainers = hasPermission(session.user?.role, 'containers:read_all');
 
-    if (canReadAllContainers) {
-      const shipmentExpenses = await prisma.ledgerEntry.findMany({
-        where: {
-          shipment: {
-            containerId: params.id,
-          },
-          type: 'DEBIT',
-          metadata: {
-            path: ['isExpense'],
-            equals: true,
-          },
-          NOT: [
-            {
-              metadata: {
-                path: ['isContainerExpense'],
-                equals: true,
-              },
-            },
-          ],
-        },
-        select: {
-          id: true,
-          shipmentId: true,
-          amount: true,
-          description: true,
-          transactionDate: true,
-          metadata: true,
-          shipment: {
-            select: {
-              vehicleMake: true,
-              vehicleModel: true,
-              vehicleVIN: true,
-            },
-          },
-        },
-        orderBy: {
-          transactionDate: 'desc',
-        },
-      });
-
-      const mappedShipmentExpenses = shipmentExpenses.map((entry) => {
-        const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
-        const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'SHIPMENT_EXPENSE';
-        const vehicleLabel = [entry.shipment?.vehicleMake, entry.shipment?.vehicleModel].filter(Boolean).join(' ').trim();
-        const vinLabel = entry.shipment?.vehicleVIN ? ` (${entry.shipment.vehicleVIN})` : '';
-
-        return {
-          id: `shipment-${entry.id}`,
-          shipmentId: entry.shipmentId,
-          type: expenseType,
-          amount: entry.amount,
-          currency: 'USD',
-          date: entry.transactionDate,
-          vendor: vehicleLabel ? `${vehicleLabel}${vinLabel}` : 'Shipment expense',
-          description: entry.description,
-          source: 'SHIPMENT',
-        };
-      });
-
-      (container as any).expenses = [
-        ...container.expenses,
-        ...mappedShipmentExpenses,
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }
-    
     if (!canReadAllContainers) {
       // Check if user has any shipments in this container
       const userShipments = container.shipments.filter(s => s.userId === session.user.id);
@@ -286,6 +221,71 @@ export async function GET(
         logger.error('Error auto-syncing tracking:', syncError);
         // Continue even if sync fails
       }
+    }
+
+    if (canReadAllContainers) {
+      const shipmentExpenses = await prisma.ledgerEntry.findMany({
+        where: {
+          shipment: {
+            containerId: params.id,
+          },
+          type: 'DEBIT',
+          metadata: {
+            path: ['isExpense'],
+            equals: true,
+          },
+          NOT: [
+            {
+              metadata: {
+                path: ['isContainerExpense'],
+                equals: true,
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          shipmentId: true,
+          amount: true,
+          description: true,
+          transactionDate: true,
+          metadata: true,
+          shipment: {
+            select: {
+              vehicleMake: true,
+              vehicleModel: true,
+              vehicleVIN: true,
+            },
+          },
+        },
+        orderBy: {
+          transactionDate: 'desc',
+        },
+      });
+
+      const mappedShipmentExpenses = shipmentExpenses.map((entry) => {
+        const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+        const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'SHIPMENT_EXPENSE';
+        const vehicleLabel = [entry.shipment?.vehicleMake, entry.shipment?.vehicleModel].filter(Boolean).join(' ').trim();
+        const vinLabel = entry.shipment?.vehicleVIN ? ` (${entry.shipment.vehicleVIN})` : '';
+
+        return {
+          id: `shipment-${entry.id}`,
+          shipmentId: entry.shipmentId,
+          type: expenseType,
+          amount: entry.amount,
+          currency: 'USD',
+          date: entry.transactionDate,
+          vendor: vehicleLabel ? `${vehicleLabel}${vinLabel}` : 'Shipment expense',
+          description: entry.description,
+          source: 'SHIPMENT',
+        };
+      });
+
+      (container as any).expenses = [
+        ...container.expenses,
+        ...mappedShipmentExpenses,
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
     // Calculate totals
@@ -463,13 +463,17 @@ export async function PATCH(
           where: { containerId: container.id },
           data: { status: 'IN_TRANSIT' },
         });
-      } else if (validatedData.status === 'ARRIVED_PORT' || validatedData.status === 'RELEASED') {
-        // When container arrives or is released, shipments are effectively "on hand" at the destination
-        // or ready for pickup/delivery.
-        // Assuming ON_HAND means "at a facility we control", arrival at port or release fits.
+      } else if (validatedData.status === 'ARRIVED_PORT') {
+        // When container arrives at port, shipments are available at destination facility.
         await prisma.shipment.updateMany({
             where: { containerId: container.id },
             data: { status: 'ON_HAND' },
+        });
+      } else if (validatedData.status === 'RELEASED') {
+        // Released shipments are now eligible for transit assignment.
+        await prisma.shipment.updateMany({
+            where: { containerId: container.id },
+            data: { status: 'RELEASED' },
         });
       } else if (validatedData.status === 'CLOSED') {
         // When container is closed, it means the shipments have been delivered to customers

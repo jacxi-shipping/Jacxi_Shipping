@@ -15,7 +15,7 @@ type UpdateShipmentPayload = {
   vehicleColor?: string | null;
   lotNumber?: string | null;
   auctionName?: string | null;
-  status?: 'ON_HAND' | 'IN_TRANSIT' | 'IN_TRANSIT_TO_DESTINATION';
+  status?: 'ON_HAND' | 'IN_TRANSIT' | 'RELEASED' | 'IN_TRANSIT_TO_DESTINATION';
   containerId?: string | null;
   arrivalPhotos?: string[] | null;
   vehiclePhotos?: string[] | null;
@@ -201,10 +201,10 @@ export async function PATCH(
     if (data.status !== undefined) {
       updateData.status = data.status;
       
-      // If changing to IN_TRANSIT, container is required
-      if (data.status === 'IN_TRANSIT' && !data.containerId && !existingShipment.containerId) {
+      // If changing to IN_TRANSIT/RELEASED, container is required
+      if ((data.status === 'IN_TRANSIT' || data.status === 'RELEASED') && !data.containerId && !existingShipment.containerId) {
         return NextResponse.json(
-          { message: 'Container ID is required for IN_TRANSIT status' },
+          { message: 'Container ID is required for IN_TRANSIT or RELEASED status' },
           { status: 400 }
         );
       }

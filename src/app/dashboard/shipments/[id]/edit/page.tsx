@@ -714,6 +714,7 @@ export default function EditShipmentPage() {
 
                     <option value="ON_HAND">On Hand</option>
                     <option value="IN_TRANSIT">In Transit</option>
+                    <option value="RELEASED">Released</option>
                   </select>
                   {errors.status && (
                     <Typography sx={{ fontSize: '0.75rem', color: 'var(--error)', mt: 0.5 }}>

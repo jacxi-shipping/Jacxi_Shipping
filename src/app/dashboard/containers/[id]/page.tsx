@@ -236,6 +236,7 @@ export default function ContainerDetailPage() {
 	const [activeTab, setActiveTab] = useState('overview');
 	const [updating, setUpdating] = useState(false);
 	const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+	const [expenseView, setExpenseView] = useState<'CONTAINER' | 'SHIPMENT'>('CONTAINER');
 	const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
 	const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 	const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
@@ -409,11 +410,16 @@ export default function ContainerDetailPage() {
 	};
 
 	const handleDeleteExpense = async (expenseId: string) => {
-		if (!confirm('Are you sure you want to delete this expense?')) return;
+		const isShipmentExpense = expenseId.startsWith('shipment-');
+		if (!confirm('Are you sure you want to delete this expense? Linked company and user ledger transactions will also be removed.')) return;
 
 		setDeletingExpenseId(expenseId);
 		try {
-			const response = await fetch(`/api/containers/${params.id}/expenses?expenseId=${expenseId}`, {
+			const query = isShipmentExpense
+				? `shipmentExpenseEntryId=${expenseId.replace('shipment-', '')}`
+				: `expenseId=${expenseId}`;
+
+			const response = await fetch(`/api/containers/${params.id}/expenses?${query}`, {
 				method: 'DELETE',
 			});
 
@@ -716,6 +722,10 @@ export default function ContainerDetailPage() {
 
 	const capacityPercentage = (container.currentCount / container.maxCapacity) * 100;
 	const netProfit = container.totals.expenses > 0 ? container.totals.invoices - container.totals.expenses : 0;
+	const containerOnlyExpenses = container.expenses.filter((expense) => expense.source !== 'SHIPMENT');
+	const shipmentOnlyExpenses = container.expenses.filter((expense) => expense.source === 'SHIPMENT');
+	const displayedExpenses = expenseView === 'CONTAINER' ? containerOnlyExpenses : shipmentOnlyExpenses;
+	const displayedExpenseTotal = displayedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
 	return (
 		<ProtectedRoute>
@@ -1315,11 +1325,38 @@ export default function ContainerDetailPage() {
 								)}
 							</Box>
 
-							{container.expenses.length === 0 ? (
+							<Box sx={{ borderBottom: '1px solid var(--border)', mb: 2 }}>
+								<Tabs
+									value={expenseView}
+									onChange={(_, value) => setExpenseView(value)}
+									sx={{
+										'& .MuiTab-root': {
+											textTransform: 'none',
+											fontSize: '0.875rem',
+											fontWeight: 600,
+											color: 'var(--text-secondary)',
+											minHeight: 40,
+										},
+										'& .Mui-selected': {
+											color: 'var(--accent-gold) !important',
+										},
+										'& .MuiTabs-indicator': {
+											backgroundColor: 'var(--accent-gold)',
+										},
+									}}
+								>
+									<Tab label={`Container Expenses (${containerOnlyExpenses.length})`} value="CONTAINER" />
+									<Tab label={`Shipment Expenses (${shipmentOnlyExpenses.length})`} value="SHIPMENT" />
+								</Tabs>
+							</Box>
+
+							{displayedExpenses.length === 0 ? (
 								<EmptyState
 									icon={<DollarSign className="w-12 h-12" />}
-									title="No Expenses Recorded"
-									description="No expenses have been added to this container yet"
+									title={expenseView === 'CONTAINER' ? 'No Container Expenses' : 'No Shipment Expenses'}
+									description={expenseView === 'CONTAINER'
+										? 'No direct container expenses have been added yet'
+										: 'No shipment-level expenses found for this container'}
 								/>
 							) : (
 								<TableContainer>
@@ -1334,7 +1371,7 @@ export default function ContainerDetailPage() {
 											</TableRow>
 										</TableHead>
 										<TableBody>
-											{container.expenses.map((expense) => (
+											{displayedExpenses.map((expense) => (
 												<TableRow key={expense.id} hover>
 													<TableCell>{expense.type}</TableCell>
 													<TableCell>{expense.vendor || 'N/A'}</TableCell>
@@ -1344,7 +1381,33 @@ export default function ContainerDetailPage() {
 													</TableCell>
 													<TableCell align="right">
 														{expense.source === 'SHIPMENT' ? (
-															<Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>View on shipment</Box>
+															<Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() => {
+																		if (expense.shipmentId) {
+																			router.push(`/dashboard/shipments/${expense.shipmentId}`);
+																		}
+																	}}
+																>
+																	View
+																</Button>
+																<Button
+																	variant="outline"
+																	size="sm"
+																	icon={<Trash2 className="w-3 h-3" />}
+																	onClick={() => handleDeleteExpense(expense.id)}
+																	disabled={deletingExpenseId === expense.id}
+																	sx={{
+																		color: 'var(--error)',
+																		borderColor: 'var(--error)',
+																		'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
+																	}}
+																>
+																	{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
+																</Button>
+															</Box>
 														) : (
 															<Button
 																variant="outline"
@@ -1365,7 +1428,15 @@ export default function ContainerDetailPage() {
 												</TableRow>
 											))}
 											<TableRow>
-												<TableCell colSpan={4} sx={{ fontWeight: 700 }}>Total Expenses</TableCell>
+												<TableCell colSpan={4} sx={{ fontWeight: 700 }}>
+													{expenseView === 'CONTAINER' ? 'Total Container Expenses' : 'Total Shipment Expenses'}
+												</TableCell>
+												<TableCell align="right" sx={{ fontWeight: 700, color: 'var(--error)' }}>
+													{formatCurrency(displayedExpenseTotal)}
+												</TableCell>
+											</TableRow>
+											<TableRow>
+												<TableCell colSpan={4} sx={{ fontWeight: 700 }}>Grand Total (All Expenses)</TableCell>
 												<TableCell align="right" sx={{ fontWeight: 700, color: 'var(--error)' }}>
 													{formatCurrency(container.totals.expenses)}
 												</TableCell>

@@ -138,7 +138,7 @@ export async function DELETE(
 
     await prisma.shipment.update({
       where: { id: shipmentId },
-      data: { transitId: null, status: 'IN_TRANSIT' },
+      data: { transitId: null, status: 'RELEASED' },
     });
 
     return NextResponse.json({ success: true });

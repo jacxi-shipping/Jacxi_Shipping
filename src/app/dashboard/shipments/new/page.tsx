@@ -994,6 +994,7 @@ export default function NewShipmentPage() {
 									>
 										<option value="ON_HAND">On Hand</option>
 										<option value="IN_TRANSIT">In Transit</option>
+										<option value="RELEASED">Released</option>
 									</select>
 									{errors.status && (
 										<Typography sx={{ fontSize: '0.75rem', color: 'var(--error)', mt: 0.5 }}>
@@ -1001,9 +1002,11 @@ export default function NewShipmentPage() {
 										</Typography>
 									)}
 									<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
-										{statusValue === 'ON_HAND' 
+										{statusValue === 'ON_HAND'
 											? 'Vehicle is currently on hand, not yet assigned to a container'
-											: 'Vehicle is in transit - must be assigned to a container'}
+											: statusValue === 'IN_TRANSIT'
+											? 'Vehicle is in transit - must be assigned to a container'
+											: 'Vehicle is released and ready for transit assignment'}
 									</Typography>
 								</Box>
 

@@ -80,13 +80,106 @@ export async function POST(request: NextRequest) {
       }
 
       case 'delete': {
-        const result = await prisma.userInvoice.deleteMany({
-          where: { id: { in: invoiceIds } },
+        const result = await prisma.$transaction(async (tx) => {
+          const invoices = await tx.userInvoice.findMany({
+            where: { id: { in: invoiceIds } },
+            select: {
+              id: true,
+              invoiceNumber: true,
+              paymentReference: true,
+            },
+          });
+
+          const invoiceNumbers = invoices.map((invoice) => invoice.invoiceNumber);
+          const paymentReferenceIds = invoices
+            .map((invoice) => invoice.paymentReference)
+            .filter((reference): reference is string => Boolean(reference));
+
+          const userLedgerLinks = await tx.ledgerEntry.findMany({
+            where: {
+              OR: [
+                ...invoices.map((invoice) => ({
+                  metadata: {
+                    path: ['invoiceId'],
+                    equals: invoice.id,
+                  },
+                })),
+                ...invoiceNumbers.map((invoiceNumber) => ({
+                  metadata: {
+                    path: ['invoiceNumber'],
+                    equals: invoiceNumber,
+                  },
+                })),
+                ...(paymentReferenceIds.length > 0
+                  ? [
+                      {
+                        id: { in: paymentReferenceIds },
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            select: { id: true },
+          });
+
+          const companyLedgerLinks = await tx.companyLedgerEntry.findMany({
+            where: {
+              OR: [
+                ...invoices.map((invoice) => ({
+                  metadata: {
+                    path: ['invoiceId'],
+                    equals: invoice.id,
+                  },
+                })),
+                ...invoiceNumbers.map((invoiceNumber) => ({
+                  metadata: {
+                    path: ['invoiceNumber'],
+                    equals: invoiceNumber,
+                  },
+                })),
+                ...(invoiceNumbers.length > 0
+                  ? [
+                      {
+                        reference: { in: invoiceNumbers },
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            select: { id: true },
+          });
+
+          const userLedgerEntryIds = userLedgerLinks.map((entry) => entry.id);
+          const companyLedgerEntryIds = companyLedgerLinks.map((entry) => entry.id);
+
+          if (userLedgerEntryIds.length > 0) {
+            await tx.ledgerEntry.deleteMany({
+              where: { id: { in: userLedgerEntryIds } },
+            });
+          }
+
+          if (companyLedgerEntryIds.length > 0) {
+            await tx.companyLedgerEntry.deleteMany({
+              where: { id: { in: companyLedgerEntryIds } },
+            });
+          }
+
+          const deletedInvoices = await tx.userInvoice.deleteMany({
+            where: { id: { in: invoiceIds } },
+          });
+
+          return {
+            count: deletedInvoices.count,
+            removedUserLedgerEntries: userLedgerEntryIds.length,
+            removedCompanyLedgerEntries: companyLedgerEntryIds.length,
+          };
         });
 
         return NextResponse.json({
           message: 'Bulk delete completed successfully',
           count: result.count,
+          removedUserLedgerEntries: result.removedUserLedgerEntries,
+          removedCompanyLedgerEntries: result.removedCompanyLedgerEntries,
         });
       }
 

@@ -38,10 +38,10 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        // Validate status is either ON_HAND or IN_TRANSIT
-        if (data.status !== 'ON_HAND' && data.status !== 'IN_TRANSIT') {
+        // Validate status is one of supported operational statuses
+        if (data.status !== 'ON_HAND' && data.status !== 'IN_TRANSIT' && data.status !== 'RELEASED') {
           return NextResponse.json(
-            { message: 'Status must be ON_HAND or IN_TRANSIT' },
+            { message: 'Status must be ON_HAND, IN_TRANSIT, or RELEASED' },
             { status: 400 }
           );
         }

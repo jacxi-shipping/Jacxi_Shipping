@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get('status'); // ON_HAND or IN_TRANSIT
+    const status = searchParams.get('status'); // ON_HAND | IN_TRANSIT | RELEASED
     const containerId = searchParams.get('containerId');
     const search = searchParams.get('search');
     const includeFinancial = searchParams.get('includeFinancial') === 'true';
@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
       where.userId = session.user?.id;
     }
 
-    // Add status filter (ON_HAND or IN_TRANSIT)
-    if (status && (status === 'ON_HAND' || status === 'IN_TRANSIT')) {
+    // Add status filter
+    if (status && (status === 'ON_HAND' || status === 'IN_TRANSIT' || status === 'RELEASED')) {
       where.status = status;
     }
 
@@ -171,7 +171,7 @@ type CreateShipmentPayload = {
   dimensions?: string | null;
   specialInstructions?: string | null;
   vehiclePhotos?: string[] | null;
-  status?: 'ON_HAND' | 'IN_TRANSIT' | null;
+  status?: 'ON_HAND' | 'IN_TRANSIT' | 'RELEASED' | null;
   containerId?: string | null;
   internalNotes?: string | null;
   hasKey?: boolean | null;
@@ -243,10 +243,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If status is IN_TRANSIT, containerId is required
-    if (providedStatus === 'IN_TRANSIT' && !containerId) {
+    // If status is IN_TRANSIT/RELEASED, containerId is required
+    if ((providedStatus === 'IN_TRANSIT' || providedStatus === 'RELEASED') && !containerId) {
       return NextResponse.json(
-        { message: 'Container ID is required for IN_TRANSIT shipments' },
+        { message: 'Container ID is required for IN_TRANSIT or RELEASED shipments' },
         { status: 400 }
       );
     }

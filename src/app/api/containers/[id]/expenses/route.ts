@@ -289,9 +289,9 @@ export async function POST(
 // DELETE - Remove expense
 export async function DELETE(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     
@@ -301,13 +301,149 @@ export async function DELETE(
 
     const { searchParams } = new URL(request.url);
     const expenseId = searchParams.get('expenseId');
+    const shipmentExpenseEntryId = searchParams.get('shipmentExpenseEntryId');
 
-    if (!expenseId) {
+    if (!expenseId && !shipmentExpenseEntryId) {
       return NextResponse.json({ error: 'Expense ID required' }, { status: 400 });
     }
 
+    if (shipmentExpenseEntryId) {
+      await prisma.$transaction(async (tx) => {
+        const baseEntry = await tx.ledgerEntry.findFirst({
+          where: {
+            id: shipmentExpenseEntryId,
+            type: 'DEBIT',
+            metadata: {
+              path: ['isExpense'],
+              equals: true,
+            },
+            shipment: {
+              containerId: params.id,
+            },
+          },
+          include: {
+            shipment: {
+              select: {
+                id: true,
+                userId: true,
+                containerId: true,
+                container: {
+                  select: {
+                    companyId: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!baseEntry || !baseEntry.shipment || baseEntry.shipment.containerId !== params.id) {
+          throw new Error('Shipment expense not found');
+        }
+
+        const baseMetadata = (baseEntry.metadata ?? {}) as Record<string, unknown>;
+        const expenseType = typeof baseMetadata.expenseType === 'string' ? baseMetadata.expenseType : undefined;
+
+        const linkedCompanyEntries = await tx.companyLedgerEntry.findMany({
+          where: {
+            OR: [
+              {
+                reference: `shipment-expense:${baseEntry.id}`,
+              },
+              {
+                metadata: {
+                  path: ['linkedUserExpenseEntryId'],
+                  equals: baseEntry.id,
+                },
+              },
+            ],
+          },
+          select: { id: true, companyId: true },
+        });
+
+        const linkedCashCredits = await tx.ledgerEntry.findMany({
+          where: {
+            userId: baseEntry.userId,
+            shipmentId: baseEntry.shipmentId,
+            type: 'CREDIT',
+            metadata: {
+              path: ['parentExpenseEntryId'],
+              equals: baseEntry.id,
+            },
+          },
+          select: { id: true },
+        });
+
+        const fallbackCashCredits = linkedCashCredits.length > 0
+          ? linkedCashCredits
+          : await tx.ledgerEntry.findMany({
+              where: {
+                userId: baseEntry.userId,
+                shipmentId: baseEntry.shipmentId,
+                type: 'CREDIT',
+                amount: baseEntry.amount,
+                notes: baseEntry.notes,
+                createdAt: {
+                  gte: new Date(baseEntry.createdAt.getTime() - 2 * 60 * 1000),
+                  lte: new Date(baseEntry.createdAt.getTime() + 2 * 60 * 1000),
+                },
+                metadata: {
+                  path: ['isCashPayment'],
+                  equals: true,
+                },
+              },
+              select: { id: true },
+            });
+
+        const userEntryIdsToDelete = [
+          baseEntry.id,
+          ...fallbackCashCredits.map((entry) => entry.id),
+        ];
+
+        await tx.ledgerEntry.deleteMany({
+          where: {
+            id: { in: userEntryIdsToDelete },
+          },
+        });
+
+        if (linkedCompanyEntries.length > 0) {
+          await tx.companyLedgerEntry.deleteMany({
+            where: {
+              id: { in: linkedCompanyEntries.map((entry) => entry.id) },
+            },
+          });
+        }
+
+        await recalculateUserLedgerBalances(tx, baseEntry.userId);
+
+        const companyIds = new Set(linkedCompanyEntries.map((entry) => entry.companyId));
+        if (baseEntry.shipment.container?.companyId) {
+          companyIds.add(baseEntry.shipment.container.companyId);
+        }
+        for (const companyId of companyIds) {
+          await recalculateCompanyLedgerBalances(tx, companyId);
+        }
+
+        await tx.containerAuditLog.create({
+          data: {
+            containerId: params.id,
+            action: 'EXPENSE_DELETED',
+            description: `Shipment expense deleted${expenseType ? `: ${expenseType}` : ''}`,
+            performedBy: session.user!.id as string,
+            oldValue: JSON.stringify({
+              shipmentExpenseEntryId: baseEntry.id,
+              amount: baseEntry.amount,
+              expenseType,
+            }),
+          },
+        });
+      });
+
+      return NextResponse.json({ message: 'Shipment expense and linked transactions deleted successfully' });
+    }
+
     const expense = await prisma.containerExpense.findUnique({
-      where: { id: expenseId },
+      where: { id: expenseId as string },
       include: {
         container: {
           select: {
@@ -327,7 +463,7 @@ export async function DELETE(
         where: {
           metadata: {
             path: ['containerExpenseId'],
-            equals: expenseId,
+            equals: expenseId as string,
           },
         },
         select: { id: true, userId: true },
@@ -337,7 +473,7 @@ export async function DELETE(
         where: {
           metadata: {
             path: ['containerExpenseId'],
-            equals: expenseId,
+            equals: expenseId as string,
           },
         },
         select: { id: true, companyId: true },
@@ -359,7 +495,7 @@ export async function DELETE(
         });
       }
 
-      await tx.containerExpense.delete({ where: { id: expenseId } });
+      await tx.containerExpense.delete({ where: { id: expenseId as string } });
 
       const userIds = Array.from(new Set(linkedUserEntries.map((entry) => entry.userId)));
       for (const userId of userIds) {

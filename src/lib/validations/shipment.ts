@@ -52,8 +52,8 @@ export const shipmentSchema = z.object({
   titleStatus: z.enum(['PENDING', 'DELIVERED']).optional(),
   paymentMode: z.enum(['CASH', 'DUE']).optional(),
   
-  // Status (ON_HAND or IN_TRANSIT)
-  status: z.enum(['ON_HAND', 'IN_TRANSIT']).default('ON_HAND'),
+  // Status lifecycle
+  status: z.enum(['ON_HAND', 'IN_TRANSIT', 'RELEASED']).default('ON_HAND'),
   
   // Container ID (nullable, required when status is IN_TRANSIT)
   containerId: z.string().optional(),
@@ -64,13 +64,13 @@ export const shipmentSchema = z.object({
     { message: 'Internal notes cannot exceed 2000 characters' }
   ),
 }).refine((data) => {
-  // If status is IN_TRANSIT, container ID is required
-  if (data.status === 'IN_TRANSIT' && !data.containerId) {
+  // In-transit or released shipments must be linked to a container
+  if ((data.status === 'IN_TRANSIT' || data.status === 'RELEASED') && !data.containerId) {
     return false;
   }
   return true;
 }, {
-  message: 'Container selection is required when status is IN_TRANSIT',
+  message: 'Container selection is required when status is IN_TRANSIT or RELEASED',
   path: ['containerId'],
 }).refine((data) => {
   // If service type is PURCHASE_AND_SHIPPING, purchase price is required
@@ -130,7 +130,7 @@ export const shipmentUpdateSchema = z.object({
   paymentMode: z.enum(['CASH', 'DUE']).optional(),
   
   // Status and Container
-  status: z.enum(['ON_HAND', 'IN_TRANSIT']).optional(),
+  status: z.enum(['ON_HAND', 'IN_TRANSIT', 'RELEASED']).optional(),
   containerId: z.string().optional(),
   
   // Internal Notes

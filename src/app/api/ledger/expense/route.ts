@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
           metadata: {
             isExpenseRecovery: true,
             expenseSource: 'SHIPMENT',
+            linkedUserExpenseEntryId: debitEntry.id,
             shipmentId: shipment.id,
             userId: shipment.userId,
             expenseType: validatedData.expenseType,
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
               paymentMode: validatedData.paymentMode,
               isExpense: true,
               isCashPayment: true,
+              parentExpenseEntryId: debitEntry.id,
               linkedCompanyId: resolvedCompanyId,
               expenseSource: 'SHIPMENT',
             },

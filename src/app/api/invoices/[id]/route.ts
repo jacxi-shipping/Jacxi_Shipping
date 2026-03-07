@@ -229,7 +229,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Check if invoice exists and is not paid
+    // Check if invoice exists
     const invoice = await prisma.userInvoice.findUnique({
       where: { id: params.id },
     });
@@ -238,19 +238,92 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    if (invoice.status === 'PAID') {
-      return NextResponse.json(
-        { error: 'Cannot delete paid invoices. Cancel instead.' },
-        { status: 400 }
-      );
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      const userLedgerLinks = await tx.ledgerEntry.findMany({
+        where: {
+          OR: [
+            {
+              metadata: {
+                path: ['invoiceId'],
+                equals: invoice.id,
+              },
+            },
+            {
+              metadata: {
+                path: ['invoiceNumber'],
+                equals: invoice.invoiceNumber,
+              },
+            },
+            ...(invoice.paymentReference
+              ? [
+                  {
+                    id: invoice.paymentReference,
+                  },
+                ]
+              : []),
+          ],
+        },
+        select: { id: true },
+      });
 
-    // Delete invoice (cascade will delete line items)
-    await prisma.userInvoice.delete({
-      where: { id: params.id },
+      const companyLedgerLinks = await tx.companyLedgerEntry.findMany({
+        where: {
+          OR: [
+            {
+              metadata: {
+                path: ['invoiceId'],
+                equals: invoice.id,
+              },
+            },
+            {
+              metadata: {
+                path: ['invoiceNumber'],
+                equals: invoice.invoiceNumber,
+              },
+            },
+            {
+              reference: invoice.invoiceNumber,
+            },
+          ],
+        },
+        select: { id: true },
+      });
+
+      const userLedgerEntryIds = userLedgerLinks.map((entry) => entry.id);
+      const companyLedgerEntryIds = companyLedgerLinks.map((entry) => entry.id);
+
+      if (userLedgerEntryIds.length > 0) {
+        await tx.ledgerEntry.deleteMany({
+          where: {
+            id: { in: userLedgerEntryIds },
+          },
+        });
+      }
+
+      if (companyLedgerEntryIds.length > 0) {
+        await tx.companyLedgerEntry.deleteMany({
+          where: {
+            id: { in: companyLedgerEntryIds },
+          },
+        });
+      }
+
+      // Delete invoice (cascade will delete line items)
+      await tx.userInvoice.delete({
+        where: { id: params.id },
+      });
+
+      return {
+        removedUserLedgerEntries: userLedgerEntryIds.length,
+        removedCompanyLedgerEntries: companyLedgerEntryIds.length,
+      };
     });
 
-    return NextResponse.json({ success: true, message: 'Invoice deleted successfully' });
+    return NextResponse.json({
+      success: true,
+      message: 'Invoice and linked ledger transactions deleted successfully',
+      ...result,
+    });
 
   } catch (error) {
     console.error('Error deleting invoice:', error);

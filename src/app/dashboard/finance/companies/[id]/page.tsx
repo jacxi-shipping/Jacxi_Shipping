@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Box,
   Dialog,
@@ -14,7 +14,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { ArrowLeft, Building2, DollarSign, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, DollarSign, Eye, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react';
 import AdminRoute from '@/components/auth/AdminRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
@@ -103,6 +103,7 @@ interface CompanyReport {
 
 export default function CompanyLedgerDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const companyId = String(params.id || '');
 
   const [company, setCompany] = useState<Company | null>(null);
@@ -519,26 +520,6 @@ export default function CompanyLedgerDetailPage() {
               />
             </Box>
 
-            <Box>
-              <Box sx={{ fontWeight: 600, mb: 1 }}>Recent Shipments</Box>
-              <DataTable
-                data={company.shipments || []}
-                keyField="id"
-                columns={[
-                  {
-                    key: 'vehicleVIN',
-                    header: 'Vehicle',
-                    render: (_, row) => row.vehicleVIN || [row.vehicleMake, row.vehicleModel].filter(Boolean).join(' ') || '-',
-                  },
-                  { key: 'status', header: 'Status', sortable: true },
-                  {
-                    key: 'createdAt',
-                    header: 'Created',
-                    render: (_, row) => new Date(row.createdAt).toLocaleDateString(),
-                  },
-                ]}
-              />
-            </Box>
           </DashboardPanel>
         )}
 
@@ -575,7 +556,7 @@ export default function CompanyLedgerDetailPage() {
             </Box>
 
             <Box>
-              <Box sx={{ fontWeight: 600, mb: 1 }}>Transit Shipments</Box>
+              <Box sx={{ fontWeight: 600, mb: 1 }}>Assigned Shipments</Box>
               <DataTable
                 data={(company.shipments || []).filter((shipment) => Boolean(shipment.transitId))}
                 keyField="id"
@@ -591,9 +572,35 @@ export default function CompanyLedgerDetailPage() {
                     header: 'Created',
                     render: (_, row) => new Date(row.createdAt).toLocaleDateString(),
                   },
+                  {
+                    key: 'id',
+                    header: 'Actions',
+                    render: (_, row) => (
+                      <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'center' }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<Eye className="w-3.5 h-3.5" />}
+                          onClick={() => router.push(`/dashboard/shipments/${row.id}`)}
+                        >
+                          Shipment
+                        </Button>
+                        {row.transitId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/transits/${row.transitId}`)}
+                          >
+                            Transit
+                          </Button>
+                        )}
+                      </Box>
+                    ),
+                  },
                 ]}
               />
             </Box>
+
           </DashboardPanel>
         )}
 

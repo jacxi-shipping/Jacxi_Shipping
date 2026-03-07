@@ -128,6 +128,35 @@ export async function POST(req: NextRequest) {
       const invoiceCount = await prisma.userInvoice.count();
       const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
 
+      // Fetch shipment-level expenses already posted in user ledger for this user's shipments.
+      // Exclude container allocation entries and credit rows to avoid duplicates.
+      const shipmentIds = shipments.map((shipment) => shipment.id);
+      const shipmentExpenseEntries = await prisma.ledgerEntry.findMany({
+        where: {
+          userId,
+          shipmentId: { in: shipmentIds },
+          type: 'DEBIT',
+          metadata: {
+            path: ['isExpense'],
+            equals: true,
+          },
+          NOT: [
+            {
+              metadata: {
+                path: ['isContainerExpense'],
+                equals: true,
+              },
+            },
+          ],
+        },
+        select: {
+          shipmentId: true,
+          description: true,
+          amount: true,
+          metadata: true,
+        },
+      });
+
       // Calculate line items for this user
       const lineItems = [];
       let subtotal = 0;
@@ -180,6 +209,35 @@ export async function POST(req: NextRequest) {
             amount: allocatedExpense,
           });
           subtotal += allocatedExpense;
+        }
+
+        // Shipment expenses posted via shipment expense flow (ledger DEBITs)
+        const shipmentSpecificExpenses = shipmentExpenseEntries.filter(
+          (entry) => entry.shipmentId === shipment.id
+        );
+
+        for (const expenseEntry of shipmentSpecificExpenses) {
+          const metadata = (expenseEntry.metadata ?? {}) as Record<string, unknown>;
+          const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'OTHER';
+
+          lineItems.push({
+            description: expenseEntry.description || `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Shipment Expense`.trim(),
+            shipmentId: shipment.id,
+            type: mapExpenseTypeToLineItemType(expenseType) as
+              | 'VEHICLE_PRICE'
+              | 'PURCHASE_PRICE'
+              | 'INSURANCE'
+              | 'SHIPPING_FEE'
+              | 'CUSTOMS_FEE'
+              | 'STORAGE_FEE'
+              | 'HANDLING_FEE'
+              | 'OTHER_FEE'
+              | 'DISCOUNT',
+            quantity: 1,
+            unitPrice: expenseEntry.amount,
+            amount: expenseEntry.amount,
+          });
+          subtotal += expenseEntry.amount;
         }
 
         // Damage credit (deduction from invoice if company absorbed damage)

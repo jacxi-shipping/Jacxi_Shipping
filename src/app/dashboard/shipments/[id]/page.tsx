@@ -613,6 +613,27 @@ export default function ShipmentDetailPage() {
                       Download Receipt
                   </Button>
                 </Tooltip>
+                {isAdmin && !shipment.releaseToken && (
+                  <Tooltip
+                    title={
+                      isReleasedForTransit
+                        ? 'Generate release token for this shipment'
+                        : 'Release token can be generated after shipment/container status is Released'
+                    }
+                  >
+                    <span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        icon={<FileText className="w-4 h-4" />}
+                        onClick={() => void handleGenerateReleaseToken()}
+                        disabled={creatingReleaseToken || !isReleasedForTransit}
+                      >
+                        {creatingReleaseToken ? 'Generating...' : 'Generate Token'}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
                 {shipment.releaseToken && (
                   <Tooltip title="Download release token document as PDF with customer, vehicle, and payment details.">
                     <Button variant="outline" size="sm" onClick={handleDownloadReleaseToken}>
