@@ -42,10 +42,11 @@ export default function SignInPage() {
 				redirect: false,
 			});
 
-			if (result?.error) {
+			if (result?.error || !result?.ok) {
 				setError('Invalid email or password');
 			} else {
-				router.push('/dashboard');
+				router.replace('/dashboard');
+				router.refresh();
 			}
 		} catch {
 			setError('An error occurred. Please try again.');
