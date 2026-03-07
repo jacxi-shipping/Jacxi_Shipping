@@ -45,6 +45,10 @@ export async function GET(
     }
 
     const canReadAllShipments = hasPermission(session.user?.role, 'shipments:read_all');
+    const canViewCompanyLedgerComparison =
+      hasPermission(session.user?.role, 'finance:view') ||
+      hasPermission(session.user?.role, 'finance:manage') ||
+      canReadAllShipments;
 
     const shipment = await prisma.shipment.findUnique({
       where: { id },
@@ -148,7 +152,38 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ shipment }, { status: 200 });
+    const companyLedgerEntries = canViewCompanyLedgerComparison
+      ? await prisma.companyLedgerEntry.findMany({
+          where: {
+            metadata: {
+              path: ['shipmentId'],
+              equals: id,
+            },
+          },
+          select: {
+            id: true,
+            transactionDate: true,
+            description: true,
+            type: true,
+            amount: true,
+            balance: true,
+            metadata: true,
+          },
+          orderBy: {
+            transactionDate: 'desc',
+          },
+        })
+      : [];
+
+    return NextResponse.json(
+      {
+        shipment: {
+          ...shipment,
+          companyLedgerEntries,
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('Error fetching shipment:', error);
     return NextResponse.json(
