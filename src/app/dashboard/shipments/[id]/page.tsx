@@ -28,6 +28,7 @@ import {
   Ship,
   Eye,
   EyeOff,
+  AlertTriangle,
 } from 'lucide-react';
 import { Tabs, Tab, Box, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
 import { Breadcrumbs, toast, EmptyState, Tooltip, StatusBadge } from '@/components/design-system';
@@ -147,6 +148,14 @@ interface Shipment {
     amount: number;
     balance: number;
     metadata?: Record<string, unknown> | null;
+  }>;
+  containerDamages: Array<{
+    id: string;
+    containerId: string;
+    damageType: 'WE_PAY' | 'COMPANY_PAYS';
+    amount: number;
+    description: string;
+    createdAt: string;
   }>;
 }
 
@@ -361,7 +370,14 @@ export default function ShipmentDetailPage() {
     
     try {
         const expenses = shipment.ledgerEntries
-            .filter(e => e.type === 'DEBIT')
+            .filter((e) => {
+              if (e.type !== 'DEBIT') return false;
+              const metadata = (e.metadata ?? {}) as Record<string, unknown>;
+              const isExpense = metadata.isExpense === true || metadata.isExpense === 'true';
+              const expenseSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
+              const isContainerExpense = metadata.isContainerExpense === true || metadata.isContainerExpense === 'true';
+              return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
+            })
             .map(e => ({
                 description: e.description,
                 amount: e.amount,
@@ -704,6 +720,7 @@ export default function ShipmentDetailPage() {
             <Tab icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label="Photos" />
             <Tab icon={<FileText className="h-4 w-4" />} iconPosition="start" label={`Documents (${shipment.documents?.length || 0})`} />
             <Tab icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label="Financials" />
+            <Tab icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={`Damages (${shipment.containerDamages?.length || 0})`} />
             <Tab icon={<PackageCheck className="h-4 w-4" />} iconPosition="start" label="Details" />
             {isAdmin && <Tab icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
           </Tabs>
@@ -1334,8 +1351,47 @@ export default function ShipmentDetailPage() {
           </DashboardPanel>
         </TabPanel>
 
-        {/* Details Tab */}
+        {/* Damages Tab */}
         <TabPanel value={activeTab} index={5}>
+          <DashboardPanel title="Shipment Damages" description="Damage records logged for this shipment from container operations">
+            {shipment.containerDamages && shipment.containerDamages.length > 0 ? (
+              <div className="space-y-3">
+                {shipment.containerDamages.map((damage) => (
+                  <div key={damage.id} className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">{damage.description}</p>
+                        <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                          Added on {new Date(damage.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+                          style={{
+                            background: damage.damageType === 'WE_PAY' ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.15)',
+                            color: damage.damageType === 'WE_PAY' ? 'rgb(34,197,94)' : 'rgb(249,115,22)',
+                            border: damage.damageType === 'WE_PAY' ? '1px solid rgba(34,197,94,0.35)' : '1px solid rgba(249,115,22,0.35)',
+                          }}
+                        >
+                          {damage.damageType === 'WE_PAY' ? 'We Pay (Customer Credit)' : 'Company Pays'}
+                        </span>
+                        <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">${damage.amount.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-[var(--border)] bg-[var(--background)] py-8 text-center text-sm text-[var(--text-secondary)]">
+                No damages have been recorded for this shipment.
+              </p>
+            )}
+          </DashboardPanel>
+        </TabPanel>
+
+        {/* Details Tab */}
+        <TabPanel value={activeTab} index={6}>
           <DashboardGrid className="grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Vehicle Information */}
             <DashboardPanel title="Vehicle Information">
@@ -1429,7 +1485,7 @@ export default function ShipmentDetailPage() {
 
         {/* Customer Tab (Admin Only) */}
         {isAdmin && (
-          <TabPanel value={activeTab} index={6}>
+          <TabPanel value={activeTab} index={7}>
             <DashboardPanel title="Customer Information">
               <div className="space-y-4">
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">

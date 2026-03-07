@@ -160,6 +160,18 @@ export async function POST(req: NextRequest) {
         return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
       });
 
+      const shipmentDamageRecords = await prisma.containerDamage.findMany({
+        where: {
+          shipmentId: { in: shipmentIds },
+        },
+        select: {
+          shipmentId: true,
+          damageType: true,
+          amount: true,
+          description: true,
+        },
+      });
+
       // Calculate line items for this user
       const lineItems = [];
       let subtotal = 0;
@@ -241,6 +253,33 @@ export async function POST(req: NextRequest) {
             amount: expenseEntry.amount,
           });
           subtotal += expenseEntry.amount;
+        }
+
+        const shipmentDamages = shipmentDamageRecords.filter((damage) => damage.shipmentId === shipment.id);
+        for (const damage of shipmentDamages) {
+          const vehicleLabel = `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim();
+
+          if (damage.damageType === 'WE_PAY') {
+            lineItems.push({
+              description: `${vehicleLabel || 'Vehicle'} - Damage Compensation (${damage.description})`.trim(),
+              shipmentId: shipment.id,
+              type: 'DISCOUNT' as const,
+              quantity: 1,
+              unitPrice: -damage.amount,
+              amount: -damage.amount,
+            });
+            subtotal -= damage.amount;
+          } else {
+            // COMPANY_PAYS damages are shown for transparency but do not affect customer total.
+            lineItems.push({
+              description: `${vehicleLabel || 'Vehicle'} - Damage Note (Company Pays): ${damage.description}`.trim(),
+              shipmentId: shipment.id,
+              type: 'OTHER_FEE' as const,
+              quantity: 1,
+              unitPrice: 0,
+              amount: 0,
+            });
+          }
         }
 
         // Damage credit (deduction from invoice if company absorbed damage)

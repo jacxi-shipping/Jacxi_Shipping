@@ -117,6 +117,19 @@ export async function GET(
             transactionDate: 'desc',
           },
         },
+        containerDamages: {
+          select: {
+            id: true,
+            containerId: true,
+            damageType: true,
+            amount: true,
+            description: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
