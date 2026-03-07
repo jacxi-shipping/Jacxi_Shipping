@@ -1320,7 +1320,7 @@ export default function ContainerDetailPage() {
 											setShipmentExpenseModalOpen(true);
 										}}
 									>
-										Add Shipment Expense
+										Add Shipment Expenses
 									</Button>
 								)}
 								{canManageExpenses && (
