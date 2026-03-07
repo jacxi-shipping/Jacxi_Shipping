@@ -23,6 +23,7 @@ import Footer from '@/components/sections/Footer';
 import Button from '@/components/design-system/Button';
 import { StatsCard } from '@/components/design-system';
 import { useInView } from '@/hooks/useInView';
+import { useSession } from 'next-auth/react';
 
 // --- Components ---
 
@@ -286,6 +287,8 @@ function Testimonial() {
 
 function CTA() {
   const { ref, isInView } = useInView({ threshold: 0.3, once: true });
+  const { status } = useSession();
+  const quoteHref = status === 'authenticated' ? '/dashboard' : '/auth/signin';
 
   return (
     <section ref={ref} className="py-32 relative overflow-hidden bg-white">
@@ -303,7 +306,7 @@ function CTA() {
         </Fade>
         
         <div className="flex flex-col sm:flex-row gap-6 w-full justify-center">
-          <Link href="/auth/signin">
+          <Link href={quoteHref}>
             <Button size="lg" className="px-10 py-4 text-lg">
               Get a Quote
             </Button>
