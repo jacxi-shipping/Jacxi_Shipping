@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasAnyPermission } from '@/lib/rbac';
 
 export async function GET(
 	request: NextRequest,
@@ -13,7 +14,7 @@ export async function GET(
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (session.user.role !== 'admin') {
+		if (!hasAnyPermission(session.user.role, ['invoices:view', 'invoices:manage', 'finance:view', 'finance:manage'])) {
 			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 		}
 
@@ -43,7 +44,7 @@ export async function POST(
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (session.user.role !== 'admin') {
+		if (!hasAnyPermission(session.user.role, ['invoices:manage', 'finance:manage'])) {
 			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 		}
 
@@ -111,7 +112,7 @@ export async function DELETE(request: NextRequest) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (session.user.role !== 'admin') {
+		if (!hasAnyPermission(session.user.role, ['invoices:manage', 'finance:manage'])) {
 			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 		}
 

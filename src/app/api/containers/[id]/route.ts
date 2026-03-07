@@ -230,18 +230,6 @@ export async function GET(
             containerId: params.id,
           },
           type: 'DEBIT',
-          metadata: {
-            path: ['isExpense'],
-            equals: true,
-          },
-          NOT: [
-            {
-              metadata: {
-                path: ['isContainerExpense'],
-                equals: true,
-              },
-            },
-          ],
         },
         select: {
           id: true,
@@ -263,7 +251,17 @@ export async function GET(
         },
       });
 
-      const mappedShipmentExpenses = shipmentExpenses.map((entry) => {
+      const filteredShipmentExpenses = shipmentExpenses.filter((entry) => {
+        const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+        const isExpense = metadata.isExpense === true;
+        const expenseSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
+        const isContainerExpense = metadata.isContainerExpense === true;
+
+        // Include shipment-expense debits, but explicitly exclude container allocations.
+        return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
+      });
+
+      const mappedShipmentExpenses = filteredShipmentExpenses.map((entry) => {
         const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
         const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'SHIPMENT_EXPENSE';
         const vehicleLabel = [entry.shipment?.vehicleMake, entry.shipment?.vehicleModel].filter(Boolean).join(' ').trim();

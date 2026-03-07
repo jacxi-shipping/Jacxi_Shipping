@@ -8,6 +8,10 @@ import { NotificationType } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
 import { hasPermission } from '@/lib/rbac';
 
+function isTruthyMetadataFlag(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
   containerId: z.string(),
@@ -111,43 +115,32 @@ export async function POST(req: NextRequest) {
             not: 'CANCELLED',
           },
         },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+        },
       });
 
-      if (existingInvoice) {
+      if (existingInvoice?.status === 'PAID') {
         generatedInvoices.push({ 
           userId, 
           userName: user.name, 
           invoiceId: existingInvoice.id,
           invoiceNumber: existingInvoice.invoiceNumber,
-          status: 'existing' 
+          status: 'existing_paid' 
         });
         continue;
       }
 
-      // Generate invoice number
-      const invoiceCount = await prisma.userInvoice.count();
-      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
-
       // Fetch shipment-level expenses already posted in user ledger for this user's shipments.
       // Exclude container allocation entries and credit rows to avoid duplicates.
       const shipmentIds = shipments.map((shipment) => shipment.id);
-      const shipmentExpenseEntries = await prisma.ledgerEntry.findMany({
+      const candidateShipmentExpenseEntries = await prisma.ledgerEntry.findMany({
         where: {
           userId,
           shipmentId: { in: shipmentIds },
           type: 'DEBIT',
-          metadata: {
-            path: ['isExpense'],
-            equals: true,
-          },
-          NOT: [
-            {
-              metadata: {
-                path: ['isContainerExpense'],
-                equals: true,
-              },
-            },
-          ],
         },
         select: {
           shipmentId: true,
@@ -155,6 +148,16 @@ export async function POST(req: NextRequest) {
           amount: true,
           metadata: true,
         },
+      });
+
+      const shipmentExpenseEntries = candidateShipmentExpenseEntries.filter((entry) => {
+        const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+        const isExpense = isTruthyMetadataFlag(metadata.isExpense);
+        const isContainerExpense = isTruthyMetadataFlag(metadata.isContainerExpense);
+        const expenseSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
+
+        // Include shipment-expense debits (including legacy records), exclude container allocation rows.
+        return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
       });
 
       // Calculate line items for this user
@@ -263,32 +266,54 @@ export async function POST(req: NextRequest) {
         ? new Date(dueDate) 
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // Create invoice
-      const invoice = await prisma.userInvoice.create({
-        data: {
-          invoiceNumber,
-          userId,
-          containerId,
-          status: 'DRAFT',
-          issueDate: new Date(),
-          dueDate: invoiceDueDate,
-          subtotal,
-          discount: discountAmount,
-          total,
-          lineItems: {
-            create: lineItems,
-          },
-        },
-        include: {
-          lineItems: {
-            include: {
-              shipment: true,
+      // Create or refresh invoice (refresh existing non-paid invoice so new shipment expenses are included)
+      let invoice: { id: string; invoiceNumber: string; total: number };
+
+      if (existingInvoice) {
+        invoice = await prisma.userInvoice.update({
+          where: { id: existingInvoice.id },
+          data: {
+            dueDate: invoiceDueDate,
+            subtotal,
+            discount: discountAmount,
+            total,
+            lineItems: {
+              deleteMany: {},
+              create: lineItems,
             },
           },
-          user: true,
-          container: true,
-        },
-      });
+          select: {
+            id: true,
+            invoiceNumber: true,
+            total: true,
+          },
+        });
+      } else {
+        const invoiceCount = await prisma.userInvoice.count();
+        const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
+
+        invoice = await prisma.userInvoice.create({
+          data: {
+            invoiceNumber,
+            userId,
+            containerId,
+            status: 'DRAFT',
+            issueDate: new Date(),
+            dueDate: invoiceDueDate,
+            subtotal,
+            discount: discountAmount,
+            total,
+            lineItems: {
+              create: lineItems,
+            },
+          },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            total: true,
+          },
+        });
+      }
 
       generatedInvoices.push({
         userId,
@@ -296,7 +321,7 @@ export async function POST(req: NextRequest) {
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         total: invoice.total,
-        status: 'created',
+        status: existingInvoice ? 'updated' : 'created',
       });
 
       try {
@@ -338,12 +363,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Generated ${generatedInvoices.filter(i => i.status === 'created').length} invoice(s)`,
+      message: `Processed ${generatedInvoices.length} invoice(s)`,
       invoices: generatedInvoices,
       summary: {
         totalInvoices: generatedInvoices.length,
         newInvoices: generatedInvoices.filter(i => i.status === 'created').length,
-        existingInvoices: generatedInvoices.filter(i => i.status === 'existing').length,
+        updatedInvoices: generatedInvoices.filter(i => i.status === 'updated').length,
+        existingPaidInvoices: generatedInvoices.filter(i => i.status === 'existing_paid').length,
       },
     });
 

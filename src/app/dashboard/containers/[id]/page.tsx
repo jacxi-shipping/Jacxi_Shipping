@@ -66,6 +66,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import { ActivityLog } from '@/components/dashboard/ActivityLog';
 import { TrackingMap } from '@/components/dashboard/TrackingMap';
+import { hasAnyPermission, hasPermission } from '@/lib/rbac';
 
 interface Shipment {
 	id: string;
@@ -230,7 +231,12 @@ export default function ContainerDetailPage() {
 	const params = useParams();
 	const router = useRouter();
     const { data: session } = useSession();
-    const isAdmin = session?.user?.role === 'admin';
+	const userRole = session?.user?.role;
+	const isAdmin = userRole === 'admin';
+	const canManageExpenses = hasAnyPermission(userRole, ['finance:manage', 'containers:manage']);
+	const canViewExpenses = hasAnyPermission(userRole, ['finance:view', 'finance:manage', 'containers:read_all', 'containers:manage']);
+	const canManageInvoices = hasAnyPermission(userRole, ['invoices:manage', 'finance:manage']);
+	const canViewInvoices = hasAnyPermission(userRole, ['invoices:view', 'invoices:manage', 'finance:view', 'finance:manage']);
 	const [container, setContainer] = useState<Container | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState('overview');
@@ -722,8 +728,12 @@ export default function ContainerDetailPage() {
 
 	const capacityPercentage = (container.currentCount / container.maxCapacity) * 100;
 	const netProfit = container.totals.expenses > 0 ? container.totals.invoices - container.totals.expenses : 0;
-	const containerOnlyExpenses = container.expenses.filter((expense) => expense.source !== 'SHIPMENT');
-	const shipmentOnlyExpenses = container.expenses.filter((expense) => expense.source === 'SHIPMENT');
+	const isShipmentExpense = (expense: Expense) => {
+		const source = expense.source?.toUpperCase();
+		return source === 'SHIPMENT' || expense.id.startsWith('shipment-') || Boolean(expense.shipmentId);
+	};
+	const containerOnlyExpenses = container.expenses.filter((expense) => !isShipmentExpense(expense));
+	const shipmentOnlyExpenses = container.expenses.filter(isShipmentExpense);
 	const displayedExpenses = expenseView === 'CONTAINER' ? containerOnlyExpenses : shipmentOnlyExpenses;
 	const displayedExpenseTotal = displayedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
@@ -909,10 +919,10 @@ export default function ContainerDetailPage() {
 					>
 						<Tab label="Overview" value="overview" />
 						<Tab label={`Shipments (${container.shipments.length})`} value="shipments" />
-						{isAdmin && <Tab label={`Expenses (${container.expenses.length})`} value="expenses" />}
+						{canViewExpenses && <Tab label={`Expenses (${container.expenses.length})`} value="expenses" />}
 						{isAdmin && <Tab label={`Shipment Damages (${container.damages?.length || 0})`} value="damages" />}
-						{isAdmin && <Tab label={`Invoices (${container.invoices.length})`} value="invoices" />}
-						{isAdmin && <Tab label={`User Invoices (${container.userInvoices?.length || 0})`} value="user-invoices" />}
+						{canViewInvoices && <Tab label={`Invoices (${container.invoices.length})`} value="invoices" />}
+						{canViewInvoices && <Tab label={`User Invoices (${container.userInvoices?.length || 0})`} value="user-invoices" />}
 						<Tab label={`Documents (${container.documents.length})`} value="documents" />
 						<Tab label={`Tracking (${container.trackingEvents?.length || 0})`} value="tracking" />
                         {isAdmin && <Tab label="Activity" icon={<Activity className="w-4 h-4" />} iconPosition="start" value="activity" />}
@@ -1300,7 +1310,7 @@ export default function ContainerDetailPage() {
 							description="All costs and expenses for this container"
 						>
 							<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 2 }}>
-								{isAdmin && (
+								{canManageExpenses && (
 									<Button
 										variant="outline"
 										size="sm"
@@ -1313,7 +1323,7 @@ export default function ContainerDetailPage() {
 										Add Shipment Expense
 									</Button>
 								)}
-								{isAdmin && (
+								{canManageExpenses && (
 									<Button
 										variant="primary"
 										size="sm"
@@ -1380,7 +1390,7 @@ export default function ContainerDetailPage() {
 														{formatCurrency(expense.amount, expense.currency)}
 													</TableCell>
 													<TableCell align="right">
-														{expense.source === 'SHIPMENT' ? (
+														{isShipmentExpense(expense) ? (
 															<Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
 																<Button
 																	variant="outline"
@@ -1393,13 +1403,32 @@ export default function ContainerDetailPage() {
 																>
 																	View
 																</Button>
+																{canManageExpenses && (
+																	<Button
+																		variant="outline"
+																		size="sm"
+																		icon={<Trash2 className="w-3 h-3" />}
+																		onClick={() => handleDeleteExpense(expense.id)}
+																		disabled={deletingExpenseId === expense.id}
+																		sx={{
+																			color: 'var(--error)',
+																			borderColor: 'var(--error)',
+																			'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
+																		}}
+																	>
+																		{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
+																	</Button>
+																)}
+															</Box>
+														) : (
+															canManageExpenses ? (
 																<Button
 																	variant="outline"
 																	size="sm"
 																	icon={<Trash2 className="w-3 h-3" />}
 																	onClick={() => handleDeleteExpense(expense.id)}
 																	disabled={deletingExpenseId === expense.id}
-																	sx={{
+																	sx={{ 
 																		color: 'var(--error)',
 																		borderColor: 'var(--error)',
 																		'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
@@ -1407,22 +1436,7 @@ export default function ContainerDetailPage() {
 																>
 																	{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
 																</Button>
-															</Box>
-														) : (
-															<Button
-																variant="outline"
-																size="sm"
-																icon={<Trash2 className="w-3 h-3" />}
-																onClick={() => handleDeleteExpense(expense.id)}
-																disabled={deletingExpenseId === expense.id}
-																sx={{ 
-																	color: 'var(--error)',
-																	borderColor: 'var(--error)',
-																	'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
-																}}
-															>
-																{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
-															</Button>
+															) : null
 														)}
 													</TableCell>
 												</TableRow>
@@ -1561,7 +1575,7 @@ export default function ContainerDetailPage() {
 							description="Billing and revenue for this container"
 						>
 							<Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-								{isAdmin && (
+								{canManageInvoices && (
 									<Button
 										variant="primary"
 										size="sm"
@@ -1608,20 +1622,22 @@ export default function ContainerDetailPage() {
 														{formatCurrency(invoice.amount, invoice.currency)}
 													</TableCell>
 													<TableCell align="right">
-														<Button
-															variant="outline"
-															size="sm"
-															icon={<Trash2 className="w-3 h-3" />}
-															onClick={() => handleDeleteInvoice(invoice.id)}
-															disabled={deletingInvoiceId === invoice.id}
-															sx={{ 
-																color: 'var(--error)',
-																borderColor: 'var(--error)',
-																'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
-															}}
-														>
-															{deletingInvoiceId === invoice.id ? 'Deleting...' : 'Delete'}
-														</Button>
+														{canManageInvoices && (
+															<Button
+																variant="outline"
+																size="sm"
+																icon={<Trash2 className="w-3 h-3" />}
+																onClick={() => handleDeleteInvoice(invoice.id)}
+																disabled={deletingInvoiceId === invoice.id}
+																sx={{ 
+																	color: 'var(--error)',
+																	borderColor: 'var(--error)',
+																	'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
+																}}
+															>
+																{deletingInvoiceId === invoice.id ? 'Deleting...' : 'Delete'}
+															</Button>
+														)}
 													</TableCell>
 												</TableRow>
 											))}
