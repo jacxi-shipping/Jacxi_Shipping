@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
           shipment: {
             select: {
               id: true,
+              vehicleVIN: true,
               vehicleMake: true,
               vehicleModel: true,
             },
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
     // Data rows
     for (const entry of entries) {
       const shipmentInfo = entry.shipment
-        ? `${entry.shipment.id || ""} (${entry.shipment.vehicleMake} ${entry.shipment.vehicleModel})`
+        ? `${entry.shipment.vehicleVIN || 'N/A'} (${entry.shipment.vehicleMake || ''} ${entry.shipment.vehicleModel || ''})`
         : 'N/A';
 
       csvRows.push([

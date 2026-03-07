@@ -227,8 +227,9 @@ export const generateShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
         `Damage Note (Company Pays) - ${damage.description}`,
         'Damage Note',
         '1',
-        formatCurrency(0),
-        formatCurrency(0),
+        // Show assessed amount for transparency but keep billed amount zero.
+        formatCurrency(damage.amount),
+        formatCurrency(damage.amount),
       ]);
     }
   });

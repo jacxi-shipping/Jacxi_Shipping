@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
         userId: true,
         vehicleMake: true,
         vehicleModel: true,
+        vehicleVIN: true,
         container: {
           select: {
             companyId: true,
@@ -69,7 +70,10 @@ export async function POST(request: NextRequest) {
     // Create expense description
     const expenseTypeLabel = validatedData.expenseType.replace(/_/g, ' ').toLowerCase();
     const vehicleInfo = `${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim() || 'Vehicle';
-    const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (Shipment ${shipment.id})`;
+    const shipmentRef = shipment.vehicleVIN
+      ? `VIN ${shipment.vehicleVIN}`
+      : `Shipment ${shipment.id}`;
+    const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (${shipmentRef})`;
 
     const entries = await prisma.$transaction(async (tx) => {
       const debitEntry = await tx.ledgerEntry.create({

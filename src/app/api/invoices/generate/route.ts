@@ -12,6 +12,20 @@ function isTruthyMetadataFlag(value: unknown): boolean {
   return value === true || value === 'true' || value === 1 || value === '1';
 }
 
+function normalizeShipmentLabelInDescription(
+  description: string,
+  shipmentId: string,
+  vehicleVIN?: string | null
+): string {
+  if (!description) return description;
+  if (!vehicleVIN) return description;
+
+  return description
+    .replace(new RegExp(`\\(Shipment\\s+${shipmentId}\\)`, 'gi'), `(VIN ${vehicleVIN})`)
+    .replace(new RegExp(`Shipment\\s+${shipmentId}`, 'gi'), `VIN ${vehicleVIN}`)
+    .replace(new RegExp(`shipment\\s+${shipmentId}`, 'g'), `VIN ${vehicleVIN}`);
+}
+
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
   containerId: z.string(),
@@ -234,9 +248,14 @@ export async function POST(req: NextRequest) {
         for (const expenseEntry of shipmentSpecificExpenses) {
           const metadata = (expenseEntry.metadata ?? {}) as Record<string, unknown>;
           const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'OTHER';
+          const normalizedDescription = normalizeShipmentLabelInDescription(
+            expenseEntry.description || '',
+            shipment.id,
+            shipment.vehicleVIN
+          );
 
           lineItems.push({
-            description: expenseEntry.description || `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Shipment Expense`.trim(),
+            description: normalizedDescription || `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Shipment Expense`.trim(),
             shipmentId: shipment.id,
             type: mapExpenseTypeToLineItemType(expenseType) as
               | 'VEHICLE_PRICE'
@@ -272,11 +291,12 @@ export async function POST(req: NextRequest) {
           } else {
             // COMPANY_PAYS damages are shown for transparency but do not affect customer total.
             lineItems.push({
-              description: `${vehicleLabel || 'Vehicle'} - Damage Note (Company Pays): ${damage.description}`.trim(),
+              description: `${vehicleLabel || 'Vehicle'} - Damage Note (Company Pays $${damage.amount.toFixed(2)}): ${damage.description}`.trim(),
               shipmentId: shipment.id,
               type: 'OTHER_FEE' as const,
               quantity: 1,
-              unitPrice: 0,
+              // Show assessed damage amount for visibility, but keep line amount at 0 to avoid billing customer.
+              unitPrice: damage.amount,
               amount: 0,
             });
           }
