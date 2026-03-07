@@ -596,7 +596,10 @@ export default function ShipmentDetailPage() {
     .filter((entry) => entry.type === 'CREDIT')
     .reduce((sum, entry) => sum + entry.amount, 0);
   const netCompanyCharged = companyLedgerDebitsTotal - companyLedgerCreditsTotal;
-  const netDifference = netUserCharged - netCompanyCharged;
+  // Use normalized charged amounts for comparison so difference reflects what is displayed.
+  const customerChargedForComparison = Math.abs(netUserCharged);
+  const companyChargedForComparison = Math.abs(netCompanyCharged);
+  const netDifference = customerChargedForComparison - companyChargedForComparison;
 
   const comparisonTransactions = [
     ...companyLedgerEntries.map((entry) => ({
@@ -1356,7 +1359,7 @@ export default function ShipmentDetailPage() {
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
                         <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company Charged Me (Net)</p>
-                        <p className="mt-1 text-lg font-semibold text-[var(--error)]">${netCompanyCharged.toFixed(2)}</p>
+                        <p className="mt-1 text-lg font-semibold text-[var(--error)]">${companyChargedForComparison.toFixed(2)}</p>
                         <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
                           Debits ${companyLedgerDebitsTotal.toFixed(2)} - Credits ${companyLedgerCreditsTotal.toFixed(2)}
                         </p>
@@ -1364,7 +1367,7 @@ export default function ShipmentDetailPage() {
 
                       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
                         <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Charged To Customer (Net)</p>
-                        <p className="mt-1 text-lg font-semibold text-[var(--success)]">${netUserCharged.toFixed(2)}</p>
+                        <p className="mt-1 text-lg font-semibold text-[var(--success)]">${customerChargedForComparison.toFixed(2)}</p>
                         <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
                           Debits ${userLedgerDebitsTotal.toFixed(2)} - Credits ${userLedgerCreditsTotal.toFixed(2)}
                         </p>
