@@ -155,7 +155,7 @@ export async function POST(
 
         await recalculateUserLedgerBalances(tx, shipment.userId);
       } else {
-        // COMPANY_PAYS: debit company ledger
+        // COMPANY_PAYS: debit company ledger and credit customer ledger
         await tx.companyLedgerEntry.create({
           data: {
             companyId: container.companyId as string,
@@ -173,11 +173,32 @@ export async function POST(
               containerDamageId: createdDamage.id,
               containerId: params.id,
               shipmentId: validatedData.shipmentId,
+              userId: shipment.userId,
+            },
+          },
+        });
+
+        await tx.ledgerEntry.create({
+          data: {
+            userId: shipment.userId,
+            shipmentId: validatedData.shipmentId,
+            description: `Damage compensation (company responsible) - ${validatedData.description} for ${vehicleLabel}${vinSuffix}`,
+            type: 'CREDIT',
+            amount: validatedData.amount,
+            balance: 0,
+            createdBy: session.user!.id as string,
+            notes: validatedData.description,
+            metadata: {
+              isDamage: true,
+              damageType: 'COMPANY_PAYS',
+              containerDamageId: createdDamage.id,
+              containerId: params.id,
             },
           },
         });
 
         await recalculateCompanyLedgerBalances(tx, container.companyId as string);
+        await recalculateUserLedgerBalances(tx, shipment.userId);
       }
 
       return createdDamage;
@@ -278,6 +299,24 @@ export async function DELETE(
           const companyIds = new Set(linkedEntries.map((e) => e.companyId));
           for (const companyId of companyIds) {
             await recalculateCompanyLedgerBalances(tx, companyId);
+          }
+        }
+
+        const linkedUserCredits = await tx.ledgerEntry.findMany({
+          where: {
+            metadata: { path: ['containerDamageId'], equals: damageId },
+          },
+          select: { id: true, userId: true },
+        });
+
+        if (linkedUserCredits.length > 0) {
+          await tx.ledgerEntry.deleteMany({
+            where: { id: { in: linkedUserCredits.map((e) => e.id) } },
+          });
+
+          const userIds = Array.from(new Set(linkedUserCredits.map((e) => e.userId)));
+          for (const userId of userIds) {
+            await recalculateUserLedgerBalances(tx, userId);
           }
         }
       }
