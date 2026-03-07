@@ -104,6 +104,15 @@ export async function GET(
         },
         documents: true,
         ledgerEntries: {
+          select: {
+            id: true,
+            transactionDate: true,
+            description: true,
+            type: true,
+            amount: true,
+            balance: true,
+            metadata: true,
+          },
           orderBy: {
             transactionDate: 'desc',
           },

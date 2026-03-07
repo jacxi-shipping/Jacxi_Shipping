@@ -35,8 +35,10 @@ import { DocumentManager } from '@/components/dashboard/DocumentManager';
 
 import PhotoGallery from '@/components/shipments/PhotoGallery';
 import PhotoLightbox from '@/components/shipments/PhotoLightbox';
+import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
 import { downloadShipmentInvoicePDF } from '@/lib/utils/generateShipmentInvoicePDF';
 import { downloadReleaseTokenPDF } from '@/lib/utils/generateReleaseTokenPDF';
+import { hasAnyPermission } from '@/lib/rbac';
 
 interface ShipmentEvent {
   id: string;
@@ -144,6 +146,7 @@ interface Shipment {
     type: string;
     amount: number;
     balance: number;
+    metadata?: Record<string, unknown> | null;
   }>;
 }
 
@@ -190,6 +193,7 @@ export default function ShipmentDetailPage() {
   const [showReleaseToken, setShowReleaseToken] = useState(false);
   const [assigningTransit, setAssigningTransit] = useState(false);
   const [creatingReleaseToken, setCreatingReleaseToken] = useState(false);
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
 
   const fetchShipment = useCallback(async () => {
     try {
@@ -539,7 +543,16 @@ export default function ShipmentDetailPage() {
 
   const statusStyles = useMemo(() => statusColors, []);
   const isAdmin = session?.user?.role === 'admin';
+  const canManageShipmentExpenses = hasAnyPermission(session?.user?.role, ['finance:manage', 'shipments:manage']);
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
+  const shipmentExpenseEntries = (shipment?.ledgerEntries || []).filter((entry) => {
+    if (entry.type !== 'DEBIT') return false;
+    const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+    const isExpense = metadata.isExpense === true || metadata.isExpense === 'true';
+    const expenseSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
+    const isContainerExpense = metadata.isContainerExpense === true || metadata.isContainerExpense === 'true';
+    return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
+  });
 
   const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
     return (
@@ -1256,6 +1269,17 @@ export default function ShipmentDetailPage() {
           <DashboardPanel 
             title="Shipment Financials" 
             description="Costs and expenses associated with this shipment"
+            actions={
+              canManageShipmentExpenses ? (
+                <Button
+                  size="sm"
+                  icon={<DollarSign className="h-4 w-4" />}
+                  onClick={() => setExpenseModalOpen(true)}
+                >
+                  Add Expense
+                </Button>
+              ) : undefined
+            }
           >
             <div className="space-y-4">
                 {/* Base Costs */}
@@ -1276,9 +1300,9 @@ export default function ShipmentDetailPage() {
                 {/* Expenses */}
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
                     <h3 className="mb-3 text-sm font-semibold uppercase text-[var(--text-secondary)]">Additional Expenses</h3>
-                    {shipment.ledgerEntries && shipment.ledgerEntries.filter(e => e.type === 'DEBIT').length > 0 ? (
+                  {shipmentExpenseEntries.length > 0 ? (
                         <div className="space-y-3">
-                            {shipment.ledgerEntries.filter(e => e.type === 'DEBIT').map((entry) => (
+                      {shipmentExpenseEntries.map((entry) => (
                                 <div key={entry.id} className="flex justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
                                     <div>
                                         <p className="text-sm font-medium text-[var(--text-primary)]">{entry.description}</p>
@@ -1485,6 +1509,17 @@ export default function ShipmentDetailPage() {
             </button>
           </DialogActions>
         </Dialog>
+      )}
+
+      {shipment && (
+        <AddShipmentExpenseModal
+          open={expenseModalOpen}
+          onClose={() => setExpenseModalOpen(false)}
+          shipmentId={shipment.id}
+          onSuccess={() => {
+            void refreshShipmentPage();
+          }}
+        />
       )}
     </ProtectedRoute>
   );
