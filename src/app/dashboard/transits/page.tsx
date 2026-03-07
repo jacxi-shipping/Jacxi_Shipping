@@ -11,7 +11,7 @@ import {
   MenuItem,
   TextField,
 } from '@mui/material';
-import { Package, Plus, Search, Truck } from 'lucide-react';
+import { Eye, Package, Pencil, Plus, Search, Trash2, Truck } from 'lucide-react';
 import AdminRoute from '@/components/auth/AdminRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast } from '@/components/design-system';
@@ -69,16 +69,32 @@ export default function TransitsPage() {
   const [transits, setTransits] = useState<Transit[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [openCreate, setOpenCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editingTransitId, setEditingTransitId] = useState<string | null>(null);
+  const [deletingTransitId, setDeletingTransitId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     companyId: '',
     origin: 'Dubai, UAE',
     destination: 'Kabul, Afghanistan',
     dispatchDate: '',
     estimatedDelivery: '',
+    cost: '',
+    notes: '',
+  });
+  const [editFormData, setEditFormData] = useState({
+    companyId: '',
+    origin: '',
+    destination: '',
+    status: 'PENDING',
+    dispatchDate: '',
+    estimatedDelivery: '',
+    actualDelivery: '',
     cost: '',
     notes: '',
   });
@@ -119,6 +135,24 @@ export default function TransitsPage() {
     void fetchCompanies();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') setIsShiftPressed(true);
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') setIsShiftPressed(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   const handleCreate = async () => {
     if (!formData.companyId) {
       toast.error('Transit company is required');
@@ -152,6 +186,89 @@ export default function TransitsPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to create transit');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDeleteTransit = async (transit: Transit) => {
+    const shouldDelete = confirm(
+      `Delete transit ${transit.referenceNumber}? This will remove linked transit events and transit expenses.`
+    );
+    if (!shouldDelete) return;
+
+    try {
+      setDeletingTransitId(transit.id);
+      const response = await fetch(`/api/transits/${transit.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete transit');
+      }
+
+      toast.success(`Transit ${transit.referenceNumber} deleted`);
+      await fetchTransits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete transit');
+    } finally {
+      setDeletingTransitId(null);
+    }
+  };
+
+  const handleOpenEdit = (transit: Transit) => {
+    setEditingTransitId(transit.id);
+    setEditFormData({
+      companyId: transit.company.id,
+      origin: transit.origin,
+      destination: transit.destination,
+      status: transit.status,
+      dispatchDate: transit.dispatchDate ? transit.dispatchDate.slice(0, 10) : '',
+      estimatedDelivery: transit.estimatedDelivery ? transit.estimatedDelivery.slice(0, 10) : '',
+      actualDelivery: transit.actualDelivery ? transit.actualDelivery.slice(0, 10) : '',
+      cost: transit.cost != null ? String(transit.cost) : '',
+      notes: transit.notes || '',
+    });
+    setOpenEdit(true);
+  };
+
+  const handleUpdateTransit = async () => {
+    if (!editingTransitId) return;
+    if (!editFormData.companyId) {
+      toast.error('Transit company is required');
+      return;
+    }
+
+    try {
+      setEditing(true);
+      const response = await fetch(`/api/transits/${editingTransitId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: editFormData.companyId,
+          origin: editFormData.origin,
+          destination: editFormData.destination,
+          status: editFormData.status,
+          dispatchDate: editFormData.dispatchDate || null,
+          estimatedDelivery: editFormData.estimatedDelivery || null,
+          actualDelivery: editFormData.actualDelivery || null,
+          cost: editFormData.cost ? parseFloat(editFormData.cost) : null,
+          notes: editFormData.notes || null,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update transit');
+      }
+
+      toast.success('Transit updated successfully');
+      setOpenEdit(false);
+      setEditingTransitId(null);
+      await fetchTransits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update transit');
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -229,7 +346,56 @@ export default function TransitsPage() {
       align: 'center',
       render: (_, row) => row._count.shipments,
     },
-  ], []);
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (_, row) => (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.75 }}>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Eye className="w-3.5 h-3.5" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              router.push(`/dashboard/transits/${row.id}`);
+            }}
+          >
+            View
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Pencil className="w-3.5 h-3.5" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleOpenEdit(row);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Trash2 className="w-3.5 h-3.5" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleDeleteTransit(row);
+            }}
+            disabled={deletingTransitId === row.id}
+            sx={{
+              color: 'var(--error)',
+              borderColor: 'var(--error)',
+              '&:hover': {
+                bgcolor: 'rgba(var(--error-rgb), 0.1)',
+              },
+            }}
+          >
+            {deletingTransitId === row.id ? 'Deleting...' : 'Delete'}
+          </Button>
+        </Box>
+      ),
+    },
+  ], [deletingTransitId, router]);
 
   return (
     <AdminRoute>
@@ -283,7 +449,13 @@ export default function TransitsPage() {
               data={transits}
               columns={columns}
               keyField="id"
-              onRowClick={(row) => router.push(`/dashboard/transits/${row.id}`)}
+              onRowClick={(row) => {
+                if (isShiftPressed) {
+                  handleOpenEdit(row);
+                  return;
+                }
+                router.push(`/dashboard/transits/${row.id}`);
+              }}
             />
           )}
         </DashboardPanel>
@@ -350,6 +522,89 @@ export default function TransitsPage() {
             <Button variant="outline" onClick={() => setOpenCreate(false)} disabled={creating}>Cancel</Button>
             <Button variant="primary" onClick={handleCreate} disabled={creating}>
               {creating ? 'Creating...' : 'Create Transit'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openEdit} onClose={() => !editing && setOpenEdit(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit Transit</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
+            <TextField
+              select
+              label="Transit Company"
+              value={editFormData.companyId}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, companyId: e.target.value }))}
+              required
+            >
+              <MenuItem value="">Select a company...</MenuItem>
+              {companies.map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.code ? ` (${c.code})` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Origin"
+              value={editFormData.origin}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, origin: e.target.value }))}
+            />
+            <TextField
+              label="Destination"
+              value={editFormData.destination}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, destination: e.target.value }))}
+            />
+            <TextField
+              select
+              label="Status"
+              value={editFormData.status}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
+            >
+              {Object.entries(statusLabels).map(([value, label]) => (
+                <MenuItem key={value} value={value}>{label}</MenuItem>
+              ))}
+            </TextField>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <TextField
+                label="Dispatch Date"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={editFormData.dispatchDate}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, dispatchDate: e.target.value }))}
+              />
+              <TextField
+                label="Est. Delivery"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={editFormData.estimatedDelivery}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, estimatedDelivery: e.target.value }))}
+              />
+            </Box>
+            <TextField
+              label="Actual Delivery"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={editFormData.actualDelivery}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, actualDelivery: e.target.value }))}
+            />
+            <TextField
+              label="Agreed Cost (USD)"
+              type="number"
+              inputProps={{ min: 0, step: 0.01 }}
+              value={editFormData.cost}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, cost: e.target.value }))}
+            />
+            <TextField
+              label="Notes"
+              multiline
+              rows={3}
+              value={editFormData.notes}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, notes: e.target.value }))}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button variant="outline" onClick={() => setOpenEdit(false)} disabled={editing}>Cancel</Button>
+            <Button variant="primary" onClick={handleUpdateTransit} disabled={editing}>
+              {editing ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogActions>
         </Dialog>
