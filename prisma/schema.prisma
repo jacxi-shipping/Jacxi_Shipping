@@ -181,6 +181,7 @@ model Shipment {
   @@index([status])
   @@index([vehicleVIN])
   @@index([serviceType])
+  @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
 }
 
 // ============================================
@@ -248,6 +249,7 @@ model Container {
   @@index([destinationPort])
   @@index([estimatedArrival])
   @@index([trackingNumber])
+  @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
 }
 
 // ============================================
@@ -571,6 +573,7 @@ model UserInvoice {
   @@index([invoiceNumber])
   @@index([issueDate])
   @@index([dueDate])
+  @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
 }
 
 model InvoiceLineItem {
