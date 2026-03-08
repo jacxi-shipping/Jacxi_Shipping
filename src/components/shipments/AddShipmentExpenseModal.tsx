@@ -37,6 +37,10 @@ interface AddShipmentExpenseModalProps {
 	/** When provided, shows a shipment selector dropdown. */
 	shipments?: ShipmentOption[];
 	onSuccess: () => void;
+	/** Context type: determines which company ledger to credit */
+	contextType?: 'TRANSIT' | 'CONTAINER';
+	/** Context ID: the transit or container ID for additional routing context */
+	contextId?: string;
 }
 
 // Expense types matching the LedgerEntry metadata logic
@@ -58,6 +62,8 @@ export default function AddShipmentExpenseModal({
 	shipmentId: shipmentIdProp,
 	shipments,
 	onSuccess,
+	contextType,
+	contextId,
 }: AddShipmentExpenseModalProps) {
 	const isBulkMode = Boolean(shipments && !shipmentIdProp);
 
@@ -147,6 +153,8 @@ export default function AddShipmentExpenseModal({
 							description: item.description,
 							notes: item.notes || undefined,
 							paymentMode: item.paymentMode,
+							...(contextType ? { contextType } : {}),
+							...(contextId ? { contextId } : {}),
 						}),
 					});
 
@@ -211,6 +219,8 @@ export default function AddShipmentExpenseModal({
 					description: formData.description,
 					notes: formData.notes || undefined,
 					paymentMode: formData.paymentMode,
+					...(contextType ? { contextType } : {}),
+					...(contextId ? { contextId } : {}),
 				}),
 			});
 

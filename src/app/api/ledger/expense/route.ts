@@ -15,6 +15,8 @@ const addExpenseSchema = z.object({
   expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
   paymentMode: z.enum(['CASH', 'DUE']).default('DUE'),
   notes: z.string().optional(),
+  contextType: z.enum(['TRANSIT', 'CONTAINER']).optional(),
+  contextId: z.string().optional(),
 });
 
 // POST - Add an expense to a shipment
@@ -62,9 +64,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    // Priority: Container company > Transit company
-    const resolvedCompanyId = shipment.container?.companyId || shipment.transit?.companyId;
-    const isTransitExpense = Boolean(shipment.transitId && shipment.transit?.companyId && !shipment.containerId);
+    // Determine which company to credit based on explicit context or fallback logic
+    let resolvedCompanyId: string | null | undefined;
+    let isTransitExpense: boolean;
+
+    if (validatedData.contextType === 'TRANSIT') {
+      // Explicit TRANSIT context: use transit company
+      resolvedCompanyId = shipment.transit?.companyId;
+      isTransitExpense = true;
+    } else if (validatedData.contextType === 'CONTAINER') {
+      // Explicit CONTAINER context: use container company
+      resolvedCompanyId = shipment.container?.companyId;
+      isTransitExpense = false;
+    } else {
+      // No explicit context: fallback to container > transit priority
+      resolvedCompanyId = shipment.container?.companyId || shipment.transit?.companyId;
+      isTransitExpense = Boolean(shipment.transitId && shipment.transit?.companyId && !shipment.containerId);
+    }
 
     if (!resolvedCompanyId) {
       return NextResponse.json(

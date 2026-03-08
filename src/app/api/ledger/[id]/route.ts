@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { z } from 'zod';
 
 // Schema for updating a ledger entry
@@ -161,52 +162,71 @@ export async function DELETE(
       return NextResponse.json({ error: 'Ledger entry not found' }, { status: 404 });
     }
 
-    // Delete the entry
-    await prisma.ledgerEntry.delete({
-      where: { id: params.id },
-    });
+    // Use transaction to ensure both user and company ledger entries are deleted atomically
+    await prisma.$transaction(async (tx) => {
+      // Find and delete the corresponding company ledger entry (if it exists)
+      // Company ledger entries created from expenses have reference: "shipment-expense:{ledgerEntryId}"
+      const companyLedgerReference = `shipment-expense:${params.id}`;
+      const companyLedgerEntry = await tx.companyLedgerEntry.findFirst({
+        where: { reference: companyLedgerReference },
+      });
 
-    // Recalculate balances for all subsequent entries
-    const subsequentEntries = await prisma.ledgerEntry.findMany({
-      where: {
-        userId: entry.userId,
-        transactionDate: {
-          gte: entry.transactionDate,
-        },
-      },
-      orderBy: {
-        transactionDate: 'asc',
-      },
-    });
+      if (companyLedgerEntry) {
+        await tx.companyLedgerEntry.delete({
+          where: { id: companyLedgerEntry.id },
+        });
 
-    // Get the balance before the deleted entry
-    const previousEntry = await prisma.ledgerEntry.findFirst({
-      where: {
-        userId: entry.userId,
-        transactionDate: {
-          lt: entry.transactionDate,
-        },
-      },
-      orderBy: {
-        transactionDate: 'desc',
-      },
-    });
-
-    let runningBalance = previousEntry?.balance || 0;
-
-    // Update balances for all subsequent entries
-    for (const subsequentEntry of subsequentEntries) {
-      if (subsequentEntry.type === 'DEBIT') {
-        runningBalance += subsequentEntry.amount;
-      } else {
-        runningBalance -= subsequentEntry.amount;
+        // Recalculate company ledger balances
+        await recalculateCompanyLedgerBalances(tx, companyLedgerEntry.companyId);
       }
 
-      await prisma.ledgerEntry.update({
-        where: { id: subsequentEntry.id },
-        data: { balance: runningBalance },
+      // Delete the user ledger entry
+      await tx.ledgerEntry.delete({
+        where: { id: params.id },
       });
-    }
+
+      // Recalculate balances for all subsequent user ledger entries
+      const subsequentEntries = await tx.ledgerEntry.findMany({
+        where: {
+          userId: entry.userId,
+          transactionDate: {
+            gte: entry.transactionDate,
+          },
+        },
+        orderBy: {
+          transactionDate: 'asc',
+        },
+      });
+
+      // Get the balance before the deleted entry
+      const previousEntry = await tx.ledgerEntry.findFirst({
+        where: {
+          userId: entry.userId,
+          transactionDate: {
+            lt: entry.transactionDate,
+          },
+        },
+        orderBy: {
+          transactionDate: 'desc',
+        },
+      });
+
+      let runningBalance = previousEntry?.balance || 0;
+
+      // Update balances for all subsequent entries
+      for (const subsequentEntry of subsequentEntries) {
+        if (subsequentEntry.type === 'DEBIT') {
+          runningBalance += subsequentEntry.amount;
+        } else {
+          runningBalance -= subsequentEntry.amount;
+        }
+
+        await tx.ledgerEntry.update({
+          where: { id: subsequentEntry.id },
+          data: { balance: runningBalance },
+        });
+      }
+    });
 
     return NextResponse.json({ message: 'Ledger entry deleted successfully' });
   } catch (error) {

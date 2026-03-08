@@ -690,6 +690,8 @@ export default function TransitDetailPage() {
             vehicleVIN: s.vehicleVIN,
             user: s.user,
           }))}
+          contextType="TRANSIT"
+          contextId={transitId}
           onSuccess={() => void fetchTransit()}
         />
 

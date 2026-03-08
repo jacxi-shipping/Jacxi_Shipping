@@ -1995,6 +1995,8 @@ export default function ContainerDetailPage() {
 						vehicleVIN: s.vehicleVIN,
 						user: s.user,
 					}))}
+					contextType="CONTAINER"
+					contextId={String(params.id)}
 					onSuccess={() => {
 						void refreshContainerPage();
 					}}
