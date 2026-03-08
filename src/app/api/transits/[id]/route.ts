@@ -43,7 +43,19 @@ export async function GET(
           },
         },
         events: { orderBy: { eventDate: 'desc' } },
-        expenses: { orderBy: { date: 'desc' } },
+        expenses: { 
+          include: {
+            shipment: {
+              select: {
+                id: true,
+                vehicleMake: true,
+                vehicleModel: true,
+                vehicleVIN: true,
+              },
+            },
+          },
+          orderBy: { date: 'desc' },
+        },
         _count: { select: { shipments: true, events: true, expenses: true } },
       },
     });
@@ -52,9 +64,74 @@ export async function GET(
       return NextResponse.json({ error: 'Transit not found' }, { status: 404 });
     }
 
-    const totalExpenses = transit.expenses.reduce((sum, e) => sum + e.amount, 0);
+    // Fetch shipment expenses from ledger entries
+    const shipmentExpenses = await prisma.ledgerEntry.findMany({
+      where: {
+        shipmentId: { in: transit.shipments.map(s => s.id) },
+        type: 'DEBIT',
+        metadata: {
+          path: ['isExpense'],
+          equals: true,
+        },
+      },
+      include: {
+        shipment: {
+          select: {
+            id: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            vehicleVIN: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    return NextResponse.json({ transit, totalExpenses });
+    // Combine TransitExpense records with shipment ledger expenses
+    const allExpenses = [
+      ...transit.expenses.map(e => ({
+        id: e.id,
+        type: e.type,
+        description: e.description,
+        amount: e.amount,
+        currency: e.currency,
+        date: e.date,
+        vendor: e.vendor,
+        invoiceNumber: e.invoiceNumber,
+        category: e.category,
+        notes: e.notes,
+        shipment: e.shipment,
+        source: 'TRANSIT_EXPENSE' as const,
+      })),
+      ...shipmentExpenses.map(e => ({
+        id: e.id,
+        type: (e.metadata as any)?.expenseType || 'OTHER',
+        description: e.description,
+        amount: e.amount,
+        currency: 'USD',
+        date: e.createdAt,
+        vendor: null,
+        invoiceNumber: null,
+        category: (e.metadata as any)?.expenseType || null,
+        notes: e.notes,
+        shipment: e.shipment,
+        source: 'SHIPMENT_EXPENSE' as const,
+      })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const totalExpenses = allExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+    return NextResponse.json({ 
+      transit: {
+        ...transit,
+        expenses: allExpenses,
+        _count: {
+          ...transit._count,
+          expenses: allExpenses.length,
+        },
+      }, 
+      totalExpenses 
+    });
   } catch (error) {
     console.error('Error fetching transit:', error);
     return NextResponse.json({ error: 'Failed to fetch transit' }, { status: 500 });

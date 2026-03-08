@@ -74,6 +74,7 @@ interface TransitExpense {
   category: string | null;
   notes: string | null;
   shipment: { id: string; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null } | null;
+  source: 'TRANSIT_EXPENSE' | 'SHIPMENT_EXPENSE';
 }
 
 interface Transit {
@@ -266,10 +267,17 @@ export default function TransitDetailPage() {
     }
   };
 
-  const handleDeleteExpense = async (expenseId: string) => {
+  const handleDeleteExpense = async (expense: TransitExpense) => {
     if (!confirm('Delete this expense? This will also reverse the ledger entries.')) return;
     try {
-      const response = await fetch(`/api/transits/${transitId}/expenses?expenseId=${expenseId}`, { method: 'DELETE' });
+      let response;
+      if (expense.source === 'SHIPMENT_EXPENSE') {
+        // Delete shipment expense via ledger API
+        response = await fetch(`/api/ledger/${expense.id}`, { method: 'DELETE' });
+      } else {
+        // Delete transit expense via transit API
+        response = await fetch(`/api/transits/${transitId}/expenses?expenseId=${expense.id}`, { method: 'DELETE' });
+      }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to delete expense');
       toast.success('Expense deleted');
@@ -371,11 +379,27 @@ export default function TransitDetailPage() {
       render: (_, row) => <span style={{ fontWeight: 600, color: 'var(--error)' }}>{formatCurrency(row.amount)}</span>,
     },
     {
+      key: 'shipment',
+      header: 'Shipment',
+      render: (_, row) => row.shipment ? (
+        <Box>
+          <Box sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+            {[row.shipment.vehicleMake, row.shipment.vehicleModel].filter(Boolean).join(' ') || 'Vehicle'}
+          </Box>
+          {row.shipment.vehicleVIN && (
+            <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.shipment.vehicleVIN}</Box>
+          )}
+        </Box>
+      ) : (
+        <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>General transit expense</Box>
+      ),
+    },
+    {
       key: 'id',
       header: 'Actions',
       render: (_, row) => (
         <Tooltip title="Delete expense">
-          <IconButton size="small" color="error" onClick={() => void handleDeleteExpense(row.id)}>
+          <IconButton size="small" color="error" onClick={() => void handleDeleteExpense(row)}>
             <Trash2 className="w-4 h-4" />
           </IconButton>
         </Tooltip>
