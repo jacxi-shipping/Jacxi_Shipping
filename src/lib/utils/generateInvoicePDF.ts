@@ -88,6 +88,14 @@ const formatDate = (dateString: string | null): string => {
   });
 };
 
+const getLineItemTypeLabel = (type: string, description: string): string => {
+  if (type === 'DISCOUNT' && /damage/i.test(description)) {
+    return 'DAMAGE CREDIT';
+  }
+
+  return type.replace('_', ' ');
+};
+
 const formatStatus = (status: string): string => {
   return status.replace('_', ' ').toUpperCase();
 };
@@ -299,7 +307,7 @@ export const generateInvoicePDF = (invoice: Invoice) => {
     group.items.forEach(item => {
       tableData.push([
         { content: item.description, styles: { cellPadding: { left: group.shipment ? 8 : 5 }, textColor: COLORS.textPrimary } },
-        { content: item.type.replace('_', ' '), styles: { textColor: COLORS.textSecondary } },
+        { content: getLineItemTypeLabel(item.type, item.description), styles: { textColor: COLORS.textSecondary } },
         { content: item.quantity.toString(), styles: { textColor: COLORS.textSecondary } },
         { content: formatCurrency(item.unitPrice), styles: { textColor: COLORS.textSecondary } },
         { content: formatCurrency(item.amount), styles: { fontStyle: 'bold', textColor: COLORS.textPrimary } },

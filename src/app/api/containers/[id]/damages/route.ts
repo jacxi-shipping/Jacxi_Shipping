@@ -160,7 +160,7 @@ export async function POST(
 
         await recalculateUserLedgerBalances(tx, shipment.userId);
       } else {
-        // COMPANY_PAYS: debit company ledger and credit customer ledger
+        // COMPANY_PAYS: debit company ledger only (no customer ledger credit)
         await tx.companyLedgerEntry.create({
           data: {
             companyId: container.companyId as string,
@@ -179,35 +179,12 @@ export async function POST(
               containerId: params.id,
               shipmentId: validatedData.shipmentId,
               userId: shipment.userId,
-              customerCreditAmount: validatedData.amount,
-              companyChargeAmount,
-            },
-          },
-        });
-
-        await tx.ledgerEntry.create({
-          data: {
-            userId: shipment.userId,
-            shipmentId: validatedData.shipmentId,
-            description: `Damage compensation (company responsible) - ${validatedData.description} for ${vehicleLabel}${vinSuffix}`,
-            type: 'CREDIT',
-            amount: validatedData.amount,
-            balance: 0,
-            createdBy: session.user!.id as string,
-            notes: validatedData.description,
-            metadata: {
-              isDamage: true,
-              damageType: 'COMPANY_PAYS',
-              containerDamageId: createdDamage.id,
-              containerId: params.id,
-              customerCreditAmount: validatedData.amount,
               companyChargeAmount,
             },
           },
         });
 
         await recalculateCompanyLedgerBalances(tx, container.companyId as string);
-        await recalculateUserLedgerBalances(tx, shipment.userId);
       }
 
       return createdDamage;
@@ -220,7 +197,7 @@ export async function POST(
         action: 'DAMAGE_ADDED',
         description:
           validatedData.damageType === 'COMPANY_PAYS' && validatedData.companyAmount
-            ? `Damage added: ${validatedData.damageType} - customer credit $${validatedData.amount} / company charge $${companyChargeAmount} - ${validatedData.description}`
+            ? `Damage added: ${validatedData.damageType} - company charge $${companyChargeAmount} - ${validatedData.description}`
             : `Damage added: ${validatedData.damageType} - $${validatedData.amount} - ${validatedData.description}`,
         performedBy: session.user.id as string,
         newValue: JSON.stringify({

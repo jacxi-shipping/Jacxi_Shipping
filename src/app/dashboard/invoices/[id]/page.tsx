@@ -235,6 +235,14 @@ export default function InvoiceDetailPage() {
 		});
 	};
 
+	const getLineItemTypeLabel = (item: LineItem) => {
+		if (item.type === 'DISCOUNT' && /damage/i.test(item.description)) {
+			return 'DAMAGE CREDIT';
+		}
+
+		return item.type.replace('_', ' ');
+	};
+
 	// Group line items by shipment
 	const groupedLineItems = invoice?.lineItems.reduce((acc, item) => {
 		const key = item.shipment?.id || 'other';
@@ -542,7 +550,7 @@ export default function InvoiceDetailPage() {
 													</TableCell>
 													<TableCell>
 														<Chip 
-															label={item.type.replace('_', ' ')} 
+															label={getLineItemTypeLabel(item)} 
 															size="small"
 															sx={{ fontSize: '0.7rem' }}
 														/>
