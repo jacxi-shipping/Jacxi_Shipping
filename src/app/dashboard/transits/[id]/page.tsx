@@ -34,6 +34,7 @@ import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/da
 import { Breadcrumbs, Button, StatsCard, TableSkeleton, toast } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
+import AddTransitExpenseModal from '@/components/transits/AddTransitExpenseModal';
 
 interface Company {
   id: string;
@@ -64,10 +65,13 @@ interface TransitEvent {
 
 interface TransitExpense {
   id: string;
+  type: string;
   description: string;
   amount: number;
   currency: string;
   date: string;
+  vendor: string | null;
+  invoiceNumber: string | null;
   category: string | null;
   notes: string | null;
   shipment: { id: string; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null } | null;
@@ -130,8 +134,6 @@ export default function TransitDetailPage() {
 
   // Add expense state
   const [openExpense, setOpenExpense] = useState(false);
-  const [expenseForm, setExpenseForm] = useState({ description: '', amount: '', currency: 'USD', date: new Date().toISOString().slice(0, 10), category: '', notes: '', shipmentId: '', postToCompanyLedger: true, postToUserLedger: false, userId: '' });
-  const [postingExpense, setPostingExpense] = useState(false);
   const [shipmentExpenseModalOpen, setShipmentExpenseModalOpen] = useState(false);
   const [selectedShipmentForExpense, setSelectedShipmentForExpense] = useState<string | undefined>(undefined);
 
@@ -229,41 +231,6 @@ export default function TransitDetailPage() {
     }
   };
 
-  const handleAddExpense = async () => {
-    if (!expenseForm.description.trim()) { toast.error('Description is required'); return; }
-    const amount = parseFloat(expenseForm.amount);
-    if (!amount || amount <= 0) { toast.error('Amount must be greater than 0'); return; }
-    try {
-      setPostingExpense(true);
-      const response = await fetch(`/api/transits/${transitId}/expenses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: expenseForm.description,
-          amount,
-          currency: expenseForm.currency,
-          date: expenseForm.date || undefined,
-          category: expenseForm.category || undefined,
-          notes: expenseForm.notes || undefined,
-          shipmentId: expenseForm.shipmentId || undefined,
-          postToCompanyLedger: expenseForm.postToCompanyLedger,
-          postToUserLedger: expenseForm.postToUserLedger,
-          userId: expenseForm.userId || undefined,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to add expense');
-      toast.success('Expense recorded');
-      setOpenExpense(false);
-      setExpenseForm({ description: '', amount: '', currency: 'USD', date: new Date().toISOString().slice(0, 10), category: '', notes: '', shipmentId: '', postToCompanyLedger: true, postToUserLedger: false, userId: '' });
-      await fetchTransit();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to add expense');
-    } finally {
-      setPostingExpense(false);
-    }
-  };
-
   const handleAddShipment = async () => {
     if (!shipmentIdToAdd.trim()) { toast.error('Shipment ID is required'); return; }
     if (!shipmentReleaseToken.trim()) { toast.error('Release token is required'); return; }
@@ -298,6 +265,19 @@ export default function TransitDetailPage() {
       await fetchTransit();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to remove shipment');
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: string) => {
+    if (!confirm('Delete this expense? This will also reverse the ledger entries.')) return;
+    try {
+      const response = await fetch(`/api/transits/${transitId}/expenses?expenseId=${expenseId}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete expense');
+      toast.success('Expense deleted');
+      await fetchTransit();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete expense');
     }
   };
 
@@ -378,20 +358,30 @@ export default function TransitDetailPage() {
   const expenseColumns: Column<TransitExpense>[] = [
     { key: 'date', header: 'Date', render: (_, row) => new Date(row.date).toLocaleDateString() },
     {
-      key: 'description',
-      header: 'Description',
+      key: 'type',
+      header: 'Type',
       render: (_, row) => (
         <Box>
-          <Box sx={{ fontWeight: 500 }}>{row.description}</Box>
-          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.category || 'General'}</Box>
+          <Box sx={{ fontWeight: 500 }}>{row.type.replace(/_/g, ' ')}</Box>
+          {row.vendor && <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.vendor}</Box>}
         </Box>
       ),
     },
-    { key: 'shipment', header: 'Shipment', render: (_, row) => row.shipment ? `${row.shipment.vehicleMake || ''} ${row.shipment.vehicleModel || ''}`.trim() || row.shipment.vehicleVIN || '-' : 'All' },
     {
       key: 'amount',
       header: 'Amount',
       render: (_, row) => <span style={{ fontWeight: 600, color: 'var(--error)' }}>{formatCurrency(row.amount)}</span>,
+    },
+    {
+      key: 'id',
+      header: 'Actions',
+      render: (_, row) => (
+        <Tooltip title="Delete expense">
+          <IconButton size="small" color="error" onClick={() => void handleDeleteExpense(row.id)}>
+            <Trash2 className="w-4 h-4" />
+          </IconButton>
+        </Tooltip>
+      ),
     },
   ];
 
@@ -595,66 +585,13 @@ export default function TransitDetailPage() {
           </DialogActions>
         </Dialog>
 
-        {/* Add Expense Dialog */}
-        <Dialog open={openExpense} onClose={() => !postingExpense && setOpenExpense(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Add Transit Expense</DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
-            <TextField label="Description" value={expenseForm.description} onChange={(e) => setExpenseForm(prev => ({ ...prev, description: e.target.value }))} required />
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField label="Amount" type="number" inputProps={{ min: 0.01, step: 0.01 }} value={expenseForm.amount} onChange={(e) => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))} required />
-              <TextField label="Currency" value={expenseForm.currency} onChange={(e) => setExpenseForm(prev => ({ ...prev, currency: e.target.value }))} />
-            </Box>
-            <TextField label="Date" type="date" InputLabelProps={{ shrink: true }} value={expenseForm.date} onChange={(e) => setExpenseForm(prev => ({ ...prev, date: e.target.value }))} />
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField label="Category" value={expenseForm.category} onChange={(e) => setExpenseForm(prev => ({ ...prev, category: e.target.value }))} placeholder="e.g. Customs, Fuel" />
-              <TextField
-                select
-                label="Linked Shipment"
-                value={expenseForm.shipmentId}
-                onChange={(e) => setExpenseForm(prev => ({ ...prev, shipmentId: e.target.value }))}
-              >
-                <MenuItem value="">All shipments</MenuItem>
-                {transit.shipments.map(s => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {`${s.vehicleYear || ''} ${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.vehicleVIN || s.id.slice(0, 8)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Box>
-            <TextField label="Notes" multiline rows={2} value={expenseForm.notes} onChange={(e) => setExpenseForm(prev => ({ ...prev, notes: e.target.value }))} />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <input type="checkbox" id="postToCompany" checked={expenseForm.postToCompanyLedger} onChange={(e) => setExpenseForm(prev => ({ ...prev, postToCompanyLedger: e.target.checked }))} />
-                <label htmlFor="postToCompany" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Post DEBIT to company ledger ({transit.company.name})</label>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <input type="checkbox" id="postToUser" checked={expenseForm.postToUserLedger} onChange={(e) => setExpenseForm(prev => ({ ...prev, postToUserLedger: e.target.checked }))} />
-                <label htmlFor="postToUser" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Post DEBIT to customer ledger</label>
-              </Box>
-              {expenseForm.postToUserLedger && (
-                <TextField
-                  select
-                  label="Customer"
-                  size="small"
-                  value={expenseForm.userId}
-                  onChange={(e) => setExpenseForm(prev => ({ ...prev, userId: e.target.value }))}
-                  required
-                >
-                  <MenuItem value="">Select customer...</MenuItem>
-                  {transit.shipments.map(s => (
-                    <MenuItem key={s.id} value={s.user.id}>
-                      {s.user.name || s.user.email}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )}
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button variant="outline" onClick={() => setOpenExpense(false)} disabled={postingExpense}>Cancel</Button>
-            <Button variant="primary" onClick={handleAddExpense} disabled={postingExpense}>{postingExpense ? 'Saving...' : 'Save Expense'}</Button>
-          </DialogActions>
-        </Dialog>
+        {/* Add Expense Modal */}
+        <AddTransitExpenseModal
+          open={openExpense}
+          onClose={() => setOpenExpense(false)}
+          transitId={transitId}
+          onSuccess={() => void fetchTransit()}
+        />
 
         {/* Add Shipment Dialog */}
         <Dialog open={openAddShipment} onClose={() => !addingShipment && setOpenAddShipment(false)} maxWidth="xs" fullWidth>

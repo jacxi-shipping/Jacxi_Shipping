@@ -721,24 +721,28 @@ model TransitEvent {
 }
 
 model TransitExpense {
-  id          String   @id @default(cuid())
-  transitId   String
-  shipmentId  String?
-  description String
-  amount      Float
-  currency    String   @default("USD")
-  date        DateTime @default(now())
-  category    String?
-  notes       String?
-  createdBy   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  transitId     String
+  shipmentId    String?
+  type          String   @default("OTHER")
+  description   String
+  amount        Float
+  currency      String   @default("USD")
+  date          DateTime @default(now())
+  vendor        String?
+  invoiceNumber String?
+  category      String?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   transit  Transit   @relation(fields: [transitId], references: [id], onDelete: Cascade)
   shipment Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
 
   @@index([transitId])
   @@index([shipmentId])
+  @@index([type])
 }
 
 model AuditLog {
