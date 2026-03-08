@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         vehicleMake: true,
         vehicleModel: true,
         vehicleVIN: true,
+        containerId: true,
         transitId: true,
         container: {
           select: {
@@ -61,9 +62,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    // Priority: Transit company > Container company
-    const resolvedCompanyId = shipment.transit?.companyId || shipment.container?.companyId;
-    const isTransitExpense = Boolean(shipment.transitId && shipment.transit?.companyId);
+    // Priority: Container company > Transit company
+    const resolvedCompanyId = shipment.container?.companyId || shipment.transit?.companyId;
+    const isTransitExpense = Boolean(shipment.transitId && shipment.transit?.companyId && !shipment.containerId);
 
     if (!resolvedCompanyId) {
       return NextResponse.json(
