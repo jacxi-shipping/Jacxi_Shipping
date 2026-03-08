@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
+  Autocomplete,
   Box,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -51,6 +53,15 @@ interface Shipment {
   vehicleVIN: string | null;
   status: string;
   user: { id: string; name: string | null; email: string; phone: string | null };
+}
+
+interface AssignableShipment {
+  id: string;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleYear: number | null;
+  vehicleVIN: string | null;
+  user: { id: string; name: string | null; email: string };
 }
 
 interface TransitEvent {
@@ -142,6 +153,39 @@ export default function TransitDetailPage() {
   const [shipmentReleaseToken, setShipmentReleaseToken] = useState('');
   const [showShipmentReleaseToken, setShowShipmentReleaseToken] = useState(false);
   const [addingShipment, setAddingShipment] = useState(false);
+  const [availableShipments, setAvailableShipments] = useState<AssignableShipment[]>([]);
+  const [shipmentSearch, setShipmentSearch] = useState('');
+  const [loadingAvailableShipments, setLoadingAvailableShipments] = useState(false);
+
+  const fetchAvailableShipments = async (searchTerm = '') => {
+    try {
+      setLoadingAvailableShipments(true);
+      const query = new URLSearchParams({
+        status: 'RELEASED',
+        limit: '50',
+        page: '1',
+      });
+
+      if (searchTerm.trim()) {
+        query.set('search', searchTerm.trim());
+      }
+
+      const response = await fetch(`/api/shipments?${query.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to load shipments');
+      }
+
+      setAvailableShipments((data.shipments || []) as AssignableShipment[]);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load released shipments');
+      setAvailableShipments([]);
+    } finally {
+      setLoadingAvailableShipments(false);
+    }
+  };
 
   const fetchTransit = async () => {
     try {
@@ -162,6 +206,16 @@ export default function TransitDetailPage() {
   useEffect(() => {
     if (transitId) void fetchTransit();
   }, [transitId]);
+
+  useEffect(() => {
+    if (!openAddShipment) return;
+
+    const timer = setTimeout(() => {
+      void fetchAvailableShipments(shipmentSearch);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [openAddShipment, shipmentSearch]);
 
   const openEditDialog = () => {
     if (!transit) return;
@@ -231,7 +285,7 @@ export default function TransitDetailPage() {
   };
 
   const handleAddShipment = async () => {
-    if (!shipmentIdToAdd.trim()) { toast.error('Shipment ID is required'); return; }
+    if (!shipmentIdToAdd.trim()) { toast.error('Shipment selection is required'); return; }
     if (!shipmentReleaseToken.trim()) { toast.error('Release token is required'); return; }
     try {
       setAddingShipment(true);
@@ -245,6 +299,8 @@ export default function TransitDetailPage() {
       toast.success('Shipment added to transit');
       setOpenAddShipment(false);
       setShipmentIdToAdd('');
+      setShipmentSearch('');
+      setAvailableShipments([]);
       setShipmentReleaseToken('');
       await fetchTransit();
     } catch (error) {
@@ -252,6 +308,16 @@ export default function TransitDetailPage() {
     } finally {
       setAddingShipment(false);
     }
+  };
+
+  const handleCloseAddShipment = () => {
+    if (addingShipment) return;
+    setOpenAddShipment(false);
+    setShipmentIdToAdd('');
+    setShipmentSearch('');
+    setAvailableShipments([]);
+    setShipmentReleaseToken('');
+    setShowShipmentReleaseToken(false);
   };
 
   const handleRemoveShipment = async (shipmentId: string) => {
@@ -628,16 +694,55 @@ export default function TransitDetailPage() {
         />
 
         {/* Add Shipment Dialog */}
-        <Dialog open={openAddShipment} onClose={() => !addingShipment && setOpenAddShipment(false)} maxWidth="xs" fullWidth>
+        <Dialog open={openAddShipment} onClose={handleCloseAddShipment} maxWidth="xs" fullWidth>
           <DialogTitle>Add Shipment to Transit</DialogTitle>
           <DialogContent sx={{ pt: 1.5 }}>
-            <TextField
-              fullWidth
-              label="Shipment ID"
-              value={shipmentIdToAdd}
-              onChange={(e) => setShipmentIdToAdd(e.target.value)}
-              helperText="Paste shipment ID. Only released shipments can be assigned."
-              sx={{ mb: 2 }}
+            <Autocomplete
+              options={availableShipments}
+              loading={loadingAvailableShipments}
+              value={availableShipments.find((shipment) => shipment.id === shipmentIdToAdd) || null}
+              onChange={(_, value) => setShipmentIdToAdd(value?.id || '')}
+              onInputChange={(_, value) => setShipmentSearch(value)}
+              getOptionLabel={(option) => {
+                const vehicle = `${option.vehicleYear || ''} ${option.vehicleMake || ''} ${option.vehicleModel || ''}`.trim() || 'Vehicle';
+                const vin = option.vehicleVIN ? ` - VIN ${option.vehicleVIN}` : '';
+                return `${vehicle}${vin}`;
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              noOptionsText="No released shipments found"
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box>
+                    <Box sx={{ fontWeight: 600 }}>
+                      {`${option.vehicleYear || ''} ${option.vehicleMake || ''} ${option.vehicleModel || ''}`.trim() || 'Vehicle'}
+                    </Box>
+                    <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {option.vehicleVIN ? `VIN ${option.vehicleVIN}` : option.id}
+                    </Box>
+                    <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {option.user.name || option.user.email}
+                    </Box>
+                  </Box>
+                </li>
+              )}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  fullWidth
+                  label="Shipment"
+                  helperText="Search and select a released shipment"
+                  sx={{ mb: 2 }}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loadingAvailableShipments ? <CircularProgress color="inherit" size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
             />
             <TextField
               fullWidth
@@ -660,7 +765,7 @@ export default function TransitDetailPage() {
             />
           </DialogContent>
           <DialogActions>
-            <Button variant="outline" onClick={() => setOpenAddShipment(false)} disabled={addingShipment}>Cancel</Button>
+            <Button variant="outline" onClick={handleCloseAddShipment} disabled={addingShipment}>Cancel</Button>
             <Button variant="primary" onClick={handleAddShipment} disabled={addingShipment}>{addingShipment ? 'Adding...' : 'Add'}</Button>
           </DialogActions>
         </Dialog>
