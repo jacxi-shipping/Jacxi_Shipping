@@ -63,6 +63,7 @@ export default function AddDamageModal({
 		shipmentId: '',
 		damageType: 'WE_PAY',
 		amount: '',
+		companyAmount: '',
 		description: '',
 	});
 
@@ -88,6 +89,15 @@ export default function AddDamageModal({
 			return;
 		}
 
+		if (
+			formData.damageType === 'COMPANY_PAYS' &&
+			formData.companyAmount &&
+			parseFloat(formData.companyAmount) <= 0
+		) {
+			toast.error('Please enter a valid company charge amount');
+			return;
+		}
+
 		setLoading(true);
 
 		try {
@@ -98,6 +108,10 @@ export default function AddDamageModal({
 					shipmentId: formData.shipmentId,
 					damageType: formData.damageType,
 					amount: parseFloat(formData.amount),
+					companyAmount:
+						formData.damageType === 'COMPANY_PAYS' && formData.companyAmount
+							? parseFloat(formData.companyAmount)
+							: undefined,
 					description: formData.description.trim(),
 				}),
 			});
@@ -120,7 +134,7 @@ export default function AddDamageModal({
 
 	const handleClose = () => {
 		if (!loading) {
-			setFormData({ shipmentId: '', damageType: 'WE_PAY', amount: '', description: '' });
+			setFormData({ shipmentId: '', damageType: 'WE_PAY', amount: '', companyAmount: '', description: '' });
 			onClose();
 		}
 	};
@@ -238,7 +252,7 @@ export default function AddDamageModal({
 					{/* Amount */}
 					<TextField
 						size="small"
-						label="Amount (USD)"
+						label={formData.damageType === 'COMPANY_PAYS' ? 'Customer Credit Amount (USD)' : 'Amount (USD)'}
 						type="number"
 						value={formData.amount}
 						onChange={(e) => handleChange('amount', e.target.value)}
@@ -255,6 +269,28 @@ export default function AddDamageModal({
 							'& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
 						}}
 					/>
+
+					{formData.damageType === 'COMPANY_PAYS' && (
+						<TextField
+							size="small"
+							label="Company Charge Amount (USD)"
+							type="number"
+							value={formData.companyAmount}
+							onChange={(e) => handleChange('companyAmount', e.target.value)}
+							inputProps={{ min: 0, step: 0.01 }}
+							helperText="Optional. Leave empty to use the same value as customer credit amount."
+							InputProps={{
+								startAdornment: <InputAdornment position="start">$</InputAdornment>,
+							}}
+							sx={{
+								'& .MuiOutlinedInput-root': {
+									color: 'var(--text-primary)',
+									'& fieldset': { borderColor: 'rgba(var(--border-rgb), 0.9)' },
+								},
+								'& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+							}}
+						/>
+					)}
 
 					{/* Description */}
 					<TextField

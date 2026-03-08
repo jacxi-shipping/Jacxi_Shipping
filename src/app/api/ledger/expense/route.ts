@@ -42,9 +42,16 @@ export async function POST(request: NextRequest) {
         vehicleMake: true,
         vehicleModel: true,
         vehicleVIN: true,
+        transitId: true,
         container: {
           select: {
             companyId: true,
+          },
+        },
+        transit: {
+          select: {
+            companyId: true,
+            referenceNumber: true,
           },
         },
       },
@@ -54,11 +61,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    const resolvedCompanyId = shipment.container?.companyId;
+    // Priority: Transit company > Container company
+    const resolvedCompanyId = shipment.transit?.companyId || shipment.container?.companyId;
+    const isTransitExpense = Boolean(shipment.transitId && shipment.transit?.companyId);
 
     if (!resolvedCompanyId) {
       return NextResponse.json(
-        { error: 'Shipment must be linked to a container with a company before adding expenses' },
+        { error: 'Shipment must be linked to a container or transit with a company before adding expenses' },
         { status: 400 }
       );
     }
@@ -73,7 +82,10 @@ export async function POST(request: NextRequest) {
     const shipmentRef = shipment.vehicleVIN
       ? `VIN ${shipment.vehicleVIN}`
       : `Shipment ${shipment.id}`;
-    const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (${shipmentRef})`;
+    const contextInfo = isTransitExpense 
+      ? `(Transit ${shipment.transit?.referenceNumber || 'N/A'})`
+      : '';
+    const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (${shipmentRef}) ${contextInfo}`.trim();
 
     const entries = await prisma.$transaction(async (tx) => {
       const debitEntry = await tx.ledgerEntry.create({
@@ -91,7 +103,8 @@ export async function POST(request: NextRequest) {
             paymentMode: validatedData.paymentMode,
             isExpense: true,
             linkedCompanyId: resolvedCompanyId,
-            expenseSource: 'SHIPMENT',
+            expenseSource: isTransitExpense ? 'TRANSIT' : 'SHIPMENT',
+            ...(isTransitExpense && { transitId: shipment.transitId }),
           },
         },
       });
@@ -105,18 +118,19 @@ export async function POST(request: NextRequest) {
           type: 'CREDIT',
           amount: companyAmount,
           balance: 0,
-          category: 'Shipment Expense Recovery',
+          category: isTransitExpense ? 'Transit Expense Recovery' : 'Shipment Expense Recovery',
           reference,
           notes: validatedData.notes,
           createdBy: session.user!.id as string,
           metadata: {
             isExpenseRecovery: true,
-            expenseSource: 'SHIPMENT',
+            expenseSource: isTransitExpense ? 'TRANSIT' : 'SHIPMENT',
             linkedUserExpenseEntryId: debitEntry.id,
             shipmentId: shipment.id,
             userId: shipment.userId,
             expenseType: validatedData.expenseType,
             paymentMode: validatedData.paymentMode,
+            ...(isTransitExpense && { transitId: shipment.transitId }),
           },
         },
       });
@@ -142,7 +156,8 @@ export async function POST(request: NextRequest) {
               isCashPayment: true,
               parentExpenseEntryId: debitEntry.id,
               linkedCompanyId: resolvedCompanyId,
-              expenseSource: 'SHIPMENT',
+              expenseSource: isTransitExpense ? 'TRANSIT' : 'SHIPMENT',
+              ...(isTransitExpense && { transitId: shipment.transitId }),
             },
           },
         });

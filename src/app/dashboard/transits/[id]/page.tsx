@@ -34,7 +34,6 @@ import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/da
 import { Breadcrumbs, Button, StatsCard, TableSkeleton, toast } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
-import AddTransitExpenseModal from '@/components/transits/AddTransitExpenseModal';
 
 interface Company {
   id: string;
@@ -133,7 +132,6 @@ export default function TransitDetailPage() {
   const [postingEvent, setPostingEvent] = useState(false);
 
   // Add expense state
-  const [openExpense, setOpenExpense] = useState(false);
   const [shipmentExpenseModalOpen, setShipmentExpenseModalOpen] = useState(false);
   const [selectedShipmentForExpense, setSelectedShipmentForExpense] = useState<string | undefined>(undefined);
 
@@ -321,7 +319,7 @@ export default function TransitDetailPage() {
       header: 'Actions',
       render: (_, row) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-          <Tooltip title="Add shipment expense">
+          <Tooltip title="Add expense">
             <IconButton
               size="small"
               onClick={() => {
@@ -518,12 +516,14 @@ export default function TransitDetailPage() {
           </TabPanel>
 
           <TabPanel value={activeTab} index={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-              <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenExpense(true)}>
-                Add Expense
-              </Button>
+            <Box sx={{ p: 2, background: 'var(--surface-secondary)', borderRadius: 2, border: '1px solid var(--border)' }}>
+              <Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                💡 To add expenses for shipments in this transit, go to the <strong>Shipments</strong> tab and click the <DollarSign className="inline w-3.5 h-3.5" /> icon for each shipment.
+              </Box>
             </Box>
-            <DataTable data={transit.expenses} columns={expenseColumns} keyField="id" />
+            <Box sx={{ mt: 2 }}>
+              <DataTable data={transit.expenses} columns={expenseColumns} keyField="id" />
+            </Box>
           </TabPanel>
 
           <TabPanel value={activeTab} index={3}>
@@ -585,11 +585,21 @@ export default function TransitDetailPage() {
           </DialogActions>
         </Dialog>
 
-        {/* Add Expense Modal */}
-        <AddTransitExpenseModal
-          open={openExpense}
-          onClose={() => setOpenExpense(false)}
-          transitId={transitId}
+        {/* Add Shipment Expense Modal */}
+        <AddShipmentExpenseModal
+          open={shipmentExpenseModalOpen}
+          onClose={() => {
+            setShipmentExpenseModalOpen(false);
+            setSelectedShipmentForExpense(undefined);
+          }}
+          shipmentId={selectedShipmentForExpense}
+          shipments={selectedShipmentForExpense ? undefined : transit.shipments.map((s) => ({
+            id: s.id,
+            vehicleMake: s.vehicleMake,
+            vehicleModel: s.vehicleModel,
+            vehicleVIN: s.vehicleVIN,
+            user: s.user,
+          }))}
           onSuccess={() => void fetchTransit()}
         />
 
@@ -631,25 +641,7 @@ export default function TransitDetailPage() {
           </DialogActions>
         </Dialog>
 
-        {/* Add Shipment Expense Modal (same UX/logic as container shipment expenses) */}
-        <AddShipmentExpenseModal
-          open={shipmentExpenseModalOpen}
-          onClose={() => {
-            setShipmentExpenseModalOpen(false);
-            setSelectedShipmentForExpense(undefined);
-          }}
-          shipmentId={selectedShipmentForExpense}
-          shipments={selectedShipmentForExpense ? undefined : transit.shipments.map((s) => ({
-            id: s.id,
-            vehicleMake: s.vehicleMake,
-            vehicleModel: s.vehicleModel,
-            vehicleVIN: s.vehicleVIN,
-            user: s.user,
-          }))}
-          onSuccess={() => {
-            void fetchTransit();
-          }}
-        />
+
       </DashboardSurface>
     </AdminRoute>
   );

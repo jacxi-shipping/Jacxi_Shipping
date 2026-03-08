@@ -164,7 +164,7 @@ export async function POST(
       const reference = `transit-expense:${createdExpense.id}`;
 
       // 2. CREDIT transit company ledger (company is owed this money)
-      await tx.companyLedgerEntry.create({
+      const companyLedgerEntry = await tx.companyLedgerEntry.create({
         data: {
           companyId: transit.companyId as string,
           description: `Transit expense recovery - ${validatedData.type} (${transit.referenceNumber})`,
@@ -183,6 +183,11 @@ export async function POST(
             transitRef: transit.referenceNumber,
           },
         },
+      });
+      console.log(`[CREATE EXPENSE] Created company ledger entry ${companyLedgerEntry.id}`, {
+        companyId: transit.companyId,
+        amount: validatedData.amount,
+        metadata: companyLedgerEntry.metadata,
       });
 
       // 3. DEBIT each user ledger for their allocated share
@@ -271,11 +276,21 @@ export async function DELETE(
       },
     });
 
+    console.log(`[DELETE EXPENSE] Attempting to delete expense: ${expenseId}`, {
+      found: !!expense,
+      transitId: expense?.transitId,
+      companyId: expense?.transit.companyId,
+      amount: expense?.amount,
+      type: expense?.type,
+    });
+
     if (!expense || expense.transitId !== params.id) {
       return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
     }
 
     await prisma.$transaction(async (tx) => {
+      console.log(`[DELETE EXPENSE] Starting deletion for expense: ${expenseId}`);
+      
       // Find and delete linked user ledger entries
       const linkedUserEntries = await tx.ledgerEntry.findMany({
         where: {
@@ -286,6 +301,7 @@ export async function DELETE(
         },
         select: { id: true, userId: true },
       });
+      console.log(`[DELETE EXPENSE] Found ${linkedUserEntries.length} linked user ledger entries`);
 
       // Find and delete linked company ledger entries
       const linkedCompanyEntries = await tx.companyLedgerEntry.findMany({
@@ -297,26 +313,32 @@ export async function DELETE(
         },
         select: { id: true, companyId: true },
       });
+      console.log(`[DELETE EXPENSE] Found ${linkedCompanyEntries.length} linked company ledger entries`, 
+        linkedCompanyEntries.map(e => ({ id: e.id, companyId: e.companyId })));
 
       if (linkedUserEntries.length > 0) {
-        await tx.ledgerEntry.deleteMany({
+        const deleted = await tx.ledgerEntry.deleteMany({
           where: { id: { in: linkedUserEntries.map((e) => e.id) } },
         });
+        console.log(`[DELETE EXPENSE] Deleted ${deleted.count} user ledger entries`);
       }
 
       if (linkedCompanyEntries.length > 0) {
-        await tx.companyLedgerEntry.deleteMany({
+        const deleted = await tx.companyLedgerEntry.deleteMany({
           where: { id: { in: linkedCompanyEntries.map((e) => e.id) } },
         });
+        console.log(`[DELETE EXPENSE] Deleted ${deleted.count} company ledger entries`);
       }
 
       await tx.transitExpense.delete({ where: { id: expenseId } });
+      console.log(`[DELETE EXPENSE] Deleted transit expense: ${expenseId}`);
 
       // Recalculate balances
       const userIds = Array.from(new Set(linkedUserEntries.map((e) => e.userId)));
       for (const userId of userIds) {
         await recalculateUserLedgerBalances(tx, userId);
       }
+      console.log(`[DELETE EXPENSE] Recalculated balances for ${userIds.length} users`);
 
       const companyIds = new Set(linkedCompanyEntries.map((e) => e.companyId));
       if (expense.transit.companyId) {
@@ -325,6 +347,8 @@ export async function DELETE(
       for (const companyId of companyIds) {
         await recalculateCompanyLedgerBalances(tx, companyId);
       }
+      console.log(`[DELETE EXPENSE] Recalculated balances for ${companyIds.size} companies`);
+      console.log(`[DELETE EXPENSE] Expense deletion completed successfully`);
     });
 
     return NextResponse.json({ message: 'Expense deleted successfully' });

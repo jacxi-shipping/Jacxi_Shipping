@@ -10,6 +10,7 @@ const damageSchema = z.object({
   shipmentId: z.string().min(1),
   damageType: z.enum(['WE_PAY', 'COMPANY_PAYS']),
   amount: z.number().positive(),
+  companyAmount: z.number().positive().optional(),
   description: z.string().min(1),
 });
 
@@ -104,6 +105,10 @@ export async function POST(
 
     const body = await request.json();
     const validatedData = damageSchema.parse(body);
+    const companyChargeAmount =
+      validatedData.damageType === 'COMPANY_PAYS'
+        ? validatedData.companyAmount ?? validatedData.amount
+        : validatedData.amount;
 
     // Ensure the shipment belongs to this container
     const shipment = container.shipments.find((s) => s.id === validatedData.shipmentId);
@@ -161,7 +166,7 @@ export async function POST(
             companyId: container.companyId as string,
             description: `Shipment damage charge - ${validatedData.description} for ${vehicleLabel}${vinSuffix}`,
             type: 'DEBIT',
-            amount: validatedData.amount,
+            amount: companyChargeAmount,
             balance: 0,
             category: 'Shipment Damage',
             reference,
@@ -174,6 +179,8 @@ export async function POST(
               containerId: params.id,
               shipmentId: validatedData.shipmentId,
               userId: shipment.userId,
+              customerCreditAmount: validatedData.amount,
+              companyChargeAmount,
             },
           },
         });
@@ -193,6 +200,8 @@ export async function POST(
               damageType: 'COMPANY_PAYS',
               containerDamageId: createdDamage.id,
               containerId: params.id,
+              customerCreditAmount: validatedData.amount,
+              companyChargeAmount,
             },
           },
         });
@@ -209,11 +218,15 @@ export async function POST(
       data: {
         containerId: params.id,
         action: 'DAMAGE_ADDED',
-        description: `Damage added: ${validatedData.damageType} - $${validatedData.amount} - ${validatedData.description}`,
+        description:
+          validatedData.damageType === 'COMPANY_PAYS' && validatedData.companyAmount
+            ? `Damage added: ${validatedData.damageType} - customer credit $${validatedData.amount} / company charge $${companyChargeAmount} - ${validatedData.description}`
+            : `Damage added: ${validatedData.damageType} - $${validatedData.amount} - ${validatedData.description}`,
         performedBy: session.user.id as string,
         newValue: JSON.stringify({
           damageType: validatedData.damageType,
           amount: validatedData.amount,
+          companyAmount: validatedData.damageType === 'COMPANY_PAYS' ? companyChargeAmount : undefined,
           shipmentId: validatedData.shipmentId,
         }),
       },
