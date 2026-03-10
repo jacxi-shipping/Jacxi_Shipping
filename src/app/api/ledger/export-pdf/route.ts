@@ -67,8 +67,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate totals
-    const totalDebit = entries.filter(e => e.type === 'DEBIT').reduce((sum, e) => sum + e.amount, 0);
-    const totalCredit = entries.filter(e => e.type === 'CREDIT').reduce((sum, e) => sum + e.amount, 0);
+    // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop
+    // to avoid multiple O(N) iterations and intermediate array allocations.
+    let totalDebit = 0;
+    let totalCredit = 0;
+    for (const e of entries) {
+      if (e.type === 'DEBIT') {
+        totalDebit += e.amount;
+      } else if (e.type === 'CREDIT') {
+        totalCredit += e.amount;
+      }
+    }
     const currentBalance = entries.length > 0 ? entries[entries.length - 1].balance : 0;
 
     // Generate HTML for PDF
