@@ -98,22 +98,39 @@ export async function POST(request: NextRequest) {
     let remainingAmount = validatedData.amount;
     const updatedShipments = [];
 
+    // Optimize: Batch fetch ledger aggregations for all shipments to prevent N+1 queries in the loop
+    const shipmentIdsToProcess = shipments.map(s => s.id);
+    const bulkLedgerAggregations = await prisma.ledgerEntry.groupBy({
+      by: ['shipmentId', 'type'],
+      where: {
+        shipmentId: { in: shipmentIdsToProcess },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    // Map the aggregated results for O(1) lookup
+    const ledgerAggregationsMap = new Map<string, { totalDebit: number; totalCredit: number }>();
+    for (const id of shipmentIdsToProcess) {
+      ledgerAggregationsMap.set(id, { totalDebit: 0, totalCredit: 0 });
+    }
+
+    for (const agg of bulkLedgerAggregations) {
+      if (!agg.shipmentId) continue;
+      const current = ledgerAggregationsMap.get(agg.shipmentId)!;
+      if (agg.type === 'DEBIT') {
+        current.totalDebit = agg._sum.amount || 0;
+      } else if (agg.type === 'CREDIT') {
+        current.totalCredit = agg._sum.amount || 0;
+      }
+    }
+
     for (const shipment of shipments) {
       if (remainingAmount <= 0) break;
 
-      // Get total debits and credits for this shipment
-      const shipmentLedger = await prisma.ledgerEntry.groupBy({
-        by: ['type'],
-        where: { 
-          shipmentId: shipment.id,
-        },
-        _sum: {
-          amount: true,
-        },
-      });
-
-      const totalDebit = shipmentLedger.find(e => e.type === 'DEBIT')?._sum.amount || 0;
-      const totalCredit = shipmentLedger.find(e => e.type === 'CREDIT')?._sum.amount || 0;
+      // Get total debits and credits from the pre-computed map
+      const { totalDebit, totalCredit } = ledgerAggregationsMap.get(shipment.id)!;
       const shipmentDue = totalDebit - totalCredit;
 
       if (shipmentDue > 0) {
