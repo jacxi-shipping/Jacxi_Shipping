@@ -93,14 +93,27 @@ export async function GET(request: NextRequest) {
     }).filter(c => c.shipmentCount > 0); // Only include containers with shipments
 
     // Calculate summary by service type
+    // ⚡ Bolt: Calculate summary metrics in O(n) loop to replace 4 .reduce() chains
+    let totalRevenueSum = 0;
+    let totalCostsSum = 0;
+    let totalProfitSum = 0;
+    let totalProfitMarginSum = 0;
+
+    for (const p of profitAnalysis) {
+      totalRevenueSum += p.revenue;
+      totalCostsSum += p.costs.total;
+      totalProfitSum += p.profit;
+      totalProfitMarginSum += p.profitMargin;
+    }
+
     const summary = {
       overall: {
         containerCount: profitAnalysis.length,
-        totalRevenue: profitAnalysis.reduce((sum, p) => sum + p.revenue, 0),
-        totalCosts: profitAnalysis.reduce((sum, p) => sum + p.costs.total, 0),
-        totalProfit: profitAnalysis.reduce((sum, p) => sum + p.profit, 0),
+        totalRevenue: totalRevenueSum,
+        totalCosts: totalCostsSum,
+        totalProfit: totalProfitSum,
         avgProfitMargin: profitAnalysis.length > 0
-          ? profitAnalysis.reduce((sum, p) => sum + p.profitMargin, 0) / profitAnalysis.length
+          ? totalProfitMarginSum / profitAnalysis.length
           : 0,
       },
     };

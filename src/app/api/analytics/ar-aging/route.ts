@@ -61,7 +61,17 @@ export async function GET(request: NextRequest) {
       days90plus: [] as any[],
     };
 
+    // ⚡ Bolt: Removed array iterations .reduce() chains and instead calculate sums directly in O(n)
+    let currentAmount = 0;
+    let days1to30Amount = 0;
+    let days31to60Amount = 0;
+    let days61to90Amount = 0;
+    let days90plusAmount = 0;
+    let totalAmount = 0;
+
     invoices.forEach((invoice) => {
+      totalAmount += invoice.total;
+
       if (!invoice.dueDate) return; // Skip invoices without due date
       
       const dueDate = new Date(invoice.dueDate);
@@ -84,14 +94,19 @@ export async function GET(request: NextRequest) {
 
       if (daysOverdue < 0) {
         aging.current.push(invoiceDetail);
+        currentAmount += invoiceDetail.amount;
       } else if (daysOverdue <= 30) {
         aging.days1to30.push(invoiceDetail);
+        days1to30Amount += invoiceDetail.amount;
       } else if (daysOverdue <= 60) {
         aging.days31to60.push(invoiceDetail);
+        days31to60Amount += invoiceDetail.amount;
       } else if (daysOverdue <= 90) {
         aging.days61to90.push(invoiceDetail);
+        days61to90Amount += invoiceDetail.amount;
       } else {
         aging.days90plus.push(invoiceDetail);
+        days90plusAmount += invoiceDetail.amount;
       }
     });
 
@@ -99,27 +114,27 @@ export async function GET(request: NextRequest) {
     const summary = {
       current: {
         count: aging.current.length,
-        amount: aging.current.reduce((sum, inv) => sum + inv.amount, 0),
+        amount: currentAmount,
       },
       days1to30: {
         count: aging.days1to30.length,
-        amount: aging.days1to30.reduce((sum, inv) => sum + inv.amount, 0),
+        amount: days1to30Amount,
       },
       days31to60: {
         count: aging.days31to60.length,
-        amount: aging.days31to60.reduce((sum, inv) => sum + inv.amount, 0),
+        amount: days31to60Amount,
       },
       days61to90: {
         count: aging.days61to90.length,
-        amount: aging.days61to90.reduce((sum, inv) => sum + inv.amount, 0),
+        amount: days61to90Amount,
       },
       days90plus: {
         count: aging.days90plus.length,
-        amount: aging.days90plus.reduce((sum, inv) => sum + inv.amount, 0),
+        amount: days90plusAmount,
       },
       total: {
         count: invoices.length,
-        amount: invoices.reduce((sum, inv) => sum + inv.total, 0),
+        amount: totalAmount,
       },
     };
 
