@@ -111,20 +111,30 @@ export async function GET(request: NextRequest) {
     const avgProfitPerInvoice = invoices.length > 0 ? grossProfit / invoices.length : 0;
 
     // Payment status breakdown
-    const paidInvoices = invoices.filter((inv) => inv.status === "PAID").length;
-    const pendingInvoices = invoices.filter((inv) => inv.status === "PENDING").length;
-    const overdueInvoices = invoices.filter((inv) => inv.status === "OVERDUE").length;
-    const cancelledInvoices = invoices.filter((inv) => inv.status === "CANCELLED").length;
+    // ⚡ Bolt: Calculate payment statuses in O(n) loop to replace 7 chained array methods (.filter.reduce and .filter.length)
+    let paidInvoices = 0;
+    let pendingInvoices = 0;
+    let overdueInvoices = 0;
+    let cancelledInvoices = 0;
 
-    const paidAmount = invoices
-      .filter((inv) => inv.status === "PAID")
-      .reduce((sum, inv) => sum + inv.total, 0);
-    const pendingAmount = invoices
-      .filter((inv) => inv.status === "PENDING")
-      .reduce((sum, inv) => sum + inv.total, 0);
-    const overdueAmount = invoices
-      .filter((inv) => inv.status === "OVERDUE")
-      .reduce((sum, inv) => sum + inv.total, 0);
+    let paidAmount = 0;
+    let pendingAmount = 0;
+    let overdueAmount = 0;
+
+    for (const inv of invoices) {
+      if (inv.status === "PAID") {
+        paidInvoices++;
+        paidAmount += inv.total;
+      } else if (inv.status === "PENDING") {
+        pendingInvoices++;
+        pendingAmount += inv.total;
+      } else if (inv.status === "OVERDUE") {
+        overdueInvoices++;
+        overdueAmount += inv.total;
+      } else if (inv.status === "CANCELLED") {
+        cancelledInvoices++;
+      }
+    }
 
     return NextResponse.json({
       summary: {
