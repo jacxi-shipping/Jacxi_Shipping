@@ -67,16 +67,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate totals
-    // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop
-    // to avoid multiple O(N) iterations and intermediate array allocations.
+    // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop for O(N) performance
     let totalDebit = 0;
     let totalCredit = 0;
-    for (const e of entries) {
-      if (e.type === 'DEBIT') {
-        totalDebit += e.amount;
-      } else if (e.type === 'CREDIT') {
-        totalCredit += e.amount;
-      }
+    for (const entry of entries) {
+      if (entry.type === 'DEBIT') totalDebit += entry.amount;
+      else if (entry.type === 'CREDIT') totalCredit += entry.amount;
     }
     const currentBalance = entries.length > 0 ? entries[entries.length - 1].balance : 0;
 
