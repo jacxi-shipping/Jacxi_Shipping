@@ -31,6 +31,13 @@ interface Shipment {
     city: string | null;
     country: string | null;
   };
+  containerDamages?: Array<{
+    id: string;
+    damageType: 'WE_PAY' | 'COMPANY_PAYS';
+    amount: number;
+    description: string;
+    createdAt: string;
+  }>;
 }
 
 interface ShipmentInvoiceData {
@@ -202,6 +209,30 @@ export const generateShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
     ]);
     subtotal -= data.shipment.damageCredit;
   }
+
+  // 5. Shipment damage records from container damage tracking
+  (data.shipment.containerDamages || []).forEach((damage) => {
+    if (damage.damageType === 'WE_PAY') {
+      tableRows.push([
+        `Damage Compensation - ${damage.description}`,
+        'Damage Credit',
+        '1',
+        formatCurrency(-damage.amount),
+        formatCurrency(-damage.amount),
+      ]);
+      subtotal -= damage.amount;
+    } else {
+      // Informational only - company pays this damage, not the customer.
+      tableRows.push([
+        `Damage Note (Company Pays) - ${damage.description}`,
+        'Damage Note',
+        '1',
+        // Show assessed amount for transparency but keep billed amount zero.
+        formatCurrency(damage.amount),
+        formatCurrency(damage.amount),
+      ]);
+    }
+  });
 
   // Table
   autoTable(doc, {

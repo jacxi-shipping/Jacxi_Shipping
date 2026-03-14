@@ -49,6 +49,12 @@ export async function GET(
           take: 100,
         },
         shipments: {
+          where: {
+            OR: [
+              { containerId: { not: null } },
+              { transitId: { not: null } },
+            ],
+          },
           select: {
             id: true,
             vehicleVIN: true,
@@ -57,6 +63,7 @@ export async function GET(
             status: true,
             createdAt: true,
             transitId: true,
+            containerId: true,
           },
           orderBy: { createdAt: 'desc' },
           take: 200,
@@ -93,6 +100,24 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
+    const transitShipments = company.companyType === 'TRANSIT'
+      ? await prisma.shipment.findMany({
+          where: { transit: { companyId: company.id } },
+          select: {
+            id: true,
+            vehicleVIN: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            status: true,
+            createdAt: true,
+            transitId: true,
+            containerId: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
+        })
+      : [];
+
     const [debitAgg, creditAgg, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.aggregate({
         where: { companyId: company.id, type: 'DEBIT' },
@@ -109,8 +134,19 @@ export async function GET(
       }),
     ]);
 
+    const responseCompany = company.companyType === 'TRANSIT'
+      ? {
+          ...company,
+          shipments: transitShipments,
+          _count: {
+            ...company._count,
+            shipments: transitShipments.length,
+          },
+        }
+      : company;
+
     return NextResponse.json({
-      company,
+      company: responseCompany,
       summary: {
         totalDebit: debitAgg._sum.amount || 0,
         totalCredit: creditAgg._sum.amount || 0,

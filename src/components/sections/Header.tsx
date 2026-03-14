@@ -4,11 +4,18 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Ship, Menu, X, ArrowRight } from 'lucide-react';
 import { Slide, Fade, Box } from '@mui/material';
+import { useSession } from 'next-auth/react';
 import Button from '@/components/design-system/Button';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
+
+  const ctaHref = isAuthenticated ? '/dashboard' : '/auth/signin';
+  const ctaLabel = isAuthenticated ? 'Dashboard' : 'Sign In';
+  const mobileCtaLabel = isAuthenticated ? 'Go to Dashboard' : 'Sign In / Register';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -66,9 +73,9 @@ export default function Header() {
 
               {/* CTA & Mobile Toggle */}
               <div className="flex items-center gap-4">
-                <Link href="/auth/signin">
+                <Link href={ctaHref}>
                   <Button variant={isScrolled ? 'primary' : 'primary'} size="sm" icon={<ArrowRight className="w-4 h-4" />} iconPosition="end">
-                    Sign In
+                    {ctaLabel}
                   </Button>
                 </Link>
 
@@ -125,9 +132,9 @@ export default function Header() {
             </nav>
 
             <div className="mt-auto pb-8">
-              <Link href="/auth/signin" onClick={() => setIsMobileMenuOpen(false)}>
+              <Link href={ctaHref} onClick={() => setIsMobileMenuOpen(false)}>
                 <Button fullWidth size="lg">
-                  Sign In / Register
+                  {mobileCtaLabel}
                 </Button>
               </Link>
             </div>

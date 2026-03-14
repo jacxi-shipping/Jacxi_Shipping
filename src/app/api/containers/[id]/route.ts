@@ -75,6 +75,22 @@ export async function GET(
         expenses: {
           orderBy: { date: 'desc' },
         },
+        damages: {
+          include: {
+            shipment: {
+              select: {
+                id: true,
+                vehicleMake: true,
+                vehicleModel: true,
+                vehicleVIN: true,
+                user: {
+                  select: { id: true, name: true, email: true },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         invoices: {
           orderBy: { date: 'desc' },
         },
@@ -113,7 +129,7 @@ export async function GET(
 
     // Role-based access control
     const canReadAllContainers = hasPermission(session.user?.role, 'containers:read_all');
-    
+
     if (!canReadAllContainers) {
       // Check if user has any shipments in this container
       const userShipments = container.shipments.filter(s => s.userId === session.user.id);
@@ -124,6 +140,7 @@ export async function GET(
 
       // Filter sensitive data for non-admins
       container.expenses = [];
+      (container as any).damages = [];
       container.invoices = [];
       container.auditLogs = [];
       container.shipments = userShipments;
@@ -206,8 +223,71 @@ export async function GET(
       }
     }
 
+    if (canReadAllContainers) {
+      const shipmentExpenses = await prisma.ledgerEntry.findMany({
+        where: {
+          shipment: {
+            containerId: params.id,
+          },
+          type: 'DEBIT',
+        },
+        select: {
+          id: true,
+          shipmentId: true,
+          amount: true,
+          description: true,
+          transactionDate: true,
+          metadata: true,
+          shipment: {
+            select: {
+              vehicleMake: true,
+              vehicleModel: true,
+              vehicleVIN: true,
+            },
+          },
+        },
+        orderBy: {
+          transactionDate: 'desc',
+        },
+      });
+
+      const filteredShipmentExpenses = shipmentExpenses.filter((entry) => {
+        const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+        const isExpense = metadata.isExpense === true;
+        const expenseSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
+        const isContainerExpense = metadata.isContainerExpense === true;
+
+        // Include shipment-expense debits, but explicitly exclude container allocations.
+        return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
+      });
+
+      const mappedShipmentExpenses = filteredShipmentExpenses.map((entry) => {
+        const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+        const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'SHIPMENT_EXPENSE';
+        const vehicleLabel = [entry.shipment?.vehicleMake, entry.shipment?.vehicleModel].filter(Boolean).join(' ').trim();
+        const vinLabel = entry.shipment?.vehicleVIN ? ` (${entry.shipment.vehicleVIN})` : '';
+
+        return {
+          id: `shipment-${entry.id}`,
+          shipmentId: entry.shipmentId,
+          type: expenseType,
+          amount: entry.amount,
+          currency: 'USD',
+          date: entry.transactionDate,
+          vendor: vehicleLabel ? `${vehicleLabel}${vinLabel}` : 'Shipment expense',
+          description: entry.description,
+          source: 'SHIPMENT',
+        };
+      });
+
+      (container as any).expenses = [
+        ...container.expenses,
+        ...mappedShipmentExpenses,
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
     // Calculate totals
-    const totalExpenses = canReadAllContainers ? container.expenses.reduce((sum, exp) => sum + exp.amount, 0) : 0;
+    const totalExpenses = canReadAllContainers ? (container as any).expenses.reduce((sum: number, exp: { amount: number }) => sum + exp.amount, 0) : 0;
     const totalInvoices = canReadAllContainers ? container.invoices.reduce((sum, inv) => sum + inv.amount, 0) : 0;
     const currentCount = container.shipments.length; // This will reflect the filtered count for users? No, container.currentCount is from DB property usually, or I should use shipments.length.
     // Wait, `container.currentCount` property exists on the model (synced).
@@ -381,13 +461,17 @@ export async function PATCH(
           where: { containerId: container.id },
           data: { status: 'IN_TRANSIT' },
         });
-      } else if (validatedData.status === 'ARRIVED_PORT' || validatedData.status === 'RELEASED') {
-        // When container arrives or is released, shipments are effectively "on hand" at the destination
-        // or ready for pickup/delivery.
-        // Assuming ON_HAND means "at a facility we control", arrival at port or release fits.
+      } else if (validatedData.status === 'ARRIVED_PORT') {
+        // When container arrives at port, shipments are available at destination facility.
         await prisma.shipment.updateMany({
             where: { containerId: container.id },
             data: { status: 'ON_HAND' },
+        });
+      } else if (validatedData.status === 'RELEASED') {
+        // Released shipments are now eligible for transit assignment.
+        await prisma.shipment.updateMany({
+            where: { containerId: container.id },
+            data: { status: 'RELEASED' },
         });
       } else if (validatedData.status === 'CLOSED') {
         // When container is closed, it means the shipments have been delivered to customers

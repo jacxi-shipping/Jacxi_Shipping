@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
           shipment: {
             select: {
               id: true,
+              vehicleVIN: true,
               vehicleMake: true,
               vehicleModel: true,
             },
@@ -248,7 +249,7 @@ export async function GET(request: NextRequest) {
       <tbody>
         ${entries.map(entry => {
           const shipmentInfo = entry.shipment
-            ? `${entry.shipment.id || ""}`
+            ? `${entry.shipment.vehicleVIN || 'N/A'}`
             : 'N/A';
           const date = new Date(entry.transactionDate).toLocaleString();
           

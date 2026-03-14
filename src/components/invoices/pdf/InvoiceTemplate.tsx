@@ -328,6 +328,14 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const getLineItemTypeLabel = (type: string, description: string): string => {
+  if (type === 'DISCOUNT' && /damage/i.test(description)) {
+    return 'DAMAGE CREDIT';
+  }
+
+  return type.replace('_', ' ');
+};
+
 const formatDate = (date: Date | string | null) => {
   if (!date) return 'N/A';
   return new Date(date).toLocaleDateString('en-US', {
@@ -438,7 +446,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
           {invoice.lineItems.map((item, index) => (
             <View key={item.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]}>
               <Text style={[styles.td, styles.col1]}>{item.description}</Text>
-              <Text style={[styles.td, styles.col2]}>{item.type.replace('_', ' ')}</Text>
+              <Text style={[styles.td, styles.col2]}>{getLineItemTypeLabel(item.type, item.description)}</Text>
               <Text style={[styles.td, styles.col3]}>{item.quantity}</Text>
               <Text style={[styles.td, styles.col4]}>{formatCurrency(item.unitPrice)}</Text>
               <Text style={[styles.td, styles.col5]}>{formatCurrency(item.amount)}</Text>

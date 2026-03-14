@@ -58,6 +58,7 @@ import {
 } from '@/components/design-system';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AddExpenseModal from '@/components/containers/AddExpenseModal';
+import AddDamageModal from '@/components/containers/AddDamageModal';
 import AddInvoiceModal from '@/components/containers/AddInvoiceModal';
 import AddTrackingEventModal from '@/components/containers/AddTrackingEventModal';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
@@ -65,6 +66,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material
 import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import { ActivityLog } from '@/components/dashboard/ActivityLog';
 import { TrackingMap } from '@/components/dashboard/TrackingMap';
+import { hasAnyPermission, hasPermission } from '@/lib/rbac';
 
 interface Shipment {
 	id: string;
@@ -86,6 +88,25 @@ interface Expense {
 	currency: string;
 	date: string;
 	vendor: string | null;
+	source?: 'CONTAINER' | 'SHIPMENT';
+	shipmentId?: string | null;
+	description?: string;
+}
+
+interface Damage {
+	id: string;
+	shipmentId: string;
+	damageType: 'WE_PAY' | 'COMPANY_PAYS';
+	amount: number;
+	description: string;
+	createdAt: string;
+	shipment?: {
+		id: string;
+		vehicleMake: string | null;
+		vehicleModel: string | null;
+		vehicleVIN: string | null;
+		user?: { id: string; name: string | null; email: string };
+	};
 }
 
 interface Invoice {
@@ -177,6 +198,7 @@ interface Container {
 	createdAt: string;
 	shipments: Shipment[];
 	expenses: Expense[];
+	damages: Damage[];
 	invoices: Invoice[];
 	userInvoices?: UserInvoice[];
 	documents: Document[];
@@ -209,12 +231,18 @@ export default function ContainerDetailPage() {
 	const params = useParams();
 	const router = useRouter();
     const { data: session } = useSession();
-    const isAdmin = session?.user?.role === 'admin';
+	const userRole = session?.user?.role;
+	const isAdmin = userRole === 'admin';
+	const canManageExpenses = hasAnyPermission(userRole, ['finance:manage', 'containers:manage']);
+	const canViewExpenses = hasAnyPermission(userRole, ['finance:view', 'finance:manage', 'containers:read_all', 'containers:manage']);
+	const canManageInvoices = hasAnyPermission(userRole, ['invoices:manage', 'finance:manage']);
+	const canViewInvoices = hasAnyPermission(userRole, ['invoices:view', 'invoices:manage', 'finance:view', 'finance:manage']);
 	const [container, setContainer] = useState<Container | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState('overview');
 	const [updating, setUpdating] = useState(false);
 	const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+	const [expenseView, setExpenseView] = useState<'CONTAINER' | 'SHIPMENT'>('CONTAINER');
 	const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
 	const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 	const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
@@ -231,6 +259,8 @@ export default function ContainerDetailPage() {
     const [qrModalOpen, setQrModalOpen] = useState(false);
 	const [shipmentExpenseModalOpen, setShipmentExpenseModalOpen] = useState(false);
 	const [selectedShipmentForExpense, setSelectedShipmentForExpense] = useState<string | undefined>(undefined);
+	const [damageModalOpen, setDamageModalOpen] = useState(false);
+	const [deletingDamageId, setDeletingDamageId] = useState<string | null>(null);
 	const [companies, setCompanies] = useState<CompanyOption[]>([]);
 	const [selectedCompanyId, setSelectedCompanyId] = useState('');
 
@@ -273,6 +303,9 @@ export default function ContainerDetailPage() {
                 if (!containerData.auditLogs) {
                     containerData.auditLogs = [];
                 }
+				if (!containerData.damages) {
+					containerData.damages = [];
+				}
 				// Ensure progress is a number
 				if (typeof containerData.progress !== 'number') {
 					containerData.progress = 0;
@@ -289,6 +322,11 @@ export default function ContainerDetailPage() {
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const refreshContainerPage = async () => {
+		await fetchContainer();
+		router.refresh();
 	};
 
     const handleRefreshTracking = async () => {
@@ -378,11 +416,16 @@ export default function ContainerDetailPage() {
 	};
 
 	const handleDeleteExpense = async (expenseId: string) => {
-		if (!confirm('Are you sure you want to delete this expense?')) return;
+		const isShipmentExpense = expenseId.startsWith('shipment-');
+		if (!confirm('Are you sure you want to delete this expense? Linked company and user ledger transactions will also be removed.')) return;
 
 		setDeletingExpenseId(expenseId);
 		try {
-			const response = await fetch(`/api/containers/${params.id}/expenses?expenseId=${expenseId}`, {
+			const query = isShipmentExpense
+				? `shipmentExpenseEntryId=${expenseId.replace('shipment-', '')}`
+				: `expenseId=${expenseId}`;
+
+			const response = await fetch(`/api/containers/${params.id}/expenses?${query}`, {
 				method: 'DELETE',
 			});
 
@@ -398,6 +441,30 @@ export default function ContainerDetailPage() {
 			toast.error('An error occurred');
 		} finally {
 			setDeletingExpenseId(null);
+		}
+	};
+
+	const handleDeleteDamage = async (damageId: string) => {
+		if (!confirm('Are you sure you want to delete this damage record? Associated ledger entries will also be removed.')) return;
+
+		setDeletingDamageId(damageId);
+		try {
+			const response = await fetch(`/api/containers/${params.id}/damages?damageId=${damageId}`, {
+				method: 'DELETE',
+			});
+
+			if (response.ok) {
+				toast.success('Damage record deleted successfully');
+				fetchContainer();
+			} else {
+				const data = await response.json();
+				toast.error(data.error || 'Failed to delete damage record');
+			}
+		} catch (error) {
+			console.error('Error deleting damage record:', error);
+			toast.error('An error occurred');
+		} finally {
+			setDeletingDamageId(null);
 		}
 	};
 
@@ -596,7 +663,7 @@ export default function ContainerDetailPage() {
 				toast.success('Invoices generated successfully!', {
 					description: `Created ${data.summary.newInvoices} new invoice(s)`
 				});
-				fetchContainer();
+				await refreshContainerPage();
 				setInvoiceGenerationModalOpen(false);
 			} else {
 				toast.error('Failed to generate invoices', {
@@ -661,6 +728,14 @@ export default function ContainerDetailPage() {
 
 	const capacityPercentage = (container.currentCount / container.maxCapacity) * 100;
 	const netProfit = container.totals.expenses > 0 ? container.totals.invoices - container.totals.expenses : 0;
+	const isShipmentExpense = (expense: Expense) => {
+		const source = expense.source?.toUpperCase();
+		return source === 'SHIPMENT' || expense.id.startsWith('shipment-') || Boolean(expense.shipmentId);
+	};
+	const containerOnlyExpenses = container.expenses.filter((expense) => !isShipmentExpense(expense));
+	const shipmentOnlyExpenses = container.expenses.filter(isShipmentExpense);
+	const displayedExpenses = expenseView === 'CONTAINER' ? containerOnlyExpenses : shipmentOnlyExpenses;
+	const displayedExpenseTotal = displayedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
 	return (
 		<ProtectedRoute>
@@ -844,9 +919,10 @@ export default function ContainerDetailPage() {
 					>
 						<Tab label="Overview" value="overview" />
 						<Tab label={`Shipments (${container.shipments.length})`} value="shipments" />
-						{isAdmin && <Tab label={`Expenses (${container.expenses.length})`} value="expenses" />}
-						{isAdmin && <Tab label={`Invoices (${container.invoices.length})`} value="invoices" />}
-						{isAdmin && <Tab label={`User Invoices (${container.userInvoices?.length || 0})`} value="user-invoices" />}
+						{canViewExpenses && <Tab label={`Expenses (${container.expenses.length})`} value="expenses" />}
+						{isAdmin && <Tab label={`Shipment Damages (${container.damages?.length || 0})`} value="damages" />}
+						{canViewInvoices && <Tab label={`Invoices (${container.invoices.length})`} value="invoices" />}
+						{canViewInvoices && <Tab label={`User Invoices (${container.userInvoices?.length || 0})`} value="user-invoices" />}
 						<Tab label={`Documents (${container.documents.length})`} value="documents" />
 						<Tab label={`Tracking (${container.trackingEvents?.length || 0})`} value="tracking" />
                         {isAdmin && <Tab label="Activity" icon={<Activity className="w-4 h-4" />} iconPosition="start" value="activity" />}
@@ -1234,7 +1310,7 @@ export default function ContainerDetailPage() {
 							description="All costs and expenses for this container"
 						>
 							<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 2 }}>
-								{isAdmin && (
+								{canManageExpenses && (
 									<Button
 										variant="outline"
 										size="sm"
@@ -1244,10 +1320,10 @@ export default function ContainerDetailPage() {
 											setShipmentExpenseModalOpen(true);
 										}}
 									>
-										Add Shipment Expense
+										Add Shipment Expenses
 									</Button>
 								)}
-								{isAdmin && (
+								{canManageExpenses && (
 									<Button
 										variant="primary"
 										size="sm"
@@ -1259,11 +1335,38 @@ export default function ContainerDetailPage() {
 								)}
 							</Box>
 
-							{container.expenses.length === 0 ? (
+							<Box sx={{ borderBottom: '1px solid var(--border)', mb: 2 }}>
+								<Tabs
+									value={expenseView}
+									onChange={(_, value) => setExpenseView(value)}
+									sx={{
+										'& .MuiTab-root': {
+											textTransform: 'none',
+											fontSize: '0.875rem',
+											fontWeight: 600,
+											color: 'var(--text-secondary)',
+											minHeight: 40,
+										},
+										'& .Mui-selected': {
+											color: 'var(--accent-gold) !important',
+										},
+										'& .MuiTabs-indicator': {
+											backgroundColor: 'var(--accent-gold)',
+										},
+									}}
+								>
+									<Tab label={`Container Expenses (${containerOnlyExpenses.length})`} value="CONTAINER" />
+									<Tab label={`Shipment Expenses (${shipmentOnlyExpenses.length})`} value="SHIPMENT" />
+								</Tabs>
+							</Box>
+
+							{displayedExpenses.length === 0 ? (
 								<EmptyState
 									icon={<DollarSign className="w-12 h-12" />}
-									title="No Expenses Recorded"
-									description="No expenses have been added to this container yet"
+									title={expenseView === 'CONTAINER' ? 'No Container Expenses' : 'No Shipment Expenses'}
+									description={expenseView === 'CONTAINER'
+										? 'No direct container expenses have been added yet'
+										: 'No shipment-level expenses found for this container'}
 								/>
 							) : (
 								<TableContainer>
@@ -1278,7 +1381,7 @@ export default function ContainerDetailPage() {
 											</TableRow>
 										</TableHead>
 										<TableBody>
-											{container.expenses.map((expense) => (
+											{displayedExpenses.map((expense) => (
 												<TableRow key={expense.id} hover>
 													<TableCell>{expense.type}</TableCell>
 													<TableCell>{expense.vendor || 'N/A'}</TableCell>
@@ -1287,29 +1390,177 @@ export default function ContainerDetailPage() {
 														{formatCurrency(expense.amount, expense.currency)}
 													</TableCell>
 													<TableCell align="right">
+														{isShipmentExpense(expense) ? (
+															<Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() => {
+																		if (expense.shipmentId) {
+																			router.push(`/dashboard/shipments/${expense.shipmentId}`);
+																		}
+																	}}
+																>
+																	View
+																</Button>
+																{canManageExpenses && (
+																	<Button
+																		variant="outline"
+																		size="sm"
+																		icon={<Trash2 className="w-3 h-3" />}
+																		onClick={() => handleDeleteExpense(expense.id)}
+																		disabled={deletingExpenseId === expense.id}
+																		sx={{
+																			color: 'var(--error)',
+																			borderColor: 'var(--error)',
+																			'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
+																		}}
+																	>
+																		{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
+																	</Button>
+																)}
+															</Box>
+														) : (
+															canManageExpenses ? (
+																<Button
+																	variant="outline"
+																	size="sm"
+																	icon={<Trash2 className="w-3 h-3" />}
+																	onClick={() => handleDeleteExpense(expense.id)}
+																	disabled={deletingExpenseId === expense.id}
+																	sx={{ 
+																		color: 'var(--error)',
+																		borderColor: 'var(--error)',
+																		'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
+																	}}
+																>
+																	{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
+																</Button>
+															) : null
+														)}
+													</TableCell>
+												</TableRow>
+											))}
+											<TableRow>
+												<TableCell colSpan={4} sx={{ fontWeight: 700 }}>
+													{expenseView === 'CONTAINER' ? 'Total Container Expenses' : 'Total Shipment Expenses'}
+												</TableCell>
+												<TableCell align="right" sx={{ fontWeight: 700, color: 'var(--error)' }}>
+													{formatCurrency(displayedExpenseTotal)}
+												</TableCell>
+											</TableRow>
+											<TableRow>
+												<TableCell colSpan={4} sx={{ fontWeight: 700 }}>Grand Total (All Expenses)</TableCell>
+												<TableCell align="right" sx={{ fontWeight: 700, color: 'var(--error)' }}>
+													{formatCurrency(container.totals.expenses)}
+												</TableCell>
+											</TableRow>
+										</TableBody>
+									</Table>
+								</TableContainer>
+							)}
+						</DashboardPanel>
+					)}
+
+					{/* Shipment Damages Tab */}
+					{activeTab === 'damages' && (
+						<DashboardPanel
+							title="Shipment Damages"
+							description="Damage records for shipments in this container"
+						>
+							<Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+								{isAdmin && (
+									<Button
+										variant="primary"
+										size="sm"
+										icon={<Plus className="w-4 h-4" />}
+										onClick={() => {
+											if (!container.companyId) {
+												toast.error('This container must be assigned to a shipping company before adding expenses or damages.');
+												return;
+											}
+											setDamageModalOpen(true);
+										}}
+									>
+										Add Damage
+									</Button>
+								)}
+							</Box>
+
+							{!container.companyId && (
+								<Box sx={{ p: 2, mb: 2, bgcolor: 'rgba(var(--warning-rgb), 0.1)', border: '1px solid rgba(var(--warning-rgb), 0.3)', borderRadius: 1 }}>
+									<Typography sx={{ fontSize: '0.875rem', color: 'var(--warning)' }}>
+										⚠ This container must be assigned to a shipping company before adding expenses or damages.
+									</Typography>
+								</Box>
+							)}
+
+							{!container.damages || container.damages.length === 0 ? (
+								<EmptyState
+									icon={<AlertTriangle className="w-12 h-12" />}
+									title="No Damage Records"
+									description="No damage records have been added to this container yet"
+								/>
+							) : (
+								<TableContainer>
+									<Table size="small">
+										<TableHead>
+											<TableRow>
+												<TableCell sx={{ fontWeight: 600 }}>Shipment</TableCell>
+												<TableCell sx={{ fontWeight: 600 }}>Damage Type</TableCell>
+												<TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+												<TableCell sx={{ fontWeight: 600 }} align="right">Amount</TableCell>
+												<TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+												<TableCell sx={{ fontWeight: 600 }} align="right">Actions</TableCell>
+											</TableRow>
+										</TableHead>
+										<TableBody>
+											{container.damages.map((damage) => (
+												<TableRow key={damage.id} hover>
+													<TableCell>
+														<Box sx={{ fontSize: '0.8rem' }}>
+															{damage.shipment
+																? [damage.shipment.vehicleMake, damage.shipment.vehicleModel].filter(Boolean).join(' ') || 'Vehicle'
+																: damage.shipmentId}
+															{damage.shipment?.vehicleVIN && (
+																<Box component="span" sx={{ color: 'var(--text-secondary)', ml: 0.5 }}>
+																	({damage.shipment.vehicleVIN})
+																</Box>
+															)}
+														</Box>
+													</TableCell>
+													<TableCell>
+														<Chip
+															label={damage.damageType === 'WE_PAY' ? 'We Pay' : 'Company Pays'}
+															size="small"
+															color={damage.damageType === 'WE_PAY' ? 'warning' : 'error'}
+														/>
+													</TableCell>
+													<TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+														{damage.description}
+													</TableCell>
+													<TableCell align="right" sx={{ fontWeight: 600, color: 'var(--error)' }}>
+														{formatCurrency(damage.amount)}
+													</TableCell>
+													<TableCell>{formatDate(damage.createdAt)}</TableCell>
+													<TableCell align="right">
 														<Button
 															variant="outline"
 															size="sm"
 															icon={<Trash2 className="w-3 h-3" />}
-															onClick={() => handleDeleteExpense(expense.id)}
-															disabled={deletingExpenseId === expense.id}
-															sx={{ 
+															onClick={() => handleDeleteDamage(damage.id)}
+															disabled={deletingDamageId === damage.id}
+															sx={{
 																color: 'var(--error)',
 																borderColor: 'var(--error)',
 																'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
 															}}
 														>
-															{deletingExpenseId === expense.id ? 'Deleting...' : 'Delete'}
+															{deletingDamageId === damage.id ? 'Deleting...' : 'Delete'}
 														</Button>
 													</TableCell>
 												</TableRow>
 											))}
-											<TableRow>
-												<TableCell colSpan={4} sx={{ fontWeight: 700 }}>Total Expenses</TableCell>
-												<TableCell align="right" sx={{ fontWeight: 700, color: 'var(--error)' }}>
-													{formatCurrency(container.totals.expenses)}
-												</TableCell>
-											</TableRow>
 										</TableBody>
 									</Table>
 								</TableContainer>
@@ -1324,7 +1575,7 @@ export default function ContainerDetailPage() {
 							description="Billing and revenue for this container"
 						>
 							<Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-								{isAdmin && (
+								{canManageInvoices && (
 									<Button
 										variant="primary"
 										size="sm"
@@ -1371,20 +1622,22 @@ export default function ContainerDetailPage() {
 														{formatCurrency(invoice.amount, invoice.currency)}
 													</TableCell>
 													<TableCell align="right">
-														<Button
-															variant="outline"
-															size="sm"
-															icon={<Trash2 className="w-3 h-3" />}
-															onClick={() => handleDeleteInvoice(invoice.id)}
-															disabled={deletingInvoiceId === invoice.id}
-															sx={{ 
-																color: 'var(--error)',
-																borderColor: 'var(--error)',
-																'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
-															}}
-														>
-															{deletingInvoiceId === invoice.id ? 'Deleting...' : 'Delete'}
-														</Button>
+														{canManageInvoices && (
+															<Button
+																variant="outline"
+																size="sm"
+																icon={<Trash2 className="w-3 h-3" />}
+																onClick={() => handleDeleteInvoice(invoice.id)}
+																disabled={deletingInvoiceId === invoice.id}
+																sx={{ 
+																	color: 'var(--error)',
+																	borderColor: 'var(--error)',
+																	'&:hover': { bgcolor: 'rgba(var(--error-rgb), 0.1)' }
+																}}
+															>
+																{deletingInvoiceId === invoice.id ? 'Deleting...' : 'Delete'}
+															</Button>
+														)}
 													</TableCell>
 												</TableRow>
 											))}
@@ -1553,7 +1806,9 @@ export default function ContainerDetailPage() {
                                 }))}
                                 entityId={container.id}
                                 entityType="container"
-								onDocumentsChange={fetchContainer}
+								onDocumentsChange={() => {
+									void refreshContainerPage();
+								}}
                             />
 						</DashboardPanel>
 					)}
@@ -1709,7 +1964,20 @@ export default function ContainerDetailPage() {
 					open={expenseModalOpen}
 					onClose={() => setExpenseModalOpen(false)}
 					containerId={container.id}
-					onSuccess={fetchContainer}
+					onSuccess={() => {
+						void refreshContainerPage();
+					}}
+				/>
+
+				{/* Add Damage Modal */}
+				<AddDamageModal
+					open={damageModalOpen}
+					onClose={() => setDamageModalOpen(false)}
+					containerId={container.id}
+					shipments={container.shipments}
+					onSuccess={() => {
+						void refreshContainerPage();
+					}}
 				/>
 
 				{/* Add Shipment Expense Modal */}
@@ -1727,7 +1995,11 @@ export default function ContainerDetailPage() {
 						vehicleVIN: s.vehicleVIN,
 						user: s.user,
 					}))}
-					onSuccess={fetchContainer}
+					contextType="CONTAINER"
+					contextId={String(params.id)}
+					onSuccess={() => {
+						void refreshContainerPage();
+					}}
 				/>
 
 				{/* Add Invoice Modal */}

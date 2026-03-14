@@ -172,6 +172,7 @@ model Shipment {
   ledgerEntries    LedgerEntry[]
   invoiceLineItems InvoiceLineItem[]
   transitExpenses  TransitExpense[]
+  containerDamages ContainerDamage[]
 
   @@index([userId])
   @@index([containerId])
@@ -180,6 +181,7 @@ model Shipment {
   @@index([status])
   @@index([vehicleVIN])
   @@index([serviceType])
+  @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
 }
 
 // ============================================
@@ -234,6 +236,7 @@ model Container {
   company        Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   shipments      Shipment[]
   expenses       ContainerExpense[]
+  damages        ContainerDamage[]
   invoices       ContainerInvoice[]
   documents      ContainerDocument[]
   trackingEvents ContainerTrackingEvent[]
@@ -246,6 +249,7 @@ model Container {
   @@index([destinationPort])
   @@index([estimatedArrival])
   @@index([trackingNumber])
+  @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
 }
 
 // ============================================
@@ -269,6 +273,24 @@ model ContainerExpense {
 
   @@index([containerId])
   @@index([type])
+}
+
+model ContainerDamage {
+  id          String     @id @default(cuid())
+  containerId String
+  shipmentId  String
+  damageType  DamageType
+  amount      Float
+  description String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  shipment  Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([containerId])
+  @@index([shipmentId])
+  @@index([damageType])
 }
 
 model ContainerInvoice {
@@ -551,6 +573,7 @@ model UserInvoice {
   @@index([invoiceNumber])
   @@index([issueDate])
   @@index([dueDate])
+  @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
 }
 
 model InvoiceLineItem {
@@ -698,24 +721,28 @@ model TransitEvent {
 }
 
 model TransitExpense {
-  id          String   @id @default(cuid())
-  transitId   String
-  shipmentId  String?
-  description String
-  amount      Float
-  currency    String   @default("USD")
-  date        DateTime @default(now())
-  category    String?
-  notes       String?
-  createdBy   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  transitId     String
+  shipmentId    String?
+  type          String   @default("OTHER")
+  description   String
+  amount        Float
+  currency      String   @default("USD")
+  date          DateTime @default(now())
+  vendor        String?
+  invoiceNumber String?
+  category      String?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   transit  Transit   @relation(fields: [transitId], references: [id], onDelete: Cascade)
   shipment Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
 
   @@index([transitId])
   @@index([shipmentId])
+  @@index([type])
 }
 
 model AuditLog {
@@ -752,6 +779,7 @@ enum ServiceType {
 enum ShipmentSimpleStatus {
   ON_HAND
   IN_TRANSIT
+  RELEASED
   IN_TRANSIT_TO_DESTINATION
   DELIVERED
 }
@@ -925,6 +953,11 @@ enum ExpenseAllocationMethod {
   BY_VALUE // Weighted by insurance value
   BY_WEIGHT // Weighted by vehicle weight
   CUSTOM // Custom allocation percentages
+}
+
+enum DamageType {
+  WE_PAY      // Business compensates the customer (credit user ledger)
+  COMPANY_PAYS // Shipping company is responsible (debit company ledger)
 }
 
 enum TransitStatus {

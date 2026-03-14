@@ -8,6 +8,24 @@ import { NotificationType } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
 import { hasPermission } from '@/lib/rbac';
 
+function isTruthyMetadataFlag(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function normalizeShipmentLabelInDescription(
+  description: string,
+  shipmentId: string,
+  vehicleVIN?: string | null
+): string {
+  if (!description) return description;
+  if (!vehicleVIN) return description;
+
+  return description
+    .replace(new RegExp(`\\(Shipment\\s+${shipmentId}\\)`, 'gi'), `(VIN ${vehicleVIN})`)
+    .replace(new RegExp(`Shipment\\s+${shipmentId}`, 'gi'), `VIN ${vehicleVIN}`)
+    .replace(new RegExp(`shipment\\s+${shipmentId}`, 'g'), `VIN ${vehicleVIN}`);
+}
+
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
   containerId: z.string(),
@@ -114,15 +132,20 @@ export async function POST(req: NextRequest) {
             not: 'CANCELLED',
           },
         },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+        },
       });
 
-      if (existingInvoice) {
+      if (existingInvoice?.status === 'PAID') {
         generatedInvoices.push({ 
           userId, 
           userName: user.name, 
           invoiceId: existingInvoice.id,
           invoiceNumber: existingInvoice.invoiceNumber,
-          status: 'existing' 
+          status: 'existing_paid' 
         });
         continue;
       }
@@ -185,6 +208,68 @@ export async function POST(req: NextRequest) {
           subtotal += allocatedExpense;
         }
 
+        // Shipment expenses posted via shipment expense flow (ledger DEBITs)
+        const shipmentSpecificExpenses = shipmentExpenseEntries.filter(
+          (entry) => entry.shipmentId === shipment.id
+        );
+
+        for (const expenseEntry of shipmentSpecificExpenses) {
+          const metadata = (expenseEntry.metadata ?? {}) as Record<string, unknown>;
+          const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'OTHER';
+          const normalizedDescription = normalizeShipmentLabelInDescription(
+            expenseEntry.description || '',
+            shipment.id,
+            shipment.vehicleVIN
+          );
+
+          lineItems.push({
+            description: normalizedDescription || `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Shipment Expense`.trim(),
+            shipmentId: shipment.id,
+            type: mapExpenseTypeToLineItemType(expenseType) as
+              | 'VEHICLE_PRICE'
+              | 'PURCHASE_PRICE'
+              | 'INSURANCE'
+              | 'SHIPPING_FEE'
+              | 'CUSTOMS_FEE'
+              | 'STORAGE_FEE'
+              | 'HANDLING_FEE'
+              | 'OTHER_FEE'
+              | 'DISCOUNT',
+            quantity: 1,
+            unitPrice: expenseEntry.amount,
+            amount: expenseEntry.amount,
+          });
+          subtotal += expenseEntry.amount;
+        }
+
+        const shipmentDamages = shipmentDamageRecords.filter((damage) => damage.shipmentId === shipment.id);
+        for (const damage of shipmentDamages) {
+          const vehicleLabel = `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim();
+
+          if (damage.damageType === 'WE_PAY') {
+            lineItems.push({
+              description: `${vehicleLabel || 'Vehicle'} - Damage Compensation (${damage.description})`.trim(),
+              shipmentId: shipment.id,
+              type: 'DISCOUNT' as const,
+              quantity: 1,
+              unitPrice: -damage.amount,
+              amount: -damage.amount,
+            });
+            subtotal -= damage.amount;
+          } else {
+            // COMPANY_PAYS damages are shown for transparency but do not affect customer total.
+            lineItems.push({
+              description: `${vehicleLabel || 'Vehicle'} - Damage Note (Company Pays $${damage.amount.toFixed(2)}): ${damage.description}`.trim(),
+              shipmentId: shipment.id,
+              type: 'OTHER_FEE' as const,
+              quantity: 1,
+              // Show assessed damage amount for visibility, but keep line amount at 0 to avoid billing customer.
+              unitPrice: damage.amount,
+              amount: 0,
+            });
+          }
+        }
+
         // Damage credit (deduction from invoice if company absorbed damage)
         if (shipment.damageCredit && shipment.damageCredit > 0) {
           lineItems.push({
@@ -208,32 +293,54 @@ export async function POST(req: NextRequest) {
         ? new Date(dueDate) 
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // Create invoice
-      const invoice = await prisma.userInvoice.create({
-        data: {
-          invoiceNumber,
-          userId,
-          containerId,
-          status: 'DRAFT',
-          issueDate: new Date(),
-          dueDate: invoiceDueDate,
-          subtotal,
-          discount: discountAmount,
-          total,
-          lineItems: {
-            create: lineItems,
-          },
-        },
-        include: {
-          lineItems: {
-            include: {
-              shipment: true,
+      // Create or refresh invoice (refresh existing non-paid invoice so new shipment expenses are included)
+      let invoice: { id: string; invoiceNumber: string; total: number };
+
+      if (existingInvoice) {
+        invoice = await prisma.userInvoice.update({
+          where: { id: existingInvoice.id },
+          data: {
+            dueDate: invoiceDueDate,
+            subtotal,
+            discount: discountAmount,
+            total,
+            lineItems: {
+              deleteMany: {},
+              create: lineItems,
             },
           },
-          user: true,
-          container: true,
-        },
-      });
+          select: {
+            id: true,
+            invoiceNumber: true,
+            total: true,
+          },
+        });
+      } else {
+        const invoiceCount = await prisma.userInvoice.count();
+        const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
+
+        invoice = await prisma.userInvoice.create({
+          data: {
+            invoiceNumber,
+            userId,
+            containerId,
+            status: 'DRAFT',
+            issueDate: new Date(),
+            dueDate: invoiceDueDate,
+            subtotal,
+            discount: discountAmount,
+            total,
+            lineItems: {
+              create: lineItems,
+            },
+          },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            total: true,
+          },
+        });
+      }
 
       generatedInvoices.push({
         userId,
@@ -241,7 +348,7 @@ export async function POST(req: NextRequest) {
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         total: invoice.total,
-        status: 'created',
+        status: existingInvoice ? 'updated' : 'created',
       });
 
       try {
@@ -283,12 +390,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Generated ${generatedInvoices.filter(i => i.status === 'created').length} invoice(s)`,
+      message: `Processed ${generatedInvoices.length} invoice(s)`,
       invoices: generatedInvoices,
       summary: {
         totalInvoices: generatedInvoices.length,
         newInvoices: generatedInvoices.filter(i => i.status === 'created').length,
-        existingInvoices: generatedInvoices.filter(i => i.status === 'existing').length,
+        updatedInvoices: generatedInvoices.filter(i => i.status === 'updated').length,
+        existingPaidInvoices: generatedInvoices.filter(i => i.status === 'existing_paid').length,
       },
     });
 

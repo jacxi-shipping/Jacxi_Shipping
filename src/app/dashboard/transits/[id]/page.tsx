@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
+  Autocomplete,
   Box,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -33,6 +35,7 @@ import AdminRoute from '@/components/auth/AdminRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, TableSkeleton, toast } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
 
 interface Company {
   id: string;
@@ -52,6 +55,15 @@ interface Shipment {
   user: { id: string; name: string | null; email: string; phone: string | null };
 }
 
+interface AssignableShipment {
+  id: string;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleYear: number | null;
+  vehicleVIN: string | null;
+  user: { id: string; name: string | null; email: string };
+}
+
 interface TransitEvent {
   id: string;
   status: string;
@@ -63,13 +75,17 @@ interface TransitEvent {
 
 interface TransitExpense {
   id: string;
+  type: string;
   description: string;
   amount: number;
   currency: string;
   date: string;
+  vendor: string | null;
+  invoiceNumber: string | null;
   category: string | null;
   notes: string | null;
   shipment: { id: string; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null } | null;
+  source: 'TRANSIT_EXPENSE' | 'SHIPMENT_EXPENSE';
 }
 
 interface Transit {
@@ -128,9 +144,8 @@ export default function TransitDetailPage() {
   const [postingEvent, setPostingEvent] = useState(false);
 
   // Add expense state
-  const [openExpense, setOpenExpense] = useState(false);
-  const [expenseForm, setExpenseForm] = useState({ description: '', amount: '', currency: 'USD', date: new Date().toISOString().slice(0, 10), category: '', notes: '', shipmentId: '', postToCompanyLedger: true, postToUserLedger: false, userId: '' });
-  const [postingExpense, setPostingExpense] = useState(false);
+  const [shipmentExpenseModalOpen, setShipmentExpenseModalOpen] = useState(false);
+  const [selectedShipmentForExpense, setSelectedShipmentForExpense] = useState<string | undefined>(undefined);
 
   // Add shipment to transit
   const [openAddShipment, setOpenAddShipment] = useState(false);
@@ -138,6 +153,39 @@ export default function TransitDetailPage() {
   const [shipmentReleaseToken, setShipmentReleaseToken] = useState('');
   const [showShipmentReleaseToken, setShowShipmentReleaseToken] = useState(false);
   const [addingShipment, setAddingShipment] = useState(false);
+  const [availableShipments, setAvailableShipments] = useState<AssignableShipment[]>([]);
+  const [shipmentSearch, setShipmentSearch] = useState('');
+  const [loadingAvailableShipments, setLoadingAvailableShipments] = useState(false);
+
+  const fetchAvailableShipments = async (searchTerm = '') => {
+    try {
+      setLoadingAvailableShipments(true);
+      const query = new URLSearchParams({
+        status: 'RELEASED',
+        limit: '50',
+        page: '1',
+      });
+
+      if (searchTerm.trim()) {
+        query.set('search', searchTerm.trim());
+      }
+
+      const response = await fetch(`/api/shipments?${query.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to load shipments');
+      }
+
+      setAvailableShipments((data.shipments || []) as AssignableShipment[]);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load released shipments');
+      setAvailableShipments([]);
+    } finally {
+      setLoadingAvailableShipments(false);
+    }
+  };
 
   const fetchTransit = async () => {
     try {
@@ -158,6 +206,16 @@ export default function TransitDetailPage() {
   useEffect(() => {
     if (transitId) void fetchTransit();
   }, [transitId]);
+
+  useEffect(() => {
+    if (!openAddShipment) return;
+
+    const timer = setTimeout(() => {
+      void fetchAvailableShipments(shipmentSearch);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [openAddShipment, shipmentSearch]);
 
   const openEditDialog = () => {
     if (!transit) return;
@@ -226,43 +284,8 @@ export default function TransitDetailPage() {
     }
   };
 
-  const handleAddExpense = async () => {
-    if (!expenseForm.description.trim()) { toast.error('Description is required'); return; }
-    const amount = parseFloat(expenseForm.amount);
-    if (!amount || amount <= 0) { toast.error('Amount must be greater than 0'); return; }
-    try {
-      setPostingExpense(true);
-      const response = await fetch(`/api/transits/${transitId}/expenses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: expenseForm.description,
-          amount,
-          currency: expenseForm.currency,
-          date: expenseForm.date || undefined,
-          category: expenseForm.category || undefined,
-          notes: expenseForm.notes || undefined,
-          shipmentId: expenseForm.shipmentId || undefined,
-          postToCompanyLedger: expenseForm.postToCompanyLedger,
-          postToUserLedger: expenseForm.postToUserLedger,
-          userId: expenseForm.userId || undefined,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to add expense');
-      toast.success('Expense recorded');
-      setOpenExpense(false);
-      setExpenseForm({ description: '', amount: '', currency: 'USD', date: new Date().toISOString().slice(0, 10), category: '', notes: '', shipmentId: '', postToCompanyLedger: true, postToUserLedger: false, userId: '' });
-      await fetchTransit();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to add expense');
-    } finally {
-      setPostingExpense(false);
-    }
-  };
-
   const handleAddShipment = async () => {
-    if (!shipmentIdToAdd.trim()) { toast.error('Shipment ID is required'); return; }
+    if (!shipmentIdToAdd.trim()) { toast.error('Shipment selection is required'); return; }
     if (!shipmentReleaseToken.trim()) { toast.error('Release token is required'); return; }
     try {
       setAddingShipment(true);
@@ -276,6 +299,8 @@ export default function TransitDetailPage() {
       toast.success('Shipment added to transit');
       setOpenAddShipment(false);
       setShipmentIdToAdd('');
+      setShipmentSearch('');
+      setAvailableShipments([]);
       setShipmentReleaseToken('');
       await fetchTransit();
     } catch (error) {
@@ -283,6 +308,16 @@ export default function TransitDetailPage() {
     } finally {
       setAddingShipment(false);
     }
+  };
+
+  const handleCloseAddShipment = () => {
+    if (addingShipment) return;
+    setOpenAddShipment(false);
+    setShipmentIdToAdd('');
+    setShipmentSearch('');
+    setAvailableShipments([]);
+    setShipmentReleaseToken('');
+    setShowShipmentReleaseToken(false);
   };
 
   const handleRemoveShipment = async (shipmentId: string) => {
@@ -295,6 +330,26 @@ export default function TransitDetailPage() {
       await fetchTransit();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to remove shipment');
+    }
+  };
+
+  const handleDeleteExpense = async (expense: TransitExpense) => {
+    if (!confirm('Delete this expense? This will also reverse the ledger entries.')) return;
+    try {
+      let response;
+      if (expense.source === 'SHIPMENT_EXPENSE') {
+        // Delete shipment expense via ledger API
+        response = await fetch(`/api/ledger/${expense.id}`, { method: 'DELETE' });
+      } else {
+        // Delete transit expense via transit API
+        response = await fetch(`/api/transits/${transitId}/expenses?expenseId=${expense.id}`, { method: 'DELETE' });
+      }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete expense');
+      toast.success('Expense deleted');
+      await fetchTransit();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete expense');
     }
   };
 
@@ -338,6 +393,18 @@ export default function TransitDetailPage() {
       header: 'Actions',
       render: (_, row) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+          <Tooltip title="Add expense">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setSelectedShipmentForExpense(row.id);
+                setShipmentExpenseModalOpen(true);
+              }}
+              sx={{ color: 'var(--accent-gold)' }}
+            >
+              <DollarSign className="w-4 h-4" />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="View shipment">
             <IconButton size="small" component="a" href={`/dashboard/shipments/${row.id}`} target="_blank">
               <Package className="w-4 h-4" />
@@ -363,20 +430,46 @@ export default function TransitDetailPage() {
   const expenseColumns: Column<TransitExpense>[] = [
     { key: 'date', header: 'Date', render: (_, row) => new Date(row.date).toLocaleDateString() },
     {
-      key: 'description',
-      header: 'Description',
+      key: 'type',
+      header: 'Type',
       render: (_, row) => (
         <Box>
-          <Box sx={{ fontWeight: 500 }}>{row.description}</Box>
-          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.category || 'General'}</Box>
+          <Box sx={{ fontWeight: 500 }}>{row.type.replace(/_/g, ' ')}</Box>
+          {row.vendor && <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.vendor}</Box>}
         </Box>
       ),
     },
-    { key: 'shipment', header: 'Shipment', render: (_, row) => row.shipment ? `${row.shipment.vehicleMake || ''} ${row.shipment.vehicleModel || ''}`.trim() || row.shipment.vehicleVIN || '-' : 'All' },
     {
       key: 'amount',
       header: 'Amount',
       render: (_, row) => <span style={{ fontWeight: 600, color: 'var(--error)' }}>{formatCurrency(row.amount)}</span>,
+    },
+    {
+      key: 'shipment',
+      header: 'Shipment',
+      render: (_, row) => row.shipment ? (
+        <Box>
+          <Box sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+            {[row.shipment.vehicleMake, row.shipment.vehicleModel].filter(Boolean).join(' ') || 'Vehicle'}
+          </Box>
+          {row.shipment.vehicleVIN && (
+            <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.shipment.vehicleVIN}</Box>
+          )}
+        </Box>
+      ) : (
+        <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>General transit expense</Box>
+      ),
+    },
+    {
+      key: 'id',
+      header: 'Actions',
+      render: (_, row) => (
+        <Tooltip title="Delete expense">
+          <IconButton size="small" color="error" onClick={() => void handleDeleteExpense(row)}>
+            <Trash2 className="w-4 h-4" />
+          </IconButton>
+        </Tooltip>
+      ),
     },
   ];
 
@@ -483,9 +576,22 @@ export default function TransitDetailPage() {
 
           <TabPanel value={activeTab} index={0}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-              <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenAddShipment(true)}>
-                Add Shipment
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={() => {
+                    setSelectedShipmentForExpense(undefined);
+                    setShipmentExpenseModalOpen(true);
+                  }}
+                >
+                  Add Shipment Expense
+                </Button>
+                <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenAddShipment(true)}>
+                  Add Shipment
+                </Button>
+              </Box>
             </Box>
             <DataTable data={transit.shipments} columns={shipmentColumns} keyField="id" />
           </TabPanel>
@@ -500,12 +606,14 @@ export default function TransitDetailPage() {
           </TabPanel>
 
           <TabPanel value={activeTab} index={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-              <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenExpense(true)}>
-                Add Expense
-              </Button>
+            <Box sx={{ p: 2, background: 'var(--surface-secondary)', borderRadius: 2, border: '1px solid var(--border)' }}>
+              <Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                💡 To add expenses for shipments in this transit, go to the <strong>Shipments</strong> tab and click the <DollarSign className="inline w-3.5 h-3.5" /> icon for each shipment.
+              </Box>
             </Box>
-            <DataTable data={transit.expenses} columns={expenseColumns} keyField="id" />
+            <Box sx={{ mt: 2 }}>
+              <DataTable data={transit.expenses} columns={expenseColumns} keyField="id" />
+            </Box>
           </TabPanel>
 
           <TabPanel value={activeTab} index={3}>
@@ -567,78 +675,76 @@ export default function TransitDetailPage() {
           </DialogActions>
         </Dialog>
 
-        {/* Add Expense Dialog */}
-        <Dialog open={openExpense} onClose={() => !postingExpense && setOpenExpense(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Add Transit Expense</DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
-            <TextField label="Description" value={expenseForm.description} onChange={(e) => setExpenseForm(prev => ({ ...prev, description: e.target.value }))} required />
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField label="Amount" type="number" inputProps={{ min: 0.01, step: 0.01 }} value={expenseForm.amount} onChange={(e) => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))} required />
-              <TextField label="Currency" value={expenseForm.currency} onChange={(e) => setExpenseForm(prev => ({ ...prev, currency: e.target.value }))} />
-            </Box>
-            <TextField label="Date" type="date" InputLabelProps={{ shrink: true }} value={expenseForm.date} onChange={(e) => setExpenseForm(prev => ({ ...prev, date: e.target.value }))} />
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField label="Category" value={expenseForm.category} onChange={(e) => setExpenseForm(prev => ({ ...prev, category: e.target.value }))} placeholder="e.g. Customs, Fuel" />
-              <TextField
-                select
-                label="Linked Shipment"
-                value={expenseForm.shipmentId}
-                onChange={(e) => setExpenseForm(prev => ({ ...prev, shipmentId: e.target.value }))}
-              >
-                <MenuItem value="">All shipments</MenuItem>
-                {transit.shipments.map(s => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {`${s.vehicleYear || ''} ${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.vehicleVIN || s.id.slice(0, 8)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Box>
-            <TextField label="Notes" multiline rows={2} value={expenseForm.notes} onChange={(e) => setExpenseForm(prev => ({ ...prev, notes: e.target.value }))} />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <input type="checkbox" id="postToCompany" checked={expenseForm.postToCompanyLedger} onChange={(e) => setExpenseForm(prev => ({ ...prev, postToCompanyLedger: e.target.checked }))} />
-                <label htmlFor="postToCompany" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Post DEBIT to company ledger ({transit.company.name})</label>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <input type="checkbox" id="postToUser" checked={expenseForm.postToUserLedger} onChange={(e) => setExpenseForm(prev => ({ ...prev, postToUserLedger: e.target.checked }))} />
-                <label htmlFor="postToUser" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Post DEBIT to customer ledger</label>
-              </Box>
-              {expenseForm.postToUserLedger && (
-                <TextField
-                  select
-                  label="Customer"
-                  size="small"
-                  value={expenseForm.userId}
-                  onChange={(e) => setExpenseForm(prev => ({ ...prev, userId: e.target.value }))}
-                  required
-                >
-                  <MenuItem value="">Select customer...</MenuItem>
-                  {transit.shipments.map(s => (
-                    <MenuItem key={s.id} value={s.user.id}>
-                      {s.user.name || s.user.email}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )}
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button variant="outline" onClick={() => setOpenExpense(false)} disabled={postingExpense}>Cancel</Button>
-            <Button variant="primary" onClick={handleAddExpense} disabled={postingExpense}>{postingExpense ? 'Saving...' : 'Save Expense'}</Button>
-          </DialogActions>
-        </Dialog>
+        {/* Add Shipment Expense Modal */}
+        <AddShipmentExpenseModal
+          open={shipmentExpenseModalOpen}
+          onClose={() => {
+            setShipmentExpenseModalOpen(false);
+            setSelectedShipmentForExpense(undefined);
+          }}
+          shipmentId={selectedShipmentForExpense}
+          shipments={selectedShipmentForExpense ? undefined : transit.shipments.map((s) => ({
+            id: s.id,
+            vehicleMake: s.vehicleMake,
+            vehicleModel: s.vehicleModel,
+            vehicleVIN: s.vehicleVIN,
+            user: s.user,
+          }))}
+          contextType="TRANSIT"
+          contextId={transitId}
+          onSuccess={() => void fetchTransit()}
+        />
 
         {/* Add Shipment Dialog */}
-        <Dialog open={openAddShipment} onClose={() => !addingShipment && setOpenAddShipment(false)} maxWidth="xs" fullWidth>
+        <Dialog open={openAddShipment} onClose={handleCloseAddShipment} maxWidth="xs" fullWidth>
           <DialogTitle>Add Shipment to Transit</DialogTitle>
           <DialogContent sx={{ pt: 1.5 }}>
-            <TextField
-              fullWidth
-              label="Shipment ID"
-              value={shipmentIdToAdd}
-              onChange={(e) => setShipmentIdToAdd(e.target.value)}
-              helperText="Paste shipment ID. Only released shipments can be assigned."
-              sx={{ mb: 2 }}
+            <Autocomplete
+              options={availableShipments}
+              loading={loadingAvailableShipments}
+              value={availableShipments.find((shipment) => shipment.id === shipmentIdToAdd) || null}
+              onChange={(_, value) => setShipmentIdToAdd(value?.id || '')}
+              onInputChange={(_, value) => setShipmentSearch(value)}
+              getOptionLabel={(option) => {
+                const vehicle = `${option.vehicleYear || ''} ${option.vehicleMake || ''} ${option.vehicleModel || ''}`.trim() || 'Vehicle';
+                const vin = option.vehicleVIN ? ` - VIN ${option.vehicleVIN}` : '';
+                return `${vehicle}${vin}`;
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              noOptionsText="No released shipments found"
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box>
+                    <Box sx={{ fontWeight: 600 }}>
+                      {`${option.vehicleYear || ''} ${option.vehicleMake || ''} ${option.vehicleModel || ''}`.trim() || 'Vehicle'}
+                    </Box>
+                    <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {option.vehicleVIN ? `VIN ${option.vehicleVIN}` : option.id}
+                    </Box>
+                    <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {option.user.name || option.user.email}
+                    </Box>
+                  </Box>
+                </li>
+              )}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  fullWidth
+                  label="Shipment"
+                  helperText="Search and select a released shipment"
+                  sx={{ mb: 2 }}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loadingAvailableShipments ? <CircularProgress color="inherit" size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
             />
             <TextField
               fullWidth
@@ -661,10 +767,12 @@ export default function TransitDetailPage() {
             />
           </DialogContent>
           <DialogActions>
-            <Button variant="outline" onClick={() => setOpenAddShipment(false)} disabled={addingShipment}>Cancel</Button>
+            <Button variant="outline" onClick={handleCloseAddShipment} disabled={addingShipment}>Cancel</Button>
             <Button variant="primary" onClick={handleAddShipment} disabled={addingShipment}>{addingShipment ? 'Adding...' : 'Add'}</Button>
           </DialogActions>
         </Dialog>
+
+
       </DashboardSurface>
     </AdminRoute>
   );

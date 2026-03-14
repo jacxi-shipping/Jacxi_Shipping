@@ -31,6 +31,7 @@ interface LedgerEntry {
   notes?: string;
   shipment?: {
     id: string;
+    vehicleVIN?: string | null;
     vehicleMake?: string;
     vehicleModel?: string;
   };
@@ -173,6 +174,20 @@ export default function LedgerPage() {
     return 'var(--text-secondary)';
   };
 
+  const normalizeShipmentReference = (entry: LedgerEntry) => {
+    if (!entry.shipment?.id || !entry.shipment?.vehicleVIN) {
+      return entry.description;
+    }
+
+    const shipmentId = entry.shipment.id;
+    const vinLabel = `VIN ${entry.shipment.vehicleVIN}`;
+
+    return entry.description
+      .replace(new RegExp(`\\(Shipment\\s+${shipmentId}\\)`, 'gi'), `(${vinLabel})`)
+      .replace(new RegExp(`Shipment\\s+${shipmentId}`, 'gi'), vinLabel)
+      .replace(new RegExp(`shipment\\s+${shipmentId}`, 'g'), vinLabel);
+  };
+
   const columns = useMemo<Column<LedgerEntry>[]>(() => [
     {
       key: 'transactionDate',
@@ -193,7 +208,7 @@ export default function LedgerPage() {
       render: (_, row) => (
         <Box>
           <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-            {row.description}
+            {normalizeShipmentReference(row)}
           </Typography>
           {row.notes && (
             <Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
@@ -202,7 +217,9 @@ export default function LedgerPage() {
           )}
           {row.shipment && (
             <Typography sx={{ fontSize: '0.75rem', color: 'var(--accent-gold)', mt: 0.5 }}>
-              {row.shipment.vehicleMake} {row.shipment.vehicleModel}
+              {row.shipment.vehicleVIN
+                ? `VIN: ${row.shipment.vehicleVIN}`
+                : `${row.shipment.vehicleMake || ''} ${row.shipment.vehicleModel || ''}`.trim() || row.shipment.id}
             </Typography>
           )}
         </Box>

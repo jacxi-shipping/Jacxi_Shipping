@@ -156,6 +156,7 @@ export default function ShipmentsListPage() {
 	const shipmentStatusOptions = [
 		{ value: 'ON_HAND', label: 'On Hand' },
 		{ value: 'IN_TRANSIT', label: 'In Transit' },
+		{ value: 'RELEASED', label: 'Released' },
 	];
 
 	const handleBulkDelete = async (shipmentIds: string[]) => {

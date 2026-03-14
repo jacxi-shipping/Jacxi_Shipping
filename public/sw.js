@@ -1,5 +1,17 @@
-const CACHE_NAME = 'jacxi-pwa-v1';
-const STATIC_ASSETS = ['/', '/dashboard', '/offline'];
+const CACHE_NAME = 'jacxi-pwa-v2';
+const STATIC_ASSETS = ['/', '/offline'];
+
+function shouldBypassCache(requestUrl) {
+  const pathname = requestUrl.pathname;
+
+  // Never cache auth/session, API calls, or protected/dashboard pages.
+  // Caching these causes stale logged-out state in installed PWAs.
+  return (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/dashboard')
+  );
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -19,8 +31,13 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const requestUrl = new URL(request.url);
 
   if (request.method !== 'GET') {
+    return;
+  }
+
+  if (requestUrl.origin === self.location.origin && shouldBypassCache(requestUrl)) {
     return;
   }
 

@@ -114,6 +114,17 @@ const statusConfig: Record<string, { label: string; color: 'success' | 'warning'
 	CANCELLED: { label: 'Cancelled', color: 'default' },
 };
 
+function normalizeShipmentRefInDescription(
+	description: string,
+	shipment?: { id: string; vehicleVIN: string | null }
+): string {
+	if (!shipment?.id || !shipment.vehicleVIN) return description;
+	return description
+		.replace(new RegExp(`\\(Shipment\\s+${shipment.id}\\)`, 'gi'), `(VIN ${shipment.vehicleVIN})`)
+		.replace(new RegExp(`Shipment\\s+${shipment.id}`, 'gi'), `VIN ${shipment.vehicleVIN}`)
+		.replace(new RegExp(`shipment\\s+${shipment.id}`, 'g'), `VIN ${shipment.vehicleVIN}`);
+}
+
 export default function InvoiceDetailPage() {
 	const params = useParams();
 	const router = useRouter();
@@ -222,6 +233,14 @@ export default function InvoiceDetailPage() {
 			month: 'short',
 			day: 'numeric',
 		});
+	};
+
+	const getLineItemTypeLabel = (item: LineItem) => {
+		if (item.type === 'DISCOUNT' && /damage/i.test(item.description)) {
+			return 'DAMAGE CREDIT';
+		}
+
+		return item.type.replace('_', ' ');
 	};
 
 	// Group line items by shipment
@@ -527,11 +546,11 @@ export default function InvoiceDetailPage() {
 											{group.items.map((item) => (
 												<TableRow key={item.id} hover>
 													<TableCell sx={{ pl: group.shipment ? 4 : 2 }}>
-														{item.description}
+														{normalizeShipmentRefInDescription(item.description, group.shipment)}
 													</TableCell>
 													<TableCell>
 														<Chip 
-															label={item.type.replace('_', ' ')} 
+															label={getLineItemTypeLabel(item)} 
 															size="small"
 															sx={{ fontSize: '0.7rem' }}
 														/>

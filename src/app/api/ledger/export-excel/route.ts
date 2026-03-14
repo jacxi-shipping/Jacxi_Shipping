@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
           shipment: {
             select: {
               id: true,
+              vehicleVIN: true,
               vehicleMake: true,
               vehicleModel: true,
             },
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
     for (const entry of entries) {
       const date = new Date(entry.transactionDate);
       const shipmentInfo = entry.shipment
-        ? `Shipment ${entry.shipment.id || ""}`
+        ? `VIN ${entry.shipment.vehicleVIN || 'N/A'}`
         : '';
       const vehicleInfo = entry.shipment
         ? `${entry.shipment.vehicleMake || ''} ${entry.shipment.vehicleModel || ''}`.trim()

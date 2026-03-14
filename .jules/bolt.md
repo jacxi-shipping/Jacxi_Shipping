@@ -1,6 +1,7 @@
 ## 2024-05-19 - Avoid Array.filter().reduce() chaining on database relations
 **Learning:** Using chained `.filter().reduce()` operations on relations like `shipment.ledgerEntries` creates unnecessary intermediate arrays and iterates over the data multiple times, which causes excessive memory allocation and CPU cycles when dealing with lists of entities in financial reports.
 **Action:** Replace `array.filter(condition).reduce(sum)` chains with a single `for...of` loop that evaluates conditions and computes totals simultaneously to achieve O(N) iteration instead of O(xN).
+
 ## 2025-06-12 - Prisma counts and queries
 **Learning:** For database performance, when an endpoint needs to execute both a list fetch (`findMany`) and multiple counts (`count` or `aggregate`), these queries can block the event loop and add latency if executed sequentially.
 **Action:** Use `Promise.all` to parallelize independent database queries in Prisma.
@@ -8,6 +9,7 @@
 ## 2025-02-28 - [React List Mount Animation Performance]
 **Learning:** Using JS-driven state (like `useState` combined with a `setTimeout` inside `useEffect`) paired with a heavy wrapper like MUI's `<Slide>` to handle staggered row entry animations causes a critical performance bottleneck in React list rendering. Every row mounts, sets a timeout, and triggers an entirely new render cycle to flip its `isVisible` state, leading to O(N) double-renders which lag heavily on large dashboards.
 **Action:** When implementing entry animations for lists, strictly use pure CSS solutions. Apply standard utility classes (like `.animate-fade-in-up`) combined with inline style `animationDelay` mapping to the index. This shifts the animation completely to the browser's compositor thread and prevents all unnecessary React re-renders.
+
 ## 2024-05-18 - Atomic Updates for Performance and Race Condition Prevention
 **Learning:** Using sequential `count()` followed by `update()` queries in Prisma to maintain counter fields (like `currentCount` on a `Container` model) is an O(N) operation and susceptible to race conditions if multiple relations are modified simultaneously.
 **Action:** Replace sequential read-then-write counting operations with Prisma's atomic `increment: 1` and `decrement: 1` operators to achieve O(1) performance and natively prevent race conditions. Group independent atomic updates into a `Promise.all` array to parallelize database round-trips when transferring items between parent records.

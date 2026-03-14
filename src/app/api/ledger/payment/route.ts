@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
         price: true,
         vehicleMake: true,
         vehicleModel: true,
+        vehicleVIN: true,
         paymentStatus: true,
       },
     });
@@ -62,7 +63,9 @@ export async function POST(request: NextRequest) {
     const newBalance = currentBalance - validatedData.amount;
 
     // Create a credit ledger entry
-    const shipmentInfo = shipments.map(s => `${s.id || ""} (${s.vehicleMake} ${s.vehicleModel})`).join(', ');
+    const shipmentInfo = shipments
+      .map((s) => s.vehicleVIN || `${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.id)
+      .join(', ');
     const description = `Payment received for shipment(s): ${shipmentInfo}`;
 
     const entry = await prisma.ledgerEntry.create({
@@ -122,7 +125,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId: validatedData.userId,
             shipmentId: shipment.id,
-            description: `Payment applied to shipment ${shipment.id || ""}`,
+            description: `Payment applied to ${shipment.vehicleVIN ? `VIN ${shipment.vehicleVIN}` : `shipment ${shipment.id || ''}`}`,
             type: 'CREDIT',
             amount: paymentForShipment,
             balance: newBalance, // Same balance as the main entry

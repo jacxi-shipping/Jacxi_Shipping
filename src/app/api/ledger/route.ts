@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
           shipment: {
             select: {
               id: true,
+              vehicleVIN: true,
               vehicleMake: true,
               vehicleModel: true,
               price: true,
@@ -206,6 +207,7 @@ export async function POST(request: NextRequest) {
         shipment: {
           select: {
             id: true,
+            vehicleVIN: true,
             vehicleMake: true,
             vehicleModel: true,
           },
