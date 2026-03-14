@@ -17,3 +17,7 @@
 ## 2025-10-24 - Missing Database Indexes on Frequently Sorted Fields
 **Learning:** Fields like `createdAt` that are frequently used in `orderBy: { createdAt: 'desc' }` clauses for list endpoints (like Shipments, Containers, UserInvoices) can cause slow performance and O(N) table scans if they are missing database indexes.
 **Action:** Always add database indexes (e.g. `@@index([createdAt])` in Prisma) for fields that are frequently sorted or filtered on heavily used models.
+
+## 2025-06-12 - Consolidate Multiple Prisma Aggregates into groupBy
+**Learning:** When retrieving sums for different categories of data (e.g., DEBIT and CREDIT totals) from the same table, using separate `prisma.aggregate({ where: { type: '...' } })` queries forces multiple database roundtrips. This adds unnecessary latency, even when parallelized with `Promise.all`.
+**Action:** Replace multiple `aggregate` queries with a single `prisma.groupBy` query using `by: ['categoryField']` to fetch all sums in a single database operation, then parse the array to extract the specific totals.
