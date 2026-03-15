@@ -71,17 +71,15 @@ export async function GET(
       ];
     }
 
-    const [entries, debitAgg, creditAgg, latestEntry] = await Promise.all([
+    // ⚡ Bolt: Group ledger aggregates to prevent N+1 and reduce database roundtrips
+    const [entries, ledgerGroups, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
       }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: params.id, type: 'DEBIT' },
-        _sum: { amount: true },
-      }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: params.id, type: 'CREDIT' },
+      prisma.companyLedgerEntry.groupBy({
+        by: ['type'],
+        where: { companyId: params.id },
         _sum: { amount: true },
       }),
       prisma.companyLedgerEntry.findFirst({
@@ -91,11 +89,14 @@ export async function GET(
       }),
     ]);
 
+    const totalDebit = ledgerGroups.find(g => g.type === 'DEBIT')?._sum.amount || 0;
+    const totalCredit = ledgerGroups.find(g => g.type === 'CREDIT')?._sum.amount || 0;
+
     return NextResponse.json({
       entries,
       summary: {
-        totalDebit: debitAgg._sum.amount || 0,
-        totalCredit: creditAgg._sum.amount || 0,
+        totalDebit,
+        totalCredit,
         currentBalance: latestEntry?.balance || 0,
       },
     });
