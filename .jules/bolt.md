@@ -16,3 +16,7 @@
 ## 2026-03-06 - Prevent N+1 query in invoice generation
 **Learning:** Sequential string or number generation inside a loop (like invoice numbers) should pre-fetch the base count outside the loop and increment in-memory, avoiding an O(N) database count query.
 **Action:** Always extract `count()` queries from loops when used purely for generating sequential identifiers.
+
+## 2026-03-16 - Consolidating DB aggregates
+**Learning:** Multiple Prisma database queries like `aggregate` for distinct categories (e.g., DEBIT and CREDIT) can and should be grouped together into a single `groupBy` query over the category field. This fundamentally changes querying from O(K) table scans into a single table scan (where K is the number of aggregations required).
+**Action:** When seeing parallel `prisma.aggregate` operations grouping by a certain attribute, refactor to `prisma.groupBy` and map the values to save DB roundtrips.
