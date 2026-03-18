@@ -100,31 +100,30 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const transitShipments = company.companyType === 'TRANSIT'
-      ? await prisma.shipment.findMany({
-          where: { transit: { companyId: company.id } },
-          select: {
-            id: true,
-            vehicleVIN: true,
-            vehicleMake: true,
-            vehicleModel: true,
-            status: true,
-            createdAt: true,
-            transitId: true,
-            containerId: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 200,
-        })
-      : [];
-
-    const [debitAgg, creditAgg, latestEntry] = await Promise.all([
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: company.id, type: 'DEBIT' },
-        _sum: { amount: true },
-      }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: company.id, type: 'CREDIT' },
+    // ⚡ Bolt: Parallelized `transitShipments` query with ledger queries to eliminate sequential blocking.
+    // Replaced separate `prisma.aggregate` queries for DEBIT and CREDIT sums with a single `prisma.groupBy`
+    // to consolidate database queries and reduce roundtrips.
+    const [transitShipments, ledgerAgg, latestEntry] = await Promise.all([
+      company.companyType === 'TRANSIT'
+        ? prisma.shipment.findMany({
+            where: { transit: { companyId: company.id } },
+            select: {
+              id: true,
+              vehicleVIN: true,
+              vehicleMake: true,
+              vehicleModel: true,
+              status: true,
+              createdAt: true,
+              transitId: true,
+              containerId: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+          })
+        : Promise.resolve([]),
+      prisma.companyLedgerEntry.groupBy({
+        by: ['type'],
+        where: { companyId: company.id },
         _sum: { amount: true },
       }),
       prisma.companyLedgerEntry.findFirst({
@@ -133,6 +132,9 @@ export async function GET(
         select: { balance: true },
       }),
     ]);
+
+    const totalDebit = ledgerAgg.find(e => e.type === 'DEBIT')?._sum.amount || 0;
+    const totalCredit = ledgerAgg.find(e => e.type === 'CREDIT')?._sum.amount || 0;
 
     const responseCompany = company.companyType === 'TRANSIT'
       ? {
@@ -148,8 +150,8 @@ export async function GET(
     return NextResponse.json({
       company: responseCompany,
       summary: {
-        totalDebit: debitAgg._sum.amount || 0,
-        totalCredit: creditAgg._sum.amount || 0,
+        totalDebit,
+        totalCredit,
         currentBalance: latestEntry?.balance || 0,
       },
     });

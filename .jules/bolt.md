@@ -1,3 +1,3 @@
-## 2024-05-24 - N+1 Issue in Aggregation Loops
-**Learning:** Found an N+1 query issue in `src/app/api/ledger/payment/route.ts` where the code iterated over shipments and repeatedly used `await prisma.ledgerEntry.groupBy()` to calculate shipment debt within the loop. This can exponentially slow down processing for bulk payments.
-**Action:** When aggregating database relations inside a loop, always extract the aggregation to a single `groupBy` query *before* the loop using an `in` filter (e.g., `where: { id: { in: ids } }`), map the results into a lookup dictionary, and use O(1) loop checks.
+## 2024-03-18 - [Optimize Company Ledger Aggregations]
+**Learning:** [When fetching financial summaries for a single entity (like a company), developers often calculate DEBIT and CREDIT totals using separate `prisma.aggregate` queries. Additionally, unrelated queries for relational data (like transit shipments) are often run sequentially, blocking the execution of these aggregations.]
+**Action:** [Always consolidate separate DEBIT/CREDIT `prisma.aggregate` queries into a single `prisma.groupBy` query to halve database roundtrips. When these aggregations are independent of other data fetches in an API route, parallelize them using `Promise.all` to significantly reduce Time to First Byte (TTFB).]
