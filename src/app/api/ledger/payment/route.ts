@@ -98,22 +98,40 @@ export async function POST(request: NextRequest) {
     let remainingAmount = validatedData.amount;
     const updatedShipments = [];
 
+    // ⚡ Bolt: Fetch ledger entries for all shipments in one go to fix N+1 query problem
+    const allShipmentLedgers = await prisma.ledgerEntry.groupBy({
+      by: ['shipmentId', 'type'],
+      where: {
+        shipmentId: { in: validatedData.shipmentIds },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    // ⚡ Bolt: Create O(1) lookup map for shipment ledgers
+    const ledgerMap: Record<string, { totalDebit: number; totalCredit: number }> = {};
+    for (const entry of allShipmentLedgers) {
+      if (!entry.shipmentId) continue;
+
+      if (!ledgerMap[entry.shipmentId]) {
+        ledgerMap[entry.shipmentId] = { totalDebit: 0, totalCredit: 0 };
+      }
+
+      if (entry.type === 'DEBIT') {
+        ledgerMap[entry.shipmentId].totalDebit += entry._sum.amount || 0;
+      } else if (entry.type === 'CREDIT') {
+        ledgerMap[entry.shipmentId].totalCredit += entry._sum.amount || 0;
+      }
+    }
+
     for (const shipment of shipments) {
       if (remainingAmount <= 0) break;
 
-      // Get total debits and credits for this shipment
-      const shipmentLedger = await prisma.ledgerEntry.groupBy({
-        by: ['type'],
-        where: { 
-          shipmentId: shipment.id,
-        },
-        _sum: {
-          amount: true,
-        },
-      });
-
-      const totalDebit = shipmentLedger.find(e => e.type === 'DEBIT')?._sum.amount || 0;
-      const totalCredit = shipmentLedger.find(e => e.type === 'CREDIT')?._sum.amount || 0;
+      // ⚡ Bolt: Use O(1) lookup instead of awaiting DB query inside the loop
+      const ledgerInfo = ledgerMap[shipment.id] || { totalDebit: 0, totalCredit: 0 };
+      const totalDebit = ledgerInfo.totalDebit;
+      const totalCredit = ledgerInfo.totalCredit;
       const shipmentDue = totalDebit - totalCredit;
 
       if (shipmentDue > 0) {
