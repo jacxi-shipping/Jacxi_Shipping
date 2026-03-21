@@ -43,17 +43,14 @@ export async function GET(
       if (endDate) where.transactionDate.lte = new Date(endDate);
     }
 
-    const [entries, debitAgg, creditAgg, latestEntry] = await Promise.all([
+    const [entries, sumsGrouped, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'asc' }, { createdAt: 'asc' }],
       }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { ...where, type: 'DEBIT' },
-        _sum: { amount: true },
-      }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { ...where, type: 'CREDIT' },
+      prisma.companyLedgerEntry.groupBy({
+        by: ['type'],
+        where,
         _sum: { amount: true },
       }),
       prisma.companyLedgerEntry.findFirst({
@@ -89,9 +86,9 @@ export async function GET(
       },
       summary: {
         transactionCount: entries.length,
-        totalDebit: debitAgg._sum.amount || 0,
-        totalCredit: creditAgg._sum.amount || 0,
-        netMovement: (debitAgg._sum.amount || 0) - (creditAgg._sum.amount || 0),
+        totalDebit: sumsGrouped.find(g => g.type === 'DEBIT')?._sum.amount || 0,
+        totalCredit: sumsGrouped.find(g => g.type === 'CREDIT')?._sum.amount || 0,
+        netMovement: (sumsGrouped.find(g => g.type === 'DEBIT')?._sum.amount || 0) - (sumsGrouped.find(g => g.type === 'CREDIT')?._sum.amount || 0),
         currentBalance: latestEntry?.balance || 0,
       },
       monthlyBreakdown: Object.entries(byMonth)

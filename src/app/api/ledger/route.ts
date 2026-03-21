@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Execute database queries in parallel for performance
-    const [totalCount, entries, debitSum, creditSum, latestEntry] = await Promise.all([
+    const [totalCount, entries, sumsGrouped, latestEntry] = await Promise.all([
       // Get total count
       prisma.ledgerEntry.count({ where }),
 
@@ -102,17 +102,10 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
 
-      // Calculate debit summary
-      prisma.ledgerEntry.aggregate({
-        where: { ...where, type: 'DEBIT' },
-        _sum: {
-          amount: true,
-        },
-      }),
-
-      // Calculate credit summary
-      prisma.ledgerEntry.aggregate({
-        where: { ...where, type: 'CREDIT' },
+      // Calculate debit and credit summaries in a single grouped query
+      prisma.ledgerEntry.groupBy({
+        by: ['type'],
+        where,
         _sum: {
           amount: true,
         },
@@ -126,6 +119,9 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const totalDebit = sumsGrouped.find(g => g.type === 'DEBIT')?._sum.amount || 0;
+    const totalCredit = sumsGrouped.find(g => g.type === 'CREDIT')?._sum.amount || 0;
+
     return NextResponse.json({
       entries,
       pagination: {
@@ -135,8 +131,8 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(totalCount / limit),
       },
       summary: {
-        totalDebit: debitSum._sum.amount || 0,
-        totalCredit: creditSum._sum.amount || 0,
+        totalDebit,
+        totalCredit,
         currentBalance: latestEntry?.balance || 0,
       },
     });

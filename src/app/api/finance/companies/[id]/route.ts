@@ -118,13 +118,10 @@ export async function GET(
         })
       : [];
 
-    const [debitAgg, creditAgg, latestEntry] = await Promise.all([
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: company.id, type: 'DEBIT' },
-        _sum: { amount: true },
-      }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: company.id, type: 'CREDIT' },
+    const [sumsGrouped, latestEntry] = await Promise.all([
+      prisma.companyLedgerEntry.groupBy({
+        by: ['type'],
+        where: { companyId: company.id },
         _sum: { amount: true },
       }),
       prisma.companyLedgerEntry.findFirst({
@@ -145,11 +142,14 @@ export async function GET(
         }
       : company;
 
+    const totalDebit = sumsGrouped.find(g => g.type === 'DEBIT')?._sum.amount || 0;
+    const totalCredit = sumsGrouped.find(g => g.type === 'CREDIT')?._sum.amount || 0;
+
     return NextResponse.json({
       company: responseCompany,
       summary: {
-        totalDebit: debitAgg._sum.amount || 0,
-        totalCredit: creditAgg._sum.amount || 0,
+        totalDebit,
+        totalCredit,
         currentBalance: latestEntry?.balance || 0,
       },
     });
