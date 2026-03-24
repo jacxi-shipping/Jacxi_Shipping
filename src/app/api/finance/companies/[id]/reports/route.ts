@@ -43,17 +43,15 @@ export async function GET(
       if (endDate) where.transactionDate.lte = new Date(endDate);
     }
 
-    const [entries, debitAgg, creditAgg, latestEntry] = await Promise.all([
+    // ⚡ Bolt: Consolidate DEBIT/CREDIT aggregations into a single groupBy query to reduce database roundtrips
+    const [entries, ledgerAgg, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'asc' }, { createdAt: 'asc' }],
       }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { ...where, type: 'DEBIT' },
-        _sum: { amount: true },
-      }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { ...where, type: 'CREDIT' },
+      prisma.companyLedgerEntry.groupBy({
+        by: ['type'],
+        where: { ...where, type: { in: ['DEBIT', 'CREDIT'] } },
         _sum: { amount: true },
       }),
       prisma.companyLedgerEntry.findFirst({
@@ -62,6 +60,9 @@ export async function GET(
         select: { balance: true },
       }),
     ]);
+
+    const totalDebit = ledgerAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = ledgerAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     const byMonth: Record<string, { debit: number; credit: number; net: number }> = {};
 
@@ -89,9 +90,9 @@ export async function GET(
       },
       summary: {
         transactionCount: entries.length,
-        totalDebit: debitAgg._sum.amount || 0,
-        totalCredit: creditAgg._sum.amount || 0,
-        netMovement: (debitAgg._sum.amount || 0) - (creditAgg._sum.amount || 0),
+        totalDebit,
+        totalCredit,
+        netMovement: totalDebit - totalCredit,
         currentBalance: latestEntry?.balance || 0,
       },
       monthlyBreakdown: Object.entries(byMonth)
