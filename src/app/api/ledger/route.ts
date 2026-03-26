@@ -68,8 +68,9 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
     // Execute database queries in parallel for performance
-    const [totalCount, entries, debitSum, creditSum, latestEntry] = await Promise.all([
+    const [totalCount, entries, groupedSums, latestEntry] = await Promise.all([
       // Get total count
       prisma.ledgerEntry.count({ where }),
 
@@ -102,17 +103,10 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
 
-      // Calculate debit summary
-      prisma.ledgerEntry.aggregate({
-        where: { ...where, type: 'DEBIT' },
-        _sum: {
-          amount: true,
-        },
-      }),
-
-      // Calculate credit summary
-      prisma.ledgerEntry.aggregate({
-        where: { ...where, type: 'CREDIT' },
+      // Calculate debit and credit summaries in a single query
+      prisma.ledgerEntry.groupBy({
+        by: ['type'],
+        where: { ...where, type: { in: ['DEBIT', 'CREDIT'] } },
         _sum: {
           amount: true,
         },
@@ -135,8 +129,8 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(totalCount / limit),
       },
       summary: {
-        totalDebit: debitSum._sum.amount || 0,
-        totalCredit: creditSum._sum.amount || 0,
+        totalDebit: groupedSums.find(g => g.type === 'DEBIT')?._sum.amount || 0,
+        totalCredit: groupedSums.find(g => g.type === 'CREDIT')?._sum.amount || 0,
         currentBalance: latestEntry?.balance || 0,
       },
     });
