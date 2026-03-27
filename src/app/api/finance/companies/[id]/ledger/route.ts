@@ -71,17 +71,15 @@ export async function GET(
       ];
     }
 
-    const [entries, debitAgg, creditAgg, latestEntry] = await Promise.all([
+    const [entries, aggregateGroups, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
       }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: params.id, type: 'DEBIT' },
-        _sum: { amount: true },
-      }),
-      prisma.companyLedgerEntry.aggregate({
-        where: { companyId: params.id, type: 'CREDIT' },
+      // ⚡ Bolt: Consolidated multiple prisma.aggregate queries into a single prisma.groupBy query to reduce database roundtrips.
+      prisma.companyLedgerEntry.groupBy({
+        by: ['type'],
+        where: { companyId: params.id, type: { in: ['DEBIT', 'CREDIT'] } },
         _sum: { amount: true },
       }),
       prisma.companyLedgerEntry.findFirst({
@@ -91,11 +89,14 @@ export async function GET(
       }),
     ]);
 
+    const totalDebit = aggregateGroups.find(g => g.type === 'DEBIT')?._sum.amount || 0;
+    const totalCredit = aggregateGroups.find(g => g.type === 'CREDIT')?._sum.amount || 0;
+
     return NextResponse.json({
       entries,
       summary: {
-        totalDebit: debitAgg._sum.amount || 0,
-        totalCredit: creditAgg._sum.amount || 0,
+        totalDebit,
+        totalCredit,
         currentBalance: latestEntry?.balance || 0,
       },
     });
