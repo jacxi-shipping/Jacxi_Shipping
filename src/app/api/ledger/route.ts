@@ -70,7 +70,9 @@ export async function GET(request: NextRequest) {
 
     // ⚡ Bolt: Consolidated DEBIT and CREDIT aggregations into a single groupBy query to reduce DB roundtrips
     // Execute database queries in parallel for performance
-    const [totalCount, entries, groupedSums, latestEntry] = await Promise.all([
+    // ⚡ Bolt: Combine separate aggregate queries for DEBIT and CREDIT totals
+    // into a single groupBy query to reduce database calls and latency.
+    const [totalCount, entries, groupedAgg, latestEntry] = await Promise.all([
       // Get total count
       prisma.ledgerEntry.count({ where }),
 
@@ -103,8 +105,7 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
 
-      // Performance Optimization: Replaced separate aggregate queries for DEBIT and CREDIT
-      // with a single groupBy query to reduce database roundtrips by 1.
+      // Calculate debit and credit summaries
       prisma.ledgerEntry.groupBy({
         by: ['type'],
         where: { ...where, type: { in: ['DEBIT', 'CREDIT'] } },
@@ -121,8 +122,8 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const totalDebit = groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
-    const totalCredit = groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
+    const totalDebit = groupedAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = groupedAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     return NextResponse.json({
       entries,

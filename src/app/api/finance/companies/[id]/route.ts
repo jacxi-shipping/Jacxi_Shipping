@@ -118,9 +118,9 @@ export async function GET(
         })
       : [];
 
-    const [groupedSums, latestEntry] = await Promise.all([
-      // Performance Optimization: Replaced separate aggregate queries for DEBIT and CREDIT
-      // with a single groupBy query to reduce database roundtrips by 1.
+    // ⚡ Bolt: Consolidate DEBIT and CREDIT aggregates into a single groupBy query
+    // to reduce database roundtrips and improve endpoint response time.
+    const [groupedAgg, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.groupBy({
         by: ['type'],
         where: { companyId: company.id, type: { in: ['DEBIT', 'CREDIT'] } },
@@ -133,8 +133,8 @@ export async function GET(
       }),
     ]);
 
-    const totalDebit = groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
-    const totalCredit = groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
+    const totalDebit = groupedAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = groupedAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     const responseCompany = company.companyType === 'TRANSIT'
       ? {
