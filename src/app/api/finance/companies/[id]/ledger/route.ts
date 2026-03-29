@@ -71,9 +71,8 @@ export async function GET(
       ];
     }
 
-    // ⚡ Bolt: Use a single groupBy query instead of multiple aggregate queries
-    // to calculate total debits and credits efficiently.
-    const [entries, groupedAgg, latestEntry] = await Promise.all([
+    // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
+    const [entries, groupedSums, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
@@ -96,8 +95,8 @@ export async function GET(
     return NextResponse.json({
       entries,
       summary: {
-        totalDebit,
-        totalCredit,
+        totalDebit: groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0,
+        totalCredit: groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0,
         currentBalance: latestEntry?.balance || 0,
       },
     });
