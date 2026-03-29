@@ -89,6 +89,9 @@ export async function GET(
       }),
     ]);
 
+    const totalDebit = groupedAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = groupedAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
+
     return NextResponse.json({
       entries,
       summary: {

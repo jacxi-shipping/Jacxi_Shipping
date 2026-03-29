@@ -120,6 +120,9 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const totalDebit = groupedAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = groupedAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
+
     return NextResponse.json({
       entries,
       pagination: {
