@@ -89,14 +89,11 @@ export async function GET(
       }),
     ]);
 
-    const totalDebit = groupedAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
-    const totalCredit = groupedAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
-
     return NextResponse.json({
       entries,
       summary: {
-        totalDebit: groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0,
-        totalCredit: groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0,
+        totalDebit: groupedSums.find(g => g.type === 'DEBIT')?._sum.amount || 0,
+        totalCredit: groupedSums.find(g => g.type === 'CREDIT')?._sum.amount || 0,
         currentBalance: latestEntry?.balance || 0,
       },
     });
