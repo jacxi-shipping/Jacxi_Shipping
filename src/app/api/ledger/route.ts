@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const totalDebit = aggregateGroups.find(g => g.type === 'DEBIT')?._sum.amount || 0;
-    const totalCredit = aggregateGroups.find(g => g.type === 'CREDIT')?._sum.amount || 0;
+    const totalDebit = aggregateGroups.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = aggregateGroups.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     return NextResponse.json({
       entries,
@@ -238,8 +238,8 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        const totalDebit = shipmentLedger.find(e => e.type === 'DEBIT')?._sum.amount || 0;
-        const totalCredit = shipmentLedger.find(e => e.type === 'CREDIT')?._sum.amount || 0;
+        const totalDebit = shipmentLedger.find(e => e.type === 'DEBIT')?._sum?.amount || 0;
+        const totalCredit = shipmentLedger.find(e => e.type === 'CREDIT')?._sum?.amount || 0;
 
         // Update shipment payment status
         if (totalCredit >= totalDebit) {

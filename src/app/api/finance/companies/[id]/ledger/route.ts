@@ -89,8 +89,8 @@ export async function GET(
       }),
     ]);
 
-    const totalDebit = aggregateGroups.find(g => g.type === 'DEBIT')?._sum.amount || 0;
-    const totalCredit = aggregateGroups.find(g => g.type === 'CREDIT')?._sum.amount || 0;
+    const totalDebit = aggregateGroups.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = aggregateGroups.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     return NextResponse.json({
       entries,
