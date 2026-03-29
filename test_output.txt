@@ -21,7 +21,7 @@ TAP version 13
 # Subtest: src/hooks/useInView.test.ts
 not ok 1 - src/hooks/useInView.test.ts
   ---
-  duration_ms: 452.647498
+  duration_ms: 448.796924
   type: 'test'
   location: '/app/src/hooks/useInView.test.ts:1:1'
   failureType: 'testCodeFailure'
@@ -30,7 +30,7 @@ not ok 1 - src/hooks/useInView.test.ts
   error: 'test failed'
   code: 'ERR_TEST_FAILURE'
   ...
-# (node:3958) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/auth.config.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2428) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/auth.config.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -38,40 +38,40 @@ not ok 1 - src/hooks/useInView.test.ts
     # Subtest: should allow access to public routes for unauthenticated users
     ok 1 - should allow access to public routes for unauthenticated users
       ---
-      duration_ms: 1.609046
+      duration_ms: 1.598506
       type: 'test'
       ...
     # Subtest: should redirect unauthenticated users from /dashboard
     ok 2 - should redirect unauthenticated users from /dashboard
       ---
-      duration_ms: 0.408563
+      duration_ms: 0.348112
       type: 'test'
       ...
     # Subtest: should redirect unauthenticated users from /api/protected
     ok 3 - should redirect unauthenticated users from /api/protected
       ---
-      duration_ms: 0.464398
+      duration_ms: 0.518939
       type: 'test'
       ...
     # Subtest: should allow authenticated users to access /dashboard
     ok 4 - should allow authenticated users to access /dashboard
       ---
-      duration_ms: 0.457825
+      duration_ms: 0.447187
       type: 'test'
       ...
     # Subtest: should allow authenticated users to access /api/protected
     ok 5 - should allow authenticated users to access /api/protected
       ---
-      duration_ms: 0.424949
+      duration_ms: 0.425338
       type: 'test'
       ...
     1..5
 ok 2 - authConfig.callbacks.authorized
   ---
-  duration_ms: 6.064714
+  duration_ms: 6.192983
   type: 'suite'
   ...
-# (node:3959) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/concurrency.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2429) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/concurrency.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -79,27 +79,27 @@ ok 2 - authConfig.callbacks.authorized
     # Subtest: processes all items
     ok 1 - processes all items
       ---
-      duration_ms: 5.107772
+      duration_ms: 2.850422
       type: 'test'
       ...
     # Subtest: respects concurrency limit
     ok 2 - respects concurrency limit
       ---
-      duration_ms: 45.210977
+      duration_ms: 46.688267
       type: 'test'
       ...
-# Sequential: 254ms
-# Concurrent (limit 2): 151ms
+# Sequential: 252ms
+# Concurrent (limit 2): 158ms
     # Subtest: performance: concurrent vs sequential
     ok 3 - performance: concurrent vs sequential
       ---
-      duration_ms: 405.522306
+      duration_ms: 410.211268
       type: 'test'
       ...
     1..3
 ok 3 - runWithConcurrency
   ---
-  duration_ms: 458.160374
+  duration_ms: 461.9343
   type: 'suite'
   ...
 # node:internal/modules/package_json_reader:314
@@ -120,7 +120,7 @@ ok 3 - runWithConcurrency
 # Subtest: src/lib/cron-auth.test.ts
 not ok 4 - src/lib/cron-auth.test.ts
   ---
-  duration_ms: 156.013902
+  duration_ms: 161.256632
   type: 'test'
   location: '/app/src/lib/cron-auth.test.ts:1:1'
   failureType: 'testCodeFailure'
@@ -129,7 +129,7 @@ not ok 4 - src/lib/cron-auth.test.ts
   error: 'test failed'
   code: 'ERR_TEST_FAILURE'
   ...
-# (node:3979) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/expense-allocation.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2455) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/expense-allocation.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -138,65 +138,65 @@ not ok 4 - src/lib/cron-auth.test.ts
         # Subtest: should allocate equally
         ok 1 - should allocate equally
           ---
-          duration_ms: 1.24429
+          duration_ms: 1.129947
           type: 'test'
           ...
         # Subtest: should allocate by value
         ok 2 - should allocate by value
           ---
-          duration_ms: 0.330118
+          duration_ms: 0.352716
           type: 'test'
           ...
         # Subtest: should allocate by weight
         ok 3 - should allocate by weight
           ---
-          duration_ms: 0.237794
+          duration_ms: 0.236284
           type: 'test'
           ...
         # Subtest: should handle zero value fallback to equal
         ok 4 - should handle zero value fallback to equal
           ---
-          duration_ms: 0.200225
+          duration_ms: 0.190999
           type: 'test'
           ...
         1..4
     ok 1 - allocateExpenses
       ---
-      duration_ms: 3.0771
+      duration_ms: 2.84261
       type: 'suite'
       ...
     # Subtest: validateAllocationMethod
         # Subtest: should validate EQUAL
         ok 1 - should validate EQUAL
           ---
-          duration_ms: 0.538001
+          duration_ms: 0.384028
           type: 'test'
           ...
         # Subtest: should validate BY_VALUE with values
         ok 2 - should validate BY_VALUE with values
           ---
-          duration_ms: 0.307196
+          duration_ms: 0.289822
           type: 'test'
           ...
         # Subtest: should invalidate BY_VALUE without values
         ok 3 - should invalidate BY_VALUE without values
           ---
-          duration_ms: 0.385113
+          duration_ms: 0.350272
           type: 'test'
           ...
         1..3
     ok 2 - validateAllocationMethod
       ---
-      duration_ms: 1.68164
+      duration_ms: 1.527636
       type: 'suite'
       ...
     1..2
 ok 5 - Expense Allocation
   ---
-  duration_ms: 5.749739
+  duration_ms: 5.171579
   type: 'suite'
   ...
-# (node:3992) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/export.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2463) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/export.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -204,46 +204,46 @@ ok 5 - Expense Allocation
     # Subtest: exportToCSV should create a CSV file and download it
     ok 1 - exportToCSV should create a CSV file and download it
       ---
-      duration_ms: 2.939884
+      duration_ms: 2.036033
       type: 'test'
       ...
     # Subtest: exportToCSVWithHeaders should use custom headers
     ok 2 - exportToCSVWithHeaders should use custom headers
       ---
-      duration_ms: 0.93162
+      duration_ms: 0.581039
       type: 'test'
       ...
     # Subtest: exportToExcel should create a CSV with BOM
     ok 3 - exportToExcel should create a CSV with BOM
       ---
-      duration_ms: 1.335635
+      duration_ms: 0.724369
       type: 'test'
       ...
     # Subtest: formatDataForExport should format dates and booleans
     ok 4 - formatDataForExport should format dates and booleans
       ---
-      duration_ms: 0.684031
+      duration_ms: 0.344894
       type: 'test'
       ...
     # Subtest: should handle empty data
     ok 5 - should handle empty data
       ---
-      duration_ms: 0.867271
+      duration_ms: 0.622074
       type: 'test'
       ...
     # Subtest: should handle special characters in CSV
     ok 6 - should handle special characters in CSV
       ---
-      duration_ms: 0.69507
+      duration_ms: 0.317064
       type: 'test'
       ...
     1..6
 ok 6 - Export Utilities
   ---
-  duration_ms: 11.672502
+  duration_ms: 6.96327
   type: 'suite'
   ...
-# (node:4000) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/financial/tax.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2470) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/financial/tax.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -251,125 +251,125 @@ ok 6 - Export Utilities
     # Subtest: validateTaxConfig returns true for valid config
     ok 1 - validateTaxConfig returns true for valid config
       ---
-      duration_ms: 1.807252
+      duration_ms: 1.103189
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for taxRate < 0
     ok 2 - validateTaxConfig returns false for taxRate < 0
       ---
-      duration_ms: 0.469081
+      duration_ms: 0.258873
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for taxRate > 100
     ok 3 - validateTaxConfig returns false for taxRate > 100
       ---
-      duration_ms: 0.351699
+      duration_ms: 0.1697
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for empty taxName
     ok 4 - validateTaxConfig returns false for empty taxName
       ---
-      duration_ms: 0.384842
+      duration_ms: 0.169953
       type: 'test'
       ...
     # Subtest: validateTaxConfig returns false for whitespace taxName
     ok 5 - validateTaxConfig returns false for whitespace taxName
       ---
-      duration_ms: 0.334597
+      duration_ms: 0.224683
       type: 'test'
       ...
     1..5
 ok 7 - Tax Validation
   ---
-  duration_ms: 5.653792
+  duration_ms: 3.882854
   type: 'suite'
   ...
 # Subtest: Tax Calculation
     # Subtest: calculateTax handles standard sales tax correctly
     ok 1 - calculateTax handles standard sales tax correctly
       ---
-      duration_ms: 0.81521
+      duration_ms: 0.385389
       type: 'test'
       ...
     # Subtest: calculateTax handles VAT (applicable to both) correctly
     ok 2 - calculateTax handles VAT (applicable to both) correctly
       ---
-      duration_ms: 0.585905
+      duration_ms: 0.423155
       type: 'test'
       ...
     # Subtest: calculateTax handles B2B VAT exemption (reverse charge)
     ok 3 - calculateTax handles B2B VAT exemption (reverse charge)
       ---
-      duration_ms: 0.913762
+      duration_ms: 0.560177
       type: 'test'
       ...
     # Subtest: calculateTax handles NONE tax config
     ok 4 - calculateTax handles NONE tax config
       ---
-      duration_ms: 0.830803
+      duration_ms: 2.123057
       type: 'test'
       ...
     1..4
 ok 8 - Tax Calculation
   ---
-  duration_ms: 7.682288
+  duration_ms: 4.109031
   type: 'suite'
   ...
 # Subtest: Tax Configuration Retrieval
     # Subtest: getTaxConfig returns correct config for valid code
     ok 1 - getTaxConfig returns correct config for valid code
       ---
-      duration_ms: 0.374059
+      duration_ms: 0.301189
       type: 'test'
       ...
     # Subtest: getTaxConfig returns NONE config for invalid code
     ok 2 - getTaxConfig returns NONE config for invalid code
       ---
-      duration_ms: 0.208228
+      duration_ms: 0.189561
       type: 'test'
       ...
     1..2
 ok 9 - Tax Configuration Retrieval
   ---
-  duration_ms: 0.768413
+  duration_ms: 0.642217
   type: 'suite'
   ...
 # Subtest: Custom Duty Calculation
     # Subtest: calculateCustomDuty without shipping cost
     ok 1 - calculateCustomDuty without shipping cost
       ---
-      duration_ms: 0.229835
+      duration_ms: 0.177029
       type: 'test'
       ...
     # Subtest: calculateCustomDuty with shipping cost
     ok 2 - calculateCustomDuty with shipping cost
       ---
-      duration_ms: 0.118058
+      duration_ms: 0.102049
       type: 'test'
       ...
     1..2
 ok 10 - Custom Duty Calculation
   ---
-  duration_ms: 0.460713
+  duration_ms: 0.379399
   type: 'suite'
   ...
 # Subtest: Tax Formatting
     # Subtest: formatTaxLine for zero tax
     ok 1 - formatTaxLine for zero tax
       ---
-      duration_ms: 0.368609
+      duration_ms: 0.241437
       type: 'test'
       ...
     # Subtest: formatTaxLine for positive tax
     ok 2 - formatTaxLine for positive tax
       ---
-      duration_ms: 0.152914
+      duration_ms: 0.176073
       type: 'test'
       ...
     1..2
 ok 11 - Tax Formatting
   ---
-  duration_ms: 0.906289
+  duration_ms: 0.642612
   type: 'suite'
   ...
 # Failed to geocode Error Place: Error: OSM API Error: 500
@@ -377,7 +377,7 @@ ok 11 - Tax Formatting
 #     at async TestContext.<anonymous> (file:///app/src/lib/geocoding.test.ts:56:20)
 #     at async Test.run (node:internal/test_runner/test:1054:7)
 #     at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
-# (node:4008) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/geocoding.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2477) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/geocoding.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -385,40 +385,40 @@ ok 11 - Tax Formatting
     # Subtest: should return known coordinates for known ports synchronously
     ok 1 - should return known coordinates for known ports synchronously
       ---
-      duration_ms: 2.231194
+      duration_ms: 2.307373
       type: 'test'
       ...
     # Subtest: should fetch coordinates for unknown locations
     ok 2 - should fetch coordinates for unknown locations
       ---
-      duration_ms: 0.702808
+      duration_ms: 0.515638
       type: 'test'
       ...
     # Subtest: should return null on fetch error
     ok 3 - should return null on fetch error
       ---
-      duration_ms: 1.690465
+      duration_ms: 1.652925
       type: 'test'
       ...
     # Subtest: should return null on empty response
     ok 4 - should return null on empty response
       ---
-      duration_ms: 0.598132
+      duration_ms: 0.581801
       type: 'test'
       ...
     # Subtest: should use cache for subsequent requests
     ok 5 - should use cache for subsequent requests
       ---
-      duration_ms: 0.793391
+      duration_ms: 0.866042
       type: 'test'
       ...
     1..5
 ok 12 - geocoding
   ---
-  duration_ms: 7.984879
+  duration_ms: 7.903318
   type: 'suite'
   ...
-# (node:4009) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/logger.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2484) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/logger.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -426,34 +426,34 @@ ok 12 - geocoding
     # Subtest: should log info messages correctly in development
     ok 1 - should log info messages correctly in development
       ---
-      duration_ms: 2.267632
+      duration_ms: 2.058253
       type: 'test'
       ...
     # Subtest: should log info messages correctly in production
     ok 2 - should log info messages correctly in production
       ---
-      duration_ms: 0.402618
+      duration_ms: 0.358063
       type: 'test'
       ...
     # Subtest: should log error messages correctly
     ok 3 - should log error messages correctly
       ---
-      duration_ms: 0.48694
+      duration_ms: 0.362695
       type: 'test'
       ...
     # Subtest: should log warn messages correctly
     ok 4 - should log warn messages correctly
       ---
-      duration_ms: 0.425847
+      duration_ms: 0.304161
       type: 'test'
       ...
     1..4
 ok 13 - Logger
   ---
-  duration_ms: 6.334755
+  duration_ms: 5.572972
   type: 'suite'
   ...
-# (node:4022) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/loginCode.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2491) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/loginCode.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -461,78 +461,78 @@ ok 13 - Logger
     # Subtest: should generate an 8-character string
     ok 1 - should generate an 8-character string
       ---
-      duration_ms: 1.281454
+      duration_ms: 1.26247
       type: 'test'
       ...
     # Subtest: should only contain valid characters
     ok 2 - should only contain valid characters
       ---
-      duration_ms: 0.484727
+      duration_ms: 0.520569
       type: 'test'
       ...
     # Subtest: should generate different codes
     ok 3 - should generate different codes
       ---
-      duration_ms: 0.299128
+      duration_ms: 0.221413
       type: 'test'
       ...
     # Subtest: should NOT use Math.random()
     ok 4 - should NOT use Math.random()
       ---
-      duration_ms: 0.32199
+      duration_ms: 1.32065
       type: 'test'
       ...
     1..4
 ok 14 - Login Code Generation
   ---
-  duration_ms: 3.855428
+  duration_ms: 4.509322
   type: 'suite'
   ...
 # Subtest: Login Code Validation
     # Subtest: should validate correct codes
     ok 1 - should validate correct codes
       ---
-      duration_ms: 1.662847
+      duration_ms: 0.336668
       type: 'test'
       ...
     # Subtest: should invalidate incorrect lengths
     ok 2 - should invalidate incorrect lengths
       ---
-      duration_ms: 0.145391
+      duration_ms: 0.124449
       type: 'test'
       ...
     # Subtest: should invalidate incorrect characters
     ok 3 - should invalidate incorrect characters
       ---
-      duration_ms: 0.419562
+      duration_ms: 0.261143
       type: 'test'
       ...
     1..3
 ok 15 - Login Code Validation
   ---
-  duration_ms: 2.688629
+  duration_ms: 1.208397
   type: 'suite'
   ...
 # Subtest: Login Code Formatting
     # Subtest: should format code with a space in the middle
     ok 1 - should format code with a space in the middle
       ---
-      duration_ms: 0.379348
+      duration_ms: 0.302465
       type: 'test'
       ...
     # Subtest: should not format invalid length codes
     ok 2 - should not format invalid length codes
       ---
-      duration_ms: 0.268545
+      duration_ms: 0.288718
       type: 'test'
       ...
     1..2
 ok 16 - Login Code Formatting
   ---
-  duration_ms: 0.9878
+  duration_ms: 0.907309
   type: 'suite'
   ...
-# (node:4029) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/webhook-auth.test.ts is not specified and it doesn't parse as CommonJS.
+# (node:2498) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/src/lib/webhook-auth.test.ts is not specified and it doesn't parse as CommonJS.
 # Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 # To eliminate this warning, add "type": "module" to /app/package.json.
 # (Use `node --trace-warnings ...` to show where the warning was created)
@@ -540,49 +540,49 @@ ok 16 - Login Code Formatting
     # Subtest: should return true for valid signature
     ok 1 - should return true for valid signature
       ---
-      duration_ms: 1.240567
+      duration_ms: 1.03097
       type: 'test'
       ...
     # Subtest: should return false for invalid signature
     ok 2 - should return false for invalid signature
       ---
-      duration_ms: 0.380389
+      duration_ms: 0.325352
       type: 'test'
       ...
     # Subtest: should return false for tampered body
     ok 3 - should return false for tampered body
       ---
-      duration_ms: 0.28728
+      duration_ms: 0.214549
       type: 'test'
       ...
     # Subtest: should return false for different secret
     ok 4 - should return false for different secret
       ---
-      duration_ms: 0.283333
+      duration_ms: 0.188366
       type: 'test'
       ...
     # Subtest: should return false if signature is missing
     ok 5 - should return false if signature is missing
       ---
-      duration_ms: 0.200516
+      duration_ms: 0.208847
       type: 'test'
       ...
     # Subtest: should return false if body is missing
     ok 6 - should return false if body is missing
       ---
-      duration_ms: 0.163139
+      duration_ms: 0.246604
       type: 'test'
       ...
     # Subtest: should return false if secret is missing
     ok 7 - should return false if secret is missing
       ---
-      duration_ms: 1.482769
+      duration_ms: 1.189132
       type: 'test'
       ...
     1..7
 ok 17 - verifySignature
   ---
-  duration_ms: 5.792349
+  duration_ms: 4.940843
   type: 'suite'
   ...
 1..17
@@ -593,9 +593,9 @@ ok 17 - verifySignature
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1216.814612
+# duration_ms 1231.524753
 npm notice
-npm notice New patch version of npm available! 11.11.0 -> 11.11.1
-npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.11.1
-npm notice To update run: npm install -g npm@11.11.1
+npm notice New minor version of npm available! 11.11.0 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
 npm notice

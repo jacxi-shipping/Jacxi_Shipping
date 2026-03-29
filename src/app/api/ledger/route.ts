@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // ⚡ Bolt: Consolidated DEBIT and CREDIT aggregations into a single groupBy query to reduce DB roundtrips
     // Execute database queries in parallel for performance
     // ⚡ Bolt: Combine separate aggregate queries for DEBIT and CREDIT totals
     // into a single groupBy query to reduce database calls and latency.
