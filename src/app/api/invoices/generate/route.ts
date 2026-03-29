@@ -119,27 +119,6 @@ export async function POST(req: NextRequest) {
     // Generate invoices for each user
     const generatedInvoices = [];
     
-    // Fetch all relevant ledger entries (expenses) for these shipments
-    const shipmentIds = container.shipments.map((s) => s.id);
-    const shipmentExpenseEntries = await prisma.ledgerEntry.findMany({
-      where: {
-        shipmentId: { in: shipmentIds },
-        type: 'DEBIT', // Customer owes money
-        description: {
-          contains: 'Expense',
-          mode: 'insensitive',
-        },
-      },
-    });
-
-    // Fetch damage records for the shipments to process WE_PAY damages as discounts
-    const shipmentDamageRecords = await prisma.containerDamage.findMany({
-      where: {
-        shipmentId: { in: shipmentIds },
-        damageType: 'WE_PAY',
-      },
-    });
-
     // ⚡ Bolt: Removed N+1 query inside loop by pre-fetching the count once and incrementing.
     let invoiceCount = await prisma.userInvoice.count();
 

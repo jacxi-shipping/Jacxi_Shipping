@@ -43,8 +43,9 @@ export async function GET(
       if (endDate) where.transactionDate.lte = new Date(endDate);
     }
 
-    // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
-    const [entries, groupedSums, latestEntry] = await Promise.all([
+    // ⚡ Bolt: Replace multiple aggregate queries for DEBIT and CREDIT sums with a
+    // single groupBy query to minimize database roundtrips and improve overall response time.
+    const [entries, groupedAgg, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'asc' }, { createdAt: 'asc' }],
@@ -61,8 +62,8 @@ export async function GET(
       }),
     ]);
 
-    const totalDebit = groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
-    const totalCredit = groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
+    const totalDebit = groupedAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = groupedAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     const byMonth: Record<string, { debit: number; credit: number; net: number }> = {};
 
