@@ -89,8 +89,8 @@ export async function GET(
       }),
     ]);
 
-    const totalDebit = ledgerAgg.find((g: any) => g.type === 'DEBIT')?._sum?.amount || 0;
-    const totalCredit = ledgerAgg.find((g: any) => g.type === 'CREDIT')?._sum?.amount || 0;
+    const totalDebit = ledgerAgg.find((g) => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = ledgerAgg.find((g) => g.type === 'CREDIT')?._sum?.amount || 0;
 
     return NextResponse.json({
       entries,
