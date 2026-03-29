@@ -62,6 +62,9 @@ export async function GET(
       }),
     ]);
 
+    const totalDebit = aggGroups.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = aggGroups.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
+
     const byMonth: Record<string, { debit: number; credit: number; net: number }> = {};
 
     for (const entry of entries) {

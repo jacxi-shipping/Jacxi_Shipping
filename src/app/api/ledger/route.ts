@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // ⚡ Bolt: Consolidated DEBIT and CREDIT aggregations into a single groupBy query to reduce DB roundtrips
     // Execute database queries in parallel for performance
     const [totalCount, entries, groupedSums, latestEntry] = await Promise.all([
       // Get total count
