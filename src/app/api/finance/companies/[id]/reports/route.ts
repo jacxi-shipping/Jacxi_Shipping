@@ -43,12 +43,13 @@ export async function GET(
       if (endDate) where.transactionDate.lte = new Date(endDate);
     }
 
-    // ⚡ Bolt: Consolidated DEBIT and CREDIT aggregations into a single groupBy query to reduce DB roundtrips
-    const [entries, aggGroups, latestEntry] = await Promise.all([
+    const [entries, groupedSums, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'asc' }, { createdAt: 'asc' }],
       }),
+      // Performance Optimization: Replaced separate aggregate queries for DEBIT and CREDIT
+      // with a single groupBy query to reduce database roundtrips by 1.
       prisma.companyLedgerEntry.groupBy({
         by: ['type'],
         where: { ...where, type: { in: ['DEBIT', 'CREDIT'] } },
@@ -81,6 +82,9 @@ export async function GET(
 
       byMonth[key].net = byMonth[key].debit - byMonth[key].credit;
     }
+
+    const totalDebit = groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     return NextResponse.json({
       company,
