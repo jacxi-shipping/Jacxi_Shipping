@@ -136,19 +136,16 @@ export async function POST(
       );
     }
 
+    // ⚡ Bolt: Replaced O(N) transaction mapping with a single optimized updateMany query
     // Assign shipments to container and ensure company linkage for expense accounting
-    await prisma.$transaction(
-      shipmentIds.map((shipmentId) =>
-        prisma.shipment.update({
-          where: { id: shipmentId },
-          data: {
-            containerId: params.id,
-            status: 'IN_TRANSIT',
-            shippingCompanyId: container.companyId,
-          },
-        })
-      )
-    );
+    await prisma.shipment.updateMany({
+      where: { id: { in: shipmentIds } },
+      data: {
+        containerId: params.id,
+        status: 'IN_TRANSIT',
+        shippingCompanyId: container.companyId,
+      },
+    });
 
     // Update container count
     await prisma.container.update({
