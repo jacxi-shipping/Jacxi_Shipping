@@ -132,8 +132,8 @@ export async function GET(
       }),
     ]);
 
-    const totalDebit = groupedAgg.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
-    const totalCredit = groupedAgg.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
+    const totalDebit = groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
+    const totalCredit = groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
 
     const responseCompany = company.companyType === 'TRANSIT'
       ? {
