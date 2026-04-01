@@ -220,9 +220,16 @@ export default function CompanyFinancePage() {
   };
 
   const stats = useMemo(() => {
-    const totalDebit = companies.reduce((sum, company) => sum + company.totalDebit, 0);
-    const totalCredit = companies.reduce((sum, company) => sum + company.totalCredit, 0);
-    const netBalance = companies.reduce((sum, company) => sum + company.currentBalance, 0);
+    // ⚡ Bolt: Consolidated multiple .reduce() iterations into a single O(N) loop
+    let totalDebit = 0;
+    let totalCredit = 0;
+    let netBalance = 0;
+
+    for (const company of companies) {
+      totalDebit += company.totalDebit;
+      totalCredit += company.totalCredit;
+      netBalance += company.currentBalance;
+    }
 
     return {
       companies: companies.length,
