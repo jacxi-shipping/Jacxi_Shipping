@@ -580,21 +580,22 @@ export default function ShipmentDetailPage() {
     return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
   });
 
-  const userLedgerDebitsTotal = (shipment?.ledgerEntries || [])
-    .filter((entry) => entry.type === 'DEBIT')
-    .reduce((sum, entry) => sum + entry.amount, 0);
-  const userLedgerCreditsTotal = (shipment?.ledgerEntries || [])
-    .filter((entry) => entry.type === 'CREDIT')
-    .reduce((sum, entry) => sum + entry.amount, 0);
+  // ⚡ Bolt: Consolidated multiple array iterations (.filter().reduce()) into single O(N) loops
+  let userLedgerDebitsTotal = 0;
+  let userLedgerCreditsTotal = 0;
+  for (const entry of shipment?.ledgerEntries || []) {
+    if (entry.type === 'DEBIT') userLedgerDebitsTotal += entry.amount;
+    else if (entry.type === 'CREDIT') userLedgerCreditsTotal += entry.amount;
+  }
   const netUserCharged = userLedgerDebitsTotal - userLedgerCreditsTotal;
 
   const companyLedgerEntries = shipment?.companyLedgerEntries || [];
-  const companyLedgerDebitsTotal = companyLedgerEntries
-    .filter((entry) => entry.type === 'DEBIT')
-    .reduce((sum, entry) => sum + entry.amount, 0);
-  const companyLedgerCreditsTotal = companyLedgerEntries
-    .filter((entry) => entry.type === 'CREDIT')
-    .reduce((sum, entry) => sum + entry.amount, 0);
+  let companyLedgerDebitsTotal = 0;
+  let companyLedgerCreditsTotal = 0;
+  for (const entry of companyLedgerEntries) {
+    if (entry.type === 'DEBIT') companyLedgerDebitsTotal += entry.amount;
+    else if (entry.type === 'CREDIT') companyLedgerCreditsTotal += entry.amount;
+  }
   const netCompanyCharged = companyLedgerDebitsTotal - companyLedgerCreditsTotal;
   // Use normalized charged amounts for comparison so difference reflects what is displayed.
   const customerChargedForComparison = Math.abs(netUserCharged);
@@ -1482,7 +1483,7 @@ export default function ShipmentDetailPage() {
                         ${(
                             (shipment.price || 0) + 
                             (shipment.insuranceValue || 0) + 
-                            (shipment.ledgerEntries?.filter(e => e.type === 'DEBIT').reduce((sum, e) => sum + e.amount, 0) || 0)
+                            userLedgerDebitsTotal
                         ).toFixed(2)}
                     </span>
                 </div>

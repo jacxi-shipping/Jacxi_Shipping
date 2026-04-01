@@ -173,9 +173,15 @@ export default function RecordPaymentPage() {
   };
 
   const calculateTotalSelected = () => {
-    return shipments
-      .filter((s) => selectedShipmentIds.includes(s.id))
-      .reduce((sum, s) => sum + (s.amountDue || 0), 0);
+    // ⚡ Bolt: Replaced chained .filter().reduce() with a single O(N) loop
+    const selectedSet = new Set(selectedShipmentIds);
+    let total = 0;
+    for (const s of shipments) {
+      if (selectedSet.has(s.id)) {
+        total += (s.amountDue || 0);
+      }
+    }
+    return total;
   };
 
   const calculatePaymentAllocation = (): PaymentAllocation[] => {

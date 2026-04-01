@@ -187,10 +187,20 @@ export default function AdminLedgersPage() {
     return matchesSearch && matchesBalance;
   });
 
-  const totalBalance = users.reduce((sum, user) => sum + user.currentBalance, 0);
-  const totalDebit = users.reduce((sum, user) => sum + user.totalDebit, 0);
-  const totalCredit = users.reduce((sum, user) => sum + user.totalCredit, 0);
-  const usersWithBalance = users.filter(u => u.currentBalance > 0).length;
+  // ⚡ Bolt: Consolidated multiple array iterations into a single O(N) loop
+  let totalBalance = 0;
+  let totalDebit = 0;
+  let totalCredit = 0;
+  let usersWithBalance = 0;
+
+  for (const user of users) {
+    totalBalance += user.currentBalance;
+    totalDebit += user.totalDebit;
+    totalCredit += user.totalCredit;
+    if (user.currentBalance > 0) {
+      usersWithBalance++;
+    }
+  }
 
   const columns = useMemo<Column<UserLedgerSummary>[]>(() => [
     {

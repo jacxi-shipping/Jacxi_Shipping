@@ -327,14 +327,27 @@ export default function InvoicesPage() {
 	};
 
 	// Calculate stats
+	// ⚡ Bolt: Consolidated multiple filter and reduce operations into a single O(N) loop
 	const stats = {
 		total: invoices.length,
-		paid: invoices.filter(i => i.status === 'PAID').length,
-		pending: invoices.filter(i => i.status === 'PENDING' || i.status === 'SENT').length,
-		overdue: invoices.filter(i => i.status === 'OVERDUE').length,
-		totalAmount: invoices.reduce((sum, i) => sum + i.total, 0),
-		paidAmount: invoices.filter(i => i.status === 'PAID').reduce((sum, i) => sum + i.total, 0),
+		paid: 0,
+		pending: 0,
+		overdue: 0,
+		totalAmount: 0,
+		paidAmount: 0,
 	};
+
+	for (const i of invoices) {
+		stats.totalAmount += i.total;
+		if (i.status === 'PAID') {
+			stats.paid++;
+			stats.paidAmount += i.total;
+		} else if (i.status === 'PENDING' || i.status === 'SENT') {
+			stats.pending++;
+		} else if (i.status === 'OVERDUE') {
+			stats.overdue++;
+		}
+	}
 
 	if (loading) {
 		return <DashboardPageSkeleton />;

@@ -5,3 +5,6 @@
 ## 2024-05-25 - Redundant Aggregations on the Same Table
 **Learning:** Found multiple instances where the codebase performed separate `prisma.aggregate` queries to calculate sums for different categories (e.g., DEBIT vs CREDIT totals) on the same table within a `Promise.all`. While parallelized, this still requires multiple database roundtrips for operations that can be combined.
 **Action:** Consolidate separate `prisma.aggregate` queries that group by a specific field into a single `prisma.groupBy` query with an `in` filter (e.g., `where: { type: { in: ['DEBIT', 'CREDIT'] } }`) to calculate all totals in a single database roundtrip.
+## 2024-05-26 - Frontend loop consolidations
+**Learning:** Found multiple instances in the frontend where chained `.filter().reduce()` operations or multiple `.reduce()` operations were used to calculate different aggregates (e.g., `totalDebit`, `totalCredit`) from the same array. This causes O(K*N) time complexity and unnecessary memory allocation for intermediate arrays.
+**Action:** When calculating multiple aggregates from the same array, consolidate them into a single `for...of` loop to ensure single-pass O(N) processing.
