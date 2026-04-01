@@ -139,7 +139,7 @@ export async function POST(
     // ⚡ Bolt: Replaced O(N) transaction mapping with a single optimized updateMany query
     // Assign shipments to container and ensure company linkage for expense accounting
     await prisma.shipment.updateMany({
-      where: { id: { in: shipmentIds } },
+      where: { id: { in: shipmentIds }, status: 'ON_HAND' },
       data: {
         containerId: params.id,
         status: 'IN_TRANSIT',
