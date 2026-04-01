@@ -82,9 +82,6 @@ export async function GET(
       byMonth[key].net = byMonth[key].debit - byMonth[key].credit;
     }
 
-    const totalDebit = groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0;
-    const totalCredit = groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0;
-
     return NextResponse.json({
       company,
       period: {
