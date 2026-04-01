@@ -174,9 +174,10 @@ export default function RecordPaymentPage() {
 
   const calculateTotalSelected = () => {
     // ⚡ Bolt: Replaced chained .filter().reduce() with a single O(N) loop
+    const selectedSet = new Set(selectedShipmentIds);
     let total = 0;
     for (const s of shipments) {
-      if (selectedShipmentIds.includes(s.id)) {
+      if (selectedSet.has(s.id)) {
         total += (s.amountDue || 0);
       }
     }
