@@ -125,6 +125,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ⚡ Bolt: Collect all database mutations and run them in a single transaction
+    // This reduces O(2N) sequential database roundtrips to 1 bulk operation.
+    const ledgerEntryCreations = [];
+    const completedShipmentIds: string[] = [];
+    const pendingShipmentIds: string[] = [];
+
     for (const shipment of shipments) {
       if (remainingAmount <= 0) break;
 
@@ -139,20 +145,18 @@ export async function POST(request: NextRequest) {
         remainingAmount -= paymentForShipment;
 
         // Create a ledger entry specifically for this shipment
-        await prisma.ledgerEntry.create({
-          data: {
-            userId: validatedData.userId,
-            shipmentId: shipment.id,
-            description: `Payment applied to ${shipment.vehicleVIN ? `VIN ${shipment.vehicleVIN}` : `shipment ${shipment.id || ''}`}`,
-            type: 'CREDIT',
-            amount: paymentForShipment,
-            balance: newBalance, // Same balance as the main entry
-            createdBy: session.user.id as string,
-            notes: `Auto-applied from payment entry ${entry.id}`,
-            metadata: {
-              parentEntryId: entry.id,
-              paymentType: 'applied',
-            },
+        ledgerEntryCreations.push({
+          userId: validatedData.userId,
+          shipmentId: shipment.id,
+          description: `Payment applied to ${shipment.vehicleVIN ? `VIN ${shipment.vehicleVIN}` : `shipment ${shipment.id || ''}`}`,
+          type: 'CREDIT' as const,
+          amount: paymentForShipment,
+          balance: newBalance, // Same balance as the main entry
+          createdBy: session.user.id as string,
+          notes: `Auto-applied from payment entry ${entry.id}`,
+          metadata: {
+            parentEntryId: entry.id,
+            paymentType: 'applied',
           },
         });
 
@@ -160,24 +164,51 @@ export async function POST(request: NextRequest) {
         const newTotalCredit = totalCredit + paymentForShipment;
         const isPaid = newTotalCredit >= totalDebit;
 
-        // Update shipment payment status
-        const updatedShipment = await prisma.shipment.update({
-          where: { id: shipment.id },
-          data: { 
-            paymentStatus: isPaid ? 'COMPLETED' : 'PENDING',
-          },
-          select: {
-            id: true,
-            paymentStatus: true,
-          },
-        });
+        if (isPaid) {
+          completedShipmentIds.push(shipment.id);
+        } else {
+          pendingShipmentIds.push(shipment.id);
+        }
 
         updatedShipments.push({
-          ...updatedShipment,
+          id: shipment.id,
+          paymentStatus: isPaid ? 'COMPLETED' : 'PENDING',
           amountPaid: paymentForShipment,
           remainingDue: Math.max(0, totalDebit - newTotalCredit),
         });
       }
+    }
+
+    const transactionOperations = [];
+
+    if (ledgerEntryCreations.length > 0) {
+      transactionOperations.push(
+        prisma.ledgerEntry.createMany({
+          data: ledgerEntryCreations,
+        })
+      );
+    }
+
+    if (completedShipmentIds.length > 0) {
+      transactionOperations.push(
+        prisma.shipment.updateMany({
+          where: { id: { in: completedShipmentIds } },
+          data: { paymentStatus: 'COMPLETED' },
+        })
+      );
+    }
+
+    if (pendingShipmentIds.length > 0) {
+      transactionOperations.push(
+        prisma.shipment.updateMany({
+          where: { id: { in: pendingShipmentIds } },
+          data: { paymentStatus: 'PENDING' },
+        })
+      );
+    }
+
+    if (transactionOperations.length > 0) {
+      await prisma.$transaction(transactionOperations);
     }
 
     return NextResponse.json({
