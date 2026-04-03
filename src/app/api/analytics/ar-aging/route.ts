@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
     });
 
     const today = new Date();
+    // ⚡ Bolt: Consolidated O(3N) multiple iterations into a single O(N) pass
     const aging = {
       current: [] as any[],
       days1to30: [] as any[],
@@ -61,73 +62,24 @@ export async function GET(request: NextRequest) {
       days90plus: [] as any[],
     };
 
-    invoices.forEach((invoice) => {
-      if (!invoice.dueDate) return; // Skip invoices without due date
-      
-      const dueDate = new Date(invoice.dueDate);
-      const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      const invoiceDetail = {
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        customerId: invoice.user?.id,
-        customerName: invoice.user?.name || invoice.user?.email || "Unknown",
-        amount: invoice.total,
-        dueDate: invoice.dueDate,
-        daysOverdue: Math.max(0, daysOverdue),
-        status: invoice.status,
-        container: invoice.container?.containerNumber || "N/A",
-        shipment: invoice.container?.shipments[0]
-          ? `${invoice.container.shipments[0].vehicleYear} ${invoice.container.shipments[0].vehicleMake} ${invoice.container.shipments[0].vehicleModel} (${invoice.container.shipments[0].vehicleVIN})`
-          : "N/A",
-      };
-
-      if (daysOverdue < 0) {
-        aging.current.push(invoiceDetail);
-      } else if (daysOverdue <= 30) {
-        aging.days1to30.push(invoiceDetail);
-      } else if (daysOverdue <= 60) {
-        aging.days31to60.push(invoiceDetail);
-      } else if (daysOverdue <= 90) {
-        aging.days61to90.push(invoiceDetail);
-      } else {
-        aging.days90plus.push(invoiceDetail);
-      }
-    });
-
-    // Calculate summary
     const summary = {
-      current: {
-        count: aging.current.length,
-        amount: aging.current.reduce((sum, inv) => sum + inv.amount, 0),
-      },
-      days1to30: {
-        count: aging.days1to30.length,
-        amount: aging.days1to30.reduce((sum, inv) => sum + inv.amount, 0),
-      },
-      days31to60: {
-        count: aging.days31to60.length,
-        amount: aging.days31to60.reduce((sum, inv) => sum + inv.amount, 0),
-      },
-      days61to90: {
-        count: aging.days61to90.length,
-        amount: aging.days61to90.reduce((sum, inv) => sum + inv.amount, 0),
-      },
-      days90plus: {
-        count: aging.days90plus.length,
-        amount: aging.days90plus.reduce((sum, inv) => sum + inv.amount, 0),
-      },
-      total: {
-        count: invoices.length,
-        amount: invoices.reduce((sum, inv) => sum + inv.total, 0),
-      },
+      current: { count: 0, amount: 0 },
+      days1to30: { count: 0, amount: 0 },
+      days31to60: { count: 0, amount: 0 },
+      days61to90: { count: 0, amount: 0 },
+      days90plus: { count: 0, amount: 0 },
+      total: { count: 0, amount: 0 },
     };
 
-    // Calculate by customer
-    const byCustomer: Record<string, any> = {};
-    invoices.forEach((invoice) => {
+    const byCustomer: Record<string, CustomerAR> = {};
+
+    for (const invoice of invoices) {
       const customerId = invoice.user?.id || "unknown";
       const customerName = invoice.user?.name || invoice.user?.email || "Unknown";
+
+      // ⚡ Bolt: Accumulate overall totals and customer data for all invoices
+      summary.total.count++;
+      summary.total.amount += invoice.total;
 
       if (!byCustomer[customerId]) {
         byCustomer[customerId] = {
@@ -146,7 +98,50 @@ export async function GET(request: NextRequest) {
         status: invoice.status,
       });
       byCustomer[customerId].totalOutstanding += invoice.total;
-    });
+
+      // ⚡ Bolt: Skip aging buckets if there's no due date
+      if (!invoice.dueDate) continue;
+
+      const dueDate = new Date(invoice.dueDate);
+      const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      const invoiceDetail = {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        customerId,
+        customerName,
+        amount: invoice.total,
+        dueDate: invoice.dueDate,
+        daysOverdue: Math.max(0, daysOverdue),
+        status: invoice.status,
+        container: invoice.container?.containerNumber || "N/A",
+        shipment: invoice.container?.shipments[0]
+          ? `${invoice.container.shipments[0].vehicleYear} ${invoice.container.shipments[0].vehicleMake} ${invoice.container.shipments[0].vehicleModel} (${invoice.container.shipments[0].vehicleVIN})`
+          : "N/A",
+      };
+
+      if (daysOverdue < 0) {
+        aging.current.push(invoiceDetail);
+        summary.current.count++;
+        summary.current.amount += invoice.total;
+      } else if (daysOverdue <= 30) {
+        aging.days1to30.push(invoiceDetail);
+        summary.days1to30.count++;
+        summary.days1to30.amount += invoice.total;
+      } else if (daysOverdue <= 60) {
+        aging.days31to60.push(invoiceDetail);
+        summary.days31to60.count++;
+        summary.days31to60.amount += invoice.total;
+      } else if (daysOverdue <= 90) {
+        aging.days61to90.push(invoiceDetail);
+        summary.days61to90.count++;
+        summary.days61to90.amount += invoice.total;
+      } else {
+        aging.days90plus.push(invoiceDetail);
+        summary.days90plus.count++;
+        summary.days90plus.amount += invoice.total;
+      }
+    }
 
     return NextResponse.json({
       summary,
