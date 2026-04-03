@@ -37,34 +37,55 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const profitAnalysis = containers.map((container) => {
-      // Calculate total revenue from all invoices in this container
-      const revenue = container.userInvoices.reduce((sum, invoice) => {
-        return sum + invoice.lineItems.reduce((lineSum, item) => lineSum + item.amount, 0);
-      }, 0);
+    // ⚡ Bolt: Replace O(N * M) chained iterations with single-pass loops
+    const profitAnalysis = [];
+    let summaryTotalRevenue = 0;
+    let summaryTotalCosts = 0;
+    let summaryTotalProfit = 0;
+    let summaryTotalProfitMargin = 0;
 
-      // Calculate total expenses
-      const totalExpenses = container.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    for (const container of containers) {
+      if (container.shipments.length === 0) continue;
 
-      // Calculate total purchase costs (for PURCHASE_AND_SHIPPING shipments)
-      const purchaseCosts = container.shipments.reduce((sum, shipment) => {
-        return sum + (shipment.serviceType === "PURCHASE_AND_SHIPPING" ? (shipment.purchasePrice || 0) : 0);
-      }, 0);
+      let revenue = 0;
+      for (const invoice of container.userInvoices) {
+        for (const item of invoice.lineItems) {
+          revenue += item.amount;
+        }
+      }
 
-      // Calculate profit
+      let totalExpenses = 0;
+      for (const exp of container.expenses) {
+        totalExpenses += exp.amount;
+      }
+
+      let purchaseCosts = 0;
+      let purchaseAndShippingCount = 0;
+      let shippingOnlyCount = 0;
+      const vehicles = [];
+
+      for (const shipment of container.shipments) {
+        if (shipment.serviceType === "PURCHASE_AND_SHIPPING") {
+          purchaseCosts += shipment.purchasePrice || 0;
+          purchaseAndShippingCount++;
+        } else if (shipment.serviceType === "SHIPPING_ONLY") {
+          shippingOnlyCount++;
+        }
+
+        vehicles.push({
+          id: shipment.id,
+          vin: shipment.vehicleVIN,
+          vehicle: `${shipment.vehicleYear} ${shipment.vehicleMake} ${shipment.vehicleModel}`,
+          serviceType: shipment.serviceType,
+          customer: shipment.user?.name || shipment.user?.email || "Unknown",
+        });
+      }
+
       const totalCost = purchaseCosts + totalExpenses;
       const profit = revenue - totalCost;
       const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
-      // Service type breakdown
-      const purchaseAndShippingCount = container.shipments.filter(
-        s => s.serviceType === "PURCHASE_AND_SHIPPING"
-      ).length;
-      const shippingOnlyCount = container.shipments.filter(
-        s => s.serviceType === "SHIPPING_ONLY"
-      ).length;
-
-      return {
+      profitAnalysis.push({
         containerId: container.id,
         containerNumber: container.containerNumber,
         status: container.status,
@@ -82,25 +103,23 @@ export async function GET(request: NextRequest) {
         profit,
         profitMargin: Number(profitMargin.toFixed(2)),
         invoiceCount: container.userInvoices.length,
-        vehicles: container.shipments.map(s => ({
-          id: s.id,
-          vin: s.vehicleVIN,
-          vehicle: `${s.vehicleYear} ${s.vehicleMake} ${s.vehicleModel}`,
-          serviceType: s.serviceType,
-          customer: s.user?.name || s.user?.email || "Unknown",
-        })),
-      };
-    }).filter(c => c.shipmentCount > 0); // Only include containers with shipments
+        vehicles,
+      });
 
-    // Calculate summary by service type
+      summaryTotalRevenue += revenue;
+      summaryTotalCosts += totalCost;
+      summaryTotalProfit += profit;
+      summaryTotalProfitMargin += profitMargin;
+    }
+
     const summary = {
       overall: {
         containerCount: profitAnalysis.length,
-        totalRevenue: profitAnalysis.reduce((sum, p) => sum + p.revenue, 0),
-        totalCosts: profitAnalysis.reduce((sum, p) => sum + p.costs.total, 0),
-        totalProfit: profitAnalysis.reduce((sum, p) => sum + p.profit, 0),
+        totalRevenue: summaryTotalRevenue,
+        totalCosts: summaryTotalCosts,
+        totalProfit: summaryTotalProfit,
         avgProfitMargin: profitAnalysis.length > 0
-          ? profitAnalysis.reduce((sum, p) => sum + p.profitMargin, 0) / profitAnalysis.length
+          ? summaryTotalProfitMargin / profitAnalysis.length
           : 0,
       },
     };
