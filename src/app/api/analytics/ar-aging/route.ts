@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       total: { count: 0, amount: 0 },
     };
 
-    const byCustomer: Record<string, any> = {};
+    const byCustomer: Record<string, CustomerAR> = {};
 
     for (const invoice of invoices) {
       const customerId = invoice.user?.id || "unknown";
