@@ -92,17 +92,30 @@ export async function GET() {
 			.map(([status, count]) => ({ status, count }))
 			.sort((a, b) => b.count - a.count);
 
-		const shipmentsByMonth = months.map((month) => {
-			const count = shipments.filter((shipment) => monthKey(shipment.createdAt) === month.key).length;
-			return { month: month.label, count };
+		// ⚡ Bolt: Use O(N) dictionaries instead of O(N * M) nested loops
+		const monthlyShipmentCountMap = new Map<string, number>();
+		shipments.forEach(shipment => {
+			const key = monthKey(shipment.createdAt);
+			monthlyShipmentCountMap.set(key, (monthlyShipmentCountMap.get(key) || 0) + 1);
 		});
 
-		const revenueByMonth = months.map((month) => {
-			const total = invoices
-				.filter((invoice) => invoice.status === "PAID" && monthKey(invoice.createdAt) === month.key)
-				.reduce((acc, invoice) => acc + invoice.amount, 0);
-			return { month: month.label, totalUSD: formatCurrency(total) };
+		const monthlyRevenueMap = new Map<string, number>();
+		invoices.forEach(invoice => {
+			if (invoice.status === 'PAID') {
+				const key = monthKey(invoice.createdAt);
+				monthlyRevenueMap.set(key, (monthlyRevenueMap.get(key) || 0) + invoice.amount);
+			}
 		});
+
+		const shipmentsByMonth = months.map((month) => ({
+			month: month.label,
+			count: monthlyShipmentCountMap.get(month.key) || 0
+		}));
+
+		const revenueByMonth = months.map((month) => ({
+			month: month.label,
+			totalUSD: formatCurrency(monthlyRevenueMap.get(month.key) || 0)
+		}));
 
 		const invoiceStatusMap = new Map<string, { count: number; totalUSD: number }>();
 		invoices.forEach((invoice) => {
