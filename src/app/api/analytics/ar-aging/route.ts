@@ -3,6 +3,19 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hasPermission } from '@/lib/rbac';
 
+type CustomerAR = {
+  customerId: string;
+  customerName: string;
+  invoices: {
+    invoiceId: string;
+    invoiceNumber: string;
+    amount: number;
+    dueDate: Date | null;
+    status: string;
+  }[];
+  totalOutstanding: number;
+};
+
 /**
  * GET /api/analytics/ar-aging
  * Returns Accounts Receivable aging report

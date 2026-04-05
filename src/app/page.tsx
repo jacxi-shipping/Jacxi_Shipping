@@ -1,13 +1,15 @@
 import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
+import HeroSection from '@/components/sections/HeroSection';
+import ServicesSection from '@/components/sections/ServicesSection';
+import WhyChooseSection from '@/components/sections/WhyChooseSection';
+import ProcessSection from '@/components/sections/ProcessSection';
+import RoutesSection from '@/components/sections/RoutesSection';
+import TrustSection from '@/components/sections/TrustSection';
+import TestimonialsSection from '@/components/sections/TestimonialsSection';
+import BrandsSection from '@/components/sections/BrandsSection';
 import AboutMiniSection from '@/components/sections/AboutMiniSection';
 import QuoteFormSection from '@/components/sections/QuoteFormSection';
-import CustomerProofSection from '@/components/sections/home/CustomerProofSection';
-import CtaSection from '@/components/sections/home/CtaSection';
-import HeroSection from '@/components/sections/home/HeroSection';
-import RouteSection from '@/components/sections/home/RouteSection';
-import ServicesPreviewSection from '@/components/sections/home/ServicesPreviewSection';
-import WhyChooseSection from '@/components/sections/home/WhyChooseSection';
 import { auth } from '@/lib/auth';
 
 export default async function Home() {
@@ -19,13 +21,15 @@ export default async function Home() {
       <Header isAuthenticated={isAuthenticated} />
       <main>
         <HeroSection />
+        <ServicesSection />
         <WhyChooseSection />
-        <ServicesPreviewSection />
-        <RouteSection />
+        <ProcessSection />
+        <RoutesSection />
+        <TrustSection />
+        <TestimonialsSection />
+        <BrandsSection />
         <AboutMiniSection />
-        <CustomerProofSection />
         <QuoteFormSection />
-        <CtaSection isAuthenticated={isAuthenticated} />
       </main>
       <Footer />
     </div>
