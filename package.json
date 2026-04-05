@@ -16,10 +16,13 @@
     "db:seed": "node scripts/init-db.js",
     "db:studio": "prisma studio",
     "db:backup": "node scripts/backup-db.js",
+    "db:backfill-notification-senders": "node scripts/backfill-notification-senders.js",
     "db:reset": "node scripts/reset-db.js",
     "db:setup": "npm run db:generate && npm run db:push && npm run db:seed",
     "db:full-reset": "npm run db:reset && npm run db:seed",
     "test": "node --experimental-strip-types --test 'src/**/*.test.ts'",
+    "test:routes": "tsx --test src/app/api/workflow-routes.test.ts",
+    "test:e2e": "playwright test",
     "postinstall": "prisma generate --no-engine"
   },
   "dependencies": {
@@ -71,6 +74,7 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "20.19.30",
     "@types/react": "^19",
@@ -80,6 +84,7 @@
     "eslint-config-next": "^16.1.6",
     "prisma": "^6.18.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

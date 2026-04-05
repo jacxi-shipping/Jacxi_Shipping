@@ -74,6 +74,12 @@ const adminNavigation: NavigationItem[] = [
 		requiredPermission: 'containers:view',
 	},
 	{
+		name: 'Dispatches',
+		href: '/dashboard/dispatches',
+		icon: LocalShipping,
+		requiredPermission: 'dispatches:manage',
+	},
+	{
 		name: 'Transits',
 		href: '/dashboard/transits',
 		icon: LocalShipping,

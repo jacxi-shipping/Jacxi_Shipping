@@ -23,6 +23,8 @@ import {
   AlertCircle,
   CheckCircle,
     Building2,
+        Truck,
+        HandCoins,
 } from 'lucide-react';
 
 // Force dynamic rendering (requires database connection)
@@ -103,7 +105,21 @@ async function getFinancialData(userId: string | undefined, isAdmin: boolean) {
             .slice(0, 10); // Top 10
     }
 
-    const activeUsersCount = isAdmin ? await prisma.user.count() : 1; // Or users with balance?
+        const [activeUsersCount, dispatchStats, dispatchExpenseSummary] = await Promise.all([
+                isAdmin ? prisma.user.count() : Promise.resolve(1),
+                isAdmin
+                        ? prisma.dispatch.groupBy({
+                                by: ['status'],
+                                _count: true,
+                            })
+                        : Promise.resolve([]),
+                isAdmin
+                        ? prisma.dispatchExpense.aggregate({
+                                _sum: { amount: true },
+                                _count: { id: true },
+                            })
+                        : Promise.resolve({ _sum: { amount: 0 }, _count: { id: 0 } }),
+        ]);
 
     return {
         ledger: {
@@ -116,7 +132,16 @@ async function getFinancialData(userId: string | undefined, isAdmin: boolean) {
             due: { count: dueShipments._count.id, amount: dueShipments._sum.price || 0 }
         },
         userBalances,
-        activeUsersCount
+        activeUsersCount,
+        dispatches: {
+            active: dispatchStats.reduce((total, entry) => {
+                return ['PENDING', 'DISPATCHED', 'ARRIVED_AT_PORT'].includes(entry.status)
+                    ? total + entry._count
+                    : total;
+            }, 0),
+            totalSpend: dispatchExpenseSummary._sum.amount || 0,
+            expenseCount: dispatchExpenseSummary._count.id || 0,
+        },
     };
 }
 
@@ -144,7 +169,7 @@ export default async function FinancePage() {
             />
 
             {/* Summary Stats */}
-            <DashboardGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+            <DashboardGrid className={isAdmin ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}>
                 <StatsCard
                     icon={<TrendingUp className="w-5 h-5" />}
                     title="Total Debit"
@@ -174,6 +199,24 @@ export default async function FinancePage() {
                     value={isAdmin ? data.userBalances.length : "Active"}
                     variant="info"
                 />
+                {isAdmin && (
+                    <StatsCard
+                        icon={<Truck className="w-5 h-5" />}
+                        title="Active Dispatches"
+                        value={data.dispatches.active}
+                        subtitle="Origin to port workflow"
+                        variant="warning"
+                    />
+                )}
+                {isAdmin && (
+                    <StatsCard
+                        icon={<HandCoins className="w-5 h-5" />}
+                        title="Dispatch Spend"
+                        value={formatCurrency(data.dispatches.totalSpend)}
+                        subtitle={`${data.dispatches.expenseCount} expense entries`}
+                        variant="secondary"
+                    />
+                )}
             </DashboardGrid>
 
             {/* Shipment Payment Status */}
@@ -212,6 +255,42 @@ export default async function FinancePage() {
                     </div>
                 </DashboardGrid>
             </DashboardPanel>
+
+            {isAdmin && (
+                <DashboardPanel title="Dispatch Finance Snapshot" description="Operational dispatch costs and workload">
+                    <DashboardGrid className="grid-cols-1 md:grid-cols-2">
+                        <div className="p-5 rounded-xl border border-blue-200/50 bg-blue-50/50 dark:border-blue-800/30 dark:bg-blue-900/10 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                <Truck className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-sm font-semibold text-primary">Active Dispatches</h4>
+                                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                                    {data.dispatches.active}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Pending, dispatched, and port-arrived dispatches
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-5 rounded-xl border border-rose-200/50 bg-rose-50/50 dark:border-rose-800/30 dark:bg-rose-900/10 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                                <HandCoins className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-sm font-semibold text-primary">Dispatch Expenses</h4>
+                                <div className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+                                    {formatCurrency(data.dispatches.totalSpend)}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Across {data.dispatches.expenseCount} dispatch expense records
+                                </p>
+                            </div>
+                        </div>
+                    </DashboardGrid>
+                </DashboardPanel>
+            )}
 
             {/* Quick Actions & User Balances */}
             <DashboardGrid className={isAdmin ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"}>

@@ -36,6 +36,7 @@ import {
 	Check,
 } from 'lucide-react';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
+import { ActivityLog } from '@/components/dashboard/ActivityLog';
 import { 
 	PageHeader, 
 	Button, 
@@ -55,6 +56,18 @@ interface LineItem {
 	quantity: number;
 	unitPrice: number;
 	amount: number;
+	linkedCompanyLedgerEntry?: {
+		id: string;
+		companyId: string;
+		description: string;
+		reference: string | null;
+		notes: string | null;
+		company: {
+			id: string;
+			name: string;
+			code: string | null;
+		};
+	} | null;
 	shipment?: {
 		id: string;
 		vehicleType: string;
@@ -103,6 +116,16 @@ interface Invoice {
 		estimatedArrival: string | null;
 	};
 	lineItems: LineItem[];
+	auditLogs?: Array<{
+		id: string;
+		action: string;
+		description: string;
+		performedBy: string;
+		oldValue?: string | null;
+		newValue?: string | null;
+		timestamp: string;
+		metadata?: Record<string, unknown> | null;
+	}>;
 }
 
 const statusConfig: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
@@ -241,6 +264,10 @@ export default function InvoiceDetailPage() {
 		}
 
 		return item.type.replace('_', ' ');
+	};
+
+	const openCompanyLedgerEntry = (entry: NonNullable<LineItem['linkedCompanyLedgerEntry']>) => {
+		router.push(`/dashboard/finance/companies/${entry.companyId}?entryId=${entry.id}`);
 	};
 
 	// Group line items by shipment
@@ -546,7 +573,18 @@ export default function InvoiceDetailPage() {
 											{group.items.map((item) => (
 												<TableRow key={item.id} hover>
 													<TableCell sx={{ pl: group.shipment ? 4 : 2 }}>
-														{normalizeShipmentRefInDescription(item.description, group.shipment)}
+														<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+															<span>{normalizeShipmentRefInDescription(item.description, group.shipment)}</span>
+															{item.linkedCompanyLedgerEntry && (
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() => openCompanyLedgerEntry(item.linkedCompanyLedgerEntry!)}
+																>
+																	Company Ledger
+																</Button>
+															)}
+														</Box>
 													</TableCell>
 													<TableCell>
 														<Chip 
@@ -660,6 +698,14 @@ export default function InvoiceDetailPage() {
 							</DashboardPanel>
 						</Box>
 					)}
+					<Box sx={{ mt: 3 }}>
+						<DashboardPanel
+							title="Activity History"
+							description="Audit log of invoice creation, updates, and status changes"
+						>
+							<ActivityLog logs={invoice.auditLogs || []} />
+						</DashboardPanel>
+					</Box>
 				</DashboardSurface>
 			</Box>
 		</AdminRoute>

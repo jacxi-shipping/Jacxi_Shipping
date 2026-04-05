@@ -66,7 +66,8 @@ model User {
   settings      UserSettings?
   ledgerEntries LedgerEntry[]
   invoices      UserInvoice[]
-  notifications Notification[]
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  sentNotifications     Notification[] @relation("NotificationSender")
 
   @@index([loginCode])
 }
@@ -86,6 +87,7 @@ model VerificationToken {
 model Notification {
   id          String           @id @default(cuid())
   userId      String
+  senderId    String?
   title       String
   description String
   type        NotificationType @default(INFO)
@@ -93,9 +95,11 @@ model Notification {
   link        String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  sender      User?            @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([senderId])
   @@index([read])
   @@index([createdAt])
 }
@@ -138,6 +142,7 @@ model Shipment {
 
   // Status and Assignment
   status        ShipmentSimpleStatus @default(ON_HAND)
+  dispatchId    String?
   containerId   String?
   transitId     String?
   shippingCompanyId String?
@@ -162,6 +167,7 @@ model Shipment {
   updatedAt DateTime @updatedAt
 
   // Relations
+  dispatch         Dispatch?         @relation(fields: [dispatchId], references: [id], onDelete: SetNull)
   container        Container?        @relation(fields: [containerId], references: [id], onDelete: SetNull)
   transit          Transit?          @relation(fields: [transitId], references: [id], onDelete: SetNull)
   shippingCompany  Company?          @relation("ShipmentShippingCompany", fields: [shippingCompanyId], references: [id], onDelete: SetNull)
@@ -171,10 +177,13 @@ model Shipment {
   qualityChecks    QualityCheck[]
   ledgerEntries    LedgerEntry[]
   invoiceLineItems InvoiceLineItem[]
+  dispatchExpenses DispatchExpense[]
   transitExpenses  TransitExpense[]
   containerDamages ContainerDamage[]
+  auditLogs        ShipmentAuditLog[]
 
   @@index([userId])
+  @@index([dispatchId])
   @@index([containerId])
   @@index([transitId])
   @@index([shippingCompanyId])
@@ -366,6 +375,24 @@ model ContainerAuditLog {
   container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
 
   @@index([containerId])
+  @@index([timestamp])
+  @@index([action])
+}
+
+model ShipmentAuditLog {
+  id          String   @id @default(cuid())
+  shipmentId  String
+  action      String
+  description String
+  performedBy String
+  oldValue    String?
+  newValue    String?
+  metadata    Json?
+  timestamp   DateTime @default(now())
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
   @@index([timestamp])
   @@index([action])
 }
@@ -566,6 +593,7 @@ model UserInvoice {
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   container Container         @relation(fields: [containerId], references: [id], onDelete: Cascade)
   lineItems InvoiceLineItem[]
+  auditLogs InvoiceAuditLog[]
 
   @@index([userId])
   @@index([containerId])
@@ -574,6 +602,24 @@ model UserInvoice {
   @@index([issueDate])
   @@index([dueDate])
   @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
+}
+
+model InvoiceAuditLog {
+  id          String   @id @default(cuid())
+  invoiceId    String
+  action      String
+  description String
+  performedBy String
+  oldValue    String?
+  newValue    String?
+  metadata    Json?
+  timestamp   DateTime @default(now())
+
+  invoice UserInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([timestamp])
+  @@index([action])
 }
 
 model InvoiceLineItem {
@@ -644,6 +690,7 @@ model Company {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   ledgerEntries CompanyLedgerEntry[]
+  dispatches    Dispatch[]
   transits      Transit[]
   shipments     Shipment[]           @relation("ShipmentShippingCompany")
   containers    Container[]
@@ -676,6 +723,79 @@ model CompanyLedgerEntry {
 }
 
 // ============================================
+// DISPATCH MODELS (Origin yard → port handoff)
+// ============================================
+
+model Dispatch {
+  id                String         @id @default(cuid())
+  referenceNumber   String         @unique
+  companyId         String
+  origin            String
+  destination       String
+  status            DispatchStatus @default(PENDING)
+  dispatchDate      DateTime?
+  estimatedArrival  DateTime?
+  actualArrival     DateTime?
+  cost              Float?
+  notes             String?
+  createdBy         String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  company   Company           @relation(fields: [companyId], references: [id])
+  shipments Shipment[]
+  events    DispatchEvent[]
+  expenses  DispatchExpense[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model DispatchEvent {
+  id          String   @id @default(cuid())
+  dispatchId  String
+  status      String
+  location    String?
+  description String?
+  eventDate   DateTime @default(now())
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  dispatch Dispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+
+  @@index([dispatchId])
+  @@index([eventDate])
+}
+
+model DispatchExpense {
+  id            String   @id @default(cuid())
+  dispatchId    String
+  shipmentId    String?
+  type          String   @default("OTHER")
+  description   String
+  amount        Float
+  currency      String   @default("USD")
+  date          DateTime @default(now())
+  vendor        String?
+  invoiceNumber String?
+  category      String?
+  attachmentUrl  String?
+  attachmentName String?
+  attachmentType String?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  dispatch Dispatch  @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  shipment Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  @@index([dispatchId])
+  @@index([shipmentId])
+  @@index([type])
+}
+
+// ============================================
 // TRANSIT MODELS (UAE → Afghanistan delivery)
 // ============================================
 
@@ -689,6 +809,11 @@ model Transit {
   dispatchDate      DateTime?
   estimatedDelivery DateTime?
   actualDelivery    DateTime?
+  deliveryReceiverName String?
+  deliveryProofUrl  String?
+  deliveryProofName String?
+  deliveryProofType String?
+  deliveryNotes     String?
   cost              Float? // Agreed transit cost
   notes             String?
   createdBy         String
@@ -768,6 +893,7 @@ model AuditLog {
 
 enum CompanyType {
   SHIPPING // Shipping company managing containers and shipments
+  DISPATCH // Dispatch company managing origin transport to port
   TRANSIT  // Transit company managing inter-city transportation
 }
 
@@ -778,10 +904,19 @@ enum ServiceType {
 
 enum ShipmentSimpleStatus {
   ON_HAND
+  DISPATCHING
   IN_TRANSIT
   RELEASED
   IN_TRANSIT_TO_DESTINATION
   DELIVERED
+}
+
+enum DispatchStatus {
+  PENDING
+  DISPATCHED
+  ARRIVED_AT_PORT
+  COMPLETED
+  CANCELLED
 }
 
 enum ContainerLifecycleStatus {

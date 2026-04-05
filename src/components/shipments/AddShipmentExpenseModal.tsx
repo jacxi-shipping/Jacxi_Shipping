@@ -37,9 +37,10 @@ interface AddShipmentExpenseModalProps {
 	/** When provided, shows a shipment selector dropdown. */
 	shipments?: ShipmentOption[];
 	onSuccess: () => void;
+	modalTitle?: string;
 	/** Context type: determines which company ledger to credit */
-	contextType?: 'TRANSIT' | 'CONTAINER';
-	/** Context ID: the transit or container ID for additional routing context */
+	contextType?: 'TRANSIT' | 'CONTAINER' | 'DISPATCH';
+	/** Context ID: the dispatch, transit, or container ID for additional routing context */
 	contextId?: string;
 }
 
@@ -62,6 +63,7 @@ export default function AddShipmentExpenseModal({
 	shipmentId: shipmentIdProp,
 	shipments,
 	onSuccess,
+	modalTitle,
 	contextType,
 	contextId,
 }: AddShipmentExpenseModalProps) {
@@ -293,7 +295,7 @@ export default function AddShipmentExpenseModal({
 			<DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 					<DollarSign style={{ fontSize: 24, color: 'var(--accent-gold)' }} />
-					<span>Add Shipment Expense</span>
+					<span>{modalTitle || 'Add Shipment Expense'}</span>
 				</Box>
 				<Box
 					component="button"

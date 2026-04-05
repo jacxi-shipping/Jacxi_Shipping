@@ -1,21 +1,13 @@
-'use client';
-
 import Image from 'next/image';
 import { Building2 } from 'lucide-react';
-import { Fade, Slide, Box } from '@mui/material';
 
 export default function AboutMiniSection() {
-	const show = true;
-
 	return (
-		<section id="about" className="py-24 bg-white">
+		<section id="about" className="bg-white py-24">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div className="grid lg:grid-cols-2 gap-12 items-center">
-					{/* Left - Image/Visual */}
-					<Slide in={show} direction="right" timeout={800}>
-						<Box className="relative">
+					<div className="relative">
 							<div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl relative">
-								{/* Car Shipping Photo */}
 								<Image
 									src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?q=80&w=2070&auto=format&fit=crop"
 									alt="JACXI Vehicle Shipping Services"
@@ -23,72 +15,54 @@ export default function AboutMiniSection() {
 									className="object-cover"
 									priority
 								/>
-								{/* Overlay Badge */}
-								<Fade in={show} timeout={1000} style={{ transitionDelay: '400ms' }}>
-									<Box className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+									<div className="absolute bottom-6 left-6 right-6 rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur-sm">
 										<div className="flex items-center gap-3">
 											<div className="w-12 h-12 rounded-xl bg-[rgb(var(--jacxi-blue))] flex items-center justify-center flex-shrink-0">
 												<Building2 className="w-6 h-6 text-white" />
 											</div>
 											<div>
-												<p className="font-bold text-gray-900">Modern Logistics</p>
-												<p className="text-sm text-gray-600">USA to Afghanistan</p>
+												<p className="font-bold text-gray-900">Route-managed shipping</p>
+												<p className="text-sm text-gray-600">USA to UAE to Afghanistan</p>
 											</div>
 										</div>
-									</Box>
-								</Fade>
+									</div>
 							</div>
-							{/* Decorative Elements */}
 							<div className="absolute -bottom-6 -right-6 w-32 h-32 bg-[rgb(var(--uae-gold))]/20 rounded-full blur-3xl" />
-						</Box>
-					</Slide>
+					</div>
 
-					{/* Right - Content */}
-					<Slide in={show} direction="left" timeout={800}>
-						<Box className="space-y-6">
-							<Fade in={show} timeout={800} style={{ transitionDelay: '200ms' }}>
+					<div className="space-y-6">
 								<div>
+									<p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[rgb(var(--uae-gold))]">About JACXI</p>
 									<h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-										About <span className="text-[rgb(var(--jacxi-blue))]">Us</span>
+										Built for Afghan customers shipping vehicles from the United States.
 									</h2>
 									<p className="text-lg text-gray-600 leading-relaxed mb-6">
-										Launched in 2025, JACXI Shipping was founded to solve the challenges that people 
-										in Afghanistan faced when shipping vehicles from the USA. We identified every pain 
-										point in the traditional process and built a modern solution from the ground up.
+										JACXI was created to remove the confusion Afghan buyers face when a vehicle leaves the USA, passes through the UAE, and then changes into destination transit. We built the workflow around that route so customers know who is handling the shipment at each stage.
+									</p>
+									<p className="text-lg text-gray-600 leading-relaxed">
+										That means one team overseeing export preparation, customs paperwork, container movement, UAE coordination, and final release planning into Herat and other Afghan destinations.
 									</p>
 								</div>
-							</Fade>
 
-							{/* Dashboard Features */}
-							<Fade in={show} timeout={800} style={{ transitionDelay: '400ms' }}>
 								<div className="bg-gradient-to-br from-[rgb(var(--jacxi-blue))]/5 to-[rgb(var(--uae-gold))]/5 rounded-2xl p-6 border border-[rgb(var(--jacxi-blue))]/10">
-									<h3 className="text-lg font-bold text-gray-900 mb-4">Dashboard Features</h3>
+									<h3 className="text-lg font-bold text-gray-900 mb-4">What stays visible</h3>
 									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 										{[
-											'Real-time vehicle tracking',
-											'Digital document management',
-											'Transparent cost breakdown',
-											'Live shipment updates',
-											'Invoice generation & payment',
-											'Direct messaging with support',
+											'Container assignment and movement',
+											'UAE handoff and customs progress',
+											'Destination transit milestones',
+											'Delivery readiness and release status',
+											'Document and invoice visibility',
+											'One communication trail for support',
 										].map((feature, index) => (
-											<Fade
-												key={index}
-												in={show}
-												timeout={400}
-												style={{ transitionDelay: `${600 + index * 100}ms` }}
-											>
-												<div className="flex items-center gap-2">
+												<div className="flex items-center gap-2" key={index}>
 													<div className="w-1.5 h-1.5 rounded-full bg-[rgb(var(--jacxi-blue))]" />
 													<span className="text-sm text-gray-700">{feature}</span>
 												</div>
-											</Fade>
 										))}
 									</div>
 								</div>
-							</Fade>
-						</Box>
-					</Slide>
+					</div>
 				</div>
 			</div>
 		</section>

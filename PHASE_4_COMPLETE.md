@@ -384,7 +384,7 @@ export const darkModeColors = {
 ```css
 /* Light Mode (default) */
 --background: #F9FAFB;
---panel: #E4E9F0;
+--panel: #FFFFFF;
 --text-primary: #1C1C1E;
 
 /* Dark Mode */

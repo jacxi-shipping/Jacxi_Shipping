@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { ActivityLog } from '@/components/dashboard/ActivityLog';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Button, DetailPageSkeleton } from '@/components/design-system';
 import { cn } from '@/lib/utils';
@@ -37,9 +38,12 @@ import { DocumentManager } from '@/components/dashboard/DocumentManager';
 import PhotoGallery from '@/components/shipments/PhotoGallery';
 import PhotoLightbox from '@/components/shipments/PhotoLightbox';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
+import ShipmentWorkflowStrip from '@/components/shipments/ShipmentWorkflowStrip';
+import UnifiedShipmentTimeline from '@/components/shipments/UnifiedShipmentTimeline';
 import { downloadShipmentInvoicePDF } from '@/lib/utils/generateShipmentInvoicePDF';
 import { downloadReleaseTokenPDF } from '@/lib/utils/generateReleaseTokenPDF';
-import { hasAnyPermission } from '@/lib/rbac';
+import { hasAnyPermission, hasPermission } from '@/lib/rbac';
+import type { UnifiedShipmentTimelineItem } from '@/lib/shipment-timeline';
 
 interface ShipmentEvent {
   id: string;
@@ -83,6 +87,15 @@ interface ShipmentTransit {
   company: { id: string; name: string };
 }
 
+interface ShipmentDispatch {
+  id: string;
+  referenceNumber: string;
+  origin: string;
+  destination: string;
+  status: string;
+  company: { id: string; name: string };
+}
+
 interface Shipment {
   id: string;
   userId: string;
@@ -109,8 +122,10 @@ interface Shipment {
   hasTitle: boolean | null;
   titleStatus: string | null;
   vehicleAge: number | null;
+  dispatchId: string | null;
   containerId: string | null;
   transitId: string | null;
+  dispatch: ShipmentDispatch | null;
   container: Container | null;
   transit: ShipmentTransit | null;
   internalNotes: string | null;
@@ -151,12 +166,20 @@ interface Shipment {
   }>;
   companyLedgerEntries?: Array<{
     id: string;
+    companyId: string;
     transactionDate: string;
     description: string;
     type: string;
     amount: number;
     balance: number;
+    reference?: string | null;
+    notes?: string | null;
     metadata?: Record<string, unknown> | null;
+    company: {
+      id: string;
+      name: string;
+      code: string | null;
+    };
   }>;
   containerDamages: Array<{
     id: string;
@@ -166,7 +189,28 @@ interface Shipment {
     description: string;
     createdAt: string;
   }>;
+  auditLogs?: Array<{
+    id: string;
+    action: string;
+    description: string;
+    performedBy: string;
+    oldValue?: string | null;
+    newValue?: string | null;
+    timestamp: string;
+    metadata?: Record<string, unknown> | null;
+  }>;
+  unifiedTimeline?: UnifiedShipmentTimelineItem[];
 }
+
+type ExpenseActionContext = {
+  modalTitle: string;
+  contextType?: 'CONTAINER' | 'DISPATCH' | 'TRANSIT';
+  contextId?: string;
+};
+
+type ExpenseSourceFilter = 'ALL' | 'SHIPMENT' | 'DISPATCH' | 'TRANSIT';
+type ClassifiedExpenseSource = Exclude<ExpenseSourceFilter, 'ALL'>;
+type LinkedCompanyLedgerEntry = NonNullable<Shipment['companyLedgerEntries']>[number];
 
 type StatusColors = {
   bg: string;
@@ -192,6 +236,42 @@ const containerStatusColors: Record<string, StatusColors> = {
   'CLOSED': { bg: 'rgba(75, 85, 99, 0.15)', text: 'rgb(75, 85, 99)', border: 'rgba(75, 85, 99, 0.4)' },
 };
 
+const expenseSourceLabels: Record<ClassifiedExpenseSource, string> = {
+  SHIPMENT: 'Shipping',
+  DISPATCH: 'Dispatch',
+  TRANSIT: 'Transit',
+};
+
+const expenseSourceDescriptions: Record<ClassifiedExpenseSource, string> = {
+  SHIPMENT: 'Container or shipment-stage recovery',
+  DISPATCH: 'Origin yard to port movement',
+  TRANSIT: 'Destination delivery leg',
+};
+
+const expenseSourceStyles: Record<ClassifiedExpenseSource, StatusColors> = {
+  SHIPMENT: { bg: 'rgba(59, 130, 246, 0.12)', text: 'rgb(29, 78, 216)', border: 'rgba(59, 130, 246, 0.28)' },
+  DISPATCH: { bg: 'rgba(234, 179, 8, 0.14)', text: 'rgb(161, 98, 7)', border: 'rgba(234, 179, 8, 0.32)' },
+  TRANSIT: { bg: 'rgba(99, 102, 241, 0.14)', text: 'rgb(67, 56, 202)', border: 'rgba(99, 102, 241, 0.3)' },
+};
+
+function classifyExpenseSource(metadata: Record<string, unknown>): ClassifiedExpenseSource {
+  const explicitSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
+
+  if (explicitSource === 'DISPATCH' || explicitSource === 'TRANSIT' || explicitSource === 'SHIPMENT') {
+    return explicitSource;
+  }
+
+  if (typeof metadata.dispatchId === 'string' && metadata.dispatchId) {
+    return 'DISPATCH';
+  }
+
+  if (typeof metadata.transitId === 'string' && metadata.transitId) {
+    return 'TRANSIT';
+  }
+
+  return 'SHIPMENT';
+}
+
 export default function ShipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -205,13 +285,19 @@ export default function ShipmentDetailPage() {
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number; title: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [openAssignDispatch, setOpenAssignDispatch] = useState(false);
   const [openAssignTransit, setOpenAssignTransit] = useState(false);
+  const [dispatchIdToAssign, setDispatchIdToAssign] = useState('');
   const [transitIdToAssign, setTransitIdToAssign] = useState('');
   const [releaseTokenToAssign, setReleaseTokenToAssign] = useState('');
   const [showReleaseToken, setShowReleaseToken] = useState(false);
+  const [availableDispatches, setAvailableDispatches] = useState<Array<{ id: string; referenceNumber: string; origin: string; destination: string; status: string; company: { name: string } }>>([]);
+  const [loadingDispatches, setLoadingDispatches] = useState(false);
+  const [assigningDispatch, setAssigningDispatch] = useState(false);
   const [assigningTransit, setAssigningTransit] = useState(false);
   const [creatingReleaseToken, setCreatingReleaseToken] = useState(false);
-  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [expenseAction, setExpenseAction] = useState<ExpenseActionContext | null>(null);
+  const [expenseSourceFilter, setExpenseSourceFilter] = useState<ExpenseSourceFilter>('ALL');
 
   const fetchShipment = useCallback(async () => {
     try {
@@ -241,6 +327,27 @@ export default function ShipmentDetailPage() {
   useEffect(() => {
     void fetchShipment();
   }, [fetchShipment]);
+
+  useEffect(() => {
+    if (!openAssignDispatch) return;
+
+    const fetchDispatches = async () => {
+      try {
+        setLoadingDispatches(true);
+        const response = await fetch('/api/dispatches');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load dispatches');
+        setAvailableDispatches((data.dispatches || []).filter((dispatch: { status?: string }) => dispatch.status !== 'COMPLETED' && dispatch.status !== 'CANCELLED'));
+      } catch (error) {
+        console.error('Error fetching dispatches:', error);
+        toast.error('Failed to load dispatches');
+      } finally {
+        setLoadingDispatches(false);
+      }
+    };
+
+    void fetchDispatches();
+  }, [openAssignDispatch]);
 
   const openLightbox = (images: string[], index: number, title: string) => {
     if (!images.length) return;
@@ -329,6 +436,32 @@ export default function ShipmentDetailPage() {
     }
   };
 
+  const handleAssignDispatch = async () => {
+    if (!dispatchIdToAssign.trim()) {
+      toast.error('Dispatch is required');
+      return;
+    }
+
+    try {
+      setAssigningDispatch(true);
+      const response = await fetch(`/api/dispatches/${dispatchIdToAssign}/shipments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipmentId: params.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to assign dispatch');
+      toast.success('Shipment assigned to dispatch');
+      setOpenAssignDispatch(false);
+      setDispatchIdToAssign('');
+      await fetchShipment();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to assign dispatch');
+    } finally {
+      setAssigningDispatch(false);
+    }
+  };
+
   const handleGenerateReleaseToken = async () => {
     if (!shipment) return;
 
@@ -371,6 +504,19 @@ export default function ShipmentDetailPage() {
       await fetchShipment();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to remove from transit');
+    }
+  };
+
+  const handleRemoveFromDispatch = async () => {
+    if (!shipment?.dispatchId || !confirm('Remove this shipment from its dispatch?')) return;
+    try {
+      const response = await fetch(`/api/dispatches/${shipment.dispatchId}/shipments?shipmentId=${shipment.id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to remove from dispatch');
+      toast.success('Removed from dispatch');
+      await fetchShipment();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove from dispatch');
     }
   };
 
@@ -555,7 +701,10 @@ export default function ShipmentDetailPage() {
     }
   };
 
-  const canUploadArrivalPhotos = session?.user?.role === 'admin' && 
+  const canManageWorkflow = hasPermission(session?.user?.role, 'workflow:move') && hasPermission(session?.user?.role, 'shipments:manage');
+  const canManageShipmentRecord = hasPermission(session?.user?.role, 'shipments:manage');
+  const canPostExpenses = hasPermission(session?.user?.role, 'expenses:post');
+  const canUploadArrivalPhotos = canManageWorkflow && 
     (shipment?.container?.status === 'ARRIVED_PORT' || 
      shipment?.container?.status === 'CUSTOMS_CLEARANCE' ||
      shipment?.container?.status === 'RELEASED');
@@ -568,17 +717,88 @@ export default function ShipmentDetailPage() {
 
   const statusStyles = useMemo(() => statusColors, []);
   const isAdmin = session?.user?.role === 'admin';
-  const canManageShipmentExpenses = hasAnyPermission(session?.user?.role, ['finance:manage', 'shipments:manage']);
+  const canManageShipmentExpenses = canPostExpenses;
   const canViewLedgerComparison = hasAnyPermission(session?.user?.role, ['finance:view', 'finance:manage', 'shipments:read_all']);
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
-  const shipmentExpenseEntries = (shipment?.ledgerEntries || []).filter((entry) => {
-    if (entry.type !== 'DEBIT') return false;
-    const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
-    const isExpense = metadata.isExpense === true || metadata.isExpense === 'true';
-    const expenseSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
-    const isContainerExpense = metadata.isContainerExpense === true || metadata.isContainerExpense === 'true';
-    return (isExpense || expenseSource === 'SHIPMENT') && !isContainerExpense;
-  });
+  const canAssignDispatch = canManageWorkflow && !shipment?.dispatchId && !shipment?.containerId && !shipment?.transitId && shipment?.status === 'ON_HAND';
+  const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.transitId || shipment?.dispatchId);
+  const canAddDispatchExpense = Boolean(shipment?.dispatchId);
+  const canAddTransitExpense = Boolean(shipment?.transitId);
+  const expenseContextType = shipment?.containerId
+    ? 'CONTAINER'
+    : shipment?.transitId
+    ? 'TRANSIT'
+    : shipment?.dispatchId
+    ? 'DISPATCH'
+    : undefined;
+  const expenseContextId = shipment?.containerId || shipment?.transitId || shipment?.dispatchId || undefined;
+  const expenseLedgerHelpText = shipment?.container
+    ? `Expenses from this page will recover against the container company ledger for ${shipment.container.containerNumber}.`
+    : shipment?.transit
+    ? `Expenses from this page will recover against the transit company ledger for ${shipment.transit.referenceNumber}.`
+    : shipment?.dispatch
+    ? `Expenses from this page will recover against the dispatch company ledger for ${shipment.dispatch.referenceNumber}.`
+    : 'Assign this shipment to a dispatch, container, or transit with a company ledger before posting expenses.';
+  const expenseActionHelpText = [
+    'Shipment Expense uses the shipment\'s primary accounting route.',
+    canAddDispatchExpense ? `Dispatch Expense posts to dispatch ${shipment?.dispatch?.referenceNumber}.` : 'Dispatch Expense is available after dispatch assignment.',
+    canAddTransitExpense ? `Transit Expense posts to transit ${shipment?.transit?.referenceNumber}.` : 'Transit Expense is available after transit assignment.',
+  ].join(' ');
+  const classifiedShipmentExpenseData = useMemo(() => {
+    const totals: Record<ClassifiedExpenseSource, number> = {
+      SHIPMENT: 0,
+      DISPATCH: 0,
+      TRANSIT: 0,
+    };
+    const counts: Record<ClassifiedExpenseSource, number> = {
+      SHIPMENT: 0,
+      DISPATCH: 0,
+      TRANSIT: 0,
+    };
+    const entries: Array<Shipment['ledgerEntries'][number] & { source: ClassifiedExpenseSource }> = [];
+
+    for (const entry of shipment?.ledgerEntries || []) {
+      if (entry.type !== 'DEBIT') continue;
+
+      const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+      const isExpense = metadata.isExpense === true || metadata.isExpense === 'true';
+      const explicitSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : undefined;
+      const isContainerExpense = metadata.isContainerExpense === true || metadata.isContainerExpense === 'true';
+
+      if (!isExpense && explicitSource !== 'SHIPMENT' && explicitSource !== 'DISPATCH' && explicitSource !== 'TRANSIT') {
+        continue;
+      }
+
+      if (isContainerExpense) {
+        continue;
+      }
+
+      const source = classifyExpenseSource(metadata);
+      totals[source] += entry.amount;
+      counts[source] += 1;
+      entries.push({ ...entry, source });
+    }
+
+    return {
+      entries,
+      totals,
+      counts,
+      total: entries.reduce((sum, entry) => sum + entry.amount, 0),
+    };
+  }, [shipment?.ledgerEntries]);
+
+  const filteredShipmentExpenseEntries = useMemo(() => {
+    if (expenseSourceFilter === 'ALL') {
+      return classifiedShipmentExpenseData.entries;
+    }
+
+    return classifiedShipmentExpenseData.entries.filter((entry) => entry.source === expenseSourceFilter);
+  }, [classifiedShipmentExpenseData.entries, expenseSourceFilter]);
+
+  const filteredShipmentExpenseTotal = useMemo(
+    () => filteredShipmentExpenseEntries.reduce((sum, entry) => sum + entry.amount, 0),
+    [filteredShipmentExpenseEntries]
+  );
 
   // ⚡ Bolt: Consolidated multiple array iterations (.filter().reduce()) into single O(N) loops
   let userLedgerDebitsTotal = 0;
@@ -606,6 +826,7 @@ export default function ShipmentDetailPage() {
     ...companyLedgerEntries.map((entry) => ({
       id: `company-${entry.id}`,
       source: 'COMPANY' as const,
+      companyLedgerEntry: entry,
       transactionDate: entry.transactionDate,
       description: entry.description,
       type: entry.type,
@@ -614,12 +835,63 @@ export default function ShipmentDetailPage() {
     ...(shipment?.ledgerEntries || []).map((entry) => ({
       id: `customer-${entry.id}`,
       source: 'CUSTOMER' as const,
+      linkedCompanyLedgerEntry: null as LinkedCompanyLedgerEntry | null,
       transactionDate: entry.transactionDate,
       description: entry.description,
       type: entry.type,
       amount: entry.amount,
+      userLedgerEntryId: entry.id,
     })),
   ].sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
+
+  const linkedCompanyLedgerEntriesByUserEntryId = useMemo(() => {
+    const map = new Map<string, LinkedCompanyLedgerEntry>();
+
+    for (const entry of companyLedgerEntries) {
+      const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+      const linkedUserExpenseEntryId = typeof metadata.linkedUserExpenseEntryId === 'string'
+        ? metadata.linkedUserExpenseEntryId
+        : typeof entry.reference === 'string' && entry.reference.startsWith('shipment-expense:')
+        ? entry.reference.replace('shipment-expense:', '')
+        : null;
+
+      if (linkedUserExpenseEntryId) {
+        map.set(linkedUserExpenseEntryId, entry);
+      }
+    }
+
+    return map;
+  }, [companyLedgerEntries]);
+
+  const expenseEntriesWithCompanyLedger = useMemo(
+    () =>
+      filteredShipmentExpenseEntries.map((entry) => ({
+        ...entry,
+        linkedCompanyLedgerEntry: linkedCompanyLedgerEntriesByUserEntryId.get(entry.id) || null,
+      })),
+    [filteredShipmentExpenseEntries, linkedCompanyLedgerEntriesByUserEntryId]
+  );
+
+  const comparisonTransactionsWithDrillDown = useMemo(
+    () =>
+      comparisonTransactions.map((entry) => {
+        if (entry.source === 'COMPANY') {
+          return entry;
+        }
+
+        return {
+          ...entry,
+          linkedCompanyLedgerEntry: entry.userLedgerEntryId
+            ? linkedCompanyLedgerEntriesByUserEntryId.get(entry.userLedgerEntryId) || null
+            : null,
+        };
+      }),
+    [comparisonTransactions, linkedCompanyLedgerEntriesByUserEntryId]
+  );
+
+  const openCompanyLedgerEntry = useCallback((entry: LinkedCompanyLedgerEntry) => {
+    router.push(`/dashboard/finance/companies/${entry.companyId}?entryId=${entry.id}`);
+  }, [router]);
 
   const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
     return (
@@ -693,7 +965,7 @@ export default function ShipmentDetailPage() {
                       Download Receipt
                   </Button>
                 </Tooltip>
-                {isAdmin && !shipment.releaseToken && (
+                {canManageWorkflow && !shipment.releaseToken && (
                   <Tooltip
                     title={
                       isReleasedForTransit
@@ -722,7 +994,7 @@ export default function ShipmentDetailPage() {
                     </Button>
                   </Tooltip>
                 )}
-                {isAdmin && (
+                {canManageShipmentRecord && (
                   <>
                     <Link href={`/dashboard/shipments/${shipment.id}/edit`}>
                       <Button size="sm">
@@ -739,6 +1011,16 @@ export default function ShipmentDetailPage() {
             </div>
           </div>
         </div>
+
+        <ShipmentWorkflowStrip
+          shipmentStatus={shipment.status}
+          dispatchId={shipment.dispatchId}
+          dispatchReference={shipment.dispatch?.referenceNumber}
+          containerId={shipment.containerId}
+          containerLabel={shipment.container?.containerNumber}
+          transitId={shipment.transitId}
+          transitReference={shipment.transit?.referenceNumber}
+        />
 
         {/* Tabs Navigation */}
         <Box sx={{ borderBottom: 1, borderColor: 'var(--border)' }}>
@@ -773,6 +1055,7 @@ export default function ShipmentDetailPage() {
             <Tab icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label="Financials" />
             <Tab icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={`Damages (${shipment.containerDamages?.length || 0})`} />
             <Tab icon={<PackageCheck className="h-4 w-4" />} iconPosition="start" label="Details" />
+            {isAdmin && <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
             {isAdmin && <Tab icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
           </Tabs>
         </Box>
@@ -821,14 +1104,76 @@ export default function ShipmentDetailPage() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Origin</p>
-                    <p className="font-medium text-[var(--text-primary)]">{shipment.container?.loadingPort || 'N/A'}</p>
+                    <p className="font-medium text-[var(--text-primary)]">{shipment.container?.loadingPort || shipment.dispatch?.origin || shipment.transit?.origin || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Destination</p>
-                    <p className="font-medium text-[var(--text-primary)]">{shipment.container?.destinationPort || 'N/A'}</p>
+                    <p className="font-medium text-[var(--text-primary)]">{shipment.container?.destinationPort || shipment.dispatch?.destination || shipment.transit?.destination || 'N/A'}</p>
                   </div>
                 </div>
               </div>
+            </DashboardPanel>
+
+            <DashboardPanel
+              title="Dispatch To Port"
+              description={shipment.dispatch ? `${shipment.dispatch.origin} → ${shipment.dispatch.destination}` : 'Domestic movement before container loading'}
+              actions={
+                canAssignDispatch ? (
+                  <button
+                    onClick={() => setOpenAssignDispatch(true)}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90"
+                  >
+                    <Truck className="h-3.5 w-3.5" />
+                    Assign to Dispatch
+                  </button>
+                ) : undefined
+              }
+            >
+              {shipment.dispatch ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-5 w-5 text-[var(--accent-gold)]" />
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      Ref: <strong>{shipment.dispatch.referenceNumber}</strong>
+                    </span>
+                    <span className="ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase" style={{ background: 'rgba(234,179,8,0.15)', color: 'rgb(161,98,7)', border: '1px solid rgba(234,179,8,0.35)' }}>
+                      {shipment.dispatch.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company</p>
+                      <p className="font-medium">{shipment.dispatch.company.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Route</p>
+                      <p className="font-medium">{shipment.dispatch.origin} → {shipment.dispatch.destination}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <a href={`/dashboard/dispatches/${shipment.dispatch.id}`} className="text-xs text-[var(--accent-gold)] hover:underline font-medium">
+                      View Dispatch Details →
+                    </a>
+                    {canManageWorkflow && shipment.status === 'DISPATCHING' && (
+                      <button
+                        onClick={() => void handleRemoveFromDispatch()}
+                        className="ml-auto text-xs text-[var(--error)] hover:underline"
+                      >
+                        Remove from dispatch
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+                  <Truck className="h-8 w-8 text-[var(--text-secondary)] opacity-40" />
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {shipment.containerId || shipment.transitId
+                      ? 'Dispatch stage is complete for this shipment.'
+                      : 'No dispatch assigned. Use dispatch to manage the pre-port movement before container handoff.'}
+                  </p>
+                </div>
+              )}
             </DashboardPanel>
 
             {/* Transit Panel */}
@@ -836,7 +1181,7 @@ export default function ShipmentDetailPage() {
               title="Transit to Destination"
               description={shipment.transit ? `${shipment.transit.origin} → ${shipment.transit.destination}` : 'Land delivery from UAE to Afghanistan'}
               actions={
-                isAdmin && !shipment.transit ? (
+                canManageWorkflow && !shipment.transit ? (
                   <div className="flex items-center gap-2">
                     {isReleasedForTransit && !shipment.releaseToken && (
                       <button
@@ -884,7 +1229,7 @@ export default function ShipmentDetailPage() {
                     <a href={`/dashboard/transits/${shipment.transit.id}`} className="text-xs text-[var(--accent-gold)] hover:underline font-medium">
                       View Transit Details →
                     </a>
-                    {isAdmin && (
+                    {canManageWorkflow && (
                       <button
                         onClick={() => void handleRemoveFromTransit()}
                         className="ml-auto text-xs text-[var(--error)] hover:underline"
@@ -1235,52 +1580,15 @@ export default function ShipmentDetailPage() {
         {/* Timeline Tab */}
         <TabPanel value={activeTab} index={1}>
           <DashboardPanel
-            title={shipment.container ? 'Container Tracking Timeline' : 'Tracking Timeline'}
-            description={shipment.container ? `Tracking events from container ${shipment.container.containerNumber}` : undefined}
+            title="Unified Shipment Timeline"
+            description="Merged workflow events, status changes, container milestones, and ledger activity in one chronology"
           >
-            {(!shipment.container || !shipment.container.trackingEvents || shipment.container.trackingEvents.length === 0) ? (
-              <p className="rounded-lg border border-[var(--border)] bg-[var(--background)] py-8 text-center text-sm text-[var(--text-secondary)]">
-                {shipment.container ? 'No container tracking events yet.' : 'No container assigned yet.'}
-              </p>
-            ) : (
-              <div className="relative pl-6">
-                <span className="absolute left-2 top-0 h-full w-0.5 bg-gradient-to-b from-[var(--accent-gold)] via-[var(--border)] to-transparent" />
-                <ul className="space-y-6">
-                  {shipment.container.trackingEvents.map((event, index) => (
-                    <motion.li
-                      key={event.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                      className="relative"
-                    >
-                      <div className="absolute -left-6 top-1 flex h-8 w-8 items-center justify-center">
-                        <span
-                          className={cn(
-                            'flex h-3 w-3 items-center justify-center rounded-full border-2',
-                            event.completed ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]' : 'border-[var(--border)] bg-[var(--panel)]',
-                          )}
-                        />
-                      </div>
-                      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-                        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <p className={cn('text-sm font-semibold', event.completed ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')}>
-                            {formatStatus(event.status)}
-                          </p>
-                          <p className="text-xs text-[var(--text-secondary)]">
-                            {new Date(event.eventDate).toLocaleString()}
-                          </p>
-                        </div>
-                        <p className="text-sm text-[var(--text-secondary)]">{event.location}</p>
-                        {event.description && (
-                          <p className="mt-2 text-sm text-[var(--text-secondary)]">{event.description}</p>
-                        )}
-                      </div>
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <UnifiedShipmentTimeline
+              items={shipment.unifiedTimeline || []}
+              onOpenCompanyLedgerEntry={(companyId, entryId) => {
+                router.push(`/dashboard/finance/companies/${companyId}?entryId=${entryId}`);
+              }}
+            />
           </DashboardPanel>
         </TabPanel>
 
@@ -1339,17 +1647,60 @@ export default function ShipmentDetailPage() {
             description="Costs and expenses associated with this shipment"
             actions={
               canManageShipmentExpenses ? (
-                <Button
-                  size="sm"
-                  icon={<DollarSign className="h-4 w-4" />}
-                  onClick={() => setExpenseModalOpen(true)}
-                >
-                  Add Expense
-                </Button>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      icon={<DollarSign className="h-4 w-4" />}
+                      onClick={() => setExpenseAction({
+                        modalTitle: 'Add Shipment Expense',
+                        contextType: expenseContextType,
+                        contextId: expenseContextId,
+                      })}
+                      disabled={!canAddShipmentExpense}
+                    >
+                      Shipment Expense
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={<Truck className="h-4 w-4" />}
+                      onClick={() => setExpenseAction({
+                        modalTitle: 'Add Dispatch Expense',
+                        contextType: 'DISPATCH',
+                        contextId: shipment?.dispatchId || undefined,
+                      })}
+                      disabled={!canAddDispatchExpense}
+                    >
+                      Dispatch Expense
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={<Ship className="h-4 w-4" />}
+                      onClick={() => setExpenseAction({
+                        modalTitle: 'Add Transit Expense',
+                        contextType: 'TRANSIT',
+                        contextId: shipment?.transitId || undefined,
+                      })}
+                      disabled={!canAddTransitExpense}
+                    >
+                      Transit Expense
+                    </Button>
+                  </div>
               ) : undefined
             }
           >
             <div className="space-y-4">
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+                    <h3 className="mb-2 text-sm font-semibold uppercase text-[var(--text-secondary)]">Expense Actions</h3>
+                    <p className="text-sm text-[var(--text-secondary)]">{expenseActionHelpText}</p>
+                  </div>
+
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+                  <h3 className="mb-2 text-sm font-semibold uppercase text-[var(--text-secondary)]">Expense Posting Target</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">{expenseLedgerHelpText}</p>
+                </div>
+
                 {canViewLedgerComparison && (
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
                     <h3 className="mb-3 text-sm font-semibold uppercase text-[var(--text-secondary)]">Ledger Comparison</h3>
@@ -1399,7 +1750,7 @@ export default function ShipmentDetailPage() {
                       </div>
                       {comparisonTransactions.length > 0 ? (
                         <div className="max-h-72 overflow-y-auto">
-                          {comparisonTransactions.map((entry) => (
+                          {comparisonTransactionsWithDrillDown.map((entry) => (
                             <div key={entry.id} className="grid grid-cols-12 items-center border-b border-[var(--border)] px-3 py-2 text-xs last:border-b-0">
                               <div className="col-span-2">
                                 <span
@@ -1417,7 +1768,27 @@ export default function ShipmentDetailPage() {
                                 {new Date(entry.transactionDate).toLocaleDateString()}
                               </div>
                               <div className="col-span-6 truncate text-[var(--text-primary)]" title={entry.description}>
-                                {entry.description}
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate">{entry.description}</span>
+                                  {entry.source === 'COMPANY' && entry.companyLedgerEntry && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openCompanyLedgerEntry(entry.companyLedgerEntry!)}
+                                      className="shrink-0 rounded border border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-gold)] hover:border-[var(--accent-gold)]"
+                                    >
+                                      View Entry
+                                    </button>
+                                  )}
+                                  {entry.source === 'CUSTOMER' && entry.linkedCompanyLedgerEntry && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openCompanyLedgerEntry(entry.linkedCompanyLedgerEntry!)}
+                                      className="shrink-0 rounded border border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-gold)] hover:border-[var(--accent-gold)]"
+                                    >
+                                      Company Entry
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <div
                                 className={cn(
@@ -1457,12 +1828,95 @@ export default function ShipmentDetailPage() {
                 {/* Expenses */}
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
                     <h3 className="mb-3 text-sm font-semibold uppercase text-[var(--text-secondary)]">Additional Expenses</h3>
-                  {shipmentExpenseEntries.length > 0 ? (
-                        <div className="space-y-3">
-                      {shipmentExpenseEntries.map((entry) => (
-                                <div key={entry.id} className="flex justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
+                  {classifiedShipmentExpenseData.entries.length > 0 ? (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            {(['DISPATCH', 'SHIPMENT', 'TRANSIT'] as ClassifiedExpenseSource[]).map((source) => (
+                              <div key={source} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{expenseSourceLabels[source]}</p>
+                                    <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                                      ${classifiedShipmentExpenseData.totals[source].toFixed(2)}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                                    style={{
+                                      backgroundColor: expenseSourceStyles[source].bg,
+                                      color: expenseSourceStyles[source].text,
+                                      border: `1px solid ${expenseSourceStyles[source].border}`,
+                                    }}
+                                  >
+                                    {classifiedShipmentExpenseData.counts[source]} item{classifiedShipmentExpenseData.counts[source] === 1 ? '' : 's'}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-xs text-[var(--text-secondary)]">{expenseSourceDescriptions[source]}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Expense Source Filter</p>
+                                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                                  Showing ${filteredShipmentExpenseTotal.toFixed(2)} of ${classifiedShipmentExpenseData.total.toFixed(2)} total tracked expense.
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {([
+                                  { value: 'ALL', label: 'All Sources' },
+                                  { value: 'DISPATCH', label: 'Dispatch' },
+                                  { value: 'SHIPMENT', label: 'Shipping' },
+                                  { value: 'TRANSIT', label: 'Transit' },
+                                ] as Array<{ value: ExpenseSourceFilter; label: string }>).map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setExpenseSourceFilter(option.value)}
+                                    className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+                                    style={{
+                                      backgroundColor: expenseSourceFilter === option.value ? 'rgba(var(--accent-gold-rgb), 0.16)' : 'var(--panel)',
+                                      color: expenseSourceFilter === option.value ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                      border: expenseSourceFilter === option.value
+                                        ? '1px solid rgba(var(--accent-gold-rgb), 0.32)'
+                                        : '1px solid var(--border)',
+                                    }}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                        {expenseEntriesWithCompanyLedger.map((entry) => (
+                                <div key={entry.id} className="flex justify-between gap-4 border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
                                     <div>
-                                        <p className="text-sm font-medium text-[var(--text-primary)]">{entry.description}</p>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <p className="text-sm font-medium text-[var(--text-primary)]">{entry.description}</p>
+                                          <span
+                                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                            style={{
+                                              backgroundColor: expenseSourceStyles[entry.source].bg,
+                                              color: expenseSourceStyles[entry.source].text,
+                                              border: `1px solid ${expenseSourceStyles[entry.source].border}`,
+                                            }}
+                                          >
+                                            {expenseSourceLabels[entry.source]}
+                                          </span>
+                                          {entry.linkedCompanyLedgerEntry && canViewLedgerComparison && (
+                                            <button
+                                              type="button"
+                                              onClick={() => openCompanyLedgerEntry(entry.linkedCompanyLedgerEntry!)}
+                                              className="rounded border border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-gold)] hover:border-[var(--accent-gold)]"
+                                            >
+                                              Company Ledger
+                                            </button>
+                                          )}
+                                        </div>
                                         <p className="text-xs text-[var(--text-secondary)]">{new Date(entry.transactionDate).toLocaleDateString()}</p>
                                     </div>
                                     <span className="text-sm font-medium text-[var(--error)]">
@@ -1471,6 +1925,7 @@ export default function ShipmentDetailPage() {
                                 </div>
                             ))}
                         </div>
+                            </div>
                     ) : (
                         <p className="text-sm text-[var(--text-secondary)] italic">No additional expenses recorded.</p>
                     )}
@@ -1623,9 +2078,20 @@ export default function ShipmentDetailPage() {
           </DashboardGrid>
         </TabPanel>
 
-        {/* Customer Tab (Admin Only) */}
         {isAdmin && (
           <TabPanel value={activeTab} index={7}>
+            <DashboardPanel
+              title="Activity History"
+              description="Audit log of shipment updates, assignments, and status changes"
+            >
+              <ActivityLog logs={shipment.auditLogs || []} />
+            </DashboardPanel>
+          </TabPanel>
+        )}
+
+        {/* Customer Tab (Admin Only) */}
+        {isAdmin && (
+          <TabPanel value={activeTab} index={8}>
             <DashboardPanel title="Customer Information">
               <div className="space-y-4">
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
@@ -1664,7 +2130,40 @@ export default function ShipmentDetailPage() {
       )}
 
       {/* Assign to Transit Dialog */}
-      {isAdmin && (
+      {canManageWorkflow && (
+        <Dialog open={openAssignDispatch} onClose={() => !assigningDispatch && setOpenAssignDispatch(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Assign Shipment to Dispatch</DialogTitle>
+          <DialogContent sx={{ pt: 1.5 }}>
+            <TextField
+              select
+              fullWidth
+              label="Dispatch"
+              value={dispatchIdToAssign}
+              onChange={(e) => setDispatchIdToAssign(e.target.value)}
+              helperText={loadingDispatches ? 'Loading pending dispatches...' : 'Select a dispatch route for this shipment'}
+              size="small"
+              disabled={loadingDispatches || assigningDispatch}
+            >
+              {availableDispatches.map((dispatch) => (
+                <MenuItem key={dispatch.id} value={dispatch.id}>
+                  {dispatch.referenceNumber} - {dispatch.company.name} ({dispatch.origin} → {dispatch.destination})
+                </MenuItem>
+              ))}
+            </TextField>
+            {!loadingDispatches && availableDispatches.length === 0 && (
+              <p className="mt-3 text-sm text-[var(--text-secondary)]">No pending dispatches are available.</p>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <button onClick={() => setOpenAssignDispatch(false)} disabled={assigningDispatch} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)' }}>Cancel</button>
+            <button onClick={() => void handleAssignDispatch()} disabled={assigningDispatch || loadingDispatches || !dispatchIdToAssign} style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#000' }}>
+              {assigningDispatch ? 'Assigning...' : 'Assign'}
+            </button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {canManageWorkflow && (
         <Dialog open={openAssignTransit} onClose={() => !assigningTransit && setOpenAssignTransit(false)} maxWidth="xs" fullWidth>
           <DialogTitle>Assign Shipment to Transit</DialogTitle>
           <DialogContent sx={{ pt: 1.5 }}>
@@ -1709,9 +2208,12 @@ export default function ShipmentDetailPage() {
 
       {shipment && (
         <AddShipmentExpenseModal
-          open={expenseModalOpen}
-          onClose={() => setExpenseModalOpen(false)}
+          open={Boolean(expenseAction)}
+          onClose={() => setExpenseAction(null)}
           shipmentId={shipment.id}
+          modalTitle={expenseAction?.modalTitle}
+          contextType={expenseAction?.contextType}
+          contextId={expenseAction?.contextId}
           onSuccess={() => {
             void refreshShipmentPage();
           }}

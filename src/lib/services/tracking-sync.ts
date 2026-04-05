@@ -139,12 +139,12 @@ export class TrackingSyncService {
                 if (statusChanged && updateData.status) {
                     if (updateData.status === 'IN_TRANSIT') {
                         await prisma.shipment.updateMany({
-                            where: { containerId },
+							where: { containerId, transitId: null },
                             data: { status: 'IN_TRANSIT' },
                         });
                     } else if (updateData.status === 'ARRIVED_PORT') {
                         await prisma.shipment.updateMany({
-                            where: { containerId },
+							where: { containerId, transitId: null },
                             data: { status: 'ON_HAND' },
                         });
                     }

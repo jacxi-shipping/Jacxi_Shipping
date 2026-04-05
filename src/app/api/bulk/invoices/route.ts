@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { NotificationType } from '@prisma/client';
+import { createInvoiceAuditLogs } from '@/lib/entity-audit-history';
 import { createNotifications } from '@/lib/notifications';
 
 const allowedStatuses = ['DRAFT', 'PENDING', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'];
@@ -11,6 +12,11 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     if (!session) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const actorId = session.user?.id;
+    if (!actorId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -40,20 +46,23 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        const existingInvoices = await prisma.userInvoice.findMany({
+          where: { id: { in: invoiceIds } },
+          select: {
+            id: true,
+            userId: true,
+            invoiceNumber: true,
+            status: true,
+          },
+        });
+
         const result = await prisma.userInvoice.updateMany({
           where: { id: { in: invoiceIds } },
           data: { status },
         });
 
         try {
-          const invoices = await prisma.userInvoice.findMany({
-            where: { id: { in: invoiceIds } },
-            select: {
-              id: true,
-              userId: true,
-              invoiceNumber: true,
-            },
-          });
+          const invoices = existingInvoices;
 
           const formattedStatus = status
             .replace(/_/g, ' ')
@@ -63,11 +72,25 @@ export async function POST(request: NextRequest) {
           await createNotifications(
             invoices.map((invoice) => ({
               userId: invoice.userId,
+              senderId: actorId,
               title: 'Invoice status updated',
               description: `Invoice ${invoice.invoiceNumber} is now ${formattedStatus}.`,
               type: NotificationType.INFO,
               link: `/dashboard/invoices/${invoice.id}`,
             }))
+          );
+
+          await createInvoiceAuditLogs(
+            invoices
+              .filter((invoice) => invoice.status !== status)
+              .map((invoice) => ({
+                invoiceId: invoice.id,
+                action: 'STATUS_CHANGE',
+                description: `Invoice status changed from ${invoice.status} to ${status} through bulk update`,
+                performedBy: actorId,
+                oldValue: invoice.status,
+                newValue: status,
+              }))
           );
         } catch (notificationError) {
           console.error('Failed to create bulk invoice notifications:', notificationError);

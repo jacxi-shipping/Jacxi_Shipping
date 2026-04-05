@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { publishNotificationRefresh } from '@/lib/notification-stream';
 
 const notificationSchema = z.object({
   title: z.string().min(1),
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
 
     const data = targetUserIds.map((userId) => ({
       userId,
+      senderId: session.user.id,
       title: payload.title,
       description: payload.description,
       type: payload.type,
@@ -59,6 +61,10 @@ export async function POST(request: NextRequest) {
       const chunk = data.slice(i, i + CHUNK_SIZE);
       const result = await prisma.notification.createMany({ data: chunk });
       createdCount += result.count;
+    }
+
+    for (const userId of new Set(targetUserIds)) {
+      publishNotificationRefresh(userId);
     }
 
     return NextResponse.json({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, X, Check, Package, Ship, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { IconButton, Badge, Drawer, Box, Typography, Divider } from '@mui/material';
@@ -11,9 +11,16 @@ interface Notification {
   title: string;
   description: string;
   type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+  origin: 'system' | 'direct';
   createdAt: string;
   read: boolean;
   link?: string;
+  sender?: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+  } | null;
 }
 
 export function NotificationCenter() {
@@ -23,14 +30,7 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchNotifications();
-    // Poll every 60 seconds
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/notifications');
@@ -48,7 +48,32 @@ export function NotificationCenter() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    const stream = new EventSource('/api/notifications/stream');
+    const refreshFromStream = () => {
+      fetchNotifications();
+    };
+
+    stream.addEventListener('notification', refreshFromStream);
+    stream.addEventListener('connected', refreshFromStream);
+    stream.onerror = () => {
+      fetchNotifications();
+    };
+
+    // Keep a slower polling fallback for environments where SSE is interrupted.
+    const interval = setInterval(fetchNotifications, 60000);
+
+    return () => {
+      clearInterval(interval);
+      stream.removeEventListener('notification', refreshFromStream);
+      stream.removeEventListener('connected', refreshFromStream);
+      stream.close();
+    };
+  }, [fetchNotifications]);
 
   const markAsRead = async (id: string) => {
     // Optimistic update
@@ -124,6 +149,33 @@ export function NotificationCenter() {
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
     return `${days}d ago`;
+  };
+
+  const getSenderLabel = (notification: Notification) => {
+    if (!notification.sender) {
+      return null;
+    }
+
+    return notification.sender.name || notification.sender.email;
+  };
+
+  const getOriginLabel = (notification: Notification) =>
+    notification.origin === 'system' ? 'System update' : 'Direct message';
+
+  const getOriginStyles = (notification: Notification) => {
+    if (notification.origin === 'system') {
+      return {
+        color: '#1D4ED8',
+        backgroundColor: 'rgba(29, 78, 216, 0.10)',
+        borderColor: 'rgba(29, 78, 216, 0.18)',
+      };
+    }
+
+    return {
+      color: 'var(--accent-gold)',
+      backgroundColor: 'rgba(var(--accent-gold-rgb), 0.12)',
+      borderColor: 'rgba(var(--accent-gold-rgb), 0.2)',
+    };
   };
 
   return (
@@ -254,16 +306,37 @@ export function NotificationCenter() {
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 2 }}>
-                        <Typography
-                          sx={{
-                            fontSize: '0.875rem',
-                            fontWeight: notification.read ? 500 : 700,
-                            color: 'var(--text-primary)',
-                            flex: 1,
-                          }}
-                        >
-                          {notification.title}
-                        </Typography>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.875rem',
+                                fontWeight: notification.read ? 500 : 700,
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              {notification.title}
+                            </Typography>
+                            <Box
+                              component="span"
+                              sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                borderRadius: 999,
+                                px: 1,
+                                py: 0.25,
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.04em',
+                                textTransform: 'uppercase',
+                                border: '1px solid',
+                                ...getOriginStyles(notification),
+                              }}
+                            >
+                              {getOriginLabel(notification)}
+                            </Box>
+                          </Box>
+                        </Box>
                         <IconButton
                           size="small"
                           onClick={(e) => {
@@ -284,11 +357,23 @@ export function NotificationCenter() {
                       >
                         {notification.description}
                       </Typography>
+                      {getSenderLabel(notification) && (
+                        <Typography
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)',
+                            mt: 1,
+                          }}
+                        >
+                          {notification.origin === 'system' ? 'Triggered by ' : 'From '}
+                          {getSenderLabel(notification)}
+                        </Typography>
+                      )}
                       <Typography
                         sx={{
                           fontSize: '0.75rem',
                           color: 'var(--text-secondary)',
-                          mt: 1,
+                          mt: 0.5,
                         }}
                       >
                         {formatTimestamp(notification.createdAt)}

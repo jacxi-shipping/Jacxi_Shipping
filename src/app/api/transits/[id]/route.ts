@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { hasPermission } from '@/lib/rbac';
+import { routeDeps } from '@/lib/route-deps';
+import { ensureWorkflowMoveAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
 
 const updateTransitSchema = z.object({
   companyId: z.string().optional(),
@@ -23,17 +22,17 @@ export async function GET(
   const params = await props.params;
 
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(session.user?.role, 'transits:manage')) {
+    if (!session?.user || !routeDeps.hasPermission(session.user?.role, 'transits:manage') && !routeDeps.hasPermission(session.user?.role, 'finance:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const transit = await prisma.transit.findUnique({
+    const transit = await routeDeps.prisma.transit.findUnique({
       where: { id: params.id },
       include: {
         company: { select: { id: true, name: true, code: true, phone: true, email: true } },
@@ -65,7 +64,7 @@ export async function GET(
     }
 
     // Fetch shipment expenses from ledger entries
-    const shipmentExpenses = await prisma.ledgerEntry.findMany({
+    const shipmentExpenses = await routeDeps.prisma.ledgerEntry.findMany({
       where: {
         shipmentId: { in: transit.shipments.map(s => s.id) },
         type: 'DEBIT',
@@ -145,26 +144,37 @@ export async function PATCH(
   const params = await props.params;
 
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(session.user?.role, 'transits:manage')) {
+    if (!ensureWorkflowMoveAllowed(session.user?.role) || !routeDeps.hasPermission(session.user?.role, 'transits:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const existing = await prisma.transit.findUnique({ where: { id: params.id } });
+    const existing = await routeDeps.prisma.transit.findUnique({ where: { id: params.id } });
     if (!existing) {
       return NextResponse.json({ error: 'Transit not found' }, { status: 404 });
+    }
+
+    if (['DELIVERED', 'CANCELLED'].includes(existing.status) && !isClosedStageOverrideAllowed(session.user?.role)) {
+      return NextResponse.json({ error: 'Closed transit stages can only be overridden by admins' }, { status: 400 });
     }
 
     const body = await request.json();
     const validatedData = updateTransitSchema.parse(body);
 
+    if (validatedData.status === 'DELIVERED') {
+      return NextResponse.json(
+        { error: 'Use the delivery confirmation flow to close a transit as delivered' },
+        { status: 400 },
+      );
+    }
+
     if (validatedData.companyId) {
-      const company = await prisma.company.findUnique({
+      const company = await routeDeps.prisma.company.findUnique({
         where: { id: validatedData.companyId },
         select: { id: true, isActive: true, companyType: true },
       });
@@ -174,7 +184,7 @@ export async function PATCH(
       }
     }
 
-    const transit = await prisma.$transaction(async (tx) => {
+    const transit = await routeDeps.prisma.$transaction(async (tx) => {
       const updated = await tx.transit.update({
         where: { id: params.id },
         data: {
@@ -193,19 +203,11 @@ export async function PATCH(
         },
       });
 
-      // If transit is DELIVERED, update all assigned shipments to DELIVERED
-      if (validatedData.status === 'DELIVERED') {
-        await tx.shipment.updateMany({
-          where: { transitId: params.id },
-          data: { status: 'DELIVERED' },
-        });
-      }
-
-      // If transit is CANCELLED, revert shipment statuses
+      // If transit is CANCELLED, revert shipments to released so they can be reassigned.
       if (validatedData.status === 'CANCELLED') {
         await tx.shipment.updateMany({
           where: { transitId: params.id },
-          data: { status: 'IN_TRANSIT', transitId: null },
+          data: { status: 'RELEASED', transitId: null },
         });
       }
 
@@ -229,17 +231,17 @@ export async function DELETE(
   const params = await props.params;
 
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(session.user?.role, 'transits:manage')) {
+    if (!ensureWorkflowMoveAllowed(session.user?.role) || !routeDeps.hasPermission(session.user?.role, 'transits:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const existing = await prisma.transit.findUnique({
+    const existing = await routeDeps.prisma.transit.findUnique({
       where: { id: params.id },
       include: { _count: { select: { shipments: true } } },
     });
@@ -248,11 +250,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Transit not found' }, { status: 404 });
     }
 
-    await prisma.$transaction(async (tx) => {
+    if (['DELIVERED', 'CANCELLED'].includes(existing.status) && !isClosedStageOverrideAllowed(session.user?.role)) {
+      return NextResponse.json({ error: 'Closed transit stages can only be overridden by admins' }, { status: 400 });
+    }
+
+    await routeDeps.prisma.$transaction(async (tx) => {
       // Detach shipments before deleting transit
       await tx.shipment.updateMany({
         where: { transitId: params.id },
-        data: { transitId: null, status: 'IN_TRANSIT' },
+        data: { transitId: null, status: 'RELEASED' },
       });
 
       await tx.transit.delete({ where: { id: params.id } });

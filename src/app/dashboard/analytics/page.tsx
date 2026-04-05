@@ -11,6 +11,8 @@ import {
   User as UserIcon,
   Layers,
   RefreshCcw,
+  Truck,
+  HandCoins,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -33,12 +35,15 @@ import {
 
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { getDispatchStatusLabel } from '@/lib/dispatch-workflow';
 
 interface SummaryRow {
   totalShipments: number;
   activeShipments: number;
+  activeDispatches: number;
   adminUsers: number;
   totalRevenue: number;
+  totalDispatchSpend: number;
   overdueInvoices: number;
   activeContainers: number;
 }
@@ -80,8 +85,10 @@ interface TopCustomer {
 interface AnalyticsPayload {
   summary: SummaryRow;
   shipmentsByStatus: StatusDatum[];
+  dispatchesByStatus: StatusDatum[];
   shipmentsByMonth: Array<Required<Pick<MonthDatum, 'month' | 'count'>>>;
   revenueByMonth: Array<Required<Pick<MonthDatum, 'month' | 'totalUSD'>>>;
+  dispatchSpendByMonth: Array<Required<Pick<MonthDatum, 'month' | 'totalUSD'>>>;
   invoiceStatusDistribution: InvoiceStatusDatum[];
   outstandingInvoices: OutstandingInvoice[];
   topCustomers: TopCustomer[];
@@ -161,7 +168,7 @@ export default function AnalyticsPage() {
         label: 'Active Shipments',
         value: summary.activeShipments,
         icon: <Activity style={{ fontSize: 18 }} />,
-        description: 'Currently in transit',
+        description: 'Dispatching or in transit',
         variant: 'info',
       },
       {
@@ -170,6 +177,20 @@ export default function AnalyticsPage() {
         icon: <TrendingUp style={{ fontSize: 18 }} />,
         description: 'Paid invoices',
         variant: 'success',
+      },
+      {
+        label: 'Active Dispatches',
+        value: summary.activeDispatches,
+        icon: <Truck style={{ fontSize: 18 }} />,
+        description: 'Pending to port handoff',
+        variant: 'warning',
+      },
+      {
+        label: 'Dispatch Spend',
+        value: formatCurrency(summary.totalDispatchSpend),
+        icon: <HandCoins style={{ fontSize: 18 }} />,
+        description: 'Logged dispatch expenses',
+        variant: 'secondary',
       },
       {
         label: 'Team Admins',
@@ -398,6 +419,51 @@ export default function AnalyticsPage() {
                 <Bar dataKey="totalUSD" fill="var(--accent-gold)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </Box>
+        </DashboardPanel>
+
+        <DashboardPanel title="Dispatch spend (USD)" description="Dispatch expenses over six months" fullHeight>
+          <Box sx={{ height: 300, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.dispatchSpendByMonth || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" stroke="var(--text-secondary)" tickLine={false} axisLine={false} />
+                <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} stroke="var(--text-secondary)" tickLine={false} axisLine={false} />
+                <ChartTooltip
+                  contentStyle={{ backgroundColor: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }}
+                  formatter={(value: number) => formatCurrency(value)}
+                />
+                <Bar dataKey="totalUSD" fill="var(--warning)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        </DashboardPanel>
+
+        <DashboardPanel title="Dispatch status mix" description="Current workflow distribution" fullHeight>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+            {(data.dispatchesByStatus || []).map((item) => (
+              <Box
+                key={item.status}
+                sx={{
+                  border: '1px solid var(--border)',
+                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: 'var(--panel)',
+                }}
+              >
+                <Typography sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--text-secondary)' }}>
+                  {getDispatchStatusLabel(item.status)}
+                </Typography>
+                <Typography sx={{ fontSize: '1.6rem', fontWeight: 700, mt: 0.5 }}>
+                  {item.count}
+                </Typography>
+              </Box>
+            ))}
+            {(data.dispatchesByStatus || []).length === 0 && (
+              <Box sx={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                No dispatch activity recorded yet.
+              </Box>
+            )}
           </Box>
         </DashboardPanel>
       </DashboardGrid>

@@ -5,7 +5,7 @@ import { createTheme } from '@mui/material/styles';
 const palette = {
 	accentGold: '#D4AF37',
 	background: '#F9FAFB',
-	panel: '#FFFFFF',  // Changed from #E4E9F0 to pure white for better contrast
+  panel: '#FFFFFF',  // Active panel surface color
 	textPrimary: '#1C1C1E',
 	textSecondary: '#5F6368',
 	border: '#E5E7EB',  // Slightly darker for better visibility

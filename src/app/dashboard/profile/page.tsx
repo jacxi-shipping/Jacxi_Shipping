@@ -21,6 +21,7 @@ import {
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { PageHeader, Button, Breadcrumbs, toast, EmptyState, StatsCard, DashboardPageSkeleton, FormField } from '@/components/design-system';
 import { formatLoginCode } from '@/lib/loginCode';
+import NotificationComposer from '@/components/notifications/NotificationComposer';
 
 type ProfileFormState = {
 	name: string;
@@ -406,6 +407,15 @@ export default function ProfilePage() {
 									</ul>
 								</Box>
 							</DashboardPanel>
+
+							{profile.role === 'user' && (
+								<DashboardPanel
+									title="Support Notifications"
+									description="Send a realtime message to the Jacxi team"
+								>
+									<NotificationComposer mode="customer-to-support" />
+								</DashboardPanel>
+							)}
 
 							{/* Login Code Panel */}
 							<DashboardPanel

@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
 
             return uniqueUserIds.map((userId) => ({
               userId,
+              senderId: session.user.id,
               title: 'Container status updated',
               description: `Container ${container.containerNumber} is now ${formattedStatus}.`,
               type: NotificationType.INFO,

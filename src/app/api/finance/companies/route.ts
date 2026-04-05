@@ -13,7 +13,7 @@ const createCompanySchema = z.object({
   address: z.string().optional(),
   country: z.string().optional(),
   notes: z.string().optional(),
-  companyType: z.enum(['SHIPPING', 'TRANSIT']).default('SHIPPING'),
+  companyType: z.enum(['SHIPPING', 'DISPATCH', 'TRANSIT']).default('SHIPPING'),
   isActive: z.boolean().optional().default(true),
 });
 

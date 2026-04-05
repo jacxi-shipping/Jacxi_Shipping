@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { hasAnyPermission } from '@/lib/rbac';
+import { ensureExpensePostingAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
 
 function allocateTransitExpense(
   shipments: Array<{ id: string; insuranceValue: number | null; weight: number | null }>,
@@ -85,7 +86,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasAnyPermission(session.user?.role, ['finance:manage', 'transits:manage'])) {
+    if (!ensureExpensePostingAllowed(session.user?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -113,6 +114,10 @@ export async function POST(
 
     if (!transit) {
       return NextResponse.json({ error: 'Transit not found' }, { status: 404 });
+    }
+
+    if ((transit as any).status && ['DELIVERED', 'CANCELLED'].includes(String((transit as any).status)) && !isClosedStageOverrideAllowed(session.user?.role)) {
+      return NextResponse.json({ error: 'Cannot add expenses to a delivered or cancelled transit' }, { status: 400 });
     }
 
     if (!transit.companyId) {
@@ -258,7 +263,7 @@ export async function DELETE(
   try {
     const session = await auth();
 
-    if (!session?.user || !hasAnyPermission(session.user?.role, ['finance:manage', 'transits:manage'])) {
+    if (!session?.user || !ensureExpensePostingAllowed(session.user?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -272,7 +277,7 @@ export async function DELETE(
     const expense = await prisma.transitExpense.findUnique({
       where: { id: expenseId },
       include: {
-        transit: { select: { id: true, companyId: true } },
+        transit: { select: { id: true, companyId: true, status: true } },
       },
     });
 
@@ -286,6 +291,10 @@ export async function DELETE(
 
     if (!expense || expense.transitId !== params.id) {
       return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+    }
+
+    if (['DELIVERED', 'CANCELLED'].includes(String(expense.transit.status)) && !isClosedStageOverrideAllowed(session.user?.role)) {
+      return NextResponse.json({ error: 'Cannot delete expenses from a delivered or cancelled transit' }, { status: 400 });
     }
 
     await prisma.$transaction(async (tx) => {

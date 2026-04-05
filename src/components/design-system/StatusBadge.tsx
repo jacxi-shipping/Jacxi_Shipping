@@ -14,7 +14,9 @@ import { ReactNode } from 'react';
 // Shipment Status Types
 export type ShipmentStatus = 
   | 'ON_HAND' 
+  | 'DISPATCHING'
   | 'IN_TRANSIT' 
+  | 'IN_TRANSIT_TO_DESTINATION'
   | 'AT_PORT' 
   | 'CUSTOMS' 
   | 'RELEASED' 
@@ -63,10 +65,20 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
     text: 'var(--success-dark)', // Darker green for text
     border: 'var(--success)',
   },
+  DISPATCHING: {
+    bg: 'rgba(234, 179, 8, 0.12)',
+    text: '#A16207',
+    border: '#EAB308',
+  },
   IN_TRANSIT: {
     bg: 'rgba(59, 130, 246, 0.12)',
     text: 'var(--info-dark)', // Darker blue for text
     border: 'var(--info)',
+  },
+  IN_TRANSIT_TO_DESTINATION: {
+    bg: 'rgba(79, 70, 229, 0.12)',
+    text: '#3730A3',
+    border: '#4F46E5',
   },
   AT_PORT: {
     bg: 'rgba(245, 158, 11, 0.12)',

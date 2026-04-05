@@ -28,6 +28,8 @@ import {
   EmptyState 
 } from '@/components/design-system';
 import ShipmentCard from '@/components/dashboard/ShipmentCard';
+import NotificationComposer from '@/components/notifications/NotificationComposer';
+import { hasPermission } from '@/lib/rbac';
 
 interface UserDetail {
   id: string;
@@ -49,9 +51,10 @@ export default function UserViewPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     if (status === 'loading') return;
+    const canViewCustomers = hasPermission(session?.user?.role, 'customers:view');
     
     // Auth check
-    if (!session || (session.user.role !== 'admin' && session.user.id !== id)) {
+    if (!session || (!canViewCustomers && session.user.id !== id)) {
       router.replace('/dashboard');
       return;
     }
@@ -96,6 +99,10 @@ export default function UserViewPage({ params }: { params: Promise<{ id: string 
     );
   }
 
+  const isCustomer = user.role === 'user';
+  const backHref = isCustomer ? '/dashboard/customers' : '/dashboard/users';
+  const canNotifyCustomer = isCustomer && hasPermission(session?.user?.role, 'customers:view');
+
   return (
     <DashboardSurface>
       <Box sx={{ px: 2, pt: 2 }}>
@@ -107,7 +114,7 @@ export default function UserViewPage({ params }: { params: Promise<{ id: string 
         description={`Member since ${new Date(user.createdAt).toLocaleDateString()}`}
         actions={
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Link href="/dashboard/users" style={{ textDecoration: 'none' }}>
+            <Link href={backHref} style={{ textDecoration: 'none' }}>
               <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>
                 Back
               </Button>
@@ -187,25 +194,40 @@ export default function UserViewPage({ params }: { params: Promise<{ id: string 
 
         {/* Shipments Panel */}
         <Box className="lg:col-span-2">
-          <DashboardPanel 
-            title={`Shipments (${user.shipments.length})`} 
-            description="History of all vehicle shipments"
-            fullHeight
-          >
-            {user.shipments.length > 0 ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                {user.shipments.map((shipment) => (
-                  <ShipmentCard key={shipment.id} {...shipment} />
-                ))}
-              </Box>
-            ) : (
-              <EmptyState
-                icon={<Package className="w-10 h-10" />}
-                title="No Shipments"
-                description="This user hasn't created any shipments yet."
-              />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {canNotifyCustomer && (
+              <DashboardPanel
+                title="Direct Notification"
+                description="Send an in-app message directly to this customer"
+              >
+                <NotificationComposer
+                  mode="internal-to-customer"
+                  recipientUserId={user.id}
+                  recipientName={user.name || user.email}
+                />
+              </DashboardPanel>
             )}
-          </DashboardPanel>
+
+            <DashboardPanel 
+              title={`Shipments (${user.shipments.length})`} 
+              description="History of all vehicle shipments"
+              fullHeight
+            >
+              {user.shipments.length > 0 ? (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                  {user.shipments.map((shipment) => (
+                    <ShipmentCard key={shipment.id} {...shipment} />
+                  ))}
+                </Box>
+              ) : (
+                <EmptyState
+                  icon={<Package className="w-10 h-10" />}
+                  title="No Shipments"
+                  description="This user hasn't created any shipments yet."
+                />
+              )}
+            </DashboardPanel>
+          </Box>
         </Box>
       </DashboardGrid>
     </DashboardSurface>

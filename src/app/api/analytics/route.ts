@@ -32,7 +32,7 @@ export async function GET() {
 			return NextResponse.json({ message: 'Forbidden: admin access required' }, { status: 403 });
 		}
 
-		const [shipments, invoices, containers, adminCount] = await Promise.all([
+		const [shipments, invoices, containers, dispatches, dispatchExpenses, adminCount] = await Promise.all([
 			prisma.shipment.findMany({
 				select: {
 					id: true,
@@ -69,6 +69,22 @@ export async function GET() {
 					createdAt: true,
 				},
 			}),
+			prisma.dispatch.findMany({
+				select: {
+					id: true,
+					status: true,
+					createdAt: true,
+					dispatchDate: true,
+				},
+			}),
+			prisma.dispatchExpense.findMany({
+				select: {
+					id: true,
+					amount: true,
+					createdAt: true,
+					date: true,
+				},
+			}),
 			prisma.user.count({ where: { role: 'admin' } }),
 		]);
 
@@ -77,7 +93,9 @@ export async function GET() {
 
 		const totalShipments = shipments.length;
 		// Active shipments are those in transit (based on new schema)
-		const activeShipments = shipments.filter((shipment) => shipment.status === 'IN_TRANSIT').length;
+		const activeShipments = shipments.filter((shipment) => ['DISPATCHING', 'IN_TRANSIT', 'IN_TRANSIT_TO_DESTINATION'].includes(shipment.status)).length;
+		const activeDispatches = dispatches.filter((dispatch) => ['PENDING', 'DISPATCHED', 'ARRIVED_AT_PORT'].includes(dispatch.status)).length;
+		const totalDispatchSpend = dispatchExpenses.reduce((acc, expense) => acc + expense.amount, 0);
 		const totalRevenue = invoices
 			.filter((invoice) => invoice.status === 'PAID')
 			.reduce((acc, invoice) => acc + invoice.amount, 0);
@@ -92,29 +110,50 @@ export async function GET() {
 			.map(([status, count]) => ({ status, count }))
 			.sort((a, b) => b.count - a.count);
 
-		// ⚡ Bolt: Use O(N) dictionaries instead of O(N * M) nested loops
-		const monthlyShipmentCountMap = new Map<string, number>();
-for (const shipment of shipments) {
+		// ⚡ Bolt: Use single-pass mapping for shipments, revenues, and expenses instead of O(N*M) nested loops
+		const shipmentCountsByMonthMap = new Map<string, number>();
+		shipments.forEach(shipment => {
 			const key = monthKey(shipment.createdAt);
-			monthlyShipmentCountMap.set(key, (monthlyShipmentCountMap.get(key) || 0) + 1);
-		}
-
-		const monthlyRevenueMap = new Map<string, number>();
-for (const invoice of invoices) {
-			if (invoice.status === 'PAID') {
-				const key = monthKey(invoice.createdAt);
-				monthlyRevenueMap.set(key, (monthlyRevenueMap.get(key) || 0) + invoice.amount);
-			}
-		}
+			shipmentCountsByMonthMap.set(key, (shipmentCountsByMonthMap.get(key) || 0) + 1);
+		});
 
 		const shipmentsByMonth = months.map((month) => ({
 			month: month.label,
-			count: monthlyShipmentCountMap.get(month.key) || 0
+			count: shipmentCountsByMonthMap.get(month.key) || 0,
 		}));
+
+		const dispatchStatusMap = new Map<string, number>();
+		dispatches.forEach((dispatch) => {
+			const current = dispatchStatusMap.get(dispatch.status) ?? 0;
+			dispatchStatusMap.set(dispatch.status, current + 1);
+		});
+
+		const dispatchesByStatus = Array.from(dispatchStatusMap.entries())
+			.map(([status, count]) => ({ status, count }))
+			.sort((a, b) => b.count - a.count);
+
+		const revenueByMonthMap = new Map<string, number>();
+		invoices.forEach(invoice => {
+			if (invoice.status === 'PAID') {
+				const key = monthKey(invoice.createdAt);
+				revenueByMonthMap.set(key, (revenueByMonthMap.get(key) || 0) + invoice.amount);
+			}
+		});
 
 		const revenueByMonth = months.map((month) => ({
 			month: month.label,
-			totalUSD: formatCurrency(monthlyRevenueMap.get(month.key) || 0)
+			totalUSD: formatCurrency(revenueByMonthMap.get(month.key) || 0),
+		}));
+
+		const dispatchSpendByMonthMap = new Map<string, number>();
+		dispatchExpenses.forEach(expense => {
+			const key = monthKey(expense.date ?? expense.createdAt);
+			dispatchSpendByMonthMap.set(key, (dispatchSpendByMonthMap.get(key) || 0) + expense.amount);
+		});
+
+		const dispatchSpendByMonth = months.map((month) => ({
+			month: month.label,
+			totalUSD: formatCurrency(dispatchSpendByMonthMap.get(month.key) || 0),
 		}));
 
 		const invoiceStatusMap = new Map<string, { count: number; totalUSD: number }>();
@@ -207,14 +246,18 @@ for (const invoice of invoices) {
 			summary: {
 				totalShipments,
 				activeShipments,
+				activeDispatches,
 				adminUsers: adminCount,
 				totalRevenue: formatCurrency(totalRevenue),
+				totalDispatchSpend: formatCurrency(totalDispatchSpend),
 				overdueInvoices: overdueInvoices.length,
 				activeContainers: containersActive,
 			},
 			shipmentsByStatus,
+			dispatchesByStatus,
 			shipmentsByMonth,
 			revenueByMonth,
+			dispatchSpendByMonth,
 			invoiceStatusDistribution,
 			outstandingInvoices: overdueInvoices,
 			topCustomers,

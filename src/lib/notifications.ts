@@ -1,8 +1,10 @@
 import { NotificationType } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { publishNotificationRefresh } from '@/lib/notification-stream';
 
 type NotificationInput = {
   userId: string;
+  senderId?: string | null;
   title: string;
   description: string;
   type?: NotificationType;
@@ -10,15 +12,20 @@ type NotificationInput = {
 };
 
 export async function createNotification(input: NotificationInput) {
-  return prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userId: input.userId,
+      senderId: input.senderId ?? null,
       title: input.title,
       description: input.description,
       type: input.type ?? 'INFO',
       link: input.link ?? null,
     },
   });
+
+  publishNotificationRefresh(input.userId);
+
+  return notification;
 }
 
 export async function createNotifications(inputs: NotificationInput[]) {
@@ -26,13 +33,21 @@ export async function createNotifications(inputs: NotificationInput[]) {
     return { count: 0 };
   }
 
-  return prisma.notification.createMany({
+  const result = await prisma.notification.createMany({
     data: inputs.map((input) => ({
       userId: input.userId,
+      senderId: input.senderId ?? null,
       title: input.title,
       description: input.description,
       type: input.type ?? 'INFO',
       link: input.link ?? null,
     })),
   });
+
+  const uniqueUserIds = new Set(inputs.map((input) => input.userId));
+  for (const userId of uniqueUserIds) {
+    publishNotificationRefresh(userId);
+  }
+
+  return result;
 }

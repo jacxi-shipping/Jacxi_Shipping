@@ -125,7 +125,7 @@ export const cssVariables = {
   // Main colors
   'accent-gold': colors.primary[500],
   'background': colors.neutral[50],
-  'panel': '#E4E9F0',  // Custom panel color (slight blue tint)
+  'panel': '#FFFFFF',  // Active panel color used across the live UI
   'border': colors.neutral[200],
   
   // Text

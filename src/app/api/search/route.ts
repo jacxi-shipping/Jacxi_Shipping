@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, ShipmentSimpleStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import {
+  buildShipmentWorkflowStageWhereInput,
+  getShipmentWorkflowStage,
+  isShipmentWorkflowStage,
+} from '@/lib/shipment-workflow-stage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,10 +19,12 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query') || searchParams.get('q') || '';
     const type = searchParams.get('type') || 'all';
     const status = searchParams.get('status');
+    const workflowStage = searchParams.get('workflowStage');
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
+    const yardReceived = searchParams.get('yardReceived');
     const userId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -65,6 +72,22 @@ export async function GET(request: NextRequest) {
         ...(isAdmin ? {} : { userId: session.user?.id }),
         ...(orConditions.length > 0 ? { OR: orConditions } : {}),
         ...(status ? { status: status as ShipmentSimpleStatus } : {}),
+        ...(workflowStage && isShipmentWorkflowStage(workflowStage)
+          ? buildShipmentWorkflowStageWhereInput(workflowStage)
+          : {}),
+        ...(yardReceived === 'true'
+          ? {
+              auditLogs: {
+                some: {
+                  action: 'DISPATCH_COMPLETED',
+                  description: {
+                    contains: 'received to yard',
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            }
+          : {}),
         ...(dateFrom || dateTo
           ? {
               createdAt: {
@@ -105,7 +128,9 @@ export async function GET(request: NextRequest) {
             dimensions: true,
             insuranceValue: true,
             status: true,
+            dispatchId: true,
             containerId: true,
+            transitId: true,
             userId: true,
             internalNotes: true,
             price: true,
@@ -134,6 +159,39 @@ export async function GET(request: NextRequest) {
                 currentLocation: true,
               },
             },
+            dispatch: {
+              select: {
+                id: true,
+                referenceNumber: true,
+                status: true,
+                origin: true,
+                destination: true,
+              },
+            },
+            transit: {
+              select: {
+                id: true,
+                referenceNumber: true,
+                status: true,
+                destination: true,
+              },
+            },
+            auditLogs: {
+              where: {
+                action: 'DISPATCH_COMPLETED',
+                description: {
+                  contains: 'received to yard',
+                  mode: 'insensitive',
+                },
+              },
+              select: {
+                timestamp: true,
+              },
+              orderBy: {
+                timestamp: 'desc',
+              },
+              take: 1,
+            },
           },
           orderBy: {
             [sortBy]: sortOrder as 'asc' | 'desc',
@@ -144,7 +202,13 @@ export async function GET(request: NextRequest) {
         prisma.shipment.count({ where }),
       ]);
 
-      results.shipments = shipments;
+      results.shipments = shipments.map((shipment) => ({
+        ...shipment,
+        workflowStage: getShipmentWorkflowStage(shipment),
+        yardReceived: shipment.auditLogs.length > 0,
+        yardReceivedAt: shipment.auditLogs[0]?.timestamp ?? null,
+        auditLogs: undefined,
+      }));
       results.totalShipments = totalShipments;
     }
 

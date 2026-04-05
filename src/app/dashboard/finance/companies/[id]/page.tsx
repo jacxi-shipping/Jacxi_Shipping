@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
   Dialog,
@@ -14,7 +14,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { ArrowLeft, Building2, DollarSign, Eye, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, DollarSign, Eye, Pencil, Plus, ReceiptText, Trash2, Truck } from 'lucide-react';
 import AdminRoute from '@/components/auth/AdminRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
@@ -24,7 +24,7 @@ interface Company {
   id: string;
   name: string;
   code: string | null;
-  companyType: 'SHIPPING' | 'TRANSIT';
+  companyType: 'SHIPPING' | 'DISPATCH' | 'TRANSIT';
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -33,10 +33,22 @@ interface Company {
   isActive: boolean;
   _count?: {
     ledgerEntries: number;
+    dispatches: number;
     containers: number;
     shipments: number;
     transits: number;
   };
+  dispatches?: Array<{
+    id: string;
+    referenceNumber: string;
+    status: string;
+    origin: string;
+    destination: string;
+    createdAt: string;
+    _count: {
+      shipments: number;
+    };
+  }>;
   containers?: Array<{
     id: string;
     containerNumber: string;
@@ -52,6 +64,8 @@ interface Company {
     vehicleModel: string | null;
     status: string;
     createdAt: string;
+    dispatchId?: string | null;
+    containerId?: string | null;
     transitId: string | null;
   }>;
   transits?: Array<{
@@ -75,6 +89,7 @@ interface CompanySummary {
 
 interface LedgerEntry {
   id: string;
+  companyId?: string;
   transactionDate: string;
   description: string;
   type: 'DEBIT' | 'CREDIT';
@@ -83,6 +98,12 @@ interface LedgerEntry {
   category?: string | null;
   reference?: string | null;
   notes?: string | null;
+  metadata?: Record<string, unknown> | null;
+  company?: {
+    id: string;
+    name: string;
+    code: string | null;
+  };
 }
 
 interface CompanyReport {
@@ -104,7 +125,9 @@ interface CompanyReport {
 export default function CompanyLedgerDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const companyId = String(params.id || '');
+  const focusedEntryId = searchParams.get('entryId') || '';
 
   const [company, setCompany] = useState<Company | null>(null);
   const [summary, setSummary] = useState<CompanySummary>({ totalDebit: 0, totalCredit: 0, currentBalance: 0 });
@@ -137,6 +160,15 @@ export default function CompanyLedgerDetailPage() {
     notes: '',
   });
   const [updating, setUpdating] = useState(false);
+  const [focusedEntry, setFocusedEntry] = useState<LedgerEntry | null>(null);
+  const [focusedEntryLoading, setFocusedEntryLoading] = useState(false);
+
+  const companyTypeLabel =
+    company?.companyType === 'SHIPPING'
+      ? 'Shipping'
+      : company?.companyType === 'DISPATCH'
+      ? 'Dispatch'
+      : 'Transit';
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -202,6 +234,46 @@ export default function CompanyLedgerDetailPage() {
     if (!companyId) return;
     void fetchLedger();
   }, [filters.search, filters.type]);
+
+  useEffect(() => {
+    if (!focusedEntryId) {
+      setFocusedEntry(null);
+      return;
+    }
+
+    const fetchFocusedEntry = async () => {
+      try {
+        setFocusedEntryLoading(true);
+        const response = await fetch(`/api/finance/companies/ledger/${focusedEntryId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load focused ledger entry');
+        }
+
+        if (data.entry?.company?.id !== companyId) {
+          throw new Error('The selected ledger entry does not belong to this company');
+        }
+
+        setFocusedEntry(data.entry);
+      } catch (error) {
+        console.error(error);
+        setFocusedEntry(null);
+        toast.error(error instanceof Error ? error.message : 'Failed to load focused ledger entry');
+      } finally {
+        setFocusedEntryLoading(false);
+      }
+    };
+
+    void fetchFocusedEntry();
+  }, [companyId, focusedEntryId]);
+
+  const clearFocusedEntry = () => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete('entryId');
+    const queryString = nextParams.toString();
+    router.replace(queryString ? `/dashboard/finance/companies/${companyId}?${queryString}` : `/dashboard/finance/companies/${companyId}`);
+  };
 
   const handleCreateEntry = async () => {
     if (!formData.description.trim()) {
@@ -447,7 +519,7 @@ export default function CompanyLedgerDetailPage() {
 
         <DashboardPanel
           title={company.name}
-          description={`${company.companyType === 'SHIPPING' ? 'Shipping' : 'Transit'} Company Ledger${company.code ? ` • ${company.code}` : ''}`}
+          description={`${companyTypeLabel} Company Ledger${company.code ? ` • ${company.code}` : ''}`}
           actions={
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Link href="/dashboard/finance/companies" style={{ textDecoration: 'none' }}>
@@ -485,7 +557,55 @@ export default function CompanyLedgerDetailPage() {
             </TextField>
           </Box>
 
-          <DataTable data={entries} columns={columns} keyField="id" />
+          {(focusedEntryId || focusedEntryLoading || focusedEntry) && (
+            <Box
+              sx={{
+                mb: 2,
+                border: '1px solid rgba(var(--accent-gold-rgb), 0.32)',
+                background: 'rgba(var(--accent-gold-rgb), 0.08)',
+                borderRadius: 2,
+                p: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 2, flexWrap: 'wrap' }}>
+                <Box>
+                  <Box sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                    Focused Ledger Entry
+                  </Box>
+                  {focusedEntryLoading ? (
+                    <Box sx={{ mt: 1, color: 'var(--text-secondary)' }}>Loading selected entry...</Box>
+                  ) : focusedEntry ? (
+                    <>
+                      <Box sx={{ mt: 1, fontWeight: 700, color: 'var(--text-primary)' }}>{focusedEntry.description}</Box>
+                      <Box sx={{ mt: 0.75, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        {new Date(focusedEntry.transactionDate).toLocaleString()} • {focusedEntry.type} • {formatCurrency(focusedEntry.amount)}
+                      </Box>
+                      <Box sx={{ mt: 0.75, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {focusedEntry.category || 'General'}{focusedEntry.reference ? ` • Ref: ${focusedEntry.reference}` : ''}
+                      </Box>
+                      {focusedEntry.notes && (
+                        <Box sx={{ mt: 0.75, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{focusedEntry.notes}</Box>
+                      )}
+                    </>
+                  ) : (
+                    <Box sx={{ mt: 1, color: 'var(--text-secondary)' }}>The selected entry could not be loaded.</Box>
+                  )}
+                </Box>
+                <Button variant="outline" size="sm" onClick={clearFocusedEntry}>Clear Focus</Button>
+              </Box>
+            </Box>
+          )}
+
+          <DataTable
+            data={entries}
+            columns={columns}
+            keyField="id"
+            getRowClassName={(row) =>
+              row.id === focusedEntryId
+                ? 'bg-[rgba(var(--accent-gold-rgb),0.12)] ring-1 ring-inset ring-[rgba(var(--accent-gold-rgb),0.35)]'
+                : undefined
+            }
+          />
         </DashboardPanel>
 
         {company.companyType === 'SHIPPING' && (
@@ -520,6 +640,101 @@ export default function CompanyLedgerDetailPage() {
               />
             </Box>
 
+          </DashboardPanel>
+        )}
+
+        {company.companyType === 'DISPATCH' && (
+          <DashboardPanel
+            title="Dispatch Operations"
+            description="Dispatch records and assigned shipments linked to this dispatch company"
+          >
+            <DashboardGrid className="grid-cols-1 md:grid-cols-2 mb-4">
+              <StatsCard icon={<Truck className="w-5 h-5" />} title="Dispatches" value={company._count?.dispatches || 0} variant="default" />
+              <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Shipments" value={(company.shipments || []).filter((shipment) => Boolean(shipment.dispatchId)).length} variant="info" />
+            </DashboardGrid>
+
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ fontWeight: 600, mb: 1 }}>Recent Dispatches</Box>
+              <DataTable
+                data={company.dispatches || []}
+                keyField="id"
+                columns={[
+                  { key: 'referenceNumber', header: 'Reference', sortable: true },
+                  {
+                    key: 'origin',
+                    header: 'Route',
+                    render: (_, row) => `${row.origin} -> ${row.destination}`,
+                  },
+                  { key: 'status', header: 'Status', sortable: true },
+                  {
+                    key: '_count',
+                    header: 'Shipments',
+                    render: (_, row) => row._count.shipments,
+                  },
+                  {
+                    key: 'id',
+                    header: 'Actions',
+                    render: (_, row) => (
+                      <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'center' }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/dispatches/${row.id}`)}
+                        >
+                          Dispatch
+                        </Button>
+                      </Box>
+                    ),
+                  },
+                ]}
+              />
+            </Box>
+
+            <Box>
+              <Box sx={{ fontWeight: 600, mb: 1 }}>Assigned Shipments</Box>
+              <DataTable
+                data={(company.shipments || []).filter((shipment) => Boolean(shipment.dispatchId))}
+                keyField="id"
+                columns={[
+                  {
+                    key: 'vehicleVIN',
+                    header: 'Vehicle',
+                    render: (_, row) => row.vehicleVIN || [row.vehicleMake, row.vehicleModel].filter(Boolean).join(' ') || '-',
+                  },
+                  { key: 'status', header: 'Status', sortable: true },
+                  {
+                    key: 'createdAt',
+                    header: 'Created',
+                    render: (_, row) => new Date(row.createdAt).toLocaleDateString(),
+                  },
+                  {
+                    key: 'id',
+                    header: 'Actions',
+                    render: (_, row) => (
+                      <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'center' }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<Eye className="w-3.5 h-3.5" />}
+                          onClick={() => router.push(`/dashboard/shipments/${row.id}`)}
+                        >
+                          Shipment
+                        </Button>
+                        {row.dispatchId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/dispatches/${row.dispatchId}`)}
+                          >
+                            Dispatch
+                          </Button>
+                        )}
+                      </Box>
+                    ),
+                  },
+                ]}
+              />
+            </Box>
           </DashboardPanel>
         )}
 

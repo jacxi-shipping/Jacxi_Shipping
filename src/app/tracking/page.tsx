@@ -23,6 +23,19 @@ interface TrackingDetails {
 	containerNumber: string;
 	containerType?: string;
 	shipmentStatus?: string;
+	customerTracking?: {
+		currentStageKey: string;
+		currentStageLabel: string;
+		summary: string;
+		progressPercent: number;
+		milestones: Array<{
+			key: string;
+			label: string;
+			description: string;
+			state: 'pending' | 'current' | 'complete';
+			timestamp?: string;
+		}>;
+	};
 	origin?: string;
 	destination?: string;
 	currentLocation?: string;
@@ -124,6 +137,7 @@ function TrackingPageInner() {
 	}, [handleTrack, searchParams]);
 
 	const progressValue = normalizeProgress(trackingDetails?.progress);
+	const customerMilestones = trackingDetails?.customerTracking?.milestones || [];
 	const timelineEvents = (trackingDetails?.events || []).map((event) => ({
 		...event,
 		displayTimestamp: formatDisplayDate(event.timestamp) || event.timestamp || 'Pending update',
@@ -278,8 +292,11 @@ function TrackingPageInner() {
 									<div>
 										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Status</h3>
 										<span className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--jacxi-blue))]/40 bg-[rgb(var(--jacxi-blue))]/10 px-4 py-1.5 text-sm font-medium text-[rgb(var(--jacxi-blue))]">
-											{trackingDetails.shipmentStatus || 'In Transit'}
+											{trackingDetails.customerTracking?.currentStageLabel || trackingDetails.shipmentStatus || 'In Transit'}
 										</span>
+										{trackingDetails.customerTracking?.summary && (
+											<p className="mt-2 text-sm text-gray-600">{trackingDetails.customerTracking.summary}</p>
+										)}
 									</div>
 									<div>
 										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Current Location</h3>
@@ -310,6 +327,21 @@ function TrackingPageInner() {
 									</div>
 								</div>
 
+								{trackingDetails.customerTracking && (
+									<div className="space-y-3">
+										<div className="flex items-center justify-between text-sm">
+											<span className="font-medium text-gray-700">Customer Journey</span>
+											<span className="font-bold text-[rgb(var(--jacxi-blue))]">{trackingDetails.customerTracking.progressPercent}%</span>
+										</div>
+										<div className="h-3 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+											<div
+												className="h-full bg-gradient-to-r from-[rgb(var(--jacxi-blue))] to-[rgb(var(--jacxi-blue))]/80 transition-all duration-500"
+												style={{ width: `${trackingDetails.customerTracking.progressPercent}%` }}
+											/>
+										</div>
+									</div>
+								)}
+
 								{progressValue !== null && (
 									<div className="space-y-2">
 										<div className="flex items-center justify-between text-sm">
@@ -326,43 +358,41 @@ function TrackingPageInner() {
 								)}
 							</motion.div>
 
-							{/* Timeline Events */}
+							{/* Simplified Journey */}
 							<motion.div
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ duration: 0.4, delay: 0.2 }}
 								className="space-y-4"
 							>
-								<h2 className="text-2xl font-bold text-gray-900">Tracking Timeline</h2>
+								<h2 className="text-2xl font-bold text-gray-900">Shipment Journey</h2>
 								<div className="space-y-3">
-									{timelineEvents.length === 0 && (
+									{customerMilestones.length === 0 && (
 										<div className="rounded-xl border border-gray-200 bg-white/80 px-6 py-4 text-sm text-gray-600">
-											No tracking events available yet.
+											No shipment milestones available yet.
 										</div>
 									)}
-									{timelineEvents.map((event) => {
-										const Icon = event.icon;
+									{customerMilestones.map((milestone) => {
+										const Icon = milestone.state === 'complete' ? CheckCircle2 : milestone.state === 'current' ? Package : Clock;
 										return (
-											<div key={event.id} className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-xl px-6 py-4 hover:shadow-lg transition-shadow duration-300">
+											<div key={milestone.key} className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-xl px-6 py-4 hover:shadow-lg transition-shadow duration-300">
 												<div className="flex flex-col gap-2">
 													<div className="flex items-center gap-3">
-														<Icon className={`w-5 h-5 ${event.actual ? 'text-green-500' : 'text-gray-400'}`} />
-														<span className="text-base font-semibold text-gray-900">{event.status}</span>
+														<Icon className={`w-5 h-5 ${milestone.state === 'complete' ? 'text-green-500' : milestone.state === 'current' ? 'text-[rgb(var(--jacxi-blue))]' : 'text-gray-400'}`} />
+														<span className="text-base font-semibold text-gray-900">{milestone.label}</span>
 													</div>
 													<div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 ml-8">
-														{event.location && (
-															<span className="inline-flex items-center gap-1.5">
-																<MapPin className="w-4 h-4" /> 
-																{event.location}
-															</span>
-														)}
 														<span className="inline-flex items-center gap-1.5">
 															<Clock className="w-4 h-4" />
-															{event.displayTimestamp}
+															{formatDisplayDate(milestone.timestamp) || (milestone.state === 'pending' ? 'Pending update' : 'Updated')}
 														</span>
 													</div>
-													{event.description && (
-														<p className="text-sm text-gray-600 ml-8">{event.description}</p>
+													<p className="text-sm text-gray-600 ml-8">{milestone.description}</p>
+													{milestone.state === 'current' && trackingDetails.currentLocation && (
+														<p className="text-sm text-[rgb(var(--jacxi-blue))] ml-8 inline-flex items-center gap-1.5">
+															<MapPin className="w-4 h-4" />
+															Current update: {trackingDetails.currentLocation}
+														</p>
 													)}
 												</div>
 											</div>

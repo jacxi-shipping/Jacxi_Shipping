@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { buildCustomerTrackingView, type CustomerTrackingView } from '@/lib/customer-tracking';
 
 const TIMETOCARGO_ENDPOINT = 'https://tracking.timetocargo.com/webapi/track';
 const DEFAULT_HEADERS = {
@@ -94,6 +96,7 @@ type NormalizedTracking = {
 	currentLocation?: string;
 	lastUpdated?: string;
 	progress?: number | null;
+	customerTracking?: CustomerTrackingView;
 	events: NormalizedTrackingEvent[];
 };
 
@@ -205,6 +208,61 @@ const normalizeTracking = (entry: TimetoCargoEntry): NormalizedTracking | null =
 	};
 };
 
+async function getInternalTrackingSnapshot(trackNumber: string) {
+	const container = await prisma.container.findFirst({
+		where: {
+			OR: [{ containerNumber: trackNumber }, { trackingNumber: trackNumber }],
+		},
+		select: {
+			status: true,
+			loadingDate: true,
+			departureDate: true,
+			actualArrival: true,
+			shipments: {
+				select: {
+					status: true,
+					dispatchId: true,
+					transitId: true,
+					dispatch: { select: { dispatchDate: true } },
+					transit: { select: { dispatchDate: true, actualDelivery: true } },
+				},
+			},
+		},
+	});
+
+	if (!container) {
+		return null;
+	}
+
+	const shipmentStatuses = container.shipments.map((shipment) => shipment.status);
+	const dispatchDates = sortIsoStrings(
+		container.shipments.map((shipment) => (shipment.dispatch?.dispatchDate ? shipment.dispatch.dispatchDate.toISOString() : undefined)),
+	);
+	const transitDispatchDates = sortIsoStrings(
+		container.shipments.map((shipment) => (shipment.transit?.dispatchDate ? shipment.transit.dispatchDate.toISOString() : undefined)),
+	);
+	const deliveryDates = sortIsoStrings(
+		container.shipments.map((shipment) => (shipment.transit?.actualDelivery ? shipment.transit.actualDelivery.toISOString() : undefined)),
+	);
+
+	return {
+		shipmentStatuses,
+		hasDispatch: container.shipments.some((shipment) => Boolean(shipment.dispatchId)),
+		hasTransit: container.shipments.some((shipment) => Boolean(shipment.transitId)),
+		containerStatus: container.status,
+		dispatchDate: dispatchDates[0],
+		loadingDate: container.loadingDate?.toISOString(),
+		departureDate: container.departureDate?.toISOString(),
+		actualArrival: container.actualArrival?.toISOString(),
+		transitDispatchDate: transitDispatchDates[0],
+		actualDelivery: deliveryDates[deliveryDates.length - 1],
+	};
+}
+
+function sortIsoStrings(values: Array<string | undefined>) {
+	return values.filter((value): value is string => Boolean(value)).sort((left, right) => left.localeCompare(right));
+}
+
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
@@ -265,10 +323,22 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
+		const internalSnapshot = await getInternalTrackingSnapshot(trackNumber);
+		const customerTracking = buildCustomerTrackingView({
+			shipmentStatus: normalized.shipmentStatus,
+			originDate: normalized.originDate,
+			polDate: normalized.polDate,
+			podDate: normalized.podDate,
+			estimatedArrival: normalized.estimatedArrival,
+			events: normalized.events,
+			internal: internalSnapshot,
+		});
+
 		return NextResponse.json(
 			{
 				tracking: {
 					...normalized,
+					customerTracking,
 					requestedNumber: trackNumber,
 				},
 			},
