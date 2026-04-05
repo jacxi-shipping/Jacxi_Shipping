@@ -28,6 +28,7 @@ interface DataTableProps<T> {
   onExport?: (selectedRows: T[]) => void;
   bulkStatusOptions?: { value: string; label: string }[];
   onBulkStatusChange?: (selectedIds: string[], status: string) => void;
+  getRowClassName?: (row: T, rowIndex: number) => string | undefined;
   className?: string;
 }
 
@@ -48,6 +49,7 @@ export function DataTable<T extends Record<string, any>>({
   onExport,
   bulkStatusOptions = [],
   onBulkStatusChange,
+  getRowClassName,
   className,
 }: DataTableProps<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -355,15 +357,18 @@ export function DataTable<T extends Record<string, any>>({
               sortedData.map((row, rowIndex) => {
                 const rowId = String(row[keyField]);
                 const isSelected = selectedIds.has(rowId);
+                const customRowClassName = getRowClassName?.(row, rowIndex);
 
                 return (
                   <tr
                     key={rowId}
+                    data-row-id={rowId}
                     className={cn(
                       'transition-colors',
                       zebraStripes && rowIndex % 2 === 1 && 'bg-[var(--panel)]/40',
                       onRowClick && 'cursor-pointer hover:bg-[var(--panel)]',
-                      isSelected && 'bg-[var(--accent-gold)]/5'
+                      isSelected && 'bg-[var(--accent-gold)]/5',
+                      customRowClassName
                     )}
                     onClick={() => onRowClick?.(row)}
                   >

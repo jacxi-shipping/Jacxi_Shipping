@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Ship, Menu, X, ArrowRight } from 'lucide-react';
 import { Slide, Fade, Box } from '@mui/material';
-import { useSession } from 'next-auth/react';
 import Button from '@/components/design-system/Button';
 
-export default function Header() {
+interface HeaderProps {
+  isAuthenticated?: boolean;
+}
+
+export default function Header({ isAuthenticated = false }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { status } = useSession();
-  const isAuthenticated = status === 'authenticated';
 
   const ctaHref = isAuthenticated ? '/dashboard' : '/auth/signin';
   const ctaLabel = isAuthenticated ? 'Dashboard' : 'Sign In';

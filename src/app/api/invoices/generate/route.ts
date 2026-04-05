@@ -4,8 +4,9 @@ import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { allocateExpenses } from '@/lib/expense-allocation';
 import { sendInvoiceEmail } from '@/lib/email';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
+import { createInvoiceAuditLogs } from '@/lib/entity-audit-history';
 import { hasPermission } from '@/lib/rbac';
 
 function isTruthyMetadataFlag(value: unknown): boolean {
@@ -66,6 +67,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const actorId = session.user?.id;
+    if (!actorId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Only admins can generate invoices
     if (!hasPermission(session.user?.role, 'invoices:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -118,6 +124,15 @@ export async function POST(req: NextRequest) {
 
     // Generate invoices for each user
     const generatedInvoices = [];
+    const invoiceAuditLogs: Array<{
+      invoiceId: string;
+      action: string;
+      description: string;
+      performedBy: string;
+      oldValue?: string | null;
+      newValue?: string | null;
+      metadata?: Prisma.InputJsonValue;
+    }> = [];
     
     // Fetch all relevant ledger entries (expenses) for these shipments
     const shipmentIds = container.shipments.map((s) => s.id);
@@ -336,6 +351,17 @@ export async function POST(req: NextRequest) {
             total: true,
           },
         });
+
+        invoiceAuditLogs.push({
+          invoiceId: invoice.id,
+          action: 'INVOICE_REFRESHED',
+          description: `Invoice ${invoice.invoiceNumber} refreshed during container invoice generation`,
+          performedBy: actorId,
+          metadata: {
+            containerId,
+            userId,
+          },
+        });
       } else {
         const invoiceCount = await prisma.userInvoice.count();
         const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
@@ -361,6 +387,17 @@ export async function POST(req: NextRequest) {
             total: true,
           },
         });
+
+        invoiceAuditLogs.push({
+          invoiceId: invoice.id,
+          action: 'INVOICE_CREATED',
+          description: `Invoice ${invoice.invoiceNumber} created during container invoice generation`,
+          performedBy: actorId,
+          metadata: {
+            containerId,
+            userId,
+          },
+        });
       }
 
       generatedInvoices.push({
@@ -375,6 +412,7 @@ export async function POST(req: NextRequest) {
       try {
         await createNotification({
           userId,
+          senderId: actorId,
           title: 'Invoice created',
           description: `Invoice ${invoice.invoiceNumber} is ready for review.`,
           type: NotificationType.INFO,
@@ -408,6 +446,8 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    await createInvoiceAuditLogs(invoiceAuditLogs);
 
     return NextResponse.json({
       success: true,

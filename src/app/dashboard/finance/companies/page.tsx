@@ -23,7 +23,7 @@ interface Company {
   id: string;
   name: string;
   code: string | null;
-  companyType: 'SHIPPING' | 'TRANSIT';
+  companyType: 'SHIPPING' | 'DISPATCH' | 'TRANSIT';
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -39,14 +39,14 @@ interface Company {
   };
 }
 
-const emptyForm = { name: '', code: '', email: '', phone: '', address: '', country: '', notes: '', companyType: 'SHIPPING' as 'SHIPPING' | 'TRANSIT' };
+const emptyForm = { name: '', code: '', email: '', phone: '', address: '', country: '', notes: '', companyType: 'SHIPPING' as 'SHIPPING' | 'DISPATCH' | 'TRANSIT' };
 
 export default function CompanyFinancePage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'SHIPPING' | 'TRANSIT'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'SHIPPING' | 'DISPATCH' | 'TRANSIT'>('ALL');
   const [openCreate, setOpenCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -65,6 +65,8 @@ export default function CompanyFinancePage() {
       ? 'All Companies'
       : typeFilter === 'SHIPPING'
       ? 'Shipping Companies'
+      : typeFilter === 'DISPATCH'
+      ? 'Dispatch Companies'
       : 'Transit Companies';
 
   const fetchCompanies = async () => {
@@ -258,7 +260,7 @@ export default function CompanyFinancePage() {
         key: 'companyType',
         header: 'Type',
         align: 'center',
-        render: (_, row) => row.companyType === 'SHIPPING' ? 'Shipping' : 'Transit',
+        render: (_, row) => row.companyType === 'SHIPPING' ? 'Shipping' : row.companyType === 'DISPATCH' ? 'Dispatch' : 'Transit',
       },
       {
         key: 'phone',
@@ -362,10 +364,11 @@ export default function CompanyFinancePage() {
               select
               size="small"
               value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value as 'ALL' | 'SHIPPING' | 'TRANSIT')}
+              onChange={(event) => setTypeFilter(event.target.value as 'ALL' | 'SHIPPING' | 'DISPATCH' | 'TRANSIT')}
             >
               <MenuItem value="ALL">All Types</MenuItem>
               <MenuItem value="SHIPPING">Shipping</MenuItem>
+              <MenuItem value="DISPATCH">Dispatch</MenuItem>
               <MenuItem value="TRANSIT">Transit</MenuItem>
             </TextField>
           </Box>
@@ -412,9 +415,10 @@ export default function CompanyFinancePage() {
               select
               label="Company Type"
               value={formData.companyType}
-              onChange={(event) => setFormData((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'TRANSIT' }))}
+              onChange={(event) => setFormData((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'DISPATCH' | 'TRANSIT' }))}
             >
               <MenuItem value="SHIPPING">Shipping Company</MenuItem>
+              <MenuItem value="DISPATCH">Dispatch Company</MenuItem>
               <MenuItem value="TRANSIT">Transit Company</MenuItem>
             </TextField>
             <TextField label="Email" value={formData.email} onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))} />
@@ -438,9 +442,10 @@ export default function CompanyFinancePage() {
               select
               label="Company Type"
               value={editForm.companyType}
-              onChange={(event) => setEditForm((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'TRANSIT' }))}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'DISPATCH' | 'TRANSIT' }))}
             >
               <MenuItem value="SHIPPING">Shipping Company</MenuItem>
+              <MenuItem value="DISPATCH">Dispatch Company</MenuItem>
               <MenuItem value="TRANSIT">Transit Company</MenuItem>
             </TextField>
             <TextField label="Email" value={editForm.email} onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))} />

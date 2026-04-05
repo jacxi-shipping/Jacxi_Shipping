@@ -28,12 +28,18 @@ import {
   CircularProgress,
   Fade
 } from '@mui/material';
+import {
+  SHIPMENT_WORKFLOW_STAGE_OPTIONS,
+  type ShipmentWorkflowStage,
+} from '@/lib/shipment-workflow-stage';
 
 interface SmartSearchProps {
   onSearch: (filters: SearchFilters) => void;
   placeholder?: string;
   showTypeFilter?: boolean;
   showStatusFilter?: boolean;
+  showWorkflowStageFilter?: boolean;
+  showYardFilter?: boolean;
   showDateFilter?: boolean;
   showPriceFilter?: boolean;
   showUserFilter?: boolean;
@@ -44,6 +50,8 @@ export interface SearchFilters {
   query: string;
   type: 'all' | 'shipments' | 'items' | 'users';
   status?: string;
+  workflowStage?: ShipmentWorkflowStage;
+  yardReceived?: string;
   dateFrom?: string;
   dateTo?: string;
   minPrice?: string;
@@ -52,15 +60,12 @@ export interface SearchFilters {
 }
 
 const SHIPMENT_STATUSES = [
-  { value: 'PENDING', label: 'Pending' },
+  { value: 'ON_HAND', label: 'On Hand' },
+  { value: 'DISPATCHING', label: 'Dispatching' },
   { value: 'IN_TRANSIT', label: 'In Transit' },
+  { value: 'RELEASED', label: 'Released' },
+  { value: 'IN_TRANSIT_TO_DESTINATION', label: 'In Transit To Destination' },
   { value: 'DELIVERED', label: 'Delivered' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-  { value: 'ON_HOLD', label: 'On Hold' },
-  { value: 'PICKUP_COMPLETED', label: 'Pickup Completed' },
-  { value: 'AT_PORT', label: 'At Port' },
-  { value: 'CUSTOMS_CLEARANCE', label: 'Customs Clearance' },
-  { value: 'OUT_FOR_DELIVERY', label: 'Out for Delivery' },
 ];
 
 const ITEM_STATUSES = [
@@ -73,6 +78,8 @@ export default function SmartSearch({
   placeholder = 'Search shipments, tracking numbers, VIN...',
   showTypeFilter = true,
   showStatusFilter = true,
+  showWorkflowStageFilter = false,
+  showYardFilter = false,
   showDateFilter = true,
   showPriceFilter = true,
   showUserFilter = false,
@@ -90,6 +97,8 @@ export default function SmartSearch({
   const activeFiltersCount = (() => {
     let count = 0;
     if (filters.status) count++;
+    if (filters.workflowStage) count++;
+    if (filters.yardReceived) count++;
     if (filters.dateFrom || filters.dateTo) count++;
     if (filters.minPrice || filters.maxPrice) count++;
     if (filters.userId) count++;
@@ -98,6 +107,67 @@ export default function SmartSearch({
 
   const handleSearch = useCallback((newFilters: SearchFilters) => {
     setIsSearching(true);
+
+        {showWorkflowStageFilter && filters.type === 'shipments' && (
+          <Fade in timeout={180}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mt: 1.5 }}>
+              <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                Workflow stage:
+              </Typography>
+              <Button
+                size="small"
+                variant={filters.workflowStage ? 'outlined' : 'contained'}
+                onClick={() => updateFilter('workflowStage', undefined)}
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  borderColor: filters.workflowStage ? 'var(--border)' : 'rgba(var(--accent-gold-rgb), 0.4)',
+                  bgcolor: filters.workflowStage ? 'rgba(var(--panel-rgb), 0.5)' : 'rgba(var(--accent-gold-rgb), 0.15)',
+                  color: filters.workflowStage ? 'var(--text-secondary)' : 'var(--accent-gold)',
+                  '&:hover': {
+                    bgcolor: filters.workflowStage ? 'rgba(var(--panel-rgb), 0.7)' : 'rgba(var(--accent-gold-rgb), 0.25)',
+                    color: 'var(--text-primary)',
+                  },
+                }}
+              >
+                All stages
+              </Button>
+              {SHIPMENT_WORKFLOW_STAGE_OPTIONS.map((stageOption) => (
+                <Button
+                  key={stageOption.value}
+                  size="small"
+                  variant={filters.workflowStage === stageOption.value ? 'contained' : 'outlined'}
+                  onClick={() => updateFilter('workflowStage', stageOption.value)}
+                  sx={{
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    borderColor:
+                      filters.workflowStage === stageOption.value
+                        ? 'rgba(var(--accent-gold-rgb), 0.4)'
+                        : 'var(--border)',
+                    bgcolor:
+                      filters.workflowStage === stageOption.value
+                        ? 'rgba(var(--accent-gold-rgb), 0.15)'
+                        : 'rgba(var(--panel-rgb), 0.5)',
+                    color:
+                      filters.workflowStage === stageOption.value
+                        ? 'var(--accent-gold)'
+                        : 'var(--text-secondary)',
+                    '&:hover': {
+                      bgcolor:
+                        filters.workflowStage === stageOption.value
+                          ? 'rgba(var(--accent-gold-rgb), 0.25)'
+                          : 'rgba(var(--panel-rgb), 0.7)',
+                      color: 'var(--text-primary)',
+                    },
+                  }}
+                >
+                  {stageOption.label}
+                </Button>
+              ))}
+            </Box>
+          </Fade>
+        )}
     setFilters(newFilters);
     onSearch(newFilters);
     setTimeout(() => setIsSearching(false), 300);
@@ -352,6 +422,46 @@ export default function SmartSearch({
                       {statusOption.label}
                     </MenuItem>
                   ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {showYardFilter && filters.type === 'shipments' && (
+              <FormControl fullWidth>
+                <InputLabel
+                  sx={{
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.875rem',
+                    '&.Mui-focused': {
+                      color: 'var(--accent-gold)',
+                    },
+                  }}
+                >
+                  Yard Intake
+                </InputLabel>
+                <Select
+                  value={filters.yardReceived || ''}
+                  onChange={(e) => updateFilter('yardReceived', e.target.value)}
+                  label="Yard Intake"
+                  sx={{
+                    bgcolor: 'var(--panel)',
+                    color: 'var(--text-primary)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'var(--border)',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'var(--border)',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(var(--accent-gold-rgb), 0.5)',
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: 'var(--text-secondary)',
+                    },
+                  }}
+                >
+                  <MenuItem value="">All Shipments</MenuItem>
+                  <MenuItem value="true">Yard Received Only</MenuItem>
                 </Select>
               </FormControl>
             )}

@@ -25,6 +25,10 @@ export type Permission =
   | 'documents:view'
   | 'documents:manage'
   | 'transits:manage'
+  | 'dispatches:manage'
+  | 'workflow:move'
+  | 'workflow:override_closed'
+  | 'expenses:post'
   | 'tracking:view';
 
 const ROLE_PERMISSIONS: Record<AppRole, Set<Permission>> = {
@@ -47,6 +51,10 @@ const ROLE_PERMISSIONS: Record<AppRole, Set<Permission>> = {
     'documents:view',
     'documents:manage',
     'transits:manage',
+    'dispatches:manage',
+    'workflow:move',
+    'workflow:override_closed',
+    'expenses:post',
     'tracking:view',
   ]),
   manager: new Set<Permission>([
@@ -66,6 +74,9 @@ const ROLE_PERMISSIONS: Record<AppRole, Set<Permission>> = {
     'documents:view',
     'documents:manage',
     'transits:manage',
+    'dispatches:manage',
+    'workflow:move',
+    'expenses:post',
     'tracking:view',
   ]),
   finance: new Set<Permission>([
@@ -80,6 +91,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Set<Permission>> = {
     'finance:manage',
     'invoices:view',
     'invoices:manage',
+    'expenses:post',
     'tracking:view',
   ]),
   operations: new Set<Permission>([
@@ -95,6 +107,8 @@ const ROLE_PERMISSIONS: Record<AppRole, Set<Permission>> = {
     'documents:manage',
     'invoices:view',
     'transits:manage',
+    'dispatches:manage',
+    'workflow:move',
     'tracking:view',
   ]),
   customer_service: new Set<Permission>([
@@ -136,4 +150,16 @@ export function hasAnyPermission(
 
 export function isInternalUser(role: string | null | undefined): boolean {
   return normalizeRole(role) !== 'user';
+}
+
+export function canMoveWorkflow(role: string | null | undefined): boolean {
+  return hasPermission(role, 'workflow:move');
+}
+
+export function canPostExpenses(role: string | null | undefined): boolean {
+  return hasPermission(role, 'expenses:post');
+}
+
+export function canOverrideClosedStages(role: string | null | undefined): boolean {
+  return hasPermission(role, 'workflow:override_closed');
 }

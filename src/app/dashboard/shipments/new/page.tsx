@@ -15,6 +15,7 @@ import { shipmentSchema, type ShipmentFormData } from '@/lib/validations/shipmen
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { compressImage, isValidImageFile, formatFileSize } from '@/lib/utils/image-compression';
 import { decodeVIN as decodeVINService, getBestWeightEstimate } from '@/lib/services/vin-decoder';
+import { hasPermission } from '@/lib/rbac';
 
 interface UserOption {
 	id: string;
@@ -384,7 +385,7 @@ export default function NewShipmentPage() {
 		setActiveStep((prev) => prev - 1);
 	};
 
-	if (session?.user?.role !== 'admin') {
+	if (!hasPermission(session?.user?.role, 'shipments:manage')) {
 		return (
 			<ProtectedRoute>
 				<DashboardSurface>
@@ -393,7 +394,7 @@ export default function NewShipmentPage() {
 							Access Denied
 						</Typography>
 						<Typography sx={{ color: 'var(--text-secondary)', mt: 2 }}>
-							Only administrators can create shipments.
+							You do not have permission to create shipments.
 						</Typography>
 					</Box>
 				</DashboardSurface>

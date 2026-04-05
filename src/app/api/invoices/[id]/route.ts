@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
+import { createInvoiceAuditLogs } from '@/lib/entity-audit-history';
 import { z } from 'zod';
 import { hasPermission } from '@/lib/rbac';
+import { buildLinkedCompanyLedgerEntryMap } from '@/lib/company-ledger-links';
+
+function normalizeShipmentRefInDescription(
+  description: string,
+  shipment?: { id: string; vehicleVIN: string | null }
+) {
+  if (!shipment?.id || !shipment.vehicleVIN) return description;
+  return description
+    .replace(new RegExp(`\\(Shipment\\s+${shipment.id}\\)`, 'gi'), `(VIN ${shipment.vehicleVIN})`)
+    .replace(new RegExp(`Shipment\\s+${shipment.id}`, 'gi'), `VIN ${shipment.vehicleVIN}`)
+    .replace(new RegExp(`shipment\\s+${shipment.id}`, 'g'), `VIN ${shipment.vehicleVIN}`);
+}
+
+function buildExpenseLineItemKey(shipmentId: string, description: string, amount: number) {
+  return `${shipmentId}::${description.trim().toLowerCase()}::${amount.toFixed(2)}`;
+}
 
 /**
  * GET /api/invoices/[id]
@@ -21,6 +38,13 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const actorId = session.user?.id;
+    if (!actorId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canReadAllInvoices = hasPermission(session.user?.role, 'invoices:manage');
 
     const invoice = await prisma.userInvoice.findUnique({
       where: { id: params.id },
@@ -66,6 +90,24 @@ export async function GET(
             createdAt: 'asc',
           },
         },
+        auditLogs: canReadAllInvoices
+          ? {
+              select: {
+                id: true,
+                action: true,
+                description: true,
+                performedBy: true,
+                oldValue: true,
+                newValue: true,
+                timestamp: true,
+                metadata: true,
+              },
+              orderBy: {
+                timestamp: 'desc',
+              },
+              take: 50,
+            }
+          : false,
       },
     });
 
@@ -74,12 +116,200 @@ export async function GET(
     }
 
     // Check permissions: users can only view their own invoices
-    const canReadAllInvoices = hasPermission(session.user?.role, 'invoices:manage');
     if (!canReadAllInvoices && invoice.userId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json(invoice);
+    const actorIds = canReadAllInvoices
+      ? Array.from(
+          new Set((invoice.auditLogs || []).map((log) => log.performedBy).filter(Boolean))
+        )
+      : [];
+
+    const actors = actorIds.length
+      ? await prisma.user.findMany({
+          where: {
+            id: {
+              in: actorIds,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        })
+      : [];
+
+    const actorMap = new Map(
+      actors.map((actor) => [actor.id, actor.name?.trim() || actor.email || actor.id])
+    );
+
+    const containerIds = canReadAllInvoices
+      ? Array.from(
+          new Set(
+            (invoice.auditLogs || [])
+              .flatMap((log) => {
+                const metadata =
+                  log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata)
+                    ? (log.metadata as Record<string, unknown>)
+                    : null;
+
+                return [
+                  typeof metadata?.oldContainerId === 'string' ? metadata.oldContainerId : null,
+                  typeof metadata?.newContainerId === 'string' ? metadata.newContainerId : null,
+                  typeof metadata?.containerId === 'string' ? metadata.containerId : null,
+                ].filter((value): value is string => Boolean(value));
+              })
+          )
+        )
+      : [];
+
+    const containers = containerIds.length
+      ? await prisma.container.findMany({
+          where: {
+            id: {
+              in: containerIds,
+            },
+          },
+          select: {
+            id: true,
+            containerNumber: true,
+          },
+        })
+      : [];
+
+    const containerMap = new Map(
+      containers.map((container) => [container.id, container.containerNumber])
+    );
+
+    const auditLogs = canReadAllInvoices
+      ? (invoice.auditLogs || []).map((log) => {
+          const metadata =
+            log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata)
+              ? { ...(log.metadata as Record<string, unknown>) }
+              : log.metadata;
+
+          if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+            const oldContainerId = typeof metadata.oldContainerId === 'string' ? metadata.oldContainerId : null;
+            const newContainerId = typeof metadata.newContainerId === 'string' ? metadata.newContainerId : null;
+            const containerId = typeof metadata.containerId === 'string' ? metadata.containerId : null;
+
+            if (oldContainerId && containerMap.has(oldContainerId)) {
+              metadata.oldContainerNumber = containerMap.get(oldContainerId);
+            }
+
+            if (newContainerId && containerMap.has(newContainerId)) {
+              metadata.newContainerNumber = containerMap.get(newContainerId);
+            }
+
+            if (containerId && containerMap.has(containerId)) {
+              metadata.containerNumber = containerMap.get(containerId);
+            }
+          }
+
+          return {
+            id: log.id,
+            action: log.action,
+            description: log.description,
+            performedBy: actorMap.get(log.performedBy) || log.performedBy,
+            oldValue: log.oldValue,
+            newValue: log.newValue,
+            timestamp: log.timestamp,
+            metadata,
+          };
+        })
+      : [];
+
+    const shipmentIds = Array.from(
+      new Set(invoice.lineItems.map((lineItem) => lineItem.shipmentId).filter((value): value is string => Boolean(value)))
+    );
+
+    const shipmentExpenseEntries = shipmentIds.length
+      ? await prisma.ledgerEntry.findMany({
+          where: {
+            shipmentId: { in: shipmentIds },
+            type: 'DEBIT',
+          },
+          select: {
+            id: true,
+            shipmentId: true,
+            description: true,
+            amount: true,
+            transactionDate: true,
+            metadata: true,
+          },
+          orderBy: [{ transactionDate: 'asc' }, { createdAt: 'asc' }],
+        })
+      : [];
+
+    const expenseEntryIds = shipmentExpenseEntries.map((entry) => entry.id);
+    const companyLedgerEntries = expenseEntryIds.length
+      ? await prisma.companyLedgerEntry.findMany({
+          where: {
+            reference: {
+              in: expenseEntryIds.map((entryId) => `shipment-expense:${entryId}`),
+            },
+          },
+          select: {
+            id: true,
+            companyId: true,
+            description: true,
+            reference: true,
+            notes: true,
+            metadata: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        })
+      : [];
+
+    const linkedCompanyEntriesByUserExpenseId = buildLinkedCompanyLedgerEntryMap(companyLedgerEntries);
+    const shipmentById = new Map(
+      invoice.lineItems
+        .filter((lineItem) => lineItem.shipment)
+        .map((lineItem) => [lineItem.shipment!.id, lineItem.shipment!])
+    );
+    const queuedExpenseEntriesByKey = new Map<string, typeof shipmentExpenseEntries>();
+
+    for (const entry of shipmentExpenseEntries) {
+      if (!entry.shipmentId) continue;
+
+      const shipment = shipmentById.get(entry.shipmentId);
+      const normalizedDescription = normalizeShipmentRefInDescription(entry.description || '', shipment);
+      const key = buildExpenseLineItemKey(entry.shipmentId, normalizedDescription, entry.amount);
+      const queuedEntries = queuedExpenseEntriesByKey.get(key) || [];
+      queuedEntries.push(entry);
+      queuedExpenseEntriesByKey.set(key, queuedEntries);
+    }
+
+    const lineItems = invoice.lineItems.map((lineItem) => {
+      if (!lineItem.shipmentId) {
+        return lineItem;
+      }
+
+      const key = buildExpenseLineItemKey(lineItem.shipmentId, lineItem.description, lineItem.amount);
+      const queuedEntries = queuedExpenseEntriesByKey.get(key);
+      const matchedUserExpenseEntry = queuedEntries?.shift();
+
+      return {
+        ...lineItem,
+        linkedCompanyLedgerEntry: matchedUserExpenseEntry
+          ? linkedCompanyEntriesByUserExpenseId.get(matchedUserExpenseEntry.id) || null
+          : null,
+      };
+    });
+
+    return NextResponse.json({
+      ...invoice,
+      lineItems,
+      auditLogs,
+    });
 
   } catch (error) {
     console.error('Error fetching invoice:', error);
@@ -103,6 +333,11 @@ export async function PATCH(
     const session = await auth();
     
     if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const actorId = session.user?.id;
+    if (!actorId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -170,6 +405,49 @@ export async function PATCH(
       },
     });
 
+    const invoiceAuditLogs: Array<{
+      invoiceId: string;
+      action: string;
+      description: string;
+      performedBy: string;
+      oldValue?: string | null;
+      newValue?: string | null;
+      metadata?: Prisma.InputJsonValue;
+    }> = [];
+
+    if (validatedData.status && validatedData.status !== previousStatus) {
+      invoiceAuditLogs.push({
+        invoiceId: invoice.id,
+        action: 'STATUS_CHANGE',
+        description: `Invoice status changed from ${previousStatus} to ${validatedData.status}`,
+        performedBy: actorId,
+        oldValue: previousStatus,
+        newValue: validatedData.status,
+      });
+    }
+
+    const updatedFieldNames = Object.keys(validatedData).filter((fieldName) => {
+      if (fieldName === 'status') {
+        return false;
+      }
+
+      return validatedData[fieldName as keyof typeof validatedData] !== undefined;
+    });
+
+    if (updatedFieldNames.length > 0) {
+      invoiceAuditLogs.push({
+        invoiceId: invoice.id,
+        action: 'INVOICE_UPDATED',
+        description: `Invoice fields updated: ${updatedFieldNames.join(', ')}`,
+        performedBy: actorId,
+        metadata: {
+          updatedFields: updatedFieldNames,
+        },
+      });
+    }
+
+    await createInvoiceAuditLogs(invoiceAuditLogs);
+
     if (validatedData.status && validatedData.status !== previousStatus) {
       const formattedStatus = validatedData.status
         .replace(/_/g, ' ')
@@ -179,6 +457,7 @@ export async function PATCH(
       try {
         await createNotification({
           userId: invoice.userId,
+          senderId: actorId,
           title: 'Invoice status updated',
           description: `Invoice ${invoice.invoiceNumber} is now ${formattedStatus}.`,
           type: NotificationType.INFO,

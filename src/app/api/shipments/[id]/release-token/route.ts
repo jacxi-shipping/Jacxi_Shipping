@@ -1,8 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { hasPermission } from '@/lib/rbac';
+import { routeDeps } from '@/lib/route-deps';
 
 function buildReleaseToken() {
   return `REL-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
@@ -15,17 +13,17 @@ export async function POST(
   const params = await props.params;
 
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(session.user?.role, 'shipments:manage')) {
+    if (!routeDeps.hasPermission(session.user?.role, 'shipments:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const shipment = await prisma.shipment.findUnique({
+    const shipment = await routeDeps.prisma.shipment.findUnique({
       where: { id: params.id },
       select: {
         id: true,
@@ -54,7 +52,7 @@ export async function POST(
     let token = buildReleaseToken();
 
     for (let i = 0; i < 5; i++) {
-      const existingRows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      const existingRows = await routeDeps.prisma.$queryRawUnsafe<Array<{ count: number }>>(
         'SELECT COUNT(*)::int AS count FROM "Shipment" WHERE "releaseToken" = $1',
         token
       );
@@ -66,7 +64,7 @@ export async function POST(
       token = buildReleaseToken();
     }
 
-    await prisma.$executeRawUnsafe(
+    await routeDeps.prisma.$executeRawUnsafe(
       'UPDATE "Shipment" SET "releaseToken" = $1, "releaseTokenCreatedAt" = $2, "updatedAt" = $3 WHERE "id" = $4',
       token,
       new Date(),
@@ -74,7 +72,7 @@ export async function POST(
       shipment.id
     );
 
-    const rows = await prisma.$queryRawUnsafe<
+    const rows = await routeDeps.prisma.$queryRawUnsafe<
       Array<{ id: string; releaseToken: string | null; releaseTokenCreatedAt: Date | null }>
     >(
       'SELECT "id", "releaseToken", "releaseTokenCreatedAt" FROM "Shipment" WHERE "id" = $1',

@@ -3,7 +3,11 @@ import { Prisma, TitleStatus, NotificationType } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createNotification } from '@/lib/notifications';
+import { createShipmentAuditLogs } from '@/lib/entity-audit-history';
 import { hasPermission } from '@/lib/rbac';
+import { validateManualShipmentWorkflowUpdate } from '@/lib/shipment-workflow';
+import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
+import { buildUnifiedShipmentTimeline } from '@/lib/shipment-timeline';
 
 type UpdateShipmentPayload = {
   userId?: string;
@@ -15,7 +19,7 @@ type UpdateShipmentPayload = {
   vehicleColor?: string | null;
   lotNumber?: string | null;
   auctionName?: string | null;
-  status?: 'ON_HAND' | 'IN_TRANSIT' | 'RELEASED' | 'IN_TRANSIT_TO_DESTINATION';
+  status?: 'ON_HAND' | 'DISPATCHING' | 'IN_TRANSIT' | 'RELEASED' | 'IN_TRANSIT_TO_DESTINATION';
   containerId?: string | null;
   arrivalPhotos?: string[] | null;
   vehiclePhotos?: string[] | null;
@@ -28,6 +32,26 @@ type UpdateShipmentPayload = {
   hasTitle?: boolean | null;
   titleStatus?: string | null;
 };
+
+function buildShipmentLabel(shipment: {
+  vehicleYear?: number | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleType?: string | null;
+  vehicleVIN?: string | null;
+  id: string;
+}) {
+  const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  if (shipment.vehicleVIN && vehicleLabel) {
+    return `${vehicleLabel} (${shipment.vehicleVIN})`;
+  }
+
+  return shipment.vehicleVIN || vehicleLabel || shipment.vehicleType || shipment.id;
+}
 
 export async function GET(
   request: NextRequest,
@@ -49,6 +73,7 @@ export async function GET(
       hasPermission(session.user?.role, 'finance:view') ||
       hasPermission(session.user?.role, 'finance:manage') ||
       canReadAllShipments;
+    const canViewAuditHistory = canReadAllShipments;
 
     const shipment = await prisma.shipment.findUnique({
       where: { id },
@@ -71,7 +96,9 @@ export async function GET(
         arrivalPhotos: true,
         vehiclePhotos: true,
         status: true,
+        dispatchId: true,
         containerId: true,
+        transitId: true,
         userId: true,
         internalNotes: true,
         paymentStatus: true,
@@ -99,6 +126,11 @@ export async function GET(
               },
               take: 10,
             },
+          },
+        },
+        dispatch: {
+          include: {
+            company: { select: { id: true, name: true } },
           },
         },
         transit: {
@@ -134,6 +166,24 @@ export async function GET(
             createdAt: 'desc',
           },
         },
+        auditLogs: canViewAuditHistory
+          ? {
+              select: {
+                id: true,
+                action: true,
+                description: true,
+                performedBy: true,
+                oldValue: true,
+                newValue: true,
+                timestamp: true,
+                metadata: true,
+              },
+              orderBy: {
+                timestamp: 'desc',
+              },
+              take: 50,
+            }
+          : false,
       },
     });
 
@@ -162,12 +212,22 @@ export async function GET(
           },
           select: {
             id: true,
+            companyId: true,
             transactionDate: true,
             description: true,
             type: true,
             amount: true,
             balance: true,
+            reference: true,
+            notes: true,
             metadata: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
           },
           orderBy: {
             transactionDate: 'desc',
@@ -175,11 +235,324 @@ export async function GET(
         })
       : [];
 
+    const relatedDispatchIds = Array.from(
+      new Set(
+        [
+          shipment.dispatchId,
+          ...(shipment.auditLogs || []).map((log) => {
+            const metadata =
+              log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata)
+                ? (log.metadata as Record<string, unknown>)
+                : null;
+
+            return typeof metadata?.dispatchId === 'string' ? metadata.dispatchId : null;
+          }),
+          ...shipment.ledgerEntries.map((entry) => {
+            const metadata =
+              entry.metadata && typeof entry.metadata === 'object' && !Array.isArray(entry.metadata)
+                ? (entry.metadata as Record<string, unknown>)
+                : null;
+
+            return typeof metadata?.dispatchId === 'string' ? metadata.dispatchId : null;
+          }),
+        ].filter((value): value is string => Boolean(value))
+      )
+    );
+
+    const relatedContainerIds = Array.from(
+      new Set(
+        [
+          shipment.containerId,
+          ...shipment.containerDamages.map((damage) => damage.containerId),
+          ...(shipment.auditLogs || []).flatMap((log) => {
+            const metadata =
+              log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata)
+                ? (log.metadata as Record<string, unknown>)
+                : null;
+
+            return [
+              typeof metadata?.oldContainerId === 'string' ? metadata.oldContainerId : null,
+              typeof metadata?.newContainerId === 'string' ? metadata.newContainerId : null,
+              typeof metadata?.containerId === 'string' ? metadata.containerId : null,
+            ];
+          }),
+        ].filter((value): value is string => Boolean(value))
+      )
+    );
+
+    const relatedTransitIds = Array.from(
+      new Set(
+        [
+          shipment.transitId,
+          ...shipment.ledgerEntries.map((entry) => {
+            const metadata =
+              entry.metadata && typeof entry.metadata === 'object' && !Array.isArray(entry.metadata)
+                ? (entry.metadata as Record<string, unknown>)
+                : null;
+
+            return typeof metadata?.transitId === 'string' ? metadata.transitId : null;
+          }),
+        ].filter((value): value is string => Boolean(value))
+      )
+    );
+
+    const [dispatches, relatedContainers, transits] = await Promise.all([
+      relatedDispatchIds.length
+        ? prisma.dispatch.findMany({
+            where: { id: { in: relatedDispatchIds } },
+            select: {
+              id: true,
+              referenceNumber: true,
+              events: {
+                select: {
+                  id: true,
+                  status: true,
+                  location: true,
+                  description: true,
+                  eventDate: true,
+                  createdBy: true,
+                },
+                orderBy: { eventDate: 'desc' },
+                take: 50,
+              },
+            },
+          })
+        : Promise.resolve([]),
+      relatedContainerIds.length
+        ? prisma.container.findMany({
+            where: { id: { in: relatedContainerIds } },
+            select: {
+              id: true,
+              containerNumber: true,
+              trackingEvents: {
+                select: {
+                  id: true,
+                  status: true,
+                  location: true,
+                  description: true,
+                  eventDate: true,
+                  source: true,
+                  completed: true,
+                },
+                orderBy: { eventDate: 'desc' },
+                take: 50,
+              },
+              auditLogs: {
+                select: {
+                  id: true,
+                  action: true,
+                  description: true,
+                  performedBy: true,
+                  oldValue: true,
+                  newValue: true,
+                  metadata: true,
+                  timestamp: true,
+                },
+                orderBy: { timestamp: 'desc' },
+                take: 50,
+              },
+            },
+          })
+        : Promise.resolve([]),
+      relatedTransitIds.length
+        ? prisma.transit.findMany({
+            where: { id: { in: relatedTransitIds } },
+            select: {
+              id: true,
+              referenceNumber: true,
+              events: {
+                select: {
+                  id: true,
+                  status: true,
+                  location: true,
+                  description: true,
+                  eventDate: true,
+                  createdBy: true,
+                },
+                orderBy: { eventDate: 'desc' },
+                take: 50,
+              },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const userIds = canViewAuditHistory
+      ? Array.from(
+          new Set(
+            [
+              ...(shipment.auditLogs || []).flatMap((log) => {
+                const reassignmentUserIds =
+                  log.action === 'USER_REASSIGNED'
+                    ? [log.oldValue, log.newValue].filter((value): value is string => Boolean(value))
+                    : [];
+
+                return [log.performedBy, ...reassignmentUserIds].filter((value): value is string => Boolean(value));
+              }),
+              ...dispatches.flatMap((dispatch) => dispatch.events.map((event) => event.createdBy)),
+              ...relatedContainers.flatMap((container) => container.auditLogs.map((log) => log.performedBy)),
+              ...transits.flatMap((transit) => transit.events.map((event) => event.createdBy)),
+            ]
+          )
+        )
+      : [];
+
+    const actors = userIds.length
+      ? await prisma.user.findMany({
+          where: {
+            id: {
+              in: userIds,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        })
+      : [];
+
+    const actorMap = new Map(
+      actors.map((actor) => [actor.id, actor.name?.trim() || actor.email || actor.id])
+    );
+
+    const containerIds = canViewAuditHistory
+      ? Array.from(
+          new Set(
+            (shipment.auditLogs || [])
+              .flatMap((log) => {
+                const metadata =
+                  log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata)
+                    ? (log.metadata as Record<string, unknown>)
+                    : null;
+
+                return [
+                  typeof metadata?.oldContainerId === 'string' ? metadata.oldContainerId : null,
+                  typeof metadata?.newContainerId === 'string' ? metadata.newContainerId : null,
+                  typeof metadata?.containerId === 'string' ? metadata.containerId : null,
+                ].filter((value): value is string => Boolean(value));
+              })
+          )
+        )
+      : [];
+
+    const containers = containerIds.length
+      ? await prisma.container.findMany({
+          where: {
+            id: {
+              in: containerIds,
+            },
+          },
+          select: {
+            id: true,
+            containerNumber: true,
+          },
+        })
+      : [];
+
+    const containerMap = new Map(
+      containers.map((container) => [container.id, container.containerNumber])
+    );
+
+    const auditLogs = canViewAuditHistory
+      ? (shipment.auditLogs || []).map((log) => {
+          const metadata =
+            log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata)
+              ? { ...(log.metadata as Record<string, unknown>) }
+              : log.metadata;
+
+          if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+            const oldContainerId = typeof metadata.oldContainerId === 'string' ? metadata.oldContainerId : null;
+            const newContainerId = typeof metadata.newContainerId === 'string' ? metadata.newContainerId : null;
+            const containerId = typeof metadata.containerId === 'string' ? metadata.containerId : null;
+
+            if (oldContainerId && containerMap.has(oldContainerId)) {
+              metadata.oldContainerNumber = containerMap.get(oldContainerId);
+            }
+
+            if (newContainerId && containerMap.has(newContainerId)) {
+              metadata.newContainerNumber = containerMap.get(newContainerId);
+            }
+
+            if (containerId && containerMap.has(containerId)) {
+              metadata.containerNumber = containerMap.get(containerId);
+            }
+
+            if (log.action === 'USER_REASSIGNED') {
+              if (typeof log.oldValue === 'string' && actorMap.has(log.oldValue)) {
+                metadata.oldUserLabel = actorMap.get(log.oldValue);
+              }
+
+              if (typeof log.newValue === 'string' && actorMap.has(log.newValue)) {
+                metadata.newUserLabel = actorMap.get(log.newValue);
+              }
+            }
+          }
+
+          const oldValue =
+            log.action === 'USER_REASSIGNED' && typeof log.oldValue === 'string'
+              ? actorMap.get(log.oldValue) || log.oldValue
+              : log.oldValue;
+
+          const newValue =
+            log.action === 'USER_REASSIGNED' && typeof log.newValue === 'string'
+              ? actorMap.get(log.newValue) || log.newValue
+              : log.newValue;
+
+          return {
+            id: log.id,
+            action: log.action,
+            description: log.description,
+            performedBy: actorMap.get(log.performedBy) || log.performedBy,
+            oldValue,
+            newValue,
+            timestamp: log.timestamp,
+            metadata,
+          };
+        })
+      : [];
+
+    const unifiedTimeline = buildUnifiedShipmentTimeline({
+      shipmentAuditLogs: auditLogs,
+      dispatchEvents: dispatches.flatMap((dispatch) =>
+        dispatch.events.map((event) => ({
+          ...event,
+          dispatchReference: dispatch.referenceNumber,
+          createdByLabel: actorMap.get(event.createdBy) || event.createdBy,
+        }))
+      ),
+      containerTrackingEvents: relatedContainers.flatMap((container) =>
+        container.trackingEvents.map((event) => ({
+          ...event,
+          containerNumber: container.containerNumber,
+        }))
+      ),
+      containerAuditLogs: relatedContainers.flatMap((container) =>
+        container.auditLogs.map((log) => ({
+          ...log,
+          containerNumber: container.containerNumber,
+          performedByLabel: actorMap.get(log.performedBy) || log.performedBy,
+        }))
+      ),
+      transitEvents: transits.flatMap((transit) =>
+        transit.events.map((event) => ({
+          ...event,
+          transitReference: transit.referenceNumber,
+          createdByLabel: actorMap.get(event.createdBy) || event.createdBy,
+        }))
+      ),
+      customerLedgerEntries: shipment.ledgerEntries,
+      companyLedgerEntries,
+      containerDamages: shipment.containerDamages,
+    });
+
     return NextResponse.json(
       {
         shipment: {
           ...shipment,
           companyLedgerEntries,
+          auditLogs,
+          unifiedTimeline,
         },
       },
       { status: 200 }
@@ -208,6 +581,14 @@ export async function PATCH(
       );
     }
 
+    const actorId = session.user?.id;
+    if (!actorId) {
+      return NextResponse.json(
+        { message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     if (!hasPermission(session.user?.role, 'shipments:manage')) {
       return NextResponse.json(
         { message: 'Forbidden: Only admins can update shipments' },
@@ -217,7 +598,7 @@ export async function PATCH(
 
     const existingShipment = await prisma.shipment.findUnique({
       where: { id },
-      include: { container: true },
+      include: { dispatch: true, container: true },
     });
 
     if (!existingShipment) {
@@ -229,6 +610,19 @@ export async function PATCH(
 
     const data = (await request.json()) as UpdateShipmentPayload;
     const updateData: Prisma.ShipmentUpdateInput = {};
+
+    const workflowValidationError = validateManualShipmentWorkflowUpdate(existingShipment, {
+      status: data.status,
+      dispatchId: existingShipment.dispatchId,
+      containerId: data.containerId,
+    });
+
+    if (workflowValidationError) {
+      return NextResponse.json(
+        { message: workflowValidationError },
+        { status: 400 }
+      );
+    }
 
     // Basic vehicle info
     if (data.userId !== undefined) updateData.user = { connect: { id: data.userId } };
@@ -257,14 +651,6 @@ export async function PATCH(
     // Container and status
     if (data.status !== undefined) {
       updateData.status = data.status;
-      
-      // If changing to IN_TRANSIT/RELEASED, container is required
-      if ((data.status === 'IN_TRANSIT' || data.status === 'RELEASED') && !data.containerId && !existingShipment.containerId) {
-        return NextResponse.json(
-          { message: 'Container ID is required for IN_TRANSIT or RELEASED status' },
-          { status: 400 }
-        );
-      }
       
       // If changing to ON_HAND, remove container
       if (data.status === 'ON_HAND') {
@@ -362,24 +748,90 @@ export async function PATCH(
       return shipment;
     });
 
+    const shipmentAuditLogs = [];
+
     if (updatedShipment.status !== existingShipment.status) {
-      const vehicleLabel =
-        [updatedShipment.vehicleYear, updatedShipment.vehicleMake, updatedShipment.vehicleModel]
-          .filter(Boolean)
-          .join(' ') || updatedShipment.vehicleType;
+      shipmentAuditLogs.push({
+        shipmentId: updatedShipment.id,
+        action: 'STATUS_CHANGE',
+        description: `Shipment status changed from ${existingShipment.status} to ${updatedShipment.status}`,
+        performedBy: actorId,
+        oldValue: existingShipment.status,
+        newValue: updatedShipment.status,
+      });
+    }
+
+    if (updatedShipment.containerId !== existingShipment.containerId) {
+      shipmentAuditLogs.push({
+        shipmentId: updatedShipment.id,
+        action: updatedShipment.containerId ? 'CONTAINER_ASSIGNED' : 'CONTAINER_REMOVED',
+        description: updatedShipment.containerId
+          ? `Shipment assigned to container ${updatedShipment.containerId}`
+          : 'Shipment removed from container',
+        performedBy: actorId,
+        oldValue: existingShipment.containerId,
+        newValue: updatedShipment.containerId,
+        metadata: {
+          oldContainerId: existingShipment.containerId,
+          newContainerId: updatedShipment.containerId,
+        },
+      });
+    }
+
+    if (updatedShipment.userId !== existingShipment.userId) {
+      shipmentAuditLogs.push({
+        shipmentId: updatedShipment.id,
+        action: 'USER_REASSIGNED',
+        description: 'Shipment ownership reassigned',
+        performedBy: actorId,
+        oldValue: existingShipment.userId,
+        newValue: updatedShipment.userId,
+      });
+    }
+
+    await createShipmentAuditLogs(shipmentAuditLogs);
+
+    if (updatedShipment.status !== existingShipment.status) {
+      const vehicleLabel = buildShipmentLabel(updatedShipment);
       const formattedStatus = updatedShipment.status
         .replace(/_/g, ' ')
         .toLowerCase()
         .replace(/\b\w/g, (char) => char.toUpperCase());
+      const isWorkflowStageNotification =
+        updatedShipment.status === 'RELEASED' || updatedShipment.status === 'DELIVERED';
 
       try {
-        await createNotification({
-          userId: updatedShipment.userId,
-          title: 'Shipment status updated',
-          description: `Your shipment ${vehicleLabel} is now ${formattedStatus}.`,
-          type: NotificationType.INFO,
-          link: `/dashboard/shipments/${updatedShipment.id}`,
-        });
+        if (isWorkflowStageNotification) {
+          await sendShipmentWorkflowNotifications(
+            actorId,
+            [
+              {
+                shipmentId: updatedShipment.id,
+                shipmentUserId: updatedShipment.userId,
+                title: 'Shipment workflow updated',
+                customerDescription:
+                  updatedShipment.status === 'RELEASED'
+                    ? `Your shipment ${vehicleLabel} has been released and is ready for destination transit.`
+                    : `Your shipment ${vehicleLabel} has been delivered.`,
+                internalDescription:
+                  updatedShipment.status === 'RELEASED'
+                    ? `Shipment ${vehicleLabel} was manually moved to released status.`
+                    : `Shipment ${vehicleLabel} was manually marked as delivered.`,
+                link: `/dashboard/shipments/${updatedShipment.id}`,
+              },
+            ],
+            { prisma },
+          );
+        } else {
+          await createNotification({
+            userId: updatedShipment.userId,
+            senderId: actorId,
+            title: 'Shipment status updated',
+            description: `Your shipment ${vehicleLabel} is now ${formattedStatus}.`,
+            type: NotificationType.INFO,
+            link: `/dashboard/shipments/${updatedShipment.id}`,
+          });
+        }
       } catch (notificationError) {
         console.error('Failed to create shipment notification:', notificationError);
       }

@@ -22,10 +22,12 @@ import { Box, Typography, LinearProgress, Autocomplete, TextField } from '@mui/m
 
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { PageHeader, Button, FormField, Breadcrumbs, toast, EmptyState, FormPageSkeleton } from '@/components/design-system';
+import ShipmentWorkflowStrip from '@/components/shipments/ShipmentWorkflowStrip';
 import { shipmentSchema, type ShipmentFormData } from '@/lib/validations/shipment';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { compressImage, isValidImageFile, formatFileSize } from '@/lib/utils/image-compression';
 import { decodeVIN as decodeVINService, getBestWeightEstimate } from '@/lib/services/vin-decoder';
+import { hasPermission } from '@/lib/rbac';
 interface UserOption {
   id: string;
   name: string | null;
@@ -39,6 +41,42 @@ interface ContainerOption {
   currentCount: number;
   maxCapacity: number;
   destinationPort: string | null;
+}
+
+interface TransitWorkflowContext {
+  transitId: string;
+  transitReference: string | null;
+  transitStatus: string | null;
+  shipmentStatus: string;
+  containerId: string | null;
+}
+
+interface DispatchWorkflowContext {
+  dispatchId: string;
+  dispatchReference: string | null;
+  dispatchStatus: string | null;
+  shipmentStatus: string;
+}
+
+const MANUAL_WORKFLOW_STATUSES = new Set(['ON_HAND', 'IN_TRANSIT', 'RELEASED']);
+
+function normalizeEditableStatus(status: string, containerId: string | null) {
+  if (MANUAL_WORKFLOW_STATUSES.has(status)) {
+    return status as 'ON_HAND' | 'IN_TRANSIT' | 'RELEASED';
+  }
+
+  return containerId ? 'RELEASED' : 'ON_HAND';
+}
+
+function formatWorkflowStatus(status: string | null | undefined) {
+  if (!status) {
+    return 'Unknown';
+  }
+
+  return status
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 
@@ -58,8 +96,10 @@ export default function EditShipmentPage() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [decodingVin, setDecodingVin] = useState(false);
+  const [transitWorkflowContext, setTransitWorkflowContext] = useState<TransitWorkflowContext | null>(null);
+  const [dispatchWorkflowContext, setDispatchWorkflowContext] = useState<DispatchWorkflowContext | null>(null);
 
-  const isAdmin = useMemo(() => session?.user?.role === 'admin', [session]);
+  const canManageShipments = useMemo(() => hasPermission(session?.user?.role, 'shipments:manage'), [session]);
 
   // Calculate overall upload progress for vehicle photos
   const vehiclePhotosProgress = useMemo(() => {
@@ -99,10 +139,12 @@ export default function EditShipmentPage() {
 
   const statusValue = watch('status');
   const vinValue = watch('vehicleVIN');
+  const isTransitManaged = Boolean(transitWorkflowContext?.transitId);
+  const isDispatchManaged = Boolean(dispatchWorkflowContext?.dispatchId);
 
   // Fetch initial data
   useEffect(() => {
-    if (!isAdmin || status === 'loading') return;
+    if (!canManageShipments || status === 'loading') return;
 
     const fetchData = async () => {
       try {
@@ -121,6 +163,29 @@ export default function EditShipmentPage() {
         if (shipmentResponse.ok) {
           const data = await shipmentResponse.json();
           const shipment = data.shipment;
+          const editableStatus = normalizeEditableStatus(shipment.status, shipment.containerId || null);
+
+          setTransitWorkflowContext(
+            shipment.transitId
+              ? {
+                  transitId: shipment.transitId,
+                  transitReference: shipment.transit?.referenceNumber || null,
+                  transitStatus: shipment.transit?.status || null,
+                  shipmentStatus: shipment.status,
+                  containerId: shipment.containerId || null,
+                }
+              : null
+          );
+          setDispatchWorkflowContext(
+            shipment.dispatchId
+              ? {
+                  dispatchId: shipment.dispatchId,
+                  dispatchReference: shipment.dispatch?.referenceNumber || null,
+                  dispatchStatus: shipment.dispatch?.status || null,
+                  shipmentStatus: shipment.status,
+                }
+              : null
+          );
           
           // Populate form
           reset({
@@ -139,7 +204,7 @@ export default function EditShipmentPage() {
             hasTitle: shipment.hasTitle,
             titleStatus: shipment.titleStatus || undefined,
             paymentMode: shipment.paymentMode || undefined,
-            status: shipment.status,
+            status: editableStatus,
             containerId: shipment.containerId || '',
             internalNotes: shipment.internalNotes || '',
             vehiclePhotos: shipment.vehiclePhotos || [],
@@ -166,7 +231,7 @@ export default function EditShipmentPage() {
     };
 
     fetchData();
-  }, [params.id, isAdmin, status, reset, router]);
+  }, [params.id, canManageShipments, status, reset, router]);
 
   const fetchContainers = async () => {
     setLoadingContainers(true);
@@ -391,14 +456,21 @@ export default function EditShipmentPage() {
 
   const onSubmit = async (data: ShipmentFormData) => {
     try {
+      const payload: Record<string, unknown> = {
+        ...data,
+        arrivalPhotos,
+        replaceArrivalPhotos: true,
+      };
+
+      if (isTransitManaged || isDispatchManaged) {
+        delete payload.status;
+        delete payload.containerId;
+      }
+
       const response = await fetch(`/api/shipments/${params.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            ...data,
-            arrivalPhotos, // Send arrival photos separately as they might not be in the schema type
-            replaceArrivalPhotos: true // Signal backend to replace the array
-        }),
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
@@ -423,14 +495,14 @@ export default function EditShipmentPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!canManageShipments) {
     return (
       <ProtectedRoute>
         <DashboardSurface>
           <EmptyState
             icon={<AlertCircle className="w-12 h-12" />}
             title="Access Restricted"
-            description="Only administrators can modify shipment details"
+            description="You do not have permission to modify shipment details"
             action={
               <Link href={`/dashboard/shipments/${params.id}`} style={{ textDecoration: 'none' }}>
                 <Button variant="primary">Back to Shipment</Button>
@@ -637,6 +709,104 @@ export default function EditShipmentPage() {
             {/* 2. Status & Assignment */}
             <DashboardPanel title="Status & Assignment" description="Customer assignment and shipment status">
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <ShipmentWorkflowStrip
+                  shipmentStatus={isTransitManaged ? transitWorkflowContext?.shipmentStatus : isDispatchManaged ? dispatchWorkflowContext?.shipmentStatus : statusValue}
+                  dispatchId={dispatchWorkflowContext?.dispatchId || null}
+                  dispatchReference={dispatchWorkflowContext?.dispatchReference || null}
+                  containerId={transitWorkflowContext?.containerId || watch('containerId') || null}
+                  containerLabel={transitWorkflowContext?.containerId || watch('containerId') || null}
+                  transitId={transitWorkflowContext?.transitId || null}
+                  transitReference={transitWorkflowContext?.transitReference || null}
+                />
+
+                {isDispatchManaged && dispatchWorkflowContext && (
+                  <Box
+                    sx={{
+                      borderRadius: '16px',
+                      border: '1px solid rgba(234, 179, 8, 0.3)',
+                      backgroundColor: 'rgba(234, 179, 8, 0.08)',
+                      p: 2,
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', mb: 0.75 }}>
+                      Workflow Controlled By Dispatch
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)', mb: 1.5 }}>
+                      This shipment is currently assigned to dispatch, so status and container assignment are read-only here until the port handoff is completed.
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                          Shipment Status
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {formatWorkflowStatus(dispatchWorkflowContext.shipmentStatus)}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                          Dispatch Reference
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {dispatchWorkflowContext.dispatchReference || dispatchWorkflowContext.dispatchId}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                          Dispatch Status
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {formatWorkflowStatus(dispatchWorkflowContext.dispatchStatus)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
+                {isTransitManaged && transitWorkflowContext && (
+                  <Box
+                    sx={{
+                      borderRadius: '16px',
+                      border: '1px solid rgba(99, 102, 241, 0.28)',
+                      backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                      p: 2,
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', mb: 0.75 }}>
+                      Workflow Controlled By Transit
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)', mb: 1.5 }}>
+                      This shipment is already assigned to a transit, so status and container assignment are read-only here.
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                          Shipment Status
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {formatWorkflowStatus(transitWorkflowContext.shipmentStatus)}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                          Transit Reference
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {transitWorkflowContext.transitReference || transitWorkflowContext.transitId}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                          Transit Status
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {formatWorkflowStatus(transitWorkflowContext.transitStatus)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
                 <Box>
                   <Typography component="label" htmlFor="userId" sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}>
                     Select Customer *
@@ -694,36 +864,37 @@ export default function EditShipmentPage() {
                   )}
                 </Box>
 
-                <Box>
-                  <Typography component="label" htmlFor="status" sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}>
-                    Shipment Status *
-                  </Typography>
-                  <select
-                    id="status"
-                    {...register('status')}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '16px',
-                      border: errors.status ? '2px solid var(--error)' : '1px solid rgba(var(--border-rgb), 0.9)',
-                      backgroundColor: 'var(--background)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-
-                    <option value="ON_HAND">On Hand</option>
-                    <option value="IN_TRANSIT">In Transit</option>
-                    <option value="RELEASED">Released</option>
-                  </select>
-                  {errors.status && (
-                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--error)', mt: 0.5 }}>
-                      {errors.status.message}
+                {!isTransitManaged && !isDispatchManaged && (
+                  <Box>
+                    <Typography component="label" htmlFor="status" sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}>
+                      Shipment Status *
                     </Typography>
-                  )}
-                </Box>
+                    <select
+                      id="status"
+                      {...register('status')}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: '16px',
+                        border: errors.status ? '2px solid var(--error)' : '1px solid rgba(var(--border-rgb), 0.9)',
+                        backgroundColor: 'var(--background)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      <option value="ON_HAND">On Hand</option>
+                      <option value="IN_TRANSIT">In Transit</option>
+                      <option value="RELEASED">Released</option>
+                    </select>
+                    {errors.status && (
+                      <Typography sx={{ fontSize: '0.75rem', color: 'var(--error)', mt: 0.5 }}>
+                        {errors.status.message}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
 
-                {statusValue === 'IN_TRANSIT' && (
+                {!isTransitManaged && !isDispatchManaged && statusValue === 'IN_TRANSIT' && (
                   <Box>
                     <Typography component="label" htmlFor="containerId" sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}>
                       Container *

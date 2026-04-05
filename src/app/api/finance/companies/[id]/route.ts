@@ -12,7 +12,7 @@ const updateCompanySchema = z.object({
   address: z.string().optional().nullable(),
   country: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  companyType: z.enum(['SHIPPING', 'TRANSIT']).optional(),
+  companyType: z.enum(['SHIPPING', 'DISPATCH', 'TRANSIT']).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -36,6 +36,23 @@ export async function GET(
     const company = await prisma.company.findUnique({
       where: { id: params.id },
       include: {
+        dispatches: {
+          select: {
+            id: true,
+            referenceNumber: true,
+            status: true,
+            origin: true,
+            destination: true,
+            createdAt: true,
+            _count: {
+              select: {
+                shipments: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        },
         containers: {
           select: {
             id: true,
@@ -88,6 +105,7 @@ export async function GET(
         _count: {
           select: {
             ledgerEntries: true,
+            dispatches: true,
             containers: true,
             shipments: true,
             transits: true,
@@ -118,6 +136,25 @@ export async function GET(
         })
       : [];
 
+    const dispatchShipments = company.companyType === 'DISPATCH'
+      ? await prisma.shipment.findMany({
+          where: { dispatch: { companyId: company.id } },
+          select: {
+            id: true,
+            vehicleVIN: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            status: true,
+            createdAt: true,
+            dispatchId: true,
+            containerId: true,
+            transitId: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
+        })
+      : [];
+
     // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
     const [groupedSums, latestEntry] = await Promise.all([
       prisma.companyLedgerEntry.groupBy({
@@ -139,6 +176,15 @@ export async function GET(
           _count: {
             ...company._count,
             shipments: transitShipments.length,
+          },
+        }
+      : company.companyType === 'DISPATCH'
+      ? {
+          ...company,
+          shipments: dispatchShipments,
+          _count: {
+            ...company._count,
+            shipments: dispatchShipments.length,
           },
         }
       : company;

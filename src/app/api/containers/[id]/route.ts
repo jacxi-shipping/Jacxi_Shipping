@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { logger } from '@/lib/logger';
 import { NotificationType } from '@prisma/client';
-import { createNotifications } from '@/lib/notifications';
-import { hasPermission } from '@/lib/rbac';
+import { routeDeps } from '@/lib/route-deps';
 import { z } from 'zod';
+import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
+import { ensureWorkflowMoveAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
 
 // Schema for updating container
 const updateContainerSchema = z.object({
@@ -38,6 +36,21 @@ const updateContainerSchema = z.object({
   autoTrackingEnabled: z.boolean().optional(),
 });
 
+function buildShipmentLabel(shipment: {
+  vehicleYear?: number | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleVIN?: string | null;
+  id: string;
+}) {
+  const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ').trim();
+  if (shipment.vehicleVIN && vehicleLabel) {
+    return `${vehicleLabel} (${shipment.vehicleVIN})`;
+  }
+
+  return shipment.vehicleVIN || vehicleLabel || shipment.id;
+}
+
 // GET - Fetch single container with full details
 export async function GET(
   request: NextRequest,
@@ -45,13 +58,13 @@ export async function GET(
 ) {
   const params = await props.params;
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const container = await prisma.container.findUnique({
+    const container = await routeDeps.prisma.container.findUnique({
       where: { id: params.id },
       include: {
         company: {
@@ -128,7 +141,7 @@ export async function GET(
     }
 
     // Role-based access control
-    const canReadAllContainers = hasPermission(session.user?.role, 'containers:read_all');
+    const canReadAllContainers = routeDeps.hasPermission(session.user?.role, 'containers:read_all');
 
     if (!canReadAllContainers) {
       // Check if user has any shipments in this container
@@ -154,10 +167,10 @@ export async function GET(
         const syncResult = await trackingSync.syncContainerTracking(params.id);
         
         if (syncResult.newEvents > 0) {
-          logger.info(`Synced ${syncResult.newEvents} new tracking events for container ${params.id}`);
+          routeDeps.logger.info(`Synced ${syncResult.newEvents} new tracking events for container ${params.id}`);
           
           // Re-fetch container with updated tracking events
-          const updatedContainer = await prisma.container.findUnique({
+          const updatedContainer = await routeDeps.prisma.container.findUnique({
             where: { id: params.id },
             include: {
               company: {
@@ -218,13 +231,13 @@ export async function GET(
           }
         }
       } catch (syncError) {
-        logger.error('Error auto-syncing tracking:', syncError);
+        routeDeps.logger.error('Error auto-syncing tracking:', syncError);
         // Continue even if sync fails
       }
     }
 
     if (canReadAllContainers) {
-      const shipmentExpenses = await prisma.ledgerEntry.findMany({
+      const shipmentExpenses = await routeDeps.prisma.ledgerEntry.findMany({
         where: {
           shipment: {
             containerId: params.id,
@@ -310,7 +323,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    logger.error('Error fetching container:', error);
+    routeDeps.logger.error('Error fetching container:', error);
     return NextResponse.json(
       { error: 'Failed to fetch container' },
       { status: 500 }
@@ -325,17 +338,17 @@ export async function PATCH(
 ) {
   const params = await props.params;
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(session.user?.role, 'containers:manage')) {
+    if (!ensureWorkflowMoveAllowed(session.user?.role) || !routeDeps.hasPermission(session.user?.role, 'containers:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const container = await prisma.container.findUnique({
+    const container = await routeDeps.prisma.container.findUnique({
       where: { id: params.id },
     });
 
@@ -343,11 +356,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'Container not found' }, { status: 404 });
     }
 
+    if (container.status === 'CLOSED' && !isClosedStageOverrideAllowed(session.user?.role)) {
+      return NextResponse.json({ error: 'Closed container stages can only be overridden by admins' }, { status: 400 });
+    }
+
     const body = await request.json();
     const validatedData = updateContainerSchema.parse(body);
 
     if (validatedData.companyId !== undefined) {
-      const company = await prisma.company.findUnique({
+      const company = await routeDeps.prisma.company.findUnique({
         where: { id: validatedData.companyId },
         select: { id: true, isActive: true, companyType: true },
       });
@@ -376,7 +393,7 @@ export async function PATCH(
     }
 
     // Update container
-    const updatedContainer = await prisma.container.update({
+    const updatedContainer = await routeDeps.prisma.container.update({
       where: { id: params.id },
       data: updateData,
       include: {
@@ -410,12 +427,12 @@ export async function PATCH(
         const invoiceResult = await autoInvoice.generateInvoiceForContainer(params.id);
         
         if (invoiceResult.success) {
-          logger.info(`Auto-generated invoice for container ${params.id}: ${invoiceResult.message}`);
+          routeDeps.logger.info(`Auto-generated invoice for container ${params.id}: ${invoiceResult.message}`);
         } else {
-          logger.info(`Invoice not generated for container ${params.id}: ${invoiceResult.message}`);
+          routeDeps.logger.info(`Invoice not generated for container ${params.id}: ${invoiceResult.message}`);
         }
       } catch (error) {
-        logger.error('Error auto-generating invoice:', error);
+        routeDeps.logger.error('Error auto-generating invoice:', error);
         // Don't fail the status update if invoice generation fails
       }
     }
@@ -442,9 +459,10 @@ export async function PATCH(
           new Set(updatedContainer.shipments.map((shipment) => shipment.userId))
         );
 
-        await createNotifications(
+        await routeDeps.createNotifications(
           uniqueUserIds.map((userId) => ({
             userId,
+            senderId: session.user.id,
             title: 'Container status updated',
             description: `Container ${updatedContainer.containerNumber} is now ${formattedStatus}.`,
             type: NotificationType.INFO,
@@ -452,33 +470,63 @@ export async function PATCH(
           }))
         );
       } catch (notificationError) {
-        logger.error('Failed to create container status notifications:', notificationError);
+        routeDeps.logger.error('Failed to create container status notifications:', notificationError);
       }
 
       // Cascade status to shipments
       if (validatedData.status === 'LOADED' || validatedData.status === 'IN_TRANSIT') {
-        await prisma.shipment.updateMany({
-          where: { containerId: container.id },
+        await routeDeps.prisma.shipment.updateMany({
+          where: { containerId: container.id, transitId: null },
           data: { status: 'IN_TRANSIT' },
         });
       } else if (validatedData.status === 'ARRIVED_PORT') {
         // When container arrives at port, shipments are available at destination facility.
-        await prisma.shipment.updateMany({
-            where: { containerId: container.id },
+        await routeDeps.prisma.shipment.updateMany({
+            where: { containerId: container.id, transitId: null },
             data: { status: 'ON_HAND' },
         });
       } else if (validatedData.status === 'RELEASED') {
         // Released shipments are now eligible for transit assignment.
-        await prisma.shipment.updateMany({
-            where: { containerId: container.id },
+        await routeDeps.prisma.shipment.updateMany({
+            where: { containerId: container.id, transitId: null },
             data: { status: 'RELEASED' },
         });
+
+        await sendShipmentWorkflowNotifications(
+          session.user.id as string,
+          updatedContainer.shipments
+            .filter((shipment) => shipment.transitId === null)
+            .map((shipment) => ({
+              shipmentId: shipment.id,
+              shipmentUserId: shipment.userId,
+              title: 'Shipment workflow updated',
+              customerDescription: `Your shipment ${buildShipmentLabel(shipment)} has been released from container ${updatedContainer.containerNumber} and is ready for destination transit.`,
+              internalDescription: `Shipment ${buildShipmentLabel(shipment)} was released from container ${updatedContainer.containerNumber}.`,
+              link: `/dashboard/shipments/${shipment.id}`,
+            })),
+          { prisma: routeDeps.prisma, createNotificationsFn: routeDeps.createNotifications },
+        );
       } else if (validatedData.status === 'CLOSED') {
         // When container is closed, it means the shipments have been delivered to customers
-        await prisma.shipment.updateMany({
-            where: { containerId: container.id },
+        await routeDeps.prisma.shipment.updateMany({
+            where: { containerId: container.id, transitId: null },
             data: { status: 'DELIVERED' },
         });
+
+        await sendShipmentWorkflowNotifications(
+          session.user.id as string,
+          updatedContainer.shipments
+            .filter((shipment) => shipment.transitId === null)
+            .map((shipment) => ({
+              shipmentId: shipment.id,
+              shipmentUserId: shipment.userId,
+              title: 'Shipment workflow updated',
+              customerDescription: `Your shipment ${buildShipmentLabel(shipment)} has been delivered and the container ${updatedContainer.containerNumber} is now closed.`,
+              internalDescription: `Shipment ${buildShipmentLabel(shipment)} was marked delivered when container ${updatedContainer.containerNumber} was closed.`,
+              link: `/dashboard/shipments/${shipment.id}`,
+            })),
+          { prisma: routeDeps.prisma, createNotificationsFn: routeDeps.createNotifications },
+        );
       }
     }
 
@@ -495,7 +543,7 @@ export async function PATCH(
 
     // Bulk create audit logs
     if (auditLogs.length > 0) {
-      await prisma.containerAuditLog.createMany({
+      await routeDeps.prisma.containerAuditLog.createMany({
         data: auditLogs,
       });
     }
@@ -511,7 +559,7 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    logger.error('Error updating container:', error);
+    routeDeps.logger.error('Error updating container:', error);
     return NextResponse.json(
       { error: 'Failed to update container' },
       { status: 500 }
@@ -526,17 +574,17 @@ export async function DELETE(
 ) {
   const params = await props.params;
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(session.user?.role, 'containers:manage')) {
+    if (!routeDeps.hasPermission(session.user?.role, 'containers:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const container = await prisma.container.findUnique({
+    const container = await routeDeps.prisma.container.findUnique({
       where: { id: params.id },
       include: {
         shipments: true,
@@ -556,7 +604,7 @@ export async function DELETE(
     }
 
     // Delete container (cascade will delete related records)
-    await prisma.container.delete({
+    await routeDeps.prisma.container.delete({
       where: { id: params.id },
     });
 
@@ -564,7 +612,7 @@ export async function DELETE(
       message: 'Container deleted successfully',
     });
   } catch (error) {
-    logger.error('Error deleting container:', error);
+    routeDeps.logger.error('Error deleting container:', error);
     return NextResponse.json(
       { error: 'Failed to delete container' },
       { status: 500 }

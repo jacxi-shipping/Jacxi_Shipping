@@ -5,6 +5,7 @@ import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { hasPermission, hasAnyPermission } from '@/lib/rbac';
 import { z } from 'zod';
+import { ensureExpensePostingAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
 
 function allocateContainerExpense(
   shipments: Array<{ id: string; insuranceValue: number | null; weight: number | null }>,
@@ -117,7 +118,7 @@ export async function POST(
     }
 
     // Only admins can add expenses
-    if (!hasAnyPermission(session.user?.role, ['finance:manage', 'containers:manage'])) {
+    if (!ensureExpensePostingAllowed(session.user?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -126,6 +127,7 @@ export async function POST(
       where: { id: params.id },
       select: {
         id: true,
+        status: true,
         companyId: true,
         expenseAllocationMethod: true,
         shipments: {
@@ -145,6 +147,10 @@ export async function POST(
 
     if (!container) {
       return NextResponse.json({ error: 'Container not found' }, { status: 404 });
+    }
+
+    if (container.status === 'CLOSED' && !isClosedStageOverrideAllowed(session.user?.role)) {
+      return NextResponse.json({ error: 'Cannot add expenses to a closed container' }, { status: 400 });
     }
 
     if (!container.companyId) {
@@ -295,7 +301,7 @@ export async function DELETE(
   try {
     const session = await auth();
     
-    if (!session?.user || !hasAnyPermission(session.user?.role, ['finance:manage', 'containers:manage'])) {
+    if (!session?.user || !ensureExpensePostingAllowed(session.user?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -305,6 +311,11 @@ export async function DELETE(
 
     if (!expenseId && !shipmentExpenseEntryId) {
       return NextResponse.json({ error: 'Expense ID required' }, { status: 400 });
+    }
+
+    const baseContainer = await prisma.container.findUnique({ where: { id: params.id }, select: { status: true } });
+    if (baseContainer?.status === 'CLOSED' && !isClosedStageOverrideAllowed(session.user?.role)) {
+      return NextResponse.json({ error: 'Cannot delete expenses from a closed container' }, { status: 400 });
     }
 
     if (shipmentExpenseEntryId) {

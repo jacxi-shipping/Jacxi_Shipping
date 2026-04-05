@@ -12,6 +12,8 @@ import {
   FileText,
   Users,
   Package,
+  Truck,
+  HandCoins,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import Section from '@/components/layout/Section';
@@ -21,6 +23,7 @@ import { DataTable, Column } from '@/components/ui/DataTable';
 import { ResponsiveDataView, CardField } from '@/components/ui/MobileCardView';
 import { Box } from '@mui/material';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
+import { getDispatchStatusLabel } from '@/lib/dispatch-workflow';
 
 type UserBalance = {
   userId: string;
@@ -59,6 +62,26 @@ type ShipmentReport = {
     id: string;
     name: string;
   };
+  createdAt?: string;
+  expenses?: Array<{
+    id: string;
+    description: string;
+    amount: number;
+    type: string;
+    date: string;
+    linkedCompanyLedgerEntry?: {
+      id: string;
+      companyId: string;
+      description: string;
+      reference: string | null;
+      notes: string | null;
+      company: {
+        id: string;
+        name: string;
+        code: string | null;
+      };
+    } | null;
+  }>;
 };
 
 type ReportData = {
@@ -87,6 +110,16 @@ type ReportData = {
     totalProfit: number;
     avgProfitMargin: number;
     shipmentCount: number;
+  };
+  dispatchSummary?: {
+    activeCount: number;
+    totalCount: number;
+    totalExpenseAmount: number;
+    expenseCount: number;
+    statuses: Array<{
+      status: string;
+      count: number;
+    }>;
   };
   shipments?: ShipmentReport[];
 };
@@ -270,7 +303,32 @@ export default function FinancialReportsPage() {
         </span>
       ),
     },
-  ], []);
+    {
+      key: 'expenses',
+      header: 'Recoveries',
+      render: (_, row) => {
+        const linkedRecoveries = (row.expenses || []).filter((expense) => expense.linkedCompanyLedgerEntry);
+
+        if (linkedRecoveries.length === 0) {
+          return <span className="text-sm text-[var(--text-secondary)]">None</span>;
+        }
+
+        if (linkedRecoveries.length === 1 && linkedRecoveries[0].linkedCompanyLedgerEntry) {
+          return (
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard/finance/companies/${linkedRecoveries[0].linkedCompanyLedgerEntry!.companyId}?entryId=${linkedRecoveries[0].linkedCompanyLedgerEntry!.id}`)}
+              className="rounded border border-[var(--border)] px-2 py-1 text-xs font-semibold text-[var(--accent-gold)] hover:border-[var(--accent-gold)]"
+            >
+              View Entry
+            </button>
+          );
+        }
+
+        return <span className="text-sm text-[var(--text-primary)]">{linkedRecoveries.length} entries below</span>;
+      },
+    },
+  ], [router]);
 
   if (status === 'loading' || loading) {
     return (
@@ -448,7 +506,7 @@ export default function FinancialReportsPage() {
             {reportType === 'summary' && (
               <>
                 <Section className="pb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                     <Card className="border-0 bg-[var(--panel)] backdrop-blur-md shadow-lg">
                       <CardContent className="p-6">
                         <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Total Debit</p>
@@ -486,7 +544,60 @@ export default function FinancialReportsPage() {
                         </p>
                       </CardContent>
                     </Card>
+
+                    <Card className="border-0 bg-[var(--panel)] backdrop-blur-md shadow-lg">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-2 text-amber-400">
+                          <Truck className="w-4 h-4" />
+                          <p className="text-xs uppercase tracking-wide">Active Dispatches</p>
+                        </div>
+                        <p className="text-2xl font-bold text-amber-400 mt-2">
+                          {reportData.dispatchSummary?.activeCount || 0}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">
+                          {reportData.dispatchSummary?.totalCount || 0} total dispatch records
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-0 bg-[var(--panel)] backdrop-blur-md shadow-lg">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-2 text-rose-400">
+                          <HandCoins className="w-4 h-4" />
+                          <p className="text-xs uppercase tracking-wide">Dispatch Expenses</p>
+                        </div>
+                        <p className="text-2xl font-bold text-rose-400 mt-2">
+                          {formatCurrency(reportData.dispatchSummary?.totalExpenseAmount || 0)}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">
+                          {reportData.dispatchSummary?.expenseCount || 0} expense records
+                        </p>
+                      </CardContent>
+                    </Card>
                   </div>
+                </Section>
+
+                <Section className="pb-6">
+                  <Card className="border-0 bg-[var(--panel)] backdrop-blur-md shadow-lg">
+                    <CardHeader className="p-4 border-b border-white/5">
+                      <CardTitle className="text-lg font-bold text-[var(--text-primary)]">Dispatch Status Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+                        {(reportData.dispatchSummary?.statuses || []).map((status) => (
+                          <div key={status.status} className="rounded-lg border border-white/10 bg-white/5 p-4">
+                            <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">
+                              {getDispatchStatusLabel(status.status)}
+                            </p>
+                            <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{status.count}</p>
+                          </div>
+                        ))}
+                        {(reportData.dispatchSummary?.statuses || []).length === 0 && (
+                          <p className="text-sm text-[var(--text-secondary)]">No dispatch records matched the selected period.</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </Section>
 
                 <Section className="pb-6">
@@ -568,51 +679,105 @@ export default function FinancialReportsPage() {
             {/* Shipment-wise Report */}
             {reportType === 'shipment-wise' && (
               <Section className="pb-16">
-                <Card className="border-0 bg-[var(--panel)] backdrop-blur-md shadow-lg">
-                  <CardHeader className="p-4 border-b border-white/5">
-                    <CardTitle className="text-lg font-bold text-[var(--text-primary)]">Shipment Payment Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ResponsiveDataView
-                      data={reportData.shipments ?? []}
-                      TableComponent={DataTable}
-                      tableProps={{
-                        data: reportData.shipments ?? [],
-                        columns: shipmentColumns,
-                        keyField: 'shipmentId',
-                      }}
-                      keyField="shipmentId"
-                      renderMobileCard={(shipment: ShipmentReport): CardField[] => [
-                        { label: 'Tracking', value: shipment.trackingNumber || '—', primary: true },
-                        { label: 'Vehicle', value: shipment.vehicle },
-                        {
-                          label: 'Charged',
-                          value: <span className="text-red-400">{formatCurrency(shipment.totalCharged)}</span>,
-                        },
-                        {
-                          label: 'Paid',
-                          value: <span className="text-green-400">{formatCurrency(shipment.totalPaid)}</span>,
-                        },
-                        {
-                          label: 'Due',
-                          value: <span className="text-yellow-400">{formatCurrency(shipment.amountDue)}</span>,
-                        },
-                        {
-                          label: 'Status',
-                          value: (
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              shipment.paymentStatus === 'COMPLETED'
-                                ? 'bg-green-500/10 text-green-400'
-                                : 'bg-yellow-500/10 text-yellow-400'
-                            }`}>
-                              {shipment.paymentStatus === 'COMPLETED' ? 'Paid' : 'Due'}
-                            </span>
-                          ),
-                        },
-                      ]}
-                    />
-                  </CardContent>
-                </Card>
+                <div className="space-y-6">
+                  <Card className="border-0 bg-[var(--panel)] backdrop-blur-md shadow-lg">
+                    <CardHeader className="p-4 border-b border-white/5">
+                      <CardTitle className="text-lg font-bold text-[var(--text-primary)]">Shipment Payment Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ResponsiveDataView
+                        data={reportData.shipments ?? []}
+                        TableComponent={DataTable}
+                        tableProps={{
+                          data: reportData.shipments ?? [],
+                          columns: shipmentColumns,
+                          keyField: 'shipmentId',
+                        }}
+                        keyField="shipmentId"
+                        renderMobileCard={(shipment: ShipmentReport): CardField[] => [
+                          { label: 'Tracking', value: shipment.trackingNumber || '—', primary: true },
+                          { label: 'Vehicle', value: shipment.vehicle },
+                          {
+                            label: 'Charged',
+                            value: <span className="text-red-400">{formatCurrency(shipment.totalCharged)}</span>,
+                          },
+                          {
+                            label: 'Paid',
+                            value: <span className="text-green-400">{formatCurrency(shipment.totalPaid)}</span>,
+                          },
+                          {
+                            label: 'Due',
+                            value: <span className="text-yellow-400">{formatCurrency(shipment.amountDue)}</span>,
+                          },
+                          {
+                            label: 'Status',
+                            value: (
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                shipment.paymentStatus === 'COMPLETED'
+                                  ? 'bg-green-500/10 text-green-400'
+                                  : 'bg-yellow-500/10 text-yellow-400'
+                              }`}>
+                                {shipment.paymentStatus === 'COMPLETED' ? 'Paid' : 'Due'}
+                              </span>
+                            ),
+                          },
+                        ]}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {(reportData.shipments ?? []).some((shipment) => (shipment.expenses || []).some((expense) => expense.linkedCompanyLedgerEntry)) && (
+                    <Card className="border-0 bg-[var(--panel)] backdrop-blur-md shadow-lg">
+                      <CardHeader className="p-4 border-b border-white/5">
+                        <CardTitle className="text-lg font-bold text-[var(--text-primary)]">Expense Recovery Drill-Through</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        <div className="space-y-4">
+                          {(reportData.shipments ?? []).map((shipment) => {
+                            const linkedExpenses = (shipment.expenses || []).filter((expense) => expense.linkedCompanyLedgerEntry);
+
+                            if (linkedExpenses.length === 0) {
+                              return null;
+                            }
+
+                            return (
+                              <div key={shipment.shipmentId} className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+                                <div className="flex items-center justify-between gap-3 flex-wrap">
+                                  <div>
+                                    <p className="text-sm font-semibold text-[var(--text-primary)]">{shipment.vehicle}</p>
+                                    <p className="text-xs text-[var(--text-secondary)]">{linkedExpenses.length} linked recovery entr{linkedExpenses.length === 1 ? 'y' : 'ies'}</p>
+                                  </div>
+                                  <span className="text-sm font-semibold text-[var(--accent-gold)]">{formatCurrency(linkedExpenses.reduce((sum, expense) => sum + expense.amount, 0))}</span>
+                                </div>
+
+                                <div className="mt-3 space-y-2">
+                                  {linkedExpenses.map((expense) => (
+                                    <div key={expense.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+                                      <div>
+                                        <p className="text-sm text-[var(--text-primary)]">{expense.description}</p>
+                                        <p className="text-xs text-[var(--text-secondary)]">{new Date(expense.date).toLocaleDateString()} • {expense.type}</p>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-sm font-semibold text-red-400">{formatCurrency(expense.amount)}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => router.push(`/dashboard/finance/companies/${expense.linkedCompanyLedgerEntry!.companyId}?entryId=${expense.linkedCompanyLedgerEntry!.id}`)}
+                                          className="rounded border border-[var(--border)] px-2 py-1 text-xs font-semibold text-[var(--accent-gold)] hover:border-[var(--accent-gold)]"
+                                        >
+                                          Company Entry
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
               </Section>
             )}
           </>

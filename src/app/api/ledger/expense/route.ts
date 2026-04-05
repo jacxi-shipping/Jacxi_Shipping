@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
-import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
-import { hasAnyPermission } from '@/lib/rbac';
+import { routeDeps } from '@/lib/route-deps';
 import { z } from 'zod';
 
 // Schema for adding an expense
@@ -15,20 +11,20 @@ const addExpenseSchema = z.object({
   expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
   paymentMode: z.enum(['CASH', 'DUE']).default('DUE'),
   notes: z.string().optional(),
-  contextType: z.enum(['TRANSIT', 'CONTAINER']).optional(),
+  contextType: z.enum(['TRANSIT', 'CONTAINER', 'DISPATCH']).optional(),
   contextId: z.string().optional(),
 });
 
 // POST - Add an expense to a shipment
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasAnyPermission(session.user?.role, ['finance:manage', 'shipments:manage'])) {
+    if (!routeDeps.hasAnyPermission(session.user?.role, ['finance:manage', 'shipments:manage'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -36,7 +32,7 @@ export async function POST(request: NextRequest) {
     const validatedData = addExpenseSchema.parse(body);
 
     // Verify shipment exists
-    const shipment = await prisma.shipment.findUnique({
+    const shipment = await routeDeps.prisma.shipment.findUnique({
       where: { id: validatedData.shipmentId },
       select: {
         id: true,
@@ -44,11 +40,19 @@ export async function POST(request: NextRequest) {
         vehicleMake: true,
         vehicleModel: true,
         vehicleVIN: true,
+        dispatchId: true,
         containerId: true,
         transitId: true,
+        dispatch: {
+          select: {
+            companyId: true,
+            referenceNumber: true,
+          },
+        },
         container: {
           select: {
             companyId: true,
+            containerNumber: true,
           },
         },
         transit: {
@@ -66,25 +70,39 @@ export async function POST(request: NextRequest) {
 
     // Determine which company to credit based on explicit context or fallback logic
     let resolvedCompanyId: string | null | undefined;
-    let isTransitExpense: boolean;
+    let expenseSource: 'DISPATCH' | 'TRANSIT' | 'SHIPMENT';
+    let contextLabel = '';
 
-    if (validatedData.contextType === 'TRANSIT') {
-      // Explicit TRANSIT context: use transit company
+    if (validatedData.contextType === 'DISPATCH') {
+      resolvedCompanyId = shipment.dispatch?.companyId;
+      expenseSource = 'DISPATCH';
+      contextLabel = `(Dispatch ${shipment.dispatch?.referenceNumber || 'N/A'})`;
+    } else if (validatedData.contextType === 'TRANSIT') {
       resolvedCompanyId = shipment.transit?.companyId;
-      isTransitExpense = true;
+      expenseSource = 'TRANSIT';
+      contextLabel = `(Transit ${shipment.transit?.referenceNumber || 'N/A'})`;
     } else if (validatedData.contextType === 'CONTAINER') {
-      // Explicit CONTAINER context: use container company
       resolvedCompanyId = shipment.container?.companyId;
-      isTransitExpense = false;
+      expenseSource = 'SHIPMENT';
+      contextLabel = shipment.container?.containerNumber ? `(Container ${shipment.container.containerNumber})` : '';
     } else {
-      // No explicit context: fallback to container > transit priority
-      resolvedCompanyId = shipment.container?.companyId || shipment.transit?.companyId;
-      isTransitExpense = Boolean(shipment.transitId && shipment.transit?.companyId && !shipment.containerId);
+      resolvedCompanyId = shipment.container?.companyId || shipment.transit?.companyId || shipment.dispatch?.companyId;
+
+      if (shipment.container?.companyId) {
+        expenseSource = 'SHIPMENT';
+        contextLabel = shipment.container.containerNumber ? `(Container ${shipment.container.containerNumber})` : '';
+      } else if (shipment.transit?.companyId) {
+        expenseSource = 'TRANSIT';
+        contextLabel = `(Transit ${shipment.transit.referenceNumber || 'N/A'})`;
+      } else {
+        expenseSource = 'DISPATCH';
+        contextLabel = `(Dispatch ${shipment.dispatch?.referenceNumber || 'N/A'})`;
+      }
     }
 
     if (!resolvedCompanyId) {
       return NextResponse.json(
-        { error: 'Shipment must be linked to a container or transit with a company before adding expenses' },
+        { error: 'Shipment must be linked to a dispatch, container, or transit with a company before adding expenses' },
         { status: 400 }
       );
     }
@@ -99,12 +117,17 @@ export async function POST(request: NextRequest) {
     const shipmentRef = shipment.vehicleVIN
       ? `VIN ${shipment.vehicleVIN}`
       : `Shipment ${shipment.id}`;
-    const contextInfo = isTransitExpense 
-      ? `(Transit ${shipment.transit?.referenceNumber || 'N/A'})`
-      : '';
+    const contextInfo = contextLabel;
     const description = `${validatedData.description} - ${expenseTypeLabel} for ${vehicleInfo} (${shipmentRef}) ${contextInfo}`.trim();
 
-    const entries = await prisma.$transaction(async (tx) => {
+    const companyCategory =
+      expenseSource === 'DISPATCH'
+        ? 'Dispatch Expense Recovery'
+        : expenseSource === 'TRANSIT'
+        ? 'Transit Expense Recovery'
+        : 'Shipment Expense Recovery';
+
+    const entries = await routeDeps.prisma.$transaction(async (tx) => {
       const debitEntry = await tx.ledgerEntry.create({
         data: {
           userId: shipment.userId,
@@ -120,8 +143,10 @@ export async function POST(request: NextRequest) {
             paymentMode: validatedData.paymentMode,
             isExpense: true,
             linkedCompanyId: resolvedCompanyId,
-            expenseSource: isTransitExpense ? 'TRANSIT' : 'SHIPMENT',
-            ...(isTransitExpense && { transitId: shipment.transitId }),
+            expenseSource,
+            ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
+            ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
+            ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
           },
         },
       });
@@ -135,19 +160,21 @@ export async function POST(request: NextRequest) {
           type: 'CREDIT',
           amount: companyAmount,
           balance: 0,
-          category: isTransitExpense ? 'Transit Expense Recovery' : 'Shipment Expense Recovery',
+          category: companyCategory,
           reference,
           notes: validatedData.notes,
           createdBy: session.user!.id as string,
           metadata: {
             isExpenseRecovery: true,
-            expenseSource: isTransitExpense ? 'TRANSIT' : 'SHIPMENT',
+            expenseSource,
             linkedUserExpenseEntryId: debitEntry.id,
             shipmentId: shipment.id,
             userId: shipment.userId,
             expenseType: validatedData.expenseType,
             paymentMode: validatedData.paymentMode,
-            ...(isTransitExpense && { transitId: shipment.transitId }),
+            ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
+            ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
+            ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
           },
         },
       });
@@ -173,16 +200,18 @@ export async function POST(request: NextRequest) {
               isCashPayment: true,
               parentExpenseEntryId: debitEntry.id,
               linkedCompanyId: resolvedCompanyId,
-              expenseSource: isTransitExpense ? 'TRANSIT' : 'SHIPMENT',
-              ...(isTransitExpense && { transitId: shipment.transitId }),
+              expenseSource,
+              ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
+              ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
+              ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
             },
           },
         });
         createdEntries.push(creditEntry);
       }
 
-      await recalculateUserLedgerBalances(tx, shipment.userId);
-      await recalculateCompanyLedgerBalances(tx, resolvedCompanyId);
+      await routeDeps.recalculateUserLedgerBalances(tx, shipment.userId);
+      await routeDeps.recalculateCompanyLedgerBalances(tx, resolvedCompanyId);
 
       return {
         userEntries: createdEntries,
@@ -216,7 +245,7 @@ export async function POST(request: NextRequest) {
 // GET - Get expenses for a shipment
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -230,7 +259,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user has access to this shipment
-    const shipment = await prisma.shipment.findUnique({
+    const shipment = await routeDeps.prisma.shipment.findUnique({
       where: { id: shipmentId },
       select: { userId: true },
     });
@@ -239,13 +268,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    const canReadAllFinance = hasAnyPermission(session.user?.role, ['finance:view', 'shipments:read_all']);
+    const canReadAllFinance = routeDeps.hasAnyPermission(session.user?.role, ['finance:view', 'shipments:read_all']);
     if (!canReadAllFinance && shipment.userId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Get all expenses for this shipment
-    const expenses = await prisma.ledgerEntry.findMany({
+    const expenses = await routeDeps.prisma.ledgerEntry.findMany({
       where: {
         shipmentId,
         metadata: {

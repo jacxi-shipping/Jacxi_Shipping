@@ -59,15 +59,15 @@ export default function QuoteFormSection() {
 	};
 
 	return (
-		<section id="quote" className="py-24 bg-gradient-to-br from-gray-50 to-blue-50/30">
+		<section id="contact" className="py-24 bg-gradient-to-br from-gray-50 to-blue-50/30">
 			<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 				<Fade in={show} timeout={800}>
 					<Box className="text-center mb-12">
 						<h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-							Get Your <span className="text-[rgb(var(--jacxi-blue))]">Instant Quote</span>
+							Plan Your <span className="text-[rgb(var(--jacxi-blue))]">Shipment</span>
 						</h2>
 						<p className="text-lg sm:text-xl text-gray-600">
-							Fill out the form below and we&apos;ll get back to you within 24 hours
+							Tell us the vehicle, USA origin, and Afghanistan destination, and we&apos;ll reply with route guidance and pricing within 24 hours.
 						</p>
 					</Box>
 				</Fade>
@@ -88,7 +88,7 @@ export default function QuoteFormSection() {
 										</Fade>
 										<Fade in={submitted} timeout={600} style={{ transitionDelay: '600ms' }}>
 											<p className="text-base sm:text-lg text-gray-600">
-												We&apos;ll contact you within 24 hours with your personalized quote.
+												We&apos;ll review your route and contact you within 24 hours with the next steps.
 											</p>
 										</Fade>
 									</Box>
@@ -213,7 +213,7 @@ export default function QuoteFormSection() {
 												id="message"
 												{...register('message')}
 												rows={6}
-												placeholder="Tell us about your vehicle, pickup location, destination, and any special requirements..."
+												placeholder="Tell us about the vehicle, pickup state, UAE or Afghanistan delivery target, and any customs or timing requirements..."
 												aria-required="true"
 												aria-invalid={errors.message ? 'true' : 'false'}
 												aria-describedby={errors.message ? 'message-error' : undefined}

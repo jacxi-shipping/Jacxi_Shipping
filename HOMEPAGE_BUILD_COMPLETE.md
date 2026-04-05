@@ -9,7 +9,7 @@ Built a complete premium B2B logistics homepage for Jacxi Shipping with a modern
 - **Jacxi Blue**: `#0056D2` - Primary brand color
 - **UAE Gold**: `#D4AF37` - Accent color highlighting Middle East focus
 - **Soft White**: `#F9FAFB` - Background
-- **Frosted Glass**: `#E4E9F0` at 60% opacity - Glass panels
+- **Panel White**: `#FFFFFF` - Primary panel and card surface
 - **Charcoal**: `#2B2E34` - Text color
 
 ### Typography

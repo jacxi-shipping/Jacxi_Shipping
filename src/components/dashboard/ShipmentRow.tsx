@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Visibility, Edit, LocalShipping, CreditCard, LocationOn, CalendarToday } from '@mui/icons-material';
-import { Box, Typography, LinearProgress } from '@mui/material';
+import { Box, Typography, LinearProgress, Chip } from '@mui/material';
 import { StatusBadge, Button } from '@/components/design-system';
 
 interface ShipmentRowProps {
@@ -15,7 +15,15 @@ interface ShipmentRowProps {
 	status: string;
 	createdAt: string;
 	paymentStatus?: string;
+	dispatchId?: string | null;
 	containerId?: string | null;
+	dispatch?: {
+		id: string;
+		referenceNumber: string;
+		status?: string | null;
+		origin?: string | null;
+		destination?: string | null;
+	} | null;
 	container?: {
 		id: string;
 		containerNumber: string;
@@ -27,6 +35,14 @@ interface ShipmentRowProps {
 		vesselName?: string | null;
 		shippingLine?: string | null;
 	} | null;
+	transit?: {
+		id: string;
+		referenceNumber: string;
+		status?: string | null;
+		destination?: string | null;
+	} | null;
+	yardReceived?: boolean;
+	yardReceivedAt?: string | null;
 	user?: {
 		name: string | null;
 		email: string;
@@ -51,8 +67,13 @@ export default function ShipmentRow({
 	status,
 	createdAt,
 	paymentStatus,
+	dispatchId,
+	dispatch,
 	containerId,
 	container,
+	transit,
+	yardReceived = false,
+	yardReceivedAt,
 	user,
 	showCustomer = false,
 	delay = 0,
@@ -114,6 +135,20 @@ export default function ShipmentRow({
 						variant="default" 
 						size="sm"
 					/>
+					{yardReceived && (
+						<Chip
+							label={yardReceivedAt ? `Yard Received ${new Date(yardReceivedAt).toLocaleDateString()}` : 'Yard Received'}
+							size="small"
+							sx={{
+								height: 24,
+								fontSize: '0.7rem',
+								fontWeight: 700,
+								bgcolor: 'rgba(34, 197, 94, 0.12)',
+								color: 'rgb(21, 128, 61)',
+								border: '1px solid rgba(34, 197, 94, 0.28)',
+							}}
+						/>
+					)}
 					{paymentStatus && (
 						<StatusBadge 
 							status={paymentStatus} 
@@ -140,7 +175,39 @@ export default function ShipmentRow({
 
 				{/* Column 3: Container Info or Status Info */}
 				<Box sx={{ minWidth: 0, overflow: 'hidden' }}>
-					{container ? (
+					{transit ? (
+						<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+							<Typography sx={{ fontSize: { xs: '0.6rem', sm: '0.62rem', md: '0.65rem' }, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--text-secondary)', mb: 0.3 }}>
+								Transit
+							</Typography>
+							<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+								<LocalShipping sx={{ fontSize: { xs: 14, sm: 16 }, color: 'var(--accent-gold)' }} />
+								<Link href={`/dashboard/transits/${transit.id}`} style={{ textDecoration: 'none' }}>
+									<Typography
+										sx={{
+											fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
+											fontWeight: 600,
+											color: 'var(--accent-gold)',
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+											whiteSpace: 'nowrap',
+											'&:hover': { textDecoration: 'underline' },
+										}}
+									>
+										{transit.referenceNumber}
+									</Typography>
+								</Link>
+							</Box>
+							<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)', mt: 0.2 }}>
+								Final-mile delivery in progress
+							</Typography>
+							{transit.destination && (
+								<Typography sx={{ fontSize: { xs: '0.58rem', sm: '0.6rem', md: '0.62rem' }, color: 'var(--text-secondary)', mt: 0.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+									Destination: {transit.destination}
+								</Typography>
+							)}
+						</Box>
+					) : container ? (
 						<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
 							<Typography sx={{ fontSize: { xs: '0.6rem', sm: '0.62rem', md: '0.65rem' }, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--text-secondary)', mb: 0.3 }}>
 								Container Shipping
@@ -245,6 +312,38 @@ export default function ShipmentRow({
 									</Typography>
 							)}
 						</Box>
+					) : dispatch ? (
+						<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+							<Typography sx={{ fontSize: { xs: '0.6rem', sm: '0.62rem', md: '0.65rem' }, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--text-secondary)', mb: 0.3 }}>
+								Dispatch To Port
+							</Typography>
+							<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+								<LocalShipping sx={{ fontSize: { xs: 14, sm: 16 }, color: 'var(--accent-gold)' }} />
+								<Link href={`/dashboard/dispatches/${dispatch.id}`} style={{ textDecoration: 'none' }}>
+									<Typography
+										sx={{
+											fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
+											fontWeight: 600,
+											color: 'var(--accent-gold)',
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+											whiteSpace: 'nowrap',
+											'&:hover': { textDecoration: 'underline' },
+										}}
+									>
+										{dispatch.referenceNumber}
+									</Typography>
+								</Link>
+							</Box>
+							<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)', mt: 0.2 }}>
+								{dispatch.origin || 'USA Yard'} to {dispatch.destination || 'Port of Loading'}
+							</Typography>
+							{dispatch.status && (
+								<Typography sx={{ fontSize: { xs: '0.58rem', sm: '0.6rem', md: '0.62rem' }, color: 'var(--text-secondary)', mt: 0.2 }}>
+									Status: {formatStatus(dispatch.status)}
+								</Typography>
+							)}
+						</Box>
 					) : (
 						<>
 							<Typography sx={{ fontSize: { xs: '0.6rem', sm: '0.62rem', md: '0.65rem' }, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--text-secondary)', mb: 0.3 }}>
@@ -254,7 +353,7 @@ export default function ShipmentRow({
 								Warehouse
 							</Typography>
 							<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)', mt: 0.2 }}>
-								On Hand
+								{dispatchId ? 'Dispatch assigned' : 'On Hand'}
 							</Typography>
 						</>
 					)}

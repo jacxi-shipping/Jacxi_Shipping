@@ -183,7 +183,7 @@ button:hover {
 | Element | Light | Dark |
 |---------|-------|------|
 | Background | `#F9FAFB` | `#0F172A` |
-| Panel | `#E4E9F0` | `#1E293B` |
+| Panel | `#FFFFFF` | `#1E293B` |
 | Text Primary | `#1C1C1E` | `#F1F5F9` |
 | Text Secondary | `#5F6368` | `#94A3B8` |
 | Border | `#E0E0E0` | `#334155` |

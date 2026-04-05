@@ -12,6 +12,7 @@ import { DashboardSurface, DashboardPanel } from '@/components/dashboard/Dashboa
 import { Button, EmptyState, Breadcrumbs, SkeletonTable, toast, StatusBadge } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { exportToCSVWithHeaders } from '@/lib/export';
+import { hasPermission } from '@/lib/rbac';
 
 interface Shipment {
 	id: string;
@@ -28,7 +29,16 @@ interface Shipment {
 	estimatedDelivery?: string | null;
 	createdAt: string;
 	paymentStatus?: string;
+	dispatchId?: string | null;
 	containerId?: string | null;
+	transitId?: string | null;
+	dispatch?: {
+		id: string;
+		referenceNumber: string;
+		status?: string;
+		origin?: string | null;
+		destination?: string | null;
+	} | null;
 	container?: {
 		id: string;
 		containerNumber: string;
@@ -37,6 +47,14 @@ interface Shipment {
 		currentLocation?: string | null;
 		progress?: number;
 	} | null;
+	transit?: {
+		id: string;
+		referenceNumber: string;
+		status?: string;
+		destination?: string | null;
+	} | null;
+	yardReceived?: boolean;
+	yardReceivedAt?: string | null;
 	user?: {
 		name: string | null;
 		email: string;
@@ -48,6 +66,7 @@ interface ShipmentTableRow {
 	vehicle: string;
 	vin: string;
 	status: string;
+	yardReceived: boolean;
 	paymentStatus: string;
 	container: string;
 	createdAt: string;
@@ -78,6 +97,8 @@ export default function ShipmentsListPage() {
 			
 			if (searchFilters.query) params.append('query', searchFilters.query);
 			if (searchFilters.status) params.append('status', searchFilters.status);
+			if (searchFilters.workflowStage) params.append('workflowStage', searchFilters.workflowStage);
+			if (searchFilters.yardReceived) params.append('yardReceived', searchFilters.yardReceived);
 			if (searchFilters.dateFrom) params.append('dateFrom', searchFilters.dateFrom);
 			if (searchFilters.dateTo) params.append('dateTo', searchFilters.dateTo);
 			if (searchFilters.minPrice) params.append('minPrice', searchFilters.minPrice);
@@ -109,6 +130,9 @@ export default function ShipmentsListPage() {
 	};
 
 	const isAdmin = session?.user?.role === 'admin';
+	const canManageShipments = hasPermission(session?.user?.role, 'shipments:manage');
+	const canMoveWorkflow = hasPermission(session?.user?.role, 'workflow:move') && canManageShipments;
+	const canUseBulkMode = canManageShipments || canMoveWorkflow;
 
 	const formatDate = (value: string) => new Date(value).toLocaleDateString();
 
@@ -123,8 +147,15 @@ export default function ShipmentsListPage() {
 			vehicle: vehicleInfo,
 			vin: shipment.vehicleVIN ?? '-',
 			status: shipment.status,
+			yardReceived: Boolean(shipment.yardReceived),
 			paymentStatus: shipment.paymentStatus ?? '-',
-			container: shipment.container?.containerNumber ?? '-',
+			container: shipment.transit?.referenceNumber
+				? `Transit ${shipment.transit.referenceNumber}`
+				: shipment.container?.containerNumber
+					? `Container ${shipment.container.containerNumber}`
+					: shipment.dispatch?.referenceNumber
+						? `Dispatch ${shipment.dispatch.referenceNumber}`
+						: 'Warehouse',
 			createdAt: shipment.createdAt,
 			customer: shipment.user?.name || shipment.user?.email || '-',
 		};
@@ -136,14 +167,36 @@ export default function ShipmentsListPage() {
 		{
 			key: 'status',
 			header: 'Status',
-			render: (value) => <StatusBadge status={String(value)} size="sm" />,
+			render: (value, row) => (
+				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+					<StatusBadge status={String(value)} size="sm" />
+					{row.yardReceived && (
+						<Box
+							sx={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								px: 1,
+								py: 0.35,
+								borderRadius: 999,
+								fontSize: '0.72rem',
+								fontWeight: 700,
+								bgcolor: 'rgba(34, 197, 94, 0.12)',
+								color: 'rgb(21, 128, 61)',
+								border: '1px solid rgba(34, 197, 94, 0.28)',
+							}}
+						>
+							Yard Received
+						</Box>
+					)}
+				</Box>
+			),
 		},
 		{
 			key: 'paymentStatus',
 			header: 'Payment',
 			render: (value) => <StatusBadge status={String(value)} size="sm" />,
 		},
-		{ key: 'container', header: 'Container', sortable: true },
+		{ key: 'container', header: 'Workflow', sortable: true },
 		{
 			key: 'createdAt',
 			header: 'Created',
@@ -160,7 +213,7 @@ export default function ShipmentsListPage() {
 	];
 
 	const handleBulkDelete = async (shipmentIds: string[]) => {
-		if (!isAdmin) return;
+		if (!canManageShipments) return;
 		if (!confirm(`Delete ${shipmentIds.length} shipment(s)? This cannot be undone.`)) {
 			return;
 		}
@@ -197,7 +250,7 @@ export default function ShipmentsListPage() {
 					{ key: 'vin', label: 'VIN' },
 					{ key: 'status', label: 'Status' },
 					{ key: 'paymentStatus', label: 'Payment' },
-					{ key: 'container', label: 'Container' },
+						{ key: 'container', label: 'Workflow' },
 					{ key: 'createdAt', label: 'Created' },
 					...(isAdmin ? [{ key: 'customer' as const, label: 'Customer' }] : []),
 				],
@@ -211,7 +264,7 @@ export default function ShipmentsListPage() {
 	};
 
 	const handleBulkStatusUpdate = async (shipmentIds: string[], status: string) => {
-		if (!isAdmin) return;
+		if (!canMoveWorkflow) return;
 
 		try {
 			const response = await fetch('/api/bulk/shipments', {
@@ -249,7 +302,7 @@ export default function ShipmentsListPage() {
 				noBodyPadding
 				className="overflow-hidden"
 				actions={
-					isAdmin ? (
+					canManageShipments ? (
 						<Link href="/dashboard/shipments/new" style={{ textDecoration: 'none' }}>
 							<Button
 								variant="primary"
@@ -269,6 +322,8 @@ export default function ShipmentsListPage() {
 						placeholder="Search shipments by tracking number, VIN, origin, destination..."
 						showTypeFilter={false}
 						showStatusFilter
+						showWorkflowStageFilter
+						showYardFilter
 						showDateFilter
 						showPriceFilter
 						showUserFilter={isAdmin}
@@ -288,7 +343,7 @@ export default function ShipmentsListPage() {
 				className="overflow-hidden"
 				bodyClassName="overflow-hidden"
 				actions={
-					isAdmin ? (
+					canUseBulkMode ? (
 						<Button
 							variant="outline"
 							size="sm"
@@ -307,7 +362,7 @@ export default function ShipmentsListPage() {
 						title="No shipments found"
 						description={searchFilters.query ? "Try adjusting your search filters" : "Get started by creating your first shipment"}
 						action={
-							isAdmin ? (
+							canManageShipments ? (
 								<Link href="/dashboard/shipments/new" style={{ textDecoration: 'none' }}>
 									<Button variant="primary" icon={<Add />} iconPosition="start">
 										Create shipment
@@ -324,12 +379,12 @@ export default function ShipmentsListPage() {
                   data={shipmentTableRows}
                   columns={shipmentColumns}
                   keyField="id"
-                  selectable={isAdmin}
+									selectable={canUseBulkMode}
                   onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
-                  onDelete={isAdmin ? handleBulkDelete : undefined}
-                  onExport={isAdmin ? handleBulkExport : undefined}
+									onDelete={canManageShipments ? handleBulkDelete : undefined}
+									onExport={canUseBulkMode ? handleBulkExport : undefined}
                   bulkStatusOptions={shipmentStatusOptions}
-                  onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
+									onBulkStatusChange={canMoveWorkflow ? handleBulkStatusUpdate : undefined}
                 />
               </Box>
 					) : null}

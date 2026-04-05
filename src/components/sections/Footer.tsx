@@ -1,7 +1,26 @@
-'use client';
-
 import Link from 'next/link';
-import { Ship, Twitter, Linkedin, Facebook, Instagram, Mail, Phone, MapPin } from 'lucide-react';
+import { Ship, Mail, Phone, MapPin, ArrowRight } from 'lucide-react';
+
+const companyLinks = [
+  { label: 'About Us', href: '/#about' },
+  { label: 'Services', href: '/services' },
+  { label: 'Tracking', href: '/tracking' },
+  { label: 'Customer Portal', href: '/auth/signin' },
+  { label: 'Contact', href: '/#contact' },
+];
+
+const serviceLinks = [
+  { label: 'Vehicle Shipping', href: '/services' },
+  { label: 'Container Loading', href: '/services' },
+  { label: 'Customs Clearance', href: '/services' },
+  { label: 'Transit Coordination', href: '/services' },
+  { label: 'Live Tracking', href: '/tracking' },
+];
+
+const quickActions = [
+  { label: 'Track Shipment', href: '/tracking' },
+  { label: 'Request Quote', href: '/#contact' },
+];
 
 export default function Footer() {
   return (
@@ -17,13 +36,18 @@ export default function Footer() {
               <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">JACXI</span>
             </Link>
             <p className="text-[var(--text-secondary)] leading-relaxed">
-              Pioneering the future of global logistics with AI-driven solutions and unwavering reliability.
+              Vehicle shipping for Afghan customers who need one team managing export in the USA, coordination in the UAE, and delivery planning inside Afghanistan.
             </p>
-            <div className="flex gap-4">
-              {[Twitter, Linkedin, Facebook, Instagram].map((Icon, i) => (
-                <a key={i} href="#" className="w-10 h-10 rounded-full bg-white border border-[var(--border)] flex items-center justify-center hover:bg-[var(--accent-gold)] hover:text-white hover:border-transparent transition-all duration-300 shadow-sm">
-                  <Icon className="w-5 h-5" />
-                </a>
+            <div className="space-y-3">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.label}
+                  href={action.href}
+                  className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  {action.label}
+                </Link>
               ))}
             </div>
           </div>
@@ -32,10 +56,10 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-bold mb-6 text-[var(--text-primary)]">Company</h4>
             <ul className="space-y-4">
-              {['About Us', 'Careers', 'News', 'Partners', 'Legal'].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
-                    {item}
+              {companyLinks.map((item) => (
+                <li key={item.label}>
+                  <Link href={item.href} className="text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -46,10 +70,10 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-bold mb-6 text-[var(--text-primary)]">Services</h4>
             <ul className="space-y-4">
-              {['Ocean Freight', 'Air Cargo', 'Ground Transport', 'Warehousing', 'Customs Brokerage'].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
-                    {item}
+              {serviceLinks.map((item) => (
+                <li key={item.label}>
+                  <Link href={item.href} className="text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -81,8 +105,8 @@ export default function Footer() {
             © {new Date().getFullYear()} Jacxi Shipping. All rights reserved.
           </p>
           <div className="flex gap-8 text-sm text-[var(--text-secondary)]">
-            <Link href="#" className="hover:text-[var(--accent-gold)] transition-colors">Privacy Policy</Link>
-            <Link href="#" className="hover:text-[var(--accent-gold)] transition-colors">Terms of Service</Link>
+            <Link href="/tracking" className="hover:text-[var(--accent-gold)] transition-colors">Track Shipment</Link>
+            <Link href="/#contact" className="hover:text-[var(--accent-gold)] transition-colors">Contact Support</Link>
           </div>
         </div>
       </div>

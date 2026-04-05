@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { hasPermission } from '@/lib/rbac';
+import { routeDeps } from '@/lib/route-deps';
 import { z } from 'zod';
+import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 
 const assignShipmentsSchema = z.object({
   shipmentIds: z.array(z.string()),
 });
+
+function buildShipmentLabel(shipment: {
+  vehicleYear?: number | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleVIN?: string | null;
+  id: string;
+}) {
+  const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ').trim();
+  if (shipment.vehicleVIN && vehicleLabel) {
+    return `${vehicleLabel} (${shipment.vehicleVIN})`;
+  }
+
+  return shipment.vehicleVIN || vehicleLabel || shipment.id;
+}
 
 // GET - Fetch shipments assigned to container
 export async function GET(
@@ -15,13 +29,13 @@ export async function GET(
 ) {
   const params = await props.params;
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const shipments = await prisma.shipment.findMany({
+    const shipments = await routeDeps.prisma.shipment.findMany({
       where: { containerId: params.id },
       include: {
         user: {
@@ -55,18 +69,18 @@ export async function POST(
 ) {
   const params = await props.params;
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(session.user?.role, 'containers:manage') || !hasPermission(session.user?.role, 'shipments:manage')) {
+    if (!routeDeps.hasPermission(session.user?.role, 'containers:manage') || !routeDeps.hasPermission(session.user?.role, 'shipments:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Verify container exists
-    const container = await prisma.container.findUnique({
+    const container = await routeDeps.prisma.container.findUnique({
       where: { id: params.id },
       include: {
         shipments: true,
@@ -101,7 +115,7 @@ export async function POST(
     }
 
     // Verify all shipments exist and are ON_HAND
-    const shipments = await prisma.shipment.findMany({
+    const shipments = await routeDeps.prisma.shipment.findMany({
       where: {
         id: { in: shipmentIds },
       },
@@ -138,7 +152,7 @@ export async function POST(
 
     // ⚡ Bolt: Replaced O(N) transaction mapping with a single optimized updateMany query
     // Assign shipments to container and ensure company linkage for expense accounting
-    await prisma.shipment.updateMany({
+    await routeDeps.prisma.shipment.updateMany({
       where: { id: { in: shipmentIds }, status: 'ON_HAND' },
       data: {
         containerId: params.id,
@@ -148,7 +162,7 @@ export async function POST(
     });
 
     // Update container count
-    await prisma.container.update({
+    await routeDeps.prisma.container.update({
       where: { id: params.id },
       data: {
         currentCount: newCount,
@@ -156,7 +170,7 @@ export async function POST(
     });
 
     // Create audit log
-    await prisma.containerAuditLog.create({
+    await routeDeps.prisma.containerAuditLog.create({
       data: {
         containerId: params.id,
         action: 'SHIPMENTS_ASSIGNED',
@@ -165,6 +179,19 @@ export async function POST(
         metadata: { shipmentIds },
       },
     });
+
+    await sendShipmentWorkflowNotifications(
+      session.user.id as string,
+      shipments.map((shipment) => ({
+        shipmentId: shipment.id,
+        shipmentUserId: shipment.userId,
+        title: 'Shipment workflow updated',
+        customerDescription: `Your shipment ${buildShipmentLabel(shipment)} has been assigned to container ${container.containerNumber}.`,
+        internalDescription: `Shipment ${buildShipmentLabel(shipment)} was assigned directly to container ${container.containerNumber}.`,
+        link: `/dashboard/shipments/${shipment.id}`,
+      })),
+      { prisma: routeDeps.prisma, createNotificationsFn: routeDeps.createNotifications },
+    );
 
     return NextResponse.json({
       message: 'Shipments assigned successfully',
@@ -193,9 +220,9 @@ export async function DELETE(
 ) {
   const params = await props.params;
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
     
-    if (!session?.user || !hasPermission(session.user?.role, 'containers:manage')) {
+    if (!session?.user || !routeDeps.hasPermission(session.user?.role, 'containers:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -206,8 +233,24 @@ export async function DELETE(
       return NextResponse.json({ error: 'Shipment ID required' }, { status: 400 });
     }
 
+    const shipment = await routeDeps.prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      select: { id: true, containerId: true, transitId: true },
+    });
+
+    if (!shipment || shipment.containerId !== params.id) {
+      return NextResponse.json({ error: 'Shipment not found in this container' }, { status: 404 });
+    }
+
+    if (shipment.transitId) {
+      return NextResponse.json(
+        { error: 'Cannot remove a shipment from the container while it is assigned to a transit' },
+        { status: 400 }
+      );
+    }
+
     // Remove shipment from container
-    await prisma.shipment.update({
+    await routeDeps.prisma.shipment.update({
       where: { id: shipmentId },
       data: {
         containerId: null,
@@ -216,13 +259,13 @@ export async function DELETE(
     });
 
     // Update container count
-    const container = await prisma.container.findUnique({
+    const container = await routeDeps.prisma.container.findUnique({
       where: { id: params.id },
       include: { shipments: true },
     });
 
     if (container) {
-      await prisma.container.update({
+      await routeDeps.prisma.container.update({
         where: { id: params.id },
         data: {
           currentCount: container.shipments.length,

@@ -32,7 +32,7 @@ export async function GET() {
 			return NextResponse.json({ message: 'Forbidden: admin access required' }, { status: 403 });
 		}
 
-		const [shipments, invoices, containers, adminCount] = await Promise.all([
+		const [shipments, invoices, containers, dispatches, dispatchExpenses, adminCount] = await Promise.all([
 			prisma.shipment.findMany({
 				select: {
 					id: true,
@@ -69,6 +69,22 @@ export async function GET() {
 					createdAt: true,
 				},
 			}),
+			prisma.dispatch.findMany({
+				select: {
+					id: true,
+					status: true,
+					createdAt: true,
+					dispatchDate: true,
+				},
+			}),
+			prisma.dispatchExpense.findMany({
+				select: {
+					id: true,
+					amount: true,
+					createdAt: true,
+					date: true,
+				},
+			}),
 			prisma.user.count({ where: { role: 'admin' } }),
 		]);
 
@@ -77,7 +93,9 @@ export async function GET() {
 
 		const totalShipments = shipments.length;
 		// Active shipments are those in transit (based on new schema)
-		const activeShipments = shipments.filter((shipment) => shipment.status === 'IN_TRANSIT').length;
+		const activeShipments = shipments.filter((shipment) => ['DISPATCHING', 'IN_TRANSIT', 'IN_TRANSIT_TO_DESTINATION'].includes(shipment.status)).length;
+		const activeDispatches = dispatches.filter((dispatch) => ['PENDING', 'DISPATCHED', 'ARRIVED_AT_PORT'].includes(dispatch.status)).length;
+		const totalDispatchSpend = dispatchExpenses.reduce((acc, expense) => acc + expense.amount, 0);
 		const totalRevenue = invoices
 			.filter((invoice) => invoice.status === 'PAID')
 			.reduce((acc, invoice) => acc + invoice.amount, 0);
@@ -97,10 +115,27 @@ export async function GET() {
 			return { month: month.label, count };
 		});
 
+		const dispatchStatusMap = new Map<string, number>();
+		dispatches.forEach((dispatch) => {
+			const current = dispatchStatusMap.get(dispatch.status) ?? 0;
+			dispatchStatusMap.set(dispatch.status, current + 1);
+		});
+
+		const dispatchesByStatus = Array.from(dispatchStatusMap.entries())
+			.map(([status, count]) => ({ status, count }))
+			.sort((a, b) => b.count - a.count);
+
 		const revenueByMonth = months.map((month) => {
 			const total = invoices
 				.filter((invoice) => invoice.status === "PAID" && monthKey(invoice.createdAt) === month.key)
 				.reduce((acc, invoice) => acc + invoice.amount, 0);
+			return { month: month.label, totalUSD: formatCurrency(total) };
+		});
+
+		const dispatchSpendByMonth = months.map((month) => {
+			const total = dispatchExpenses
+				.filter((expense) => monthKey(expense.date ?? expense.createdAt) === month.key)
+				.reduce((acc, expense) => acc + expense.amount, 0);
 			return { month: month.label, totalUSD: formatCurrency(total) };
 		});
 
@@ -194,14 +229,18 @@ export async function GET() {
 			summary: {
 				totalShipments,
 				activeShipments,
+				activeDispatches,
 				adminUsers: adminCount,
 				totalRevenue: formatCurrency(totalRevenue),
+				totalDispatchSpend: formatCurrency(totalDispatchSpend),
 				overdueInvoices: overdueInvoices.length,
 				activeContainers: containersActive,
 			},
 			shipmentsByStatus,
+			dispatchesByStatus,
 			shipmentsByMonth,
 			revenueByMonth,
+			dispatchSpendByMonth,
 			invoiceStatusDistribution,
 			outstandingInvoices: overdueInvoices,
 			topCustomers,

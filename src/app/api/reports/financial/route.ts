@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
+import { buildLinkedCompanyLedgerEntryMap } from '@/lib/company-ledger-links';
 
 // GET - Generate financial reports
 export async function GET(request: NextRequest) {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
       const where = userId ? { ...dateWhere, userId } : dateWhere;
 
       // Parallelize independent queries: ledger aggregation, shipment aggregation, and user balances
-      const [ledgerSummary, shipmentSummary, userBalances] = await Promise.all([
+      const [ledgerSummary, shipmentSummary, userBalances, dispatchStatusSummary, dispatchExpenseSummary] = await Promise.all([
         prisma.ledgerEntry.groupBy({
           by: ['type'],
           where,
@@ -74,6 +75,22 @@ export async function GET(request: NextRequest) {
             },
           },
         }),
+        prisma.dispatch.groupBy({
+          by: ['status'],
+          where: dateWhere,
+          _count: {
+            id: true,
+          },
+        }),
+        prisma.dispatchExpense.aggregate({
+          where: dateWhere,
+          _sum: {
+            amount: true,
+          },
+          _count: {
+            id: true,
+          },
+        }),
       ]);
 
       const totalDebit = ledgerSummary.find(e => e.type === 'DEBIT')?._sum.amount || 0;
@@ -105,6 +122,20 @@ export async function GET(request: NextRequest) {
           totalAmount: s._sum.price || 0,
           count: s._count.id,
         })),
+        dispatchSummary: {
+          activeCount: dispatchStatusSummary.reduce((total, entry) => (
+            ['PENDING', 'DISPATCHED', 'ARRIVED_AT_PORT'].includes(entry.status)
+              ? total + entry._count.id
+              : total
+          ), 0),
+          totalCount: dispatchStatusSummary.reduce((total, entry) => total + entry._count.id, 0),
+          totalExpenseAmount: dispatchExpenseSummary._sum.amount || 0,
+          expenseCount: dispatchExpenseSummary._count.id || 0,
+          statuses: dispatchStatusSummary.map((entry) => ({
+            status: entry.status,
+            count: entry._count.id,
+          })),
+        },
         userBalances: userBalanceSummary,
       });
     } else if (reportType === 'user-wise') {
@@ -208,6 +239,46 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
       });
 
+      const allExpenseEntryIds = shipments.flatMap((shipment) =>
+        shipment.ledgerEntries
+          .filter((entry) => {
+            const metadata =
+              entry.metadata && typeof entry.metadata === 'object' && !Array.isArray(entry.metadata)
+                ? (entry.metadata as Record<string, unknown>)
+                : null;
+
+            return metadata?.isExpense === true;
+          })
+          .map((entry) => entry.id)
+      );
+
+      const companyLedgerEntries = allExpenseEntryIds.length
+        ? await prisma.companyLedgerEntry.findMany({
+            where: {
+              reference: {
+                in: allExpenseEntryIds.map((entryId) => `shipment-expense:${entryId}`),
+              },
+            },
+            select: {
+              id: true,
+              companyId: true,
+              description: true,
+              reference: true,
+              notes: true,
+              metadata: true,
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                },
+              },
+            },
+          })
+        : [];
+
+      const linkedCompanyEntriesByUserExpenseId = buildLinkedCompanyLedgerEntryMap(companyLedgerEntries);
+
       const shipmentReports = shipments.map(shipment => {
         // ⚡ Bolt: Single pass loop for evaluating transactions, separating expenses
         // from totalDebit and totalCredit to eliminate 4x iteration over ledgerEntries
@@ -260,6 +331,7 @@ export async function GET(request: NextRequest) {
             amount: e.amount,
             type: (e.metadata as Record<string, unknown>)?.expenseType || 'OTHER',
             date: e.transactionDate,
+            linkedCompanyLedgerEntry: linkedCompanyEntriesByUserExpenseId.get(e.id) || null,
           })),
           user: {
             id: shipment.user.id,

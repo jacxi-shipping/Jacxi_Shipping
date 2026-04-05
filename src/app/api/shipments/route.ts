@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, TitleStatus, PaymentStatus } from '@prisma/client';
+import { Prisma, TitleStatus, PaymentStatus, ShipmentSimpleStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
+
+const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
+  'ON_HAND',
+  'DISPATCHING',
+  'IN_TRANSIT',
+  'RELEASED',
+  'IN_TRANSIT_TO_DESTINATION',
+  'DELIVERED',
+]);
+
+function isShipmentStatus(value: string): value is ShipmentSimpleStatus {
+  return SUPPORTED_SHIPMENT_STATUSES.has(value as ShipmentSimpleStatus);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get('status'); // ON_HAND | IN_TRANSIT | RELEASED
+    const status = searchParams.get('status');
     const containerId = searchParams.get('containerId');
     const search = searchParams.get('search');
     const includeFinancial = searchParams.get('includeFinancial') === 'true';
@@ -34,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Add status filter
-    if (status && (status === 'ON_HAND' || status === 'IN_TRANSIT' || status === 'RELEASED')) {
+    if (status && isShipmentStatus(status)) {
       where.status = status;
     }
 
@@ -66,8 +79,19 @@ export async function GET(request: NextRequest) {
       status: true,
       createdAt: true,
       paymentStatus: true,
+      dispatchId: true,
       containerId: true,
+      transitId: true,
       internalNotes: true,
+      dispatch: {
+        select: {
+          id: true,
+          referenceNumber: true,
+          status: true,
+          origin: true,
+          destination: true,
+        },
+      },
       container: {
         select: {
           id: true,
@@ -81,6 +105,14 @@ export async function GET(request: NextRequest) {
           destinationPort: true,
           progress: true,
           shippingLine: true,
+        },
+      },
+      transit: {
+        select: {
+          id: true,
+          referenceNumber: true,
+          status: true,
+          destination: true,
         },
       },
       user: {

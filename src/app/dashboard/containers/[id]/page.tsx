@@ -233,7 +233,9 @@ export default function ContainerDetailPage() {
     const { data: session } = useSession();
 	const userRole = session?.user?.role;
 	const isAdmin = userRole === 'admin';
-	const canManageExpenses = hasAnyPermission(userRole, ['finance:manage', 'containers:manage']);
+	const canManageWorkflow = hasPermission(userRole, 'workflow:move') && hasPermission(userRole, 'containers:manage');
+	const canOverrideClosedStages = hasPermission(userRole, 'workflow:override_closed');
+	const canManageExpenses = hasPermission(userRole, 'expenses:post');
 	const canViewExpenses = hasAnyPermission(userRole, ['finance:view', 'finance:manage', 'containers:read_all', 'containers:manage']);
 	const canManageInvoices = hasAnyPermission(userRole, ['invoices:manage', 'finance:manage']);
 	const canViewInvoices = hasAnyPermission(userRole, ['invoices:view', 'invoices:manage', 'finance:view', 'finance:manage']);
@@ -736,6 +738,7 @@ export default function ContainerDetailPage() {
 	const shipmentOnlyExpenses = container.expenses.filter(isShipmentExpense);
 	const displayedExpenses = expenseView === 'CONTAINER' ? containerOnlyExpenses : shipmentOnlyExpenses;
 	const displayedExpenseTotal = displayedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+	const isContainerWorkflowLocked = container.status === 'CLOSED' && !canOverrideClosedStages;
 
 	return (
 		<ProtectedRoute>
@@ -1153,7 +1156,7 @@ export default function ContainerDetailPage() {
 							)}
 
 							{/* Status Management */}
-							{isAdmin && (
+							{canManageWorkflow && (
 								<DashboardPanel 
 									title="Update Container Status"
 									description="Change the container's current status"
@@ -1165,7 +1168,7 @@ export default function ContainerDetailPage() {
 												variant={container.status === status ? 'primary' : 'outline'}
 												size="sm"
 												onClick={() => handleStatusUpdate(status)}
-												disabled={updating || container.status === status}
+												disabled={updating || container.status === status || isContainerWorkflowLocked}
 											>
 												{config.label}
 											</Button>
@@ -1250,7 +1253,7 @@ export default function ContainerDetailPage() {
 													</TableCell>
 													<TableCell align="right">
 														<Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-															{isAdmin && (
+															{canManageExpenses && (
 																<Button
 																	variant="outline"
 																	size="sm"
@@ -1260,6 +1263,7 @@ export default function ContainerDetailPage() {
 																		setSelectedShipmentForExpense(shipment.id);
 																		setShipmentExpenseModalOpen(true);
 																	}}
+																	disabled={isContainerWorkflowLocked}
 																	sx={{
 																		color: 'var(--accent-gold)',
 																		borderColor: 'var(--accent-gold)',
@@ -1319,6 +1323,7 @@ export default function ContainerDetailPage() {
 											setSelectedShipmentForExpense(undefined);
 											setShipmentExpenseModalOpen(true);
 										}}
+														disabled={isContainerWorkflowLocked}
 									>
 										Add Shipment Expenses
 									</Button>
@@ -1328,7 +1333,8 @@ export default function ContainerDetailPage() {
 										variant="primary"
 										size="sm"
 										icon={<Plus className="w-4 h-4" />}
-										onClick={() => setExpenseModalOpen(true)}
+														onClick={() => setExpenseModalOpen(true)}
+														disabled={isContainerWorkflowLocked}
 									>
 										Add Container Expense
 									</Button>
@@ -1409,7 +1415,7 @@ export default function ContainerDetailPage() {
 																		size="sm"
 																		icon={<Trash2 className="w-3 h-3" />}
 																		onClick={() => handleDeleteExpense(expense.id)}
-																		disabled={deletingExpenseId === expense.id}
+																		disabled={deletingExpenseId === expense.id || isContainerWorkflowLocked}
 																		sx={{
 																			color: 'var(--error)',
 																			borderColor: 'var(--error)',
@@ -1427,7 +1433,7 @@ export default function ContainerDetailPage() {
 																	size="sm"
 																	icon={<Trash2 className="w-3 h-3" />}
 																	onClick={() => handleDeleteExpense(expense.id)}
-																	disabled={deletingExpenseId === expense.id}
+																	disabled={deletingExpenseId === expense.id || isContainerWorkflowLocked}
 																	sx={{ 
 																		color: 'var(--error)',
 																		borderColor: 'var(--error)',
@@ -1842,23 +1848,24 @@ export default function ContainerDetailPage() {
                             </Box>
 
 							<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 2 }}>
-                                {isAdmin && container.trackingNumber && (
+								{canManageWorkflow && container.trackingNumber && (
                                     <Button
                                         variant="outline"
                                         size="sm"
                                         icon={<RefreshCw className={`w-4 h-4 ${refreshingTracking ? 'animate-spin' : ''}`} />}
                                         onClick={handleRefreshTracking}
-                                        disabled={refreshingTracking}
+                                        disabled={refreshingTracking || isContainerWorkflowLocked}
                                     >
                                         {refreshingTracking ? 'Syncing...' : 'Refresh Tracking'}
                                     </Button>
                                 )}
-								{isAdmin && (
+								{canManageWorkflow && (
 									<Button
 										variant="primary"
 										size="sm"
 										icon={<Plus className="w-4 h-4" />}
 										onClick={() => setTrackingModalOpen(true)}
+										disabled={isContainerWorkflowLocked}
 									>
 										Add Tracking Event
 									</Button>
@@ -1915,7 +1922,7 @@ export default function ContainerDetailPage() {
 														size="sm"
 														icon={<Trash2 className="w-3 h-3" />}
 														onClick={() => handleDeleteTrackingEvent(event.id)}
-														disabled={deletingEventId === event.id}
+														disabled={deletingEventId === event.id || !canManageWorkflow || isContainerWorkflowLocked}
 														sx={{ 
 															color: 'var(--error)',
 															borderColor: 'var(--error)',

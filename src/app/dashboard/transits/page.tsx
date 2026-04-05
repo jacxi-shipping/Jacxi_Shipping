@@ -61,6 +61,8 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'Cancelled',
 };
 
+const editableStatusOptions = ['PENDING', 'DISPATCHED', 'IN_TRANSIT', 'ARRIVED', 'CANCELLED'];
+
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
@@ -216,6 +218,11 @@ export default function TransitsPage() {
   };
 
   const handleOpenEdit = (transit: Transit) => {
+    if (transit.status === 'DELIVERED') {
+      toast.error('Use the transit detail page to review delivery confirmation records for delivered transits');
+      router.push(`/dashboard/transits/${transit.id}`);
+      return;
+    }
     setEditingTransitId(transit.id);
     setEditFormData({
       companyId: transit.company.id,
@@ -250,7 +257,6 @@ export default function TransitsPage() {
           status: editFormData.status,
           dispatchDate: editFormData.dispatchDate || null,
           estimatedDelivery: editFormData.estimatedDelivery || null,
-          actualDelivery: editFormData.actualDelivery || null,
           cost: editFormData.cost ? parseFloat(editFormData.cost) : null,
           notes: editFormData.notes || null,
         }),
@@ -370,6 +376,7 @@ export default function TransitsPage() {
               event.stopPropagation();
               handleOpenEdit(row);
             }}
+            disabled={row.status === 'DELIVERED'}
           >
             Edit
           </Button>
@@ -559,8 +566,8 @@ export default function TransitsPage() {
               value={editFormData.status}
               onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
             >
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <MenuItem key={value} value={value}>{label}</MenuItem>
+              {editableStatusOptions.map((value) => (
+                <MenuItem key={value} value={value}>{statusLabels[value] || value}</MenuItem>
               ))}
             </TextField>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
@@ -579,13 +586,9 @@ export default function TransitsPage() {
                 onChange={(e) => setEditFormData(prev => ({ ...prev, estimatedDelivery: e.target.value }))}
               />
             </Box>
-            <TextField
-              label="Actual Delivery"
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              value={editFormData.actualDelivery}
-              onChange={(e) => setEditFormData(prev => ({ ...prev, actualDelivery: e.target.value }))}
-            />
+            <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', p: 1.5, borderRadius: 1.5, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              Final delivery must be confirmed from the transit detail page so receiver name, delivered date, and proof of delivery are all captured together.
+            </Box>
             <TextField
               label="Agreed Cost (USD)"
               type="number"
