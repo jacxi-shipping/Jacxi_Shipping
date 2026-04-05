@@ -100,12 +100,12 @@ export async function GET() {
 		});
 
 		const monthlyRevenueMap = new Map<string, number>();
-		invoices.forEach(invoice => {
+for (const invoice of invoices) {
 			if (invoice.status === 'PAID') {
 				const key = monthKey(invoice.createdAt);
 				monthlyRevenueMap.set(key, (monthlyRevenueMap.get(key) || 0) + invoice.amount);
 			}
-		});
+		}
 
 		const shipmentsByMonth = months.map((month) => ({
 			month: month.label,
