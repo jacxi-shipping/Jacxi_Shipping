@@ -94,10 +94,10 @@ export async function GET() {
 
 		// ⚡ Bolt: Use O(N) dictionaries instead of O(N * M) nested loops
 		const monthlyShipmentCountMap = new Map<string, number>();
-		shipments.forEach(shipment => {
+for (const shipment of shipments) {
 			const key = monthKey(shipment.createdAt);
 			monthlyShipmentCountMap.set(key, (monthlyShipmentCountMap.get(key) || 0) + 1);
-		});
+		}
 
 		const monthlyRevenueMap = new Map<string, number>();
 for (const invoice of invoices) {
