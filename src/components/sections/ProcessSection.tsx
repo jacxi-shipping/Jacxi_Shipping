@@ -1,33 +1,33 @@
 'use client';
 
-import { FileText, Search, PackageCheck, Ship, CheckCircle } from 'lucide-react';
+import { FileText, Anchor, Plane, Truck, CheckCircle } from 'lucide-react';
 import { Fade, Slide, Box } from '@mui/material';
 
 const steps = [
 	{
 		icon: FileText,
 		title: 'Book',
-		description: 'Get instant quote for USA→UAE→Afghanistan route',
+		description: 'Get instant quote for UAE→Turkey→Afghanistan route',
 	},
 	{
-		icon: Search,
-		title: 'USA Pickup',
-		description: 'Vehicle pickup and ocean freight to UAE',
+		icon: Anchor,
+		title: 'UAE Departure',
+		description: 'Vehicle collected and prepared for export from the UAE',
 	},
 	{
-		icon: PackageCheck,
-		title: 'UAE Transit',
-		description: 'Dubai customs and land transport preparation',
+		icon: Plane,
+		title: 'Turkey Transit',
+		description: 'Customs clearance and land transport coordination through Turkey',
 	},
 	{
-		icon: Ship,
-		title: 'To Herat',
-		description: 'Secure land transport to Herat, Afghanistan',
+		icon: Truck,
+		title: 'To Afghanistan',
+		description: 'Secure land transport across the border into Afghanistan',
 	},
 	{
 		icon: CheckCircle,
 		title: 'Final Delivery',
-		description: 'Distribution to any Afghan province',
+		description: 'Distribution to Herat or any Afghan province',
 	},
 ];
 
@@ -43,7 +43,7 @@ export default function ProcessSection() {
 							The <span className="text-[rgb(var(--jacxi-blue))]">Journey</span>
 						</h2>
 						<p className="text-xl text-gray-600 max-w-3xl mx-auto">
-							This is what happens after you book with us
+							From the UAE through Turkey to Afghanistan — here is what happens after you book
 						</p>
 					</Box>
 				</Fade>
