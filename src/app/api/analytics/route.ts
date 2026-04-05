@@ -110,10 +110,17 @@ export async function GET() {
 			.map(([status, count]) => ({ status, count }))
 			.sort((a, b) => b.count - a.count);
 
-		const shipmentsByMonth = months.map((month) => {
-			const count = shipments.filter((shipment) => monthKey(shipment.createdAt) === month.key).length;
-			return { month: month.label, count };
+		// ⚡ Bolt: Use single-pass mapping for shipments, revenues, and expenses instead of O(N*M) nested loops
+		const shipmentCountsByMonthMap = new Map<string, number>();
+		shipments.forEach(shipment => {
+			const key = monthKey(shipment.createdAt);
+			shipmentCountsByMonthMap.set(key, (shipmentCountsByMonthMap.get(key) || 0) + 1);
 		});
+
+		const shipmentsByMonth = months.map((month) => ({
+			month: month.label,
+			count: shipmentCountsByMonthMap.get(month.key) || 0,
+		}));
 
 		const dispatchStatusMap = new Map<string, number>();
 		dispatches.forEach((dispatch) => {
@@ -125,19 +132,29 @@ export async function GET() {
 			.map(([status, count]) => ({ status, count }))
 			.sort((a, b) => b.count - a.count);
 
-		const revenueByMonth = months.map((month) => {
-			const total = invoices
-				.filter((invoice) => invoice.status === "PAID" && monthKey(invoice.createdAt) === month.key)
-				.reduce((acc, invoice) => acc + invoice.amount, 0);
-			return { month: month.label, totalUSD: formatCurrency(total) };
+		const revenueByMonthMap = new Map<string, number>();
+		invoices.forEach(invoice => {
+			if (invoice.status === 'PAID') {
+				const key = monthKey(invoice.createdAt);
+				revenueByMonthMap.set(key, (revenueByMonthMap.get(key) || 0) + invoice.amount);
+			}
 		});
 
-		const dispatchSpendByMonth = months.map((month) => {
-			const total = dispatchExpenses
-				.filter((expense) => monthKey(expense.date ?? expense.createdAt) === month.key)
-				.reduce((acc, expense) => acc + expense.amount, 0);
-			return { month: month.label, totalUSD: formatCurrency(total) };
+		const revenueByMonth = months.map((month) => ({
+			month: month.label,
+			totalUSD: formatCurrency(revenueByMonthMap.get(month.key) || 0),
+		}));
+
+		const dispatchSpendByMonthMap = new Map<string, number>();
+		dispatchExpenses.forEach(expense => {
+			const key = monthKey(expense.date ?? expense.createdAt);
+			dispatchSpendByMonthMap.set(key, (dispatchSpendByMonthMap.get(key) || 0) + expense.amount);
 		});
+
+		const dispatchSpendByMonth = months.map((month) => ({
+			month: month.label,
+			totalUSD: formatCurrency(dispatchSpendByMonthMap.get(month.key) || 0),
+		}));
 
 		const invoiceStatusMap = new Map<string, { count: number; totalUSD: number }>();
 		invoices.forEach((invoice) => {
