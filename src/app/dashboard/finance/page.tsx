@@ -44,43 +44,30 @@ async function getFinancialData(userId: string | undefined, isAdmin: boolean) {
     // 1. Ledger Summary
     // Admin sees all, User sees own.
     const ledgerWhere = whereUserId ? { userId: whereUserId } : {};
-    
-    const ledgerSummary = await prisma.ledgerEntry.groupBy({
-        by: ['type'],
-        where: ledgerWhere,
-        _sum: {
-            amount: true,
-        },
-        _count: {
-            id: true,
-        },
-    });
-
-    const totalDebit = ledgerSummary.find(e => e.type === 'DEBIT')?._sum.amount || 0;
-    const totalCredit = ledgerSummary.find(e => e.type === 'CREDIT')?._sum.amount || 0;
-    const netBalance = totalDebit - totalCredit;
-
-    // 2. Shipment Summary
     const shipmentWhere = whereUserId ? { userId: whereUserId } : {};
-    const shipmentSummaryRaw = await prisma.shipment.groupBy({
-        by: ['paymentStatus'],
-        where: shipmentWhere,
-        _sum: {
-            price: true,
-        },
-        _count: {
-            id: true,
-        },
-    });
 
-    const paidShipments = shipmentSummaryRaw.find(s => s.paymentStatus === 'COMPLETED') || { _count: { id: 0 }, _sum: { price: 0 } };
-    const dueShipments = shipmentSummaryRaw.find(s => s.paymentStatus === 'PENDING') || { _count: { id: 0 }, _sum: { price: 0 } };
-
-    // 3. User Balances (Admin only)
-    let userBalances: Array<{ userId: string; userName: string; currentBalance: number }> = [];
-    
-    if (isAdmin) {
-        const users = await prisma.user.findMany({
+    // ⚡ Bolt: Execute all independent sequential database queries in parallel using Promise.all to reduce latency.
+    const [
+        ledgerSummary,
+        shipmentSummaryRaw,
+        users,
+        activeUsersCount,
+        dispatchStats,
+        dispatchExpenseSummary
+    ] = await Promise.all([
+        prisma.ledgerEntry.groupBy({
+            by: ['type'],
+            where: ledgerWhere,
+            _sum: { amount: true },
+            _count: { id: true },
+        }),
+        prisma.shipment.groupBy({
+            by: ['paymentStatus'],
+            where: shipmentWhere,
+            _sum: { price: true },
+            _count: { id: true },
+        }),
+        isAdmin ? prisma.user.findMany({
             select: {
                 id: true,
                 name: true,
@@ -91,8 +78,28 @@ async function getFinancialData(userId: string | undefined, isAdmin: boolean) {
                     select: { balance: true },
                 },
             },
-        });
+        }) : Promise.resolve([]),
+        isAdmin ? prisma.user.count() : Promise.resolve(1),
+        isAdmin ? prisma.dispatch.groupBy({
+            by: ['status'],
+            _count: true,
+        }) : Promise.resolve([]),
+        isAdmin ? prisma.dispatchExpense.aggregate({
+            _sum: { amount: true },
+            _count: { id: true },
+        }) : Promise.resolve({ _sum: { amount: 0 }, _count: { id: 0 } }),
+    ]);
 
+    const totalDebit = ledgerSummary.find(e => e.type === 'DEBIT')?._sum.amount || 0;
+    const totalCredit = ledgerSummary.find(e => e.type === 'CREDIT')?._sum.amount || 0;
+    const netBalance = totalDebit - totalCredit;
+
+    const paidShipments = shipmentSummaryRaw.find(s => s.paymentStatus === 'COMPLETED') || { _count: { id: 0 }, _sum: { price: 0 } };
+    const dueShipments = shipmentSummaryRaw.find(s => s.paymentStatus === 'PENDING') || { _count: { id: 0 }, _sum: { price: 0 } };
+
+    let userBalances: Array<{ userId: string; userName: string; currentBalance: number }> = [];
+
+    if (isAdmin) {
         // Filter only users with non-zero balance for the top list
         userBalances = users
             .map(user => ({
@@ -104,22 +111,6 @@ async function getFinancialData(userId: string | undefined, isAdmin: boolean) {
             .sort((a, b) => Math.abs(b.currentBalance) - Math.abs(a.currentBalance)) // Sort by magnitude
             .slice(0, 10); // Top 10
     }
-
-        const [activeUsersCount, dispatchStats, dispatchExpenseSummary] = await Promise.all([
-                isAdmin ? prisma.user.count() : Promise.resolve(1),
-                isAdmin
-                        ? prisma.dispatch.groupBy({
-                                by: ['status'],
-                                _count: true,
-                            })
-                        : Promise.resolve([]),
-                isAdmin
-                        ? prisma.dispatchExpense.aggregate({
-                                _sum: { amount: true },
-                                _count: { id: true },
-                            })
-                        : Promise.resolve({ _sum: { amount: 0 }, _count: { id: 0 } }),
-        ]);
 
     return {
         ledger: {
