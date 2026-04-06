@@ -62,15 +62,15 @@ export default function ContactSection({ isAuthenticated = false }: ContactSecti
     <section id="contact" className="bg-[var(--background)] py-28">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]">Contact Us</p>
-          <h2 className="text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]">Get In Touch</h2>
-          <p className="mt-5 text-lg leading-8 text-[var(--text-secondary)]">
+          <p className="landing-reveal mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]" style={{ animationDelay: '60ms' }}>Contact Us</p>
+          <h2 className="landing-reveal text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]" style={{ animationDelay: '140ms' }}>Get In Touch</h2>
+          <p className="landing-reveal mt-5 text-lg leading-8 text-[var(--text-secondary)]" style={{ animationDelay: '220ms' }}>
             Ready to ship your vehicle? Have questions? Our team is here to help.
           </p>
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5">
+          <div className="landing-reveal rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5" style={{ animationDelay: '300ms' }}>
             <h3 className="text-2xl font-bold text-[var(--text-primary)]">Contact Information</h3>
             <div className="mt-8 space-y-6">
               <div>
@@ -122,7 +122,7 @@ export default function ContactSection({ isAuthenticated = false }: ContactSecti
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5">
+          <div className="landing-reveal rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5" style={{ animationDelay: '420ms' }}>
             <h3 className="text-2xl font-bold text-[var(--text-primary)]">Send a Message</h3>
             {submitted ? (
               <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6 text-green-800">

@@ -32,19 +32,19 @@ export default function ProcessSection() {
     <section id="process" className="bg-[var(--background)] py-28">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]">The Process</p>
-          <h2 className="text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]">Ship Your Vehicle in 4 Simple Steps</h2>
-          <p className="mt-5 text-lg leading-8 text-[var(--text-secondary)]">
+          <p className="landing-reveal mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]" style={{ animationDelay: '60ms' }}>The Process</p>
+          <h2 className="landing-reveal text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]" style={{ animationDelay: '140ms' }}>Ship Your Vehicle in 4 Simple Steps</h2>
+          <p className="landing-reveal mt-5 text-lg leading-8 text-[var(--text-secondary)]" style={{ animationDelay: '220ms' }}>
             We&apos;ve engineered every step to be transparent, predictable, and stress-free.
           </p>
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {steps.map((step) => {
+          {steps.map((step, index) => {
             const Icon = step.icon;
 
             return (
-              <article key={step.number} className="flex min-h-[340px] flex-col rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5">
+              <article key={step.number} className="landing-reveal flex min-h-[340px] flex-col rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5" style={{ animationDelay: `${280 + index * 110}ms` }}>
                 <div className="flex items-center justify-between">
                   <span className="text-[2.6rem] font-bold leading-none text-[var(--accent-gold)]">{step.number}</span>
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--panel)] text-[var(--accent-gold)]">

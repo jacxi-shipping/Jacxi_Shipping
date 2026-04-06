@@ -13,8 +13,65 @@ html {
 	20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 
+@keyframes landingFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
 .shake {
 	animation: shake 0.5s ease-in-out;
+}
+
+.landing-reveal {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+  transition-property: opacity, transform;
+  transition-duration: 0.72s;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+}
+
+.landing-reveal.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.landing-reveal-soft {
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  will-change: opacity;
+}
+
+.landing-reveal-soft.is-visible {
+  opacity: 1;
+}
+
+.landing-float {
+  will-change: transform;
+}
+
+.landing-reveal.is-visible.landing-float,
+.landing-reveal-soft.is-visible.landing-float {
+  animation: landingFloat 6s ease-in-out 0.9s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shake,
+  .landing-reveal,
+  .landing-reveal-soft,
+  .landing-float {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 /* Skip Link for Accessibility */

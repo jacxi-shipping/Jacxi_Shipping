@@ -40,22 +40,25 @@ export default function ProvinceCoverageSection() {
     <section id="coverage" className="bg-[#0f172a] py-28 text-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-amber-300">Coverage</p>
-          <h2 className="text-3xl font-bold tracking-[-0.03em] sm:text-4xl lg:text-[3.2rem]">Delivering Across All Afghan Provinces</h2>
-          <p className="mt-5 text-lg leading-8 text-slate-300">
+          <p className="landing-reveal mb-3 text-xs font-bold uppercase tracking-[0.32em] text-amber-300" style={{ animationDelay: '60ms' }}>Coverage</p>
+          <h2 className="landing-reveal text-3xl font-bold tracking-[-0.03em] !text-white sm:text-4xl lg:text-[3.2rem]" style={{ animationDelay: '140ms' }}>Delivering Across All Afghan Provinces</h2>
+          <p className="landing-reveal mt-5 text-lg leading-8 text-slate-300" style={{ animationDelay: '220ms' }}>
             From major cities to remote provinces, we ensure your vehicle arrives safely no matter the destination.
           </p>
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {provinces.map((item) => (
+          {provinces.map((item, index) => (
             <article
               key={item.city}
-              className={`flex min-h-[238px] flex-col rounded-[2rem] border p-7 ${item.featured ? 'border-amber-300/50 bg-white text-slate-900' : 'border-slate-700 bg-slate-900/65 text-white'}`}
+              className={`landing-reveal flex min-h-[238px] flex-col rounded-[2rem] border p-7 ${item.featured ? 'border-amber-300/50 bg-white text-slate-900' : 'border-slate-700 bg-slate-900/65 text-white'}`}
+              style={{ animationDelay: `${280 + index * 100}ms` }}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-[1.75rem] font-bold tracking-[-0.02em]">{item.city}</h3>
+                  <h3 className={`text-[1.75rem] font-bold tracking-[-0.02em] ${item.featured ? '!text-slate-900' : '!text-white'}`}>
+                    {item.city}
+                  </h3>
                   <div className="mt-3 flex items-center gap-2">
                     {item.label ? (
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${item.featured ? 'bg-amber-100 text-amber-700' : 'bg-slate-800 text-amber-300'}`}>
@@ -76,7 +79,7 @@ export default function ProvinceCoverageSection() {
           ))}
         </div>
 
-        <p className="mt-10 text-center text-base text-slate-300">
+        <p className="landing-reveal mt-10 text-center text-base text-slate-300" style={{ animationDelay: '820ms' }}>
           We deliver to all 34 provinces of Afghanistan. Contact us for delivery to your specific location.
         </p>
       </div>

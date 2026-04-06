@@ -33,19 +33,19 @@ export default function ServicesPreviewSection() {
     <section id="services" className="bg-white py-28">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]">What We Do</p>
-          <h2 className="text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]">Comprehensive Logistics Solutions</h2>
-          <p className="mt-5 text-lg leading-8 text-[var(--text-secondary)]">
+          <p className="landing-reveal mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]" style={{ animationDelay: '60ms' }}>What We Do</p>
+          <h2 className="landing-reveal text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]" style={{ animationDelay: '140ms' }}>Comprehensive Logistics Solutions</h2>
+          <p className="landing-reveal mt-5 text-lg leading-8 text-[var(--text-secondary)]" style={{ animationDelay: '220ms' }}>
             Every service you need to move your vehicle from the USA to Afghanistan - handled under one roof.
           </p>
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {services.map((service) => {
+          {services.map((service, index) => {
             const Icon = service.icon;
 
             return (
-              <article key={service.title} className="flex min-h-[380px] flex-col rounded-[2rem] border border-[var(--border)] bg-[var(--background)] p-8 shadow-sm shadow-slate-900/5 transition-transform hover:-translate-y-1">
+              <article key={service.title} className="landing-reveal flex min-h-[380px] flex-col rounded-[2rem] border border-[var(--border)] bg-[var(--background)] p-8 shadow-sm shadow-slate-900/5 transition-transform hover:-translate-y-1" style={{ animationDelay: `${280 + index * 110}ms` }}>
                 <div className="mb-7 inline-flex self-start rounded-full bg-[rgba(var(--accent-gold-rgb),0.12)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--accent-gold)]">
                   {service.badge}
                 </div>
