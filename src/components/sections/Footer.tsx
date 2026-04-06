@@ -1,64 +1,63 @@
 import Link from 'next/link';
-import { Ship, Mail, Phone, MapPin, ArrowRight } from 'lucide-react';
+import { Ship } from 'lucide-react';
 
-const companyLinks = [
-  { label: 'About Us', href: '/#about' },
-  { label: 'Services', href: '/services' },
+const navigationLinks = [
+  { label: 'Services', href: '/#services' },
+  { label: 'How It Works', href: '/#process' },
   { label: 'Tracking', href: '/tracking' },
-  { label: 'Customer Portal', href: '/auth/signin' },
+  { label: 'Testimonials', href: '/#testimonials' },
+  { label: 'About', href: '/#about' },
   { label: 'Contact', href: '/#contact' },
+  { label: 'Get a Quote', href: '/#quote' },
 ];
 
-const serviceLinks = [
-  { label: 'Vehicle Shipping', href: '/services' },
-  { label: 'Container Loading', href: '/services' },
-  { label: 'Customs Clearance', href: '/services' },
-  { label: 'Transit Coordination', href: '/services' },
-  { label: 'Live Tracking', href: '/tracking' },
+const socialLinks = [
+  { label: 'FB', href: 'https://facebook.com/' },
+  { label: 'IG', href: 'https://instagram.com/' },
+  { label: 'WA', href: 'https://wa.me/93704117413' },
 ];
 
-const quickActions = [
-  { label: 'Track Shipment', href: '/tracking' },
-  { label: 'Request Quote', href: '/#contact' },
+const contactNumbers = [
+  { href: 'tel:+19252008927', label: '+1(925)2008927' },
+  { href: 'tel:+93704117413', label: '+93704117413' },
 ];
 
 export default function Footer() {
   return (
-    <footer className="bg-[var(--panel)] text-[var(--text-primary)] border-t border-[var(--border)] pt-20 pb-10">
+    <footer className="border-t border-[var(--border)] bg-[#0f172a] pt-20 pb-10 text-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-          {/* Brand */}
+        <div className="mb-16 grid grid-cols-1 gap-12 lg:grid-cols-[1.2fr_0.9fr_1fr]">
           <div className="space-y-6">
             <Link href="/" className="flex items-center gap-3">
               <div className="w-10 h-10 flex items-center justify-center bg-[var(--accent-gold)] rounded-xl shadow-sm">
                 <Ship className="w-6 h-6 text-white" />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">JACXI</span>
+              <span className="text-2xl font-bold tracking-tight text-white">JACXI SHIPPING</span>
             </Link>
-            <p className="text-[var(--text-secondary)] leading-relaxed">
-              Vehicle shipping for Afghan customers who need one team managing export in the USA, coordination in the UAE, and delivery planning inside Afghanistan.
+            <p className="leading-relaxed text-slate-300">
+              Pioneering vehicle logistics from the USA to Afghanistan for over a decade. Trusted by thousands.
             </p>
-            <div className="space-y-3">
-              {quickActions.map((action) => (
-                <Link
-                  key={action.label}
-                  href={action.href}
-                  className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors"
+            <div className="flex flex-wrap gap-3">
+              {socialLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-slate-700 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-300 transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)]"
                 >
-                  <ArrowRight className="w-4 h-4" />
-                  {action.label}
-                </Link>
+                  {link.label}
+                </a>
               ))}
             </div>
           </div>
 
-          {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-[var(--text-primary)]">Company</h4>
+            <h4 className="mb-6 text-sm font-bold uppercase tracking-[0.18em] text-white">Navigation</h4>
             <ul className="space-y-4">
-              {companyLinks.map((item) => (
+              {navigationLinks.map((item) => (
                 <li key={item.label}>
-                  <Link href={item.href} className="text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
+                  <Link href={item.href} className="text-slate-300 transition-colors hover:text-[var(--accent-gold)]">
                     {item.label}
                   </Link>
                 </li>
@@ -66,47 +65,29 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Services */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-[var(--text-primary)]">Services</h4>
-            <ul className="space-y-4">
-              {serviceLinks.map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className="text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="text-lg font-bold mb-6 text-[var(--text-primary)]">Contact</h4>
-            <ul className="space-y-6">
-              <li className="flex items-start gap-4">
-                <MapPin className="w-6 h-6 text-[var(--accent-gold)] shrink-0" />
-                <span className="text-[var(--text-secondary)]">Across to the Herat Customs Department, Herat, Afghanistan</span>
-              </li>
-              <li className="flex items-center gap-4">
-                <Phone className="w-5 h-5 text-[var(--accent-gold)] shrink-0" />
-                <span className="text-[var(--text-secondary)]">+93 77 000 0085</span>
-              </li>
-              <li className="flex items-center gap-4">
-                <Mail className="w-5 h-5 text-[var(--accent-gold)] shrink-0" />
-                <span className="text-[var(--text-secondary)]">info@jacxi.com</span>
-              </li>
-            </ul>
+            <h4 className="mb-6 text-sm font-bold uppercase tracking-[0.18em] text-white">Contact</h4>
+            <div className="space-y-5 text-slate-300">
+              <p>Herat Customs Department, Herat, Afghanistan</p>
+              <div className="space-y-1">
+                {contactNumbers.map((number) => (
+                  <a key={number.href} href={number.href} className="block transition-colors hover:text-[var(--accent-gold)]">
+                    {number.label}
+                  </a>
+                ))}
+              </div>
+              <a href="mailto:info@jacxi.com" className="block transition-colors hover:text-[var(--accent-gold)]">info@jacxi.com</a>
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-[var(--border)] pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-[var(--text-secondary)] text-sm">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-800 pt-8 md:flex-row">
+          <p className="text-sm text-slate-400">
             © {new Date().getFullYear()} Jacxi Shipping. All rights reserved.
           </p>
-          <div className="flex gap-8 text-sm text-[var(--text-secondary)]">
-            <Link href="/tracking" className="hover:text-[var(--accent-gold)] transition-colors">Track Shipment</Link>
-            <Link href="/#contact" className="hover:text-[var(--accent-gold)] transition-colors">Contact Support</Link>
+          <div className="flex gap-8 text-sm text-slate-400">
+            <Link href="/privacy" className="transition-colors hover:text-[var(--accent-gold)]">Privacy Policy</Link>
+            <Link href="/terms" className="transition-colors hover:text-[var(--accent-gold)]">Terms of Service</Link>
           </div>
         </div>
       </div>

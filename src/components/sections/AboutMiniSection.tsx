@@ -1,67 +1,52 @@
-import Image from 'next/image';
-import { Building2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+
+const highlights = [
+  'Licensed & Bonded',
+  '14+ Years Experience',
+  'All Provinces Covered',
+  'Free Consultation',
+];
+
+const metrics = [
+  { value: '14+', label: 'Years in Business' },
+  { value: '12,000+', label: 'Vehicles Shipped' },
+  { value: '4.9/5', label: 'Customer Satisfaction' },
+  { value: '45+', label: 'Countries Served' },
+];
 
 export default function AboutMiniSection() {
 	return (
-		<section id="about" className="bg-white py-24">
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="grid lg:grid-cols-2 gap-12 items-center">
-					<div className="relative">
-							<div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl relative">
-								<Image
-									src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?q=80&w=2070&auto=format&fit=crop"
-									alt="JACXI Vehicle Shipping Services"
-									fill
-									className="object-cover"
-									priority
-								/>
-									<div className="absolute bottom-6 left-6 right-6 rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur-sm">
-										<div className="flex items-center gap-3">
-											<div className="w-12 h-12 rounded-xl bg-[rgb(var(--jacxi-blue))] flex items-center justify-center flex-shrink-0">
-												<Building2 className="w-6 h-6 text-white" />
-											</div>
-											<div>
-												<p className="font-bold text-gray-900">Route-managed shipping</p>
-												<p className="text-sm text-gray-600">USA to UAE to Afghanistan</p>
-											</div>
-										</div>
-									</div>
+		<section id="about" className="bg-white py-28">
+			<div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+				<div className="mx-auto max-w-3xl text-center">
+							<p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[rgb(var(--uae-gold))]">Our Story</p>
+							<h2 className="mb-4 text-3xl font-bold tracking-[-0.03em] text-gray-900 sm:text-4xl lg:text-[3.2rem]">
+								About JACXI Shipping
+							</h2>
+							<p className="mb-6 text-lg leading-8 text-gray-600">
+									JACXI Shipping has been pioneering vehicle logistics from the United States to Afghanistan for over a decade. Operating through our Dubai hub, we provide seamless door-to-door delivery with complete customs clearance, real-time tracking, and white-glove service.
+							</p>
+							<p className="text-lg leading-8 text-gray-600">
+								We understand the unique needs of Afghan expatriates and businesses importing vehicles - and we&apos;ve built our entire operation around making that process simple, transparent, and reliable.
+							</p>
+						</div>
+
+				<div className="mt-12 rounded-[2rem] border border-[var(--border)] bg-[var(--background)] p-6 shadow-sm shadow-slate-900/5 sm:p-8">
+					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+						{highlights.map((item) => (
+							<div className="flex items-center justify-center gap-3 rounded-2xl bg-white px-4 py-4 text-center shadow-sm" key={item}>
+								<CheckCircle2 className="h-4 w-4 text-[rgb(var(--jacxi-blue))]" />
+								<span className="text-sm font-medium text-gray-700">{item}</span>
 							</div>
-							<div className="absolute -bottom-6 -right-6 w-32 h-32 bg-[rgb(var(--uae-gold))]/20 rounded-full blur-3xl" />
+						))}
 					</div>
-
-					<div className="space-y-6">
-								<div>
-									<p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[rgb(var(--uae-gold))]">About JACXI</p>
-									<h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-										Built for Afghan customers shipping vehicles from the United States.
-									</h2>
-									<p className="text-lg text-gray-600 leading-relaxed mb-6">
-										JACXI was created to remove the confusion Afghan buyers face when a vehicle leaves the USA, passes through the UAE, and then changes into destination transit. We built the workflow around that route so customers know who is handling the shipment at each stage.
-									</p>
-									<p className="text-lg text-gray-600 leading-relaxed">
-										That means one team overseeing export preparation, customs paperwork, container movement, UAE coordination, and final release planning into Herat and other Afghan destinations.
-									</p>
-								</div>
-
-								<div className="bg-gradient-to-br from-[rgb(var(--jacxi-blue))]/5 to-[rgb(var(--uae-gold))]/5 rounded-2xl p-6 border border-[rgb(var(--jacxi-blue))]/10">
-									<h3 className="text-lg font-bold text-gray-900 mb-4">What stays visible</h3>
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-										{[
-											'Container assignment and movement',
-											'UAE handoff and customs progress',
-											'Destination transit milestones',
-											'Delivery readiness and release status',
-											'Document and invoice visibility',
-											'One communication trail for support',
-										].map((feature, index) => (
-												<div className="flex items-center gap-2" key={index}>
-													<div className="w-1.5 h-1.5 rounded-full bg-[rgb(var(--jacxi-blue))]" />
-													<span className="text-sm text-gray-700">{feature}</span>
-												</div>
-										))}
-									</div>
-								</div>
+					<div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+						{metrics.map((metric) => (
+							<div className="rounded-2xl bg-white p-5 text-center shadow-sm" key={metric.label}>
+								<p className="text-2xl font-bold text-gray-900">{metric.value}</p>
+								<p className="mt-1 text-sm text-gray-600">{metric.label}</p>
+							</div>
+						))}
 					</div>
 				</div>
 			</div>

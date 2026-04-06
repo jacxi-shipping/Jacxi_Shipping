@@ -6,13 +6,13 @@ import { hasPermission } from '@/lib/rbac';
 type CustomerAR = {
   customerId: string;
   customerName: string;
-  invoices: {
+  invoices: Array<{
     invoiceId: string;
     invoiceNumber: string;
     amount: number;
     dueDate: Date | null;
     status: string;
-  }[];
+  }>;
   totalOutstanding: number;
 };
 

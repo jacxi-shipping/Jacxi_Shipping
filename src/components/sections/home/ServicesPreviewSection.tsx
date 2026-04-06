@@ -1,61 +1,63 @@
 import Link from 'next/link';
-import { ArrowRight, Car, Container, Search, Truck } from 'lucide-react';
+import { ArrowRight, Container, Plane, ShieldCheck, Truck } from 'lucide-react';
 
 const services = [
   {
-    title: 'USA vehicle intake',
-    description: 'Pickup coordination, yard handling, condition documentation, and export preparation before the vehicle moves to port.',
-    icon: Car,
-  },
-  {
-    title: 'Container operations',
-    description: 'Container loading, inventory control, and departure coordination with clear status milestones through the ocean leg.',
+    title: 'Ocean Freight',
+    description: 'Cost-effective container shipping from US ports to Dubai, then ground transport to all Afghan provinces. Ideal for bulk and standard vehicle shipments.',
     icon: Container,
+    badge: 'Most Popular',
   },
   {
-    title: 'UAE handoff and customs',
-    description: 'Dubai-area transfer planning, customs coordination, and onward routing before Afghanistan transit begins.',
+    title: 'Air Cargo',
+    description: 'Expedited shipping for time-critical deliveries that need to arrive yesterday. Premium handling and the fastest door-to-door transit times available.',
+    icon: Plane,
+    badge: 'Fastest',
+  },
+  {
+    title: 'Inland Transport',
+    description: 'Secure ground transportation network connecting our Dubai hub to every province in Afghanistan - Herat, Kabul, Kandahar, Mazar-i-Sharif, and beyond.',
     icon: Truck,
+    badge: 'Full Coverage',
   },
   {
-    title: 'Tracking and release visibility',
-    description: 'Customers can follow shipment progress from container movement to destination transit and delivery readiness.',
-    icon: Search,
+    title: 'Customs Clearance',
+    description: 'Complete customs brokerage and documentation handling. We manage all import/export paperwork, duties, and regulatory requirements end-to-end.',
+    icon: ShieldCheck,
+    badge: 'Included',
   },
 ];
 
 export default function ServicesPreviewSection() {
   return (
-    <section id="services" className="bg-[var(--background)] py-24">
+    <section id="services" className="bg-white py-28">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-3xl">
-            <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[var(--accent-gold)]">Services</p>
-            <h2 className="text-4xl font-bold text-[var(--text-primary)] sm:text-5xl">One team across export, handoff, and destination transit.</h2>
-            <p className="mt-5 text-lg leading-relaxed text-[var(--text-secondary)]">
-              Every service line is shaped around the route Afghan customers actually use: USA sourcing and export, UAE coordination, and structured delivery planning into Afghanistan.
-            </p>
-          </div>
-          <Link
-            href="/services"
-            className="inline-flex items-center gap-2 self-start rounded-xl border border-[var(--border)] bg-white px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)]"
-          >
-            View all services
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]">What We Do</p>
+          <h2 className="text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]">Comprehensive Logistics Solutions</h2>
+          <p className="mt-5 text-lg leading-8 text-[var(--text-secondary)]">
+            Every service you need to move your vehicle from the USA to Afghanistan - handled under one roof.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           {services.map((service) => {
             const Icon = service.icon;
 
             return (
-              <article key={service.title} className="rounded-3xl border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5">
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--panel)] text-[var(--accent-gold)]">
+              <article key={service.title} className="flex min-h-[380px] flex-col rounded-[2rem] border border-[var(--border)] bg-[var(--background)] p-8 shadow-sm shadow-slate-900/5 transition-transform hover:-translate-y-1">
+                <div className="mb-7 inline-flex self-start rounded-full bg-[rgba(var(--accent-gold-rgb),0.12)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--accent-gold)]">
+                  {service.badge}
+                </div>
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[var(--accent-gold)] shadow-sm">
                   <Icon className="h-7 w-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-[var(--text-primary)]">{service.title}</h3>
-                <p className="mt-4 leading-relaxed text-[var(--text-secondary)]">{service.description}</p>
+                <h3 className="text-[1.75rem] font-bold tracking-[-0.02em] text-[var(--text-primary)]">{service.title}</h3>
+                <p className="mt-4 leading-8 text-[var(--text-secondary)]">{service.description}</p>
+                <Link href="/services" className="mt-auto inline-flex items-center gap-2 pt-10 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:text-[var(--accent-gold)]">
+                  Learn More
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </article>
             );
           })}

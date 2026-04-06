@@ -4,16 +4,18 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Send, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Fade, Slide, Zoom, Grow, Box, CircularProgress } from '@mui/material';
+import { ArrowRight, CheckCircle } from 'lucide-react';
 
 const quoteSchema = z.object({
-	name: z.string().min(2, 'Name must be at least 2 characters'),
+	fullName: z.string().min(2, 'Name must be at least 2 characters'),
 	email: z.string().email('Invalid email address'),
 	phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-	message: z.string().min(10, 'Message must be at least 10 characters'),
+	vehicleMake: z.string().min(2, 'Vehicle make is required'),
+	vehicleModel: z.string().min(1, 'Vehicle model is required'),
+	vehicleYear: z.string().min(4, 'Vehicle year is required'),
+	pickupLocation: z.string().min(2, 'Pickup location is required'),
+	destinationProvince: z.string().min(2, 'Destination province is required'),
+	additionalNotes: z.string().optional(),
 });
 
 type QuoteFormData = z.infer<typeof quoteSchema>;
@@ -21,7 +23,6 @@ type QuoteFormData = z.infer<typeof quoteSchema>;
 export default function QuoteFormSection() {
 	const [submitted, setSubmitted] = useState(false);
 	const [error, setError] = useState('');
-	const show = true;
 
 	const {
 		register,
@@ -35,12 +36,26 @@ export default function QuoteFormSection() {
 	const onSubmit = async (data: QuoteFormData) => {
 		setError('');
 		try {
+			const message = [
+				`Vehicle Make: ${data.vehicleMake}`,
+				`Vehicle Model: ${data.vehicleModel}`,
+				`Vehicle Year: ${data.vehicleYear}`,
+				`Pickup Location (US): ${data.pickupLocation}`,
+				`Destination Province: ${data.destinationProvince}`,
+				`Additional Notes: ${data.additionalNotes?.trim() || 'None provided'}`,
+			].join('\n');
+
 			const response = await fetch('/api/quotes', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify(data),
+				body: JSON.stringify({
+					name: data.fullName,
+					email: data.email,
+					phone: data.phone,
+					message,
+				}),
 			});
 
 			if (response.ok) {
@@ -59,90 +74,68 @@ export default function QuoteFormSection() {
 	};
 
 	return (
-		<section id="contact" className="py-24 bg-gradient-to-br from-gray-50 to-blue-50/30">
-			<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-				<Fade in={show} timeout={800}>
-					<Box className="text-center mb-12">
-						<h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-							Plan Your <span className="text-[rgb(var(--jacxi-blue))]">Shipment</span>
-						</h2>
-						<p className="text-lg sm:text-xl text-gray-600">
-							Tell us the vehicle, USA origin, and Afghanistan destination, and we&apos;ll reply with route guidance and pricing within 24 hours.
-						</p>
-					</Box>
-				</Fade>
+		<section id="quote" className="bg-[var(--background)] py-28">
+			<div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+				<div className="mb-12 text-center">
+					<p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]">Free Quote</p>
+					<h2 className="text-3xl font-bold tracking-[-0.03em] text-gray-900 sm:text-4xl lg:text-[3.2rem]">Get Your Free Quote</h2>
+					<p className="mx-auto mt-4 max-w-3xl text-lg leading-8 text-gray-600">
+						Fill out the form below and we&apos;ll get back to you within 24 hours.
+					</p>
+				</div>
 
-				<Slide in={show} direction="up" timeout={800}>
-					<Box>
-						<div className="bg-white border-2 border-gray-200 rounded-2xl sm:rounded-3xl shadow-2xl hover:shadow-3xl p-6 sm:p-8 md:p-12 transition-all duration-300">
+				<div className="mx-auto max-w-5xl rounded-[2rem] border border-[var(--border)] bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] sm:p-8 md:p-12">
 							{submitted ? (
-								<Zoom in={submitted} timeout={600}>
-									<Box className="text-center py-12" role="alert" aria-live="polite">
-										<Zoom in={submitted} timeout={400} style={{ transitionDelay: '200ms' }}>
-											<CheckCircle className="w-16 h-16 sm:w-20 sm:h-20 text-green-500 mx-auto mb-4" aria-hidden="true" />
-										</Zoom>
-										<Fade in={submitted} timeout={600} style={{ transitionDelay: '400ms' }}>
-											<h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-												Quote Request Submitted!
-											</h3>
-										</Fade>
-										<Fade in={submitted} timeout={600} style={{ transitionDelay: '600ms' }}>
-											<p className="text-base sm:text-lg text-gray-600">
-												We&apos;ll review your route and contact you within 24 hours with the next steps.
-											</p>
-										</Fade>
-									</Box>
-								</Zoom>
+								<div className="py-16 text-center" role="alert" aria-live="polite">
+									<CheckCircle className="mx-auto mb-4 h-16 w-16 text-green-500" aria-hidden="true" />
+									<h3 className="text-2xl font-bold text-gray-900">Quote Request Submitted!</h3>
+									<p className="mx-auto mt-3 max-w-xl text-base text-gray-600 sm:text-lg">
+										We&apos;ll review your route and contact you within 24 hours with the next steps.
+									</p>
+								</div>
 							) : (
 								<form 
 									onSubmit={handleSubmit(onSubmit)} 
-									className="space-y-5 sm:space-y-6"
+									className="space-y-6"
 									noValidate
 									aria-label="Quote request form"
 								>
-									<div className="grid md:grid-cols-2 gap-6">
-										{/* Name */}
-										<Fade in={show} timeout={600} style={{ transitionDelay: '200ms' }}>
-											<Box>
+									<div className="grid gap-6 md:grid-cols-2">
+										<div>
 												<label 
-													htmlFor="name" 
-													className="block text-sm sm:text-base font-medium text-gray-700 mb-2"
+													htmlFor="fullName" 
+													className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700"
 												>
 													Full Name <span className="text-red-500" aria-label="required">*</span>
 												</label>
-												<Input
-													id="name"
-													{...register('name')}
+												<input
+													id="fullName"
+													{...register('fullName')}
 													placeholder="John Doe"
 													autoComplete="name"
 													inputMode="text"
 													aria-required="true"
-													aria-invalid={errors.name ? 'true' : 'false'}
-													aria-describedby={errors.name ? 'name-error' : undefined}
-													className={`w-full px-4 py-3 sm:py-4 text-base rounded-xl border ${
-														errors.name ? 'border-red-500 shake' : 'border-gray-300'
-													} placeholder:text-gray-400 focus:border-[rgb(var(--jacxi-blue))] focus:ring-2 focus:ring-[rgb(var(--jacxi-blue))]/20 transition-all duration-200 touch-manipulation`}
+													aria-invalid={errors.fullName ? 'true' : 'false'}
+													aria-describedby={errors.fullName ? 'fullName-error' : undefined}
+													className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors ${
+														errors.fullName ? 'border-red-500' : 'border-gray-300'
+													} focus:border-[#0f172a]`}
 												/>
-												{errors.name && (
-													<Slide in={!!errors.name} direction="right" timeout={300}>
-														<p id="name-error" className="mt-2 text-sm text-red-500" role="alert">
-															{errors.name.message}
-														</p>
-													</Slide>
+												{errors.fullName && (
+													<p id="fullName-error" className="mt-2 text-sm text-red-500" role="alert">
+														{errors.fullName.message}
+													</p>
 												)}
-											</Box>
-										</Fade>
+										</div>
 
-										{/* Email */}
-										<Fade in={show} timeout={600} style={{ transitionDelay: '300ms' }}>
-											<Box>
+										<div>
 												<label 
 													htmlFor="email" 
-													className="block text-sm sm:text-base font-medium text-gray-700 mb-2"
+													className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700"
 												>
 													Email Address <span className="text-red-500" aria-label="required">*</span>
 												</label>
-												<Input
+												<input
 													id="email"
 													type="email"
 													{...register('email')}
@@ -152,31 +145,27 @@ export default function QuoteFormSection() {
 													aria-required="true"
 													aria-invalid={errors.email ? 'true' : 'false'}
 													aria-describedby={errors.email ? 'email-error' : undefined}
-													className={`w-full px-4 py-3 sm:py-4 text-base rounded-xl border ${
-														errors.email ? 'border-red-500 shake' : 'border-gray-300'
-													} placeholder:text-gray-400 focus:border-[rgb(var(--jacxi-blue))] focus:ring-2 focus:ring-[rgb(var(--jacxi-blue))]/20 transition-all duration-200 touch-manipulation`}
+													className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors ${
+														errors.email ? 'border-red-500' : 'border-gray-300'
+													} focus:border-[#0f172a]`}
 												/>
 												{errors.email && (
-													<Slide in={!!errors.email} direction="right" timeout={300}>
-														<p id="email-error" className="mt-2 text-sm text-red-500" role="alert">
-															{errors.email.message}
-														</p>
-													</Slide>
+													<p id="email-error" className="mt-2 text-sm text-red-500" role="alert">
+														{errors.email.message}
+													</p>
 												)}
-											</Box>
-										</Fade>
+										</div>
 									</div>
 
-									{/* Phone - Full Width */}
-									<Fade in={show} timeout={600} style={{ transitionDelay: '400ms' }}>
-										<Box>
+									<div className="grid gap-6 md:grid-cols-2">
+										<div>
 											<label 
 												htmlFor="phone" 
-												className="block text-sm sm:text-base font-medium text-gray-700 mb-2"
+												className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700"
 											>
 												Phone Number <span className="text-red-500" aria-label="required">*</span>
 											</label>
-											<Input
+											<input
 												id="phone"
 												type="tel"
 												{...register('phone')}
@@ -186,90 +175,133 @@ export default function QuoteFormSection() {
 												aria-required="true"
 												aria-invalid={errors.phone ? 'true' : 'false'}
 												aria-describedby={errors.phone ? 'phone-error' : undefined}
-												className={`w-full px-4 py-3 sm:py-4 text-base rounded-xl border ${
-													errors.phone ? 'border-red-500 shake' : 'border-gray-300'
-												} placeholder:text-gray-400 focus:border-[rgb(var(--jacxi-blue))] focus:ring-2 focus:ring-[rgb(var(--jacxi-blue))]/20 transition-all duration-200 touch-manipulation`}
+												className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors ${
+													errors.phone ? 'border-red-500' : 'border-gray-300'
+												} focus:border-[#0f172a]`}
 											/>
 											{errors.phone && (
-												<Slide in={!!errors.phone} direction="right" timeout={300}>
 													<p id="phone-error" className="mt-2 text-sm text-red-500" role="alert">
 														{errors.phone.message}
 													</p>
-												</Slide>
 											)}
-										</Box>
-									</Fade>
+										</div>
+										<div>
+											<label htmlFor="vehicleYear" className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700">
+												Vehicle Year <span className="text-red-500" aria-label="required">*</span>
+											</label>
+											<input
+												id="vehicleYear"
+												{...register('vehicleYear')}
+												placeholder="2020"
+												inputMode="numeric"
+												aria-required="true"
+												aria-invalid={errors.vehicleYear ? 'true' : 'false'}
+												className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors focus:border-[#0f172a] ${errors.vehicleYear ? 'border-red-500' : 'border-gray-300'}`}
+											/>
+											{errors.vehicleYear && <p className="mt-2 text-sm text-red-500">{errors.vehicleYear.message}</p>}
+										</div>
+									</div>
 
-									{/* Message Box */}
-									<Fade in={show} timeout={600} style={{ transitionDelay: '500ms' }}>
-										<Box>
+									<div className="grid gap-6 md:grid-cols-2">
+										<div>
+											<label htmlFor="vehicleMake" className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700">
+												Vehicle Make <span className="text-red-500" aria-label="required">*</span>
+											</label>
+											<input
+												id="vehicleMake"
+												{...register('vehicleMake')}
+												placeholder="Toyota"
+												className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors focus:border-[#0f172a] ${errors.vehicleMake ? 'border-red-500' : 'border-gray-300'}`}
+											/>
+											{errors.vehicleMake && <p className="mt-2 text-sm text-red-500">{errors.vehicleMake.message}</p>}
+										</div>
+										<div>
+											<label htmlFor="vehicleModel" className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700">
+												Vehicle Model <span className="text-red-500" aria-label="required">*</span>
+											</label>
+											<input
+												id="vehicleModel"
+												{...register('vehicleModel')}
+												placeholder="Land Cruiser"
+												className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors focus:border-[#0f172a] ${errors.vehicleModel ? 'border-red-500' : 'border-gray-300'}`}
+											/>
+											{errors.vehicleModel && <p className="mt-2 text-sm text-red-500">{errors.vehicleModel.message}</p>}
+										</div>
+									</div>
+
+									<div className="grid gap-6 md:grid-cols-2">
+										<div>
+											<label htmlFor="pickupLocation" className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700">
+												Pickup Location (US) <span className="text-red-500" aria-label="required">*</span>
+											</label>
+											<input
+												id="pickupLocation"
+												{...register('pickupLocation')}
+												placeholder="Houston, Texas"
+												className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors focus:border-[#0f172a] ${errors.pickupLocation ? 'border-red-500' : 'border-gray-300'}`}
+											/>
+											{errors.pickupLocation && <p className="mt-2 text-sm text-red-500">{errors.pickupLocation.message}</p>}
+										</div>
+										<div>
+											<label htmlFor="destinationProvince" className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700">
+												Destination Province <span className="text-red-500" aria-label="required">*</span>
+											</label>
+											<input
+												id="destinationProvince"
+												{...register('destinationProvince')}
+												placeholder="Herat"
+												className={`w-full rounded-xl border px-4 py-3 text-base outline-none transition-colors focus:border-[#0f172a] ${errors.destinationProvince ? 'border-red-500' : 'border-gray-300'}`}
+											/>
+											{errors.destinationProvince && <p className="mt-2 text-sm text-red-500">{errors.destinationProvince.message}</p>}
+										</div>
+									</div>
+
+									<div>
 											<label 
-												htmlFor="message" 
-												className="block text-sm sm:text-base font-medium text-gray-700 mb-2"
+													htmlFor="additionalNotes" 
+												className="mb-2 block text-sm font-medium uppercase tracking-[0.08em] text-gray-700"
 											>
-												Your Message <span className="text-red-500" aria-label="required">*</span>
+													Additional Notes
 											</label>
 											<textarea
-												id="message"
-												{...register('message')}
+													id="additionalNotes"
+													{...register('additionalNotes')}
 												rows={6}
-												placeholder="Tell us about the vehicle, pickup state, UAE or Afghanistan delivery target, and any customs or timing requirements..."
-												aria-required="true"
-												aria-invalid={errors.message ? 'true' : 'false'}
-												aria-describedby={errors.message ? 'message-error' : undefined}
-												className={`w-full px-4 py-3 sm:py-4 text-base rounded-xl border ${
-													errors.message ? 'border-red-500 shake' : 'border-gray-300'
-												} placeholder:text-gray-400 focus:border-[rgb(var(--jacxi-blue))] focus:ring-2 focus:ring-[rgb(var(--jacxi-blue))]/20 resize-none transition-all duration-200 touch-manipulation`}
+													placeholder="Tell us anything we should know about the shipment, route timing, or customs requirements..."
+												className={`w-full resize-none rounded-xl border px-4 py-3 text-base outline-none transition-colors ${
+														errors.additionalNotes ? 'border-red-500' : 'border-gray-300'
+												} focus:border-[#0f172a]`}
 											/>
-											{errors.message && (
-												<Slide in={!!errors.message} direction="right" timeout={300}>
-													<p id="message-error" className="mt-2 text-sm text-red-500" role="alert">
-														{errors.message.message}
+												{errors.additionalNotes && (
+													<p id="additionalNotes-error" className="mt-2 text-sm text-red-500" role="alert">
+														{errors.additionalNotes.message}
 													</p>
-												</Slide>
 											)}
-										</Box>
-									</Fade>
+									</div>
 
-									{/* Error Message */}
-									{error && (
-										<Grow in={!!error} timeout={400}>
-											<Box className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm sm:text-base flex items-center gap-2" role="alert" aria-live="assertive">
-												<svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-												</svg>
-												{error}
-											</Box>
-										</Grow>
-									)}
+									{error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-									{/* Submit Button */}
-									<Grow in={show} timeout={600} style={{ transitionDelay: '600ms' }}>
-										<Button
+										<button
 											type="submit"
 											disabled={isSubmitting}
 											aria-busy={isSubmitting}
 											aria-label={isSubmitting ? "Submitting quote request" : "Submit quote request"}
-											className="w-full bg-[rgb(var(--jacxi-blue))] hover:bg-[rgb(var(--jacxi-blue))]/90 text-white px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg rounded-xl shadow-xl shadow-[rgb(var(--jacxi-blue))]/30 hover:shadow-2xl hover:shadow-[rgb(var(--jacxi-blue))]/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group touch-manipulation"
+											className="inline-flex w-full items-center justify-center rounded-xl bg-[#0f172a] px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
 										>
 											{isSubmitting ? (
-												<span className="flex items-center justify-center">
-													<CircularProgress size={20} sx={{ color: 'var(--background)', mr: 1 }} />
-													Submitting...
-												</span>
+												<span className="flex items-center justify-center">Submitting...</span>
 											) : (
 												<span className="flex items-center justify-center">
-													Get My Quote
-													<Send className="ml-2 w-5 h-5" />
+													Request My Free Quote
+													<ArrowRight className="ml-2 h-5 w-5" />
 												</span>
 											)}
-										</Button>
-									</Grow>
+										</button>
+
+										<p className="text-center text-sm text-gray-500">We respond within 24 hours. No obligations.</p>
 								</form>
 							)}
-						</div>
-					</Box>
-				</Slide>
+				</div>
 			</div>
 		</section>
 	);
