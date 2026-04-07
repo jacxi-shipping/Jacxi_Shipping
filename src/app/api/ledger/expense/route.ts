@@ -285,10 +285,13 @@ export async function GET(request: NextRequest) {
       orderBy: { transactionDate: 'desc' },
     });
 
-    // Calculate total expenses (sum of DEBIT entries only)
-    const totalExpenses = expenses
-      .filter(e => e.type === 'DEBIT')
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop for O(N) performance
+    let totalExpenses = 0;
+    for (const expense of expenses) {
+      if (expense.type === 'DEBIT') {
+        totalExpenses += expense.amount;
+      }
+    }
 
     return NextResponse.json({
       expenses,
