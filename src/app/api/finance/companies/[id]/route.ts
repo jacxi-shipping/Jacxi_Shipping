@@ -118,8 +118,8 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const transitShipments = company.companyType === 'TRANSIT'
-      ? await prisma.shipment.findMany({
+    const transitShipmentsPromise = company.companyType === 'TRANSIT'
+      ? prisma.shipment.findMany({
           where: { transit: { companyId: company.id } },
           select: {
             id: true,
@@ -134,10 +134,10 @@ export async function GET(
           orderBy: { createdAt: 'desc' },
           take: 200,
         })
-      : [];
+      : Promise.resolve([]);
 
-    const dispatchShipments = company.companyType === 'DISPATCH'
-      ? await prisma.shipment.findMany({
+    const dispatchShipmentsPromise = company.companyType === 'DISPATCH'
+      ? prisma.shipment.findMany({
           where: { dispatch: { companyId: company.id } },
           select: {
             id: true,
@@ -153,10 +153,13 @@ export async function GET(
           orderBy: { createdAt: 'desc' },
           take: 200,
         })
-      : [];
+      : Promise.resolve([]);
 
     // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
-    const [groupedSums, latestEntry] = await Promise.all([
+    // and parallelized with transit and dispatch shipment queries to reduce overall latency
+    const [transitShipments, dispatchShipments, groupedSums, latestEntry] = await Promise.all([
+      transitShipmentsPromise,
+      dispatchShipmentsPromise,
       prisma.companyLedgerEntry.groupBy({
         by: ['type'],
         where: { companyId: company.id, type: { in: ['DEBIT', 'CREDIT'] } },
