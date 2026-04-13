@@ -14,32 +14,32 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // ⚡ Bolt: Parallelize independent sequential queries using Promise.all to reduce latency
     // 1. Get total debits, credits, and counts grouped by user and type
-    // This is efficient as it uses database aggregation
-    const groupedSummaries = await prisma.ledgerEntry.groupBy({
-      by: ['userId', 'type'],
-      _sum: {
-        amount: true,
-      },
-      _count: {
-        _all: true,
-      },
-    });
-
     // 2. Get the latest balance and transaction date for each user
-    // Using Prisma's distinct feature for type-safe query to get the latest entry per user
-    const latestEntries = await prisma.ledgerEntry.findMany({
-      distinct: ['userId'],
-      orderBy: [
-        { userId: 'asc' },
-        { transactionDate: 'desc' },
-      ],
-      select: {
-        userId: true,
-        balance: true,
-        transactionDate: true,
-      },
-    });
+    const [groupedSummaries, latestEntries] = await Promise.all([
+      prisma.ledgerEntry.groupBy({
+        by: ['userId', 'type'],
+        _sum: {
+          amount: true,
+        },
+        _count: {
+          _all: true,
+        },
+      }),
+      prisma.ledgerEntry.findMany({
+        distinct: ['userId'],
+        orderBy: [
+          { userId: 'asc' },
+          { transactionDate: 'desc' },
+        ],
+        select: {
+          userId: true,
+          balance: true,
+          transactionDate: true,
+        },
+      }),
+    ]);
 
     // 3. Combine the data into a map for O(1) lookup
     const summaryMap: Record<string, {
