@@ -286,9 +286,13 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate total expenses (sum of DEBIT entries only)
-    const totalExpenses = expenses
-      .filter(e => e.type === 'DEBIT')
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    let sum = 0;
+    for (const expense of expenses) {
+      if (expense.type === 'DEBIT') {
+        sum += expense.amount;
+      }
+    }
+    const totalExpenses = Math.round(sum * 100) / 100;
 
     return NextResponse.json({
       expenses,
