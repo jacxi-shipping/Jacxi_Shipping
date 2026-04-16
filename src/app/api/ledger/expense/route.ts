@@ -285,13 +285,14 @@ export async function GET(request: NextRequest) {
       orderBy: { transactionDate: 'desc' },
     });
 
-    // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop for O(N) performance
-    let totalExpenses = 0;
+    // Calculate total expenses (sum of DEBIT entries only)
+    let sum = 0;
     for (const expense of expenses) {
       if (expense.type === 'DEBIT') {
-        totalExpenses += expense.amount;
+        sum += expense.amount;
       }
     }
+    const totalExpenses = Math.round(sum * 100) / 100;
 
     return NextResponse.json({
       expenses,
