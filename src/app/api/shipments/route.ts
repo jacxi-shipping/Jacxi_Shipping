@@ -56,6 +56,12 @@ export async function GET(request: NextRequest) {
       where.containerId = containerId;
     }
 
+    // Filter unassigned shipments (no container)
+    const unassigned = searchParams.get('unassigned');
+    if (unassigned === 'true') {
+      where.containerId = null;
+    }
+
     // Search by VIN, make, model
     if (search) {
       where.OR = [

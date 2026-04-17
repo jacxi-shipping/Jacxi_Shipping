@@ -20,6 +20,8 @@ import {
 	Typography,
 	TextField,
 	MenuItem,
+	Checkbox,
+	CircularProgress,
 } from '@mui/material';
 import {
 	ArrowLeft,
@@ -40,7 +42,8 @@ import {
 	FileDown,
     Activity,
     QrCode,
-    RefreshCw
+    RefreshCw,
+    Search
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
@@ -265,6 +268,12 @@ export default function ContainerDetailPage() {
 	const [deletingDamageId, setDeletingDamageId] = useState<string | null>(null);
 	const [companies, setCompanies] = useState<CompanyOption[]>([]);
 	const [selectedCompanyId, setSelectedCompanyId] = useState('');
+	const [assignShipmentModalOpen, setAssignShipmentModalOpen] = useState(false);
+	const [availableShipments, setAvailableShipments] = useState<any[]>([]);
+	const [selectedShipmentIds, setSelectedShipmentIds] = useState<string[]>([]);
+	const [loadingAvailableShipments, setLoadingAvailableShipments] = useState(false);
+	const [assigningShipments, setAssigningShipments] = useState(false);
+	const [shipmentSearchQuery, setShipmentSearchQuery] = useState('');
 
 	useEffect(() => {
 		if (params.id) {
@@ -740,6 +749,68 @@ export default function ContainerDetailPage() {
 	const displayedExpenseTotal = displayedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 	const isContainerWorkflowLocked = container.status === 'CLOSED' && !canOverrideClosedStages;
 
+	const fetchAvailableShipments = async () => {
+		setLoadingAvailableShipments(true);
+		try {
+			const response = await fetch('/api/shipments?status=ON_HAND&unassigned=true');
+			const data = await response.json();
+			if (response.ok) {
+				setAvailableShipments(data.shipments || []);
+			} else {
+				toast.error('Failed to load available shipments');
+			}
+		} catch {
+			toast.error('Failed to load available shipments');
+		} finally {
+			setLoadingAvailableShipments(false);
+		}
+	};
+
+	const handleAssignShipments = async () => {
+		if (selectedShipmentIds.length === 0) return;
+		setAssigningShipments(true);
+		try {
+			const response = await fetch(`/api/containers/${params.id}/shipments`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ shipmentIds: selectedShipmentIds }),
+			});
+			const data = await response.json();
+			if (response.ok) {
+				toast.success(`${selectedShipmentIds.length} shipment(s) assigned successfully`);
+				setAssignShipmentModalOpen(false);
+				setSelectedShipmentIds([]);
+				setShipmentSearchQuery('');
+				fetchContainer();
+			} else {
+				toast.error(data.error || 'Failed to assign shipments');
+			}
+		} catch {
+			toast.error('Failed to assign shipments');
+		} finally {
+			setAssigningShipments(false);
+		}
+	};
+
+	const openAssignShipmentModal = () => {
+		setSelectedShipmentIds([]);
+		setShipmentSearchQuery('');
+		setAssignShipmentModalOpen(true);
+		fetchAvailableShipments();
+	};
+
+	const filteredAvailableShipments = availableShipments.filter((s) => {
+		if (!shipmentSearchQuery) return true;
+		const q = shipmentSearchQuery.toLowerCase();
+		return (
+			(s.vehicleMake && s.vehicleMake.toLowerCase().includes(q)) ||
+			(s.vehicleModel && s.vehicleModel.toLowerCase().includes(q)) ||
+			(s.vehicleVIN && s.vehicleVIN.toLowerCase().includes(q)) ||
+			(s.user?.name && s.user.name.toLowerCase().includes(q)) ||
+			(s.user?.email && s.user.email.toLowerCase().includes(q))
+		);
+	});
+
 	return (
 		<ProtectedRoute>
 			<DashboardSurface>
@@ -1184,6 +1255,18 @@ export default function ContainerDetailPage() {
 						<DashboardPanel
 							title={`Assigned Vehicles (${container.currentCount}/${container.maxCapacity})`}
 							description="Vehicles currently loaded in this container"
+							actions={
+								canManageWorkflow && !isContainerWorkflowLocked && container.currentCount < container.maxCapacity ? (
+									<Button
+										variant="primary"
+										size="sm"
+										icon={<Plus className="w-4 h-4" />}
+										onClick={openAssignShipmentModal}
+									>
+										Assign Shipment
+									</Button>
+								) : undefined
+							}
 						>
 							{container.shipments.length === 0 ? (
 								<EmptyState
@@ -2538,6 +2621,140 @@ export default function ContainerDetailPage() {
 									Delete Container
 								</>
 							)}
+						</Button>
+					</DialogActions>
+				</Dialog>
+
+				{/* Assign Shipment Modal */}
+				<Dialog
+					open={assignShipmentModalOpen}
+					onClose={() => !assigningShipments && setAssignShipmentModalOpen(false)}
+					maxWidth="md"
+					fullWidth
+					PaperProps={{
+						sx: {
+							bgcolor: 'var(--surface)',
+							border: '1px solid var(--border)',
+							borderRadius: 2,
+							maxHeight: '80vh',
+						},
+					}}
+				>
+					<DialogTitle
+						sx={{
+							borderBottom: '1px solid var(--border)',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 1,
+						}}
+					>
+						<Package className="w-5 h-5" />
+						Assign Shipments to Container
+					</DialogTitle>
+					<DialogContent sx={{ py: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+							<Search className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+							<TextField
+								size="small"
+								placeholder="Search by vehicle, VIN, or customer..."
+								value={shipmentSearchQuery}
+								onChange={(e) => setShipmentSearchQuery(e.target.value)}
+								fullWidth
+								sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
+							/>
+						</Box>
+						<Typography variant="body2" sx={{ color: 'var(--text-secondary)' }}>
+							Showing ON_HAND shipments without a container. Remaining capacity: {container ? container.maxCapacity - container.currentCount : 0}
+						</Typography>
+						{loadingAvailableShipments ? (
+							<Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+								<CircularProgress size={32} />
+							</Box>
+						) : filteredAvailableShipments.length === 0 ? (
+							<Typography variant="body2" sx={{ textAlign: 'center', py: 4, color: 'var(--text-secondary)' }}>
+								{shipmentSearchQuery ? 'No shipments match your search' : 'No available shipments found'}
+							</Typography>
+						) : (
+							<TableContainer sx={{ maxHeight: '50vh' }}>
+								<Table size="small" stickyHeader>
+									<TableHead>
+										<TableRow>
+											<TableCell padding="checkbox">
+												<Checkbox
+													indeterminate={selectedShipmentIds.length > 0 && selectedShipmentIds.length < filteredAvailableShipments.length}
+													checked={filteredAvailableShipments.length > 0 && selectedShipmentIds.length === filteredAvailableShipments.length}
+													onChange={(e) => {
+														if (e.target.checked) {
+															const remaining = container ? container.maxCapacity - container.currentCount : 0;
+															setSelectedShipmentIds(filteredAvailableShipments.slice(0, remaining).map((s) => s.id));
+														} else {
+															setSelectedShipmentIds([]);
+														}
+													}}
+												/>
+											</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>Vehicle</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>VIN</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{filteredAvailableShipments.map((shipment) => {
+											const isSelected = selectedShipmentIds.includes(shipment.id);
+											const remaining = container ? container.maxCapacity - container.currentCount : 0;
+											const isDisabled = !isSelected && selectedShipmentIds.length >= remaining;
+											return (
+												<TableRow
+													key={shipment.id}
+													hover
+													selected={isSelected}
+													sx={{ cursor: isDisabled ? 'not-allowed' : 'pointer', opacity: isDisabled ? 0.5 : 1 }}
+													onClick={() => {
+														if (isDisabled) return;
+														setSelectedShipmentIds((prev) =>
+															isSelected ? prev.filter((id) => id !== shipment.id) : [...prev, shipment.id]
+														);
+													}}
+												>
+													<TableCell padding="checkbox">
+														<Checkbox checked={isSelected} disabled={isDisabled} />
+													</TableCell>
+													<TableCell>
+														{shipment.vehicleMake} {shipment.vehicleModel}
+													</TableCell>
+													<TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+														{shipment.vehicleVIN || 'N/A'}
+													</TableCell>
+													<TableCell>
+														{shipment.user?.name || shipment.user?.email || 'N/A'}
+													</TableCell>
+													<TableCell>
+														<Chip label={shipment.status} size="small" color="primary" sx={{ fontSize: '0.75rem' }} />
+													</TableCell>
+												</TableRow>
+											);
+										})}
+									</TableBody>
+								</Table>
+							</TableContainer>
+						)}
+					</DialogContent>
+					<DialogActions sx={{ p: 3, borderTop: '1px solid var(--border)' }}>
+						<Button
+							variant="outline"
+							onClick={() => setAssignShipmentModalOpen(false)}
+							disabled={assigningShipments}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="primary"
+							onClick={handleAssignShipments}
+							disabled={selectedShipmentIds.length === 0 || assigningShipments}
+							loading={assigningShipments}
+						>
+							Assign {selectedShipmentIds.length > 0 ? `(${selectedShipmentIds.length})` : ''}
 						</Button>
 					</DialogActions>
 				</Dialog>
