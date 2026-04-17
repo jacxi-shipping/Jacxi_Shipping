@@ -287,13 +287,13 @@ export async function GET(request: NextRequest) {
 
     // ⚡ Bolt: Replaced chained .filter().reduce() operations with a single pass O(N) loop
     // Calculate total expenses (sum of DEBIT entries only)
-    let debitSum = 0;
+    let debitCents = 0;
     for (const expense of expenses) {
       if (expense.type === 'DEBIT') {
-        debitSum += expense.amount;
+        debitCents += Math.round(expense.amount * 100);
       }
     }
-    const totalExpenses = Math.round(debitSum * 100) / 100;
+    const totalExpenses = debitCents / 100;
 
     return NextResponse.json({
       expenses,
