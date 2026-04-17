@@ -31,8 +31,6 @@ export async function recalculateUserLedgerBalances(db: DbClient, userId: string
   }
 
   if (updates.length > 0) {
-    // ⚡ Bolt: Replaced sequential O(N) database updates with a single Promise.all
-    // to execute all ledger balance corrections concurrently, significantly reducing network latency roundtrips.
     await Promise.all(updates);
   }
 
