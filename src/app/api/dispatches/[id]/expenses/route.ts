@@ -209,6 +209,41 @@ function validateDispatchExpensePayload(data: z.infer<typeof expenseSchema>) {
   return null;
 }
 
+function resolveDispatchExpenseShipments(
+  dispatchShipments: Array<{
+    id: string;
+    userId: string;
+    insuranceValue: number | null;
+    weight: number | null;
+    vehicleYear: number | null;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    vehicleVIN: string | null;
+  }>,
+  requestedShipmentId: string | null,
+) {
+  if (requestedShipmentId) {
+    const matchedShipment = dispatchShipments.find((shipment) => shipment.id === requestedShipmentId);
+    if (!matchedShipment) {
+      return { error: 'Selected shipment is not assigned to this dispatch' } as const;
+    }
+
+    return {
+      expenseShipmentId: matchedShipment.id,
+      expenseShipments: [matchedShipment],
+    } as const;
+  }
+
+  if (dispatchShipments.length === 0) {
+    return { error: 'Add at least one shipment to the dispatch before posting expenses' } as const;
+  }
+
+  return {
+    expenseShipmentId: null,
+    expenseShipments: dispatchShipments,
+  } as const;
+}
+
 export async function GET(
   _request: NextRequest,
   props: { params: Promise<{ id: string }> },
@@ -298,25 +333,16 @@ export async function POST(
     const expenseDate = validatedData.date ? new Date(validatedData.date) : new Date();
     const normalizedNotes = normalizeOptionalDispatchExpenseText(validatedData.notes);
     const requestedShipmentId = normalizeOptionalDispatchExpenseText(validatedData.shipmentId);
-    let expenseShipments = dispatch.shipments;
-    let expenseShipmentId: string | null = null;
-
-    if (requestedShipmentId) {
-      const matchedShipment = dispatch.shipments.find((shipment) => shipment.id === requestedShipmentId);
-      if (!matchedShipment) {
-        return NextResponse.json({ error: 'Selected shipment is not assigned to this dispatch' }, { status: 400 });
-      }
-      expenseShipments = [matchedShipment];
-      expenseShipmentId = matchedShipment.id;
-    } else if (dispatch.shipments.length === 0) {
-      return NextResponse.json({ error: 'Add at least one shipment to the dispatch before posting expenses' }, { status: 400 });
+    const shipmentSelection = resolveDispatchExpenseShipments(dispatch.shipments, requestedShipmentId);
+    if (shipmentSelection.error) {
+      return NextResponse.json({ error: shipmentSelection.error }, { status: 400 });
     }
 
     const expense = await prisma.$transaction(async (tx) => {
       const createdExpense = await tx.dispatchExpense.create({
         data: {
           dispatchId: params.id,
-          shipmentId: expenseShipmentId,
+          shipmentId: shipmentSelection.expenseShipmentId,
           category: validatedData.category,
           type: validatedData.type,
           description: validatedData.description,
@@ -344,7 +370,7 @@ export async function POST(
         date: expenseDate,
         notes: normalizedNotes,
         createdBy: session.user.id as string,
-        shipments: expenseShipments,
+        shipments: shipmentSelection.expenseShipments,
       });
 
       return createdExpense;
@@ -357,7 +383,7 @@ export async function POST(
       session.user.id as string,
       {
         dispatchId: params.id,
-        shipmentId: expenseShipmentId,
+        shipmentId: shipmentSelection.expenseShipmentId,
         category: validatedData.category,
         type: validatedData.type,
         amount: validatedData.amount,
@@ -461,25 +487,16 @@ export async function PATCH(
     const normalizedAttachmentType = normalizeOptionalDispatchExpenseText(validatedData.attachmentType);
     const expenseDate = validatedData.date ? new Date(validatedData.date) : existingExpense.date;
     const requestedShipmentId = normalizeOptionalDispatchExpenseText(validatedData.shipmentId);
-    let expenseShipments = dispatch.shipments;
-    let expenseShipmentId: string | null = null;
-
-    if (requestedShipmentId) {
-      const matchedShipment = dispatch.shipments.find((shipment) => shipment.id === requestedShipmentId);
-      if (!matchedShipment) {
-        return NextResponse.json({ error: 'Selected shipment is not assigned to this dispatch' }, { status: 400 });
-      }
-      expenseShipments = [matchedShipment];
-      expenseShipmentId = matchedShipment.id;
-    } else if (dispatch.shipments.length === 0) {
-      return NextResponse.json({ error: 'Add at least one shipment to the dispatch before posting expenses' }, { status: 400 });
+    const shipmentSelection = resolveDispatchExpenseShipments(dispatch.shipments, requestedShipmentId);
+    if (shipmentSelection.error) {
+      return NextResponse.json({ error: shipmentSelection.error }, { status: 400 });
     }
 
     const updatedExpense = await prisma.$transaction(async (tx) => {
       const expense = await tx.dispatchExpense.update({
         where: { id: validatedData.expenseId },
         data: {
-          shipmentId: expenseShipmentId,
+          shipmentId: shipmentSelection.expenseShipmentId,
           category: validatedData.category,
           type: validatedData.type,
           description: validatedData.description,
@@ -506,7 +523,7 @@ export async function PATCH(
         date: expenseDate,
         notes: normalizedNotes,
         createdBy: session.user.id as string,
-        shipments: expenseShipments,
+        shipments: shipmentSelection.expenseShipments,
       });
 
       return expense;
@@ -521,7 +538,7 @@ export async function PATCH(
         before: existingExpense,
         after: {
           category: validatedData.category,
-          shipmentId: expenseShipmentId,
+          shipmentId: shipmentSelection.expenseShipmentId,
           type: validatedData.type,
           description: validatedData.description,
           amount: validatedData.amount,
