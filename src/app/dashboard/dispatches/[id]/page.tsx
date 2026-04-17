@@ -25,7 +25,7 @@ import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/da
 import { Breadcrumbs, Button, EmptyState, StatsCard, TableSkeleton, toast } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { DISPATCH_STATUS_COLORS, DISPATCH_STATUS_OPTIONS, getDispatchStatusLabel, isDispatchClosed } from '@/lib/dispatch-workflow';
-import DispatchExpenseModal, { type EditableDispatchExpense, type ExpenseTargetShipment } from '@/components/dispatches/DispatchExpenseModal';
+import DispatchExpenseModal, { type EditableDispatchExpense } from '@/components/dispatches/DispatchExpenseModal';
 import { getDispatchExpenseCategoryLabel, getDispatchExpenseTypeLabel } from '@/lib/dispatch-expenses';
 import { hasPermission } from '@/lib/rbac';
 
@@ -78,7 +78,6 @@ interface HandoffContainerOption {
 
 interface DispatchExpense {
   id: string;
-  shipmentId?: string | null;
   type: string;
   description: string;
   amount: number;
@@ -123,8 +122,6 @@ interface Dispatch {
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => <div hidden={value !== index}>{value === index && <Box sx={{ pt: 2 }}>{children}</Box>}</div>;
-const getShipmentLabel = (shipment: { vehicleYear?: number | null; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null }) =>
-  [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleVIN || 'Shipment';
 
 function getDispatchEventStatusLabel(status: string) {
   if (status === 'HANDOFF_TO_CONTAINER') {
@@ -191,7 +188,6 @@ export default function DispatchDetailPage() {
   const [postingEvent, setPostingEvent] = useState(false);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<DispatchExpense | null>(null);
-  const [expenseTargetShipment, setExpenseTargetShipment] = useState<ExpenseTargetShipment | null>(null);
   const [expenseHistoryExpense, setExpenseHistoryExpense] = useState<DispatchExpense | null>(null);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
   const [openAddShipment, setOpenAddShipment] = useState(false);
@@ -484,37 +480,9 @@ export default function DispatchDetailPage() {
       key: 'id',
       header: 'Actions',
       align: 'center',
-      render: (_, row) => {
-        if (!canManageWorkflow && !canManageExpenses) return null;
-
-        return (
-          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-            {canManageExpenses ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<DollarSign className="w-4 h-4" />}
-                onClick={() => {
-                  setSelectedExpense(null);
-                  setExpenseTargetShipment({ id: row.id, label: getShipmentLabel(row) });
-                  setExpenseModalOpen(true);
-                }}
-              />
-            ) : null}
-            {canManageWorkflow ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Trash2 className="w-4 h-4" />}
-                onClick={() => void handleRemoveShipment(row.id)}
-                disabled={isDispatchWorkflowLocked}
-              />
-            ) : null}
-          </Box>
-        );
-      },
+      render: (_, row) => canManageWorkflow ? <Button variant="ghost" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => void handleRemoveShipment(row.id)} disabled={isDispatchWorkflowLocked} /> : null,
     },
-  ], [canManageExpenses, canManageWorkflow, isDispatchWorkflowLocked]);
+  ], [canManageWorkflow, isDispatchWorkflowLocked]);
 
   const eventColumns = useMemo<Column<DispatchEvent>[]>(() => [
     {
@@ -630,11 +598,6 @@ export default function DispatchDetailPage() {
                 icon={<Pencil className="w-4 h-4" />}
                 onClick={() => {
                   setSelectedExpense(row);
-                  setExpenseTargetShipment(
-                    row.shipment
-                      ? { id: row.shipment.id, label: getShipmentLabel(row.shipment) }
-                      : null,
-                  );
                   setExpenseModalOpen(true);
                 }}
                 disabled={isDispatchWorkflowLocked}
@@ -760,7 +723,7 @@ export default function DispatchDetailPage() {
             >
               {canOverrideClosedStages
                 ? 'This dispatch is closed. Admin override is enabled for workflow and expense corrections.'
-                : 'This dispatch is closed. Shipment assignment, shipment removal, and event logging are locked. Expenses can still be managed.'}
+                : 'This dispatch is closed. Shipment assignment, shipment removal, event logging, and expense posting are locked.'}
             </Box>
           )}
 
@@ -843,9 +806,9 @@ export default function DispatchDetailPage() {
                   icon={<Plus className="w-4 h-4" />}
                   onClick={() => {
                     setSelectedExpense(null);
-                    setExpenseTargetShipment(null);
                     setExpenseModalOpen(true);
                   }}
+                  disabled={isDispatchWorkflowLocked}
                 >
                   Add expense
                 </Button>
@@ -900,11 +863,9 @@ export default function DispatchDetailPage() {
           onClose={() => {
             setExpenseModalOpen(false);
             setSelectedExpense(null);
-            setExpenseTargetShipment(null);
           }}
           dispatchId={dispatchId}
           initialExpense={selectedExpense as EditableDispatchExpense | null}
-          targetShipment={expenseTargetShipment}
           onSuccess={() => void fetchDispatch()}
         />
 
