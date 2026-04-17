@@ -20,6 +20,7 @@ import { ensureExpensePostingAllowed, isClosedStageOverrideAllowed } from '@/lib
 
 const expenseSchema = z.object({
   expenseId: z.string().optional(),
+  shipmentId: z.string().optional().nullable(),
   category: z.string().min(1).default(DEFAULT_DISPATCH_EXPENSE_CATEGORY),
   type: z.string().min(1),
   description: z.string().trim().min(3).max(200),
@@ -269,19 +270,8 @@ export async function POST(
       return NextResponse.json({ error: 'Dispatch not found' }, { status: 404 });
     }
 
-    if (isDispatchClosed(dispatch.status) && !isClosedStageOverrideAllowed(session.user?.role)) {
-      return NextResponse.json(
-        { error: 'Cannot add expenses to a completed or cancelled dispatch' },
-        { status: 400 },
-      );
-    }
-
     if (!dispatch.companyId) {
       return NextResponse.json({ error: 'Assign a company to this dispatch before adding expenses' }, { status: 400 });
-    }
-
-    if (dispatch.shipments.length === 0) {
-      return NextResponse.json({ error: 'Add at least one shipment to the dispatch before posting expenses' }, { status: 400 });
     }
 
     const body = await request.json();
@@ -307,11 +297,26 @@ export async function POST(
 
     const expenseDate = validatedData.date ? new Date(validatedData.date) : new Date();
     const normalizedNotes = normalizeOptionalDispatchExpenseText(validatedData.notes);
+    const requestedShipmentId = normalizeOptionalDispatchExpenseText(validatedData.shipmentId);
+    let expenseShipments = dispatch.shipments;
+    let expenseShipmentId: string | null = null;
+
+    if (requestedShipmentId) {
+      const matchedShipment = dispatch.shipments.find((shipment) => shipment.id === requestedShipmentId);
+      if (!matchedShipment) {
+        return NextResponse.json({ error: 'Selected shipment is not assigned to this dispatch' }, { status: 400 });
+      }
+      expenseShipments = [matchedShipment];
+      expenseShipmentId = matchedShipment.id;
+    } else if (dispatch.shipments.length === 0) {
+      return NextResponse.json({ error: 'Add at least one shipment to the dispatch before posting expenses' }, { status: 400 });
+    }
 
     const expense = await prisma.$transaction(async (tx) => {
       const createdExpense = await tx.dispatchExpense.create({
         data: {
           dispatchId: params.id,
+          shipmentId: expenseShipmentId,
           category: validatedData.category,
           type: validatedData.type,
           description: validatedData.description,
@@ -339,7 +344,7 @@ export async function POST(
         date: expenseDate,
         notes: normalizedNotes,
         createdBy: session.user.id as string,
-        shipments: dispatch.shipments,
+        shipments: expenseShipments,
       });
 
       return createdExpense;
@@ -352,6 +357,7 @@ export async function POST(
       session.user.id as string,
       {
         dispatchId: params.id,
+        shipmentId: expenseShipmentId,
         category: validatedData.category,
         type: validatedData.type,
         amount: validatedData.amount,
@@ -454,11 +460,26 @@ export async function PATCH(
     const normalizedAttachmentName = normalizeOptionalDispatchExpenseText(validatedData.attachmentName);
     const normalizedAttachmentType = normalizeOptionalDispatchExpenseText(validatedData.attachmentType);
     const expenseDate = validatedData.date ? new Date(validatedData.date) : existingExpense.date;
+    const requestedShipmentId = normalizeOptionalDispatchExpenseText(validatedData.shipmentId);
+    let expenseShipments = dispatch.shipments;
+    let expenseShipmentId: string | null = null;
+
+    if (requestedShipmentId) {
+      const matchedShipment = dispatch.shipments.find((shipment) => shipment.id === requestedShipmentId);
+      if (!matchedShipment) {
+        return NextResponse.json({ error: 'Selected shipment is not assigned to this dispatch' }, { status: 400 });
+      }
+      expenseShipments = [matchedShipment];
+      expenseShipmentId = matchedShipment.id;
+    } else if (dispatch.shipments.length === 0) {
+      return NextResponse.json({ error: 'Add at least one shipment to the dispatch before posting expenses' }, { status: 400 });
+    }
 
     const updatedExpense = await prisma.$transaction(async (tx) => {
       const expense = await tx.dispatchExpense.update({
         where: { id: validatedData.expenseId },
         data: {
+          shipmentId: expenseShipmentId,
           category: validatedData.category,
           type: validatedData.type,
           description: validatedData.description,
@@ -485,7 +506,7 @@ export async function PATCH(
         date: expenseDate,
         notes: normalizedNotes,
         createdBy: session.user.id as string,
-        shipments: dispatch.shipments,
+        shipments: expenseShipments,
       });
 
       return expense;
@@ -500,6 +521,7 @@ export async function PATCH(
         before: existingExpense,
         after: {
           category: validatedData.category,
+          shipmentId: expenseShipmentId,
           type: validatedData.type,
           description: validatedData.description,
           amount: validatedData.amount,
