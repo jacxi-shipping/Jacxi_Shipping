@@ -15,15 +15,23 @@ export async function recalculateUserLedgerBalances(db: DbClient, userId: string
 
   let runningBalance = 0;
 
+  const updates = [];
+
   for (const entry of entries) {
     runningBalance = applyLedgerDelta(runningBalance, entry.type, entry.amount);
 
     if (entry.balance !== runningBalance) {
-      await db.ledgerEntry.update({
-        where: { id: entry.id },
-        data: { balance: runningBalance },
-      });
+      updates.push(
+        db.ledgerEntry.update({
+          where: { id: entry.id },
+          data: { balance: runningBalance },
+        })
+      );
     }
+  }
+
+  if (updates.length > 0) {
+    await Promise.all(updates);
   }
 
   return runningBalance;

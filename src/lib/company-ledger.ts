@@ -15,15 +15,23 @@ export async function recalculateCompanyLedgerBalances(db: DbClient, companyId: 
 
   let runningBalance = 0;
 
+  const updates = [];
+
   for (const entry of entries) {
     runningBalance = applyLedgerDelta(runningBalance, entry.type, entry.amount);
 
     if (entry.balance !== runningBalance) {
-      await db.companyLedgerEntry.update({
-        where: { id: entry.id },
-        data: { balance: runningBalance },
-      });
+      updates.push(
+        db.companyLedgerEntry.update({
+          where: { id: entry.id },
+          data: { balance: runningBalance },
+        })
+      );
     }
+  }
+
+  if (updates.length > 0) {
+    await Promise.all(updates);
   }
 
   return runningBalance;
