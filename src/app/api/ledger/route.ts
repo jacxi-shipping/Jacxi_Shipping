@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { createAuditLog } from '@/lib/audit';
+import { hasPermission } from '@/lib/rbac';
 
 // Schema for creating a ledger entry
 const createLedgerEntrySchema = z.object({
@@ -34,8 +35,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const search = searchParams.get('search');
 
-    // Non-admin users can only view their own ledger
-    const isAdmin = session.user.role === 'admin';
+    // Users without finance:manage can only view their own ledger
+    const isAdmin = hasPermission(session.user.role, 'finance:manage');
     const targetUserId = isAdmin && userId ? userId : session.user.id;
 
     // Build where clause
@@ -152,8 +153,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can create ledger entries
-    if (session.user.role !== 'admin') {
+    // Only users with finance:manage can create ledger entries
+    if (!hasPermission(session.user.role, 'finance:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

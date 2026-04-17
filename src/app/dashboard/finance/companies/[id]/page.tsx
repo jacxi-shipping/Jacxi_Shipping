@@ -15,7 +15,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { ArrowLeft, Building2, DollarSign, Eye, Pencil, Plus, ReceiptText, Trash2, Truck } from 'lucide-react';
-import AdminRoute from '@/components/auth/AdminRoute';
+import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
@@ -490,28 +490,28 @@ export default function CompanyLedgerDetailPage() {
 
   if (loading) {
     return (
-      <AdminRoute>
+      <PermissionRoute permission="finance:manage">
         <DashboardSurface>
           <TableSkeleton rows={8} />
         </DashboardSurface>
-      </AdminRoute>
+      </PermissionRoute>
     );
   }
 
   if (!company) {
     return (
-      <AdminRoute>
+      <PermissionRoute permission="finance:manage">
         <DashboardSurface>
           <DashboardPanel title="Company not found">
             <Box sx={{ color: 'var(--text-secondary)' }}>The requested company could not be loaded.</Box>
           </DashboardPanel>
         </DashboardSurface>
-      </AdminRoute>
+      </PermissionRoute>
     );
   }
 
   return (
-    <AdminRoute>
+    <PermissionRoute permission="finance:manage">
       <DashboardSurface>
         <Box sx={{ px: 2, pt: 2 }}>
           <Breadcrumbs />
@@ -896,6 +896,6 @@ export default function CompanyLedgerDetailPage() {
           </DialogActions>
         </Dialog>
       </DashboardSurface>
-    </AdminRoute>
+    </PermissionRoute>
   );
 }

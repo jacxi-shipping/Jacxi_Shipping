@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { hasPermission } from '@/lib/rbac';
 import {
   ArrowBack,
   Add,
@@ -116,7 +117,7 @@ export default function UserLedgerManagementPage() {
       router.replace('/auth/signin');
       return;
     }
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'finance:manage')) {
       router.replace('/dashboard/finance/ledger');
       return;
     }

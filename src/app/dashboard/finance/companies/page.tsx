@@ -14,7 +14,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Building2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
-import AdminRoute from '@/components/auth/AdminRoute';
+import PermissionRoute from '@/components/auth/PermissionRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
@@ -327,7 +327,7 @@ export default function CompanyFinancePage() {
   );
 
   return (
-    <AdminRoute>
+    <PermissionRoute permission="finance:manage">
       <DashboardSurface>
         <Box sx={{ px: 2, pt: 2 }}>
           <Breadcrumbs />
@@ -460,6 +460,6 @@ export default function CompanyFinancePage() {
           </DialogActions>
         </Dialog>
       </DashboardSurface>
-    </AdminRoute>
+    </PermissionRoute>
   );
 }

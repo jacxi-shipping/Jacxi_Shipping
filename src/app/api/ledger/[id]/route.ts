@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { z } from 'zod';
+import { hasPermission } from '@/lib/rbac';
 
 // Schema for updating a ledger entry
 const updateLedgerEntrySchema = z.object({
@@ -50,8 +51,8 @@ export async function GET(
       return NextResponse.json({ error: 'Ledger entry not found' }, { status: 404 });
     }
 
-    // Non-admin users can only view their own entries
-    if (session.user.role !== 'admin' && entry.userId !== session.user.id) {
+    // Users without finance permissions can only view their own entries
+    if (!hasPermission(session.user.role, 'finance:manage') && entry.userId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -78,8 +79,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can update ledger entries
-    if (session.user.role !== 'admin') {
+    // Only users with finance:manage can update ledger entries
+    if (!hasPermission(session.user.role, 'finance:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -149,8 +150,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can delete ledger entries
-    if (session.user.role !== 'admin') {
+    // Only users with finance:manage can delete ledger entries
+    if (!hasPermission(session.user.role, 'finance:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

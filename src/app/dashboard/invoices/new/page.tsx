@@ -2,6 +2,7 @@
 import { Box } from '@mui/material';
 
 import { useSession } from 'next-auth/react';
+import { hasPermission } from '@/lib/rbac';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -45,7 +46,7 @@ export default function NewInvoicePage() {
 	const [loading, setLoading] = useState(true);
 	const [isCreating, setIsCreating] = useState(false);
 
-	const isAdmin = session?.user?.role === 'admin';
+	const isAdmin = hasPermission(session?.user?.role, 'invoices:manage');
 
 	const fetchContainer = useCallback(async () => {
 		if (!containerId) return;

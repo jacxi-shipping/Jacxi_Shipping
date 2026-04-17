@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 import Link from 'next/link';
 import {
   DashboardSurface,
@@ -140,7 +141,7 @@ export default async function FinancePage() {
     const session = await auth();
     if (!session?.user) redirect('/auth/signin');
 
-    const isAdmin = session.user.role === 'admin';
+    const isAdmin = hasPermission(session.user.role, 'finance:manage');
     const data = await getFinancialData(session.user.id, isAdmin);
 
     return (

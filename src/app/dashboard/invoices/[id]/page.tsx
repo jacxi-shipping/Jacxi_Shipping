@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { hasPermission } from '@/lib/rbac';
 import Link from 'next/link';
 import { 
 	Box, 
@@ -156,7 +157,7 @@ export default function InvoiceDetailPage() {
 	const [loading, setLoading] = useState(true);
 	const [updating, setUpdating] = useState(false);
 
-	const isAdmin = session?.user?.role === 'admin';
+	const isAdmin = hasPermission(session?.user?.role, 'invoices:manage');
 
 	useEffect(() => {
 		fetchInvoice();

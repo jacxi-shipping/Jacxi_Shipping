@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { hasPermission } from '@/lib/rbac';
 
 // GET - Export ledger as Excel-compatible CSV with extended format
 export async function GET(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
 
     // Non-admin users can only export their own ledger
-    const isAdmin = session.user.role === 'admin';
+    const isAdmin = hasPermission(session.user.role, 'finance:manage');
     const targetUserId = isAdmin && userId ? userId : session.user.id;
 
     // Build where clause

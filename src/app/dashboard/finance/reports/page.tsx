@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { hasPermission } from '@/lib/rbac';
 import { 
   ArrowLeft, 
   Download, 
@@ -139,7 +140,7 @@ export default function FinancialReportsPage() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    if (!session || session.user?.role !== 'admin') {
+    if (!session || !hasPermission(session.user?.role, 'finance:manage')) {
       router.replace('/dashboard');
       return;
     }

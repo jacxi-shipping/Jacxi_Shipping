@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { hasPermission } from '@/lib/rbac';
 
 // Schema for recording a payment
 const recordPaymentSchema = z.object({
@@ -21,8 +22,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can record payments
-    if (session.user.role !== 'admin') {
+    // Only users with finance:manage can record payments
+    if (!hasPermission(session.user.role, 'finance:manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

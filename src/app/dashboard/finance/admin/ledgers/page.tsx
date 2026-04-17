@@ -20,6 +20,7 @@ import { Breadcrumbs, Button, toast, EmptyState, SkeletonCard, SkeletonTable, To
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { hasPermission } from '@/lib/rbac';
 
 interface UserLedgerSummary {
   userId: string;
@@ -46,7 +47,7 @@ export default function AdminLedgersPage() {
       router.replace('/auth/signin');
       return;
     }
-    if (session.user?.role !== 'admin') {
+    if (!hasPermission(session.user?.role, 'finance:manage')) {
       router.replace('/dashboard/finance/ledger');
       return;
     }
