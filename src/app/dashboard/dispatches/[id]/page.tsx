@@ -760,7 +760,7 @@ export default function DispatchDetailPage() {
             >
               {canOverrideClosedStages
                 ? 'This dispatch is closed. Admin override is enabled for workflow and expense corrections.'
-                : 'This dispatch is closed. Shipment assignment, shipment removal, and event logging are locked.'}
+                : 'This dispatch is closed. Shipment assignment, shipment removal, and event logging are locked. Expenses can still be managed.'}
             </Box>
           )}
 
