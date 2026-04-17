@@ -215,7 +215,7 @@ export default function DispatchDetailPage() {
   const fetchAvailableShipments = async (searchTerm = '') => {
     try {
       setLoadingAvailableShipments(true);
-      const query = new URLSearchParams({ status: 'ON_HAND', limit: '50', page: '1' });
+      const query = new URLSearchParams({ limit: '50', page: '1' });
       if (searchTerm.trim()) query.set('search', searchTerm.trim());
       const response = await fetch(`/api/shipments?${query.toString()}`);
       const data = await response.json();
@@ -223,7 +223,7 @@ export default function DispatchDetailPage() {
       setAvailableShipments((data.shipments || []).filter((shipment: any) => !shipment.dispatchId && !shipment.containerId && !shipment.transitId));
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load ON_HAND shipments');
+      toast.error('Failed to load shipments');
       setAvailableShipments([]);
     } finally {
       setLoadingAvailableShipments(false);
@@ -813,7 +813,7 @@ export default function DispatchDetailPage() {
               <EmptyState
                 icon={<Package className="w-8 h-8" />}
                 title="No shipments assigned"
-                description={isClosedDispatchState ? 'This dispatch closed without active shipments.' : 'Add ON_HAND shipments to start the dispatch leg.'}
+                description={isClosedDispatchState ? 'This dispatch closed without active shipments.' : 'Add available shipments to start the dispatch leg.'}
               />
             ) : (
               <DataTable data={dispatch.shipments} columns={shipmentColumns} keyField="id" />
