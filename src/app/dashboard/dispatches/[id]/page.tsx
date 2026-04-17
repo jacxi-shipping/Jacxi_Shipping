@@ -632,7 +632,7 @@ export default function DispatchDetailPage() {
                   setSelectedExpense(row);
                   setExpenseTargetShipment(
                     row.shipment
-                      ? { id: row.shipment.id, label: [row.shipment.vehicleMake, row.shipment.vehicleModel].filter(Boolean).join(' ') || row.shipment.vehicleVIN || 'Shipment' }
+                      ? { id: row.shipment.id, label: getShipmentLabel({ vehicleYear: null, ...row.shipment }) }
                       : null,
                   );
                   setExpenseModalOpen(true);
@@ -841,14 +841,14 @@ export default function DispatchDetailPage() {
                 <Button
                   variant="primary"
                   icon={<Plus className="w-4 h-4" />}
-                    onClick={() => {
-                      setSelectedExpense(null);
-                      setExpenseTargetShipment(null);
-                      setExpenseModalOpen(true);
-                    }}
-                 >
-                   Add expense
-                 </Button>
+                  onClick={() => {
+                    setSelectedExpense(null);
+                    setExpenseTargetShipment(null);
+                    setExpenseModalOpen(true);
+                  }}
+                >
+                  Add expense
+                </Button>
               ) : null}
             </Box>
             {dispatch.expenses.length === 0 ? (
