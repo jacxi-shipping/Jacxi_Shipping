@@ -2633,118 +2633,261 @@ export default function ContainerDetailPage() {
 					fullWidth
 					PaperProps={{
 						sx: {
-							bgcolor: 'var(--surface)',
+							bgcolor: 'var(--panel)',
+							backgroundImage: 'none',
 							border: '1px solid var(--border)',
 							borderRadius: 2,
-							maxHeight: '80vh',
 						},
 					}}
 				>
 					<DialogTitle
 						sx={{
+							color: 'var(--text-primary)',
+							fontWeight: 700,
+							fontSize: '1.25rem',
 							borderBottom: '1px solid var(--border)',
 							display: 'flex',
 							alignItems: 'center',
+							gap: 1.5,
+						}}
+					>
+						<Box
+							sx={{
+								width: 40,
+								height: 40,
+								borderRadius: '50%',
+								bgcolor: 'rgba(var(--accent-gold-rgb), 0.1)',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+							}}
+						>
+							<Package className="w-5 h-5" style={{ color: 'var(--accent-gold)' }} />
+						</Box>
+						Assign Shipments to Container
+					</DialogTitle>
+					<DialogContent sx={{ py: 3 }}>
+						<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+							<Box sx={{ color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.6 }}>
+								Select shipments to assign to container <strong>{container.containerNumber}</strong>.
+							</Box>
+
+							{/* Capacity Info */}
+							<Box
+								sx={{
+									p: 2,
+									bgcolor: 'var(--background)',
+									border: '1px solid var(--border)',
+									borderRadius: 1,
+								}}
+							>
+								<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+										<Box sx={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+											Current Vehicles:
+										</Box>
+										<Box sx={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+											{container.currentCount} / {container.maxCapacity}
+										</Box>
+									</Box>
+									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+										<Box sx={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+											Remaining Capacity:
+										</Box>
+										<Box sx={{ fontWeight: 600, color: 'var(--success)', fontSize: '0.875rem' }}>
+											{container.maxCapacity - container.currentCount}
+										</Box>
+									</Box>
+									{selectedShipmentIds.length > 0 && (
+										<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+											<Box sx={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+												Selected:
+											</Box>
+											<Box sx={{ fontWeight: 600, color: 'var(--accent-gold)', fontSize: '0.875rem' }}>
+												{selectedShipmentIds.length} shipment{selectedShipmentIds.length !== 1 ? 's' : ''}
+											</Box>
+										</Box>
+									)}
+								</Box>
+							</Box>
+
+							{/* Search */}
+							<Box>
+								<Box
+									component="label"
+									sx={{
+										display: 'block',
+										fontSize: '0.875rem',
+										fontWeight: 600,
+										color: 'var(--text-primary)',
+										mb: 1,
+									}}
+								>
+									Search Shipments
+								</Box>
+								<Box sx={{ position: 'relative' }}>
+									<Search className="w-4 h-4" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+									<input
+										type="text"
+										value={shipmentSearchQuery}
+										onChange={(e) => setShipmentSearchQuery(e.target.value)}
+										placeholder="Search by vehicle, VIN, or customer..."
+										style={{
+											width: '100%',
+											padding: '10px 12px 10px 36px',
+											borderRadius: '8px',
+											border: '1px solid var(--border)',
+											backgroundColor: 'var(--background)',
+											color: 'var(--text-primary)',
+											fontSize: '0.875rem',
+										}}
+									/>
+								</Box>
+							</Box>
+
+							{/* Shipments List */}
+							{loadingAvailableShipments ? (
+								<Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+									<Box
+										component="span"
+										sx={{
+											display: 'inline-block',
+											width: 24,
+											height: 24,
+											border: '3px solid var(--border)',
+											borderTopColor: 'var(--accent-gold)',
+											borderRadius: '50%',
+											animation: 'spin 0.6s linear infinite',
+											'@keyframes spin': {
+												'0%': { transform: 'rotate(0deg)' },
+												'100%': { transform: 'rotate(360deg)' },
+											},
+										}}
+									/>
+								</Box>
+							) : filteredAvailableShipments.length === 0 ? (
+								<Box
+									sx={{
+										p: 3,
+										textAlign: 'center',
+										color: 'var(--text-secondary)',
+										fontSize: '0.875rem',
+										bgcolor: 'var(--background)',
+										borderRadius: 1,
+										border: '1px solid var(--border)',
+									}}
+								>
+									{shipmentSearchQuery ? 'No shipments match your search' : 'No available shipments found'}
+								</Box>
+							) : (
+								<Box sx={{ maxHeight: '40vh', overflow: 'auto', borderRadius: 1, border: '1px solid var(--border)' }}>
+									<TableContainer>
+										<Table size="small" stickyHeader>
+											<TableHead>
+												<TableRow>
+													<TableCell padding="checkbox" sx={{ bgcolor: 'var(--background)' }}>
+														<Checkbox
+															size="small"
+															indeterminate={selectedShipmentIds.length > 0 && selectedShipmentIds.length < filteredAvailableShipments.length}
+															checked={filteredAvailableShipments.length > 0 && selectedShipmentIds.length === filteredAvailableShipments.length}
+															onChange={(e) => {
+																if (e.target.checked) {
+																	const remaining = container.maxCapacity - container.currentCount;
+																	setSelectedShipmentIds(filteredAvailableShipments.slice(0, remaining).map((s: any) => s.id));
+																} else {
+																	setSelectedShipmentIds([]);
+																}
+															}}
+															sx={{ color: 'var(--text-secondary)', '&.Mui-checked': { color: 'var(--accent-gold)' }, '&.MuiCheckbox-indeterminate': { color: 'var(--accent-gold)' } }}
+														/>
+													</TableCell>
+													<TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', bgcolor: 'var(--background)' }}>Vehicle</TableCell>
+													<TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', bgcolor: 'var(--background)' }}>VIN</TableCell>
+													<TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', bgcolor: 'var(--background)' }}>Customer</TableCell>
+													<TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', bgcolor: 'var(--background)' }}>Status</TableCell>
+												</TableRow>
+											</TableHead>
+											<TableBody>
+												{filteredAvailableShipments.map((shipment: any) => {
+													const isSelected = selectedShipmentIds.includes(shipment.id);
+													const remaining = container.maxCapacity - container.currentCount;
+													const isDisabled = !isSelected && selectedShipmentIds.length >= remaining;
+													return (
+														<TableRow
+															key={shipment.id}
+															hover
+															selected={isSelected}
+															sx={{
+																cursor: isDisabled ? 'not-allowed' : 'pointer',
+																opacity: isDisabled ? 0.5 : 1,
+																'&.Mui-selected': { bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)' },
+																'&.Mui-selected:hover': { bgcolor: 'rgba(var(--accent-gold-rgb), 0.12)' },
+															}}
+															onClick={() => {
+																if (isDisabled) return;
+																setSelectedShipmentIds((prev) =>
+																	isSelected ? prev.filter((id) => id !== shipment.id) : [...prev, shipment.id]
+																);
+															}}
+														>
+															<TableCell padding="checkbox">
+																<Checkbox
+																	size="small"
+																	checked={isSelected}
+																	disabled={isDisabled}
+																	sx={{ color: 'var(--text-secondary)', '&.Mui-checked': { color: 'var(--accent-gold)' } }}
+																/>
+															</TableCell>
+															<TableCell sx={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+																{shipment.vehicleMake} {shipment.vehicleModel}
+															</TableCell>
+															<TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+																{shipment.vehicleVIN || 'N/A'}
+															</TableCell>
+															<TableCell sx={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+																{shipment.user?.name || shipment.user?.email || 'N/A'}
+															</TableCell>
+															<TableCell>
+																<Chip
+																	label={shipment.status}
+																	size="small"
+																	sx={{
+																		fontSize: '0.7rem',
+																		bgcolor: 'rgba(var(--accent-gold-rgb), 0.1)',
+																		color: 'var(--accent-gold)',
+																		fontWeight: 600,
+																	}}
+																/>
+															</TableCell>
+														</TableRow>
+													);
+												})}
+											</TableBody>
+										</Table>
+									</TableContainer>
+								</Box>
+							)}
+						</Box>
+					</DialogContent>
+					<DialogActions
+						sx={{
+							px: 3,
+							py: 2,
+							borderTop: '1px solid var(--border)',
 							gap: 1,
 						}}
 					>
-						<Package className="w-5 h-5" />
-						Assign Shipments to Container
-					</DialogTitle>
-					<DialogContent sx={{ py: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-							<Search className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
-							<TextField
-								size="small"
-								placeholder="Search by vehicle, VIN, or customer..."
-								value={shipmentSearchQuery}
-								onChange={(e) => setShipmentSearchQuery(e.target.value)}
-								fullWidth
-								sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
-							/>
-						</Box>
-						<Typography variant="body2" sx={{ color: 'var(--text-secondary)' }}>
-							Showing ON_HAND shipments without a container. Remaining capacity: {container ? container.maxCapacity - container.currentCount : 0}
-						</Typography>
-						{loadingAvailableShipments ? (
-							<Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-								<CircularProgress size={32} />
-							</Box>
-						) : filteredAvailableShipments.length === 0 ? (
-							<Typography variant="body2" sx={{ textAlign: 'center', py: 4, color: 'var(--text-secondary)' }}>
-								{shipmentSearchQuery ? 'No shipments match your search' : 'No available shipments found'}
-							</Typography>
-						) : (
-							<TableContainer sx={{ maxHeight: '50vh' }}>
-								<Table size="small" stickyHeader>
-									<TableHead>
-										<TableRow>
-											<TableCell padding="checkbox">
-												<Checkbox
-													indeterminate={selectedShipmentIds.length > 0 && selectedShipmentIds.length < filteredAvailableShipments.length}
-													checked={filteredAvailableShipments.length > 0 && selectedShipmentIds.length === filteredAvailableShipments.length}
-													onChange={(e) => {
-														if (e.target.checked) {
-															const remaining = container ? container.maxCapacity - container.currentCount : 0;
-															setSelectedShipmentIds(filteredAvailableShipments.slice(0, remaining).map((s) => s.id));
-														} else {
-															setSelectedShipmentIds([]);
-														}
-													}}
-												/>
-											</TableCell>
-											<TableCell sx={{ fontWeight: 600 }}>Vehicle</TableCell>
-											<TableCell sx={{ fontWeight: 600 }}>VIN</TableCell>
-											<TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>
-											<TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-										</TableRow>
-									</TableHead>
-									<TableBody>
-										{filteredAvailableShipments.map((shipment) => {
-											const isSelected = selectedShipmentIds.includes(shipment.id);
-											const remaining = container ? container.maxCapacity - container.currentCount : 0;
-											const isDisabled = !isSelected && selectedShipmentIds.length >= remaining;
-											return (
-												<TableRow
-													key={shipment.id}
-													hover
-													selected={isSelected}
-													sx={{ cursor: isDisabled ? 'not-allowed' : 'pointer', opacity: isDisabled ? 0.5 : 1 }}
-													onClick={() => {
-														if (isDisabled) return;
-														setSelectedShipmentIds((prev) =>
-															isSelected ? prev.filter((id) => id !== shipment.id) : [...prev, shipment.id]
-														);
-													}}
-												>
-													<TableCell padding="checkbox">
-														<Checkbox checked={isSelected} disabled={isDisabled} />
-													</TableCell>
-													<TableCell>
-														{shipment.vehicleMake} {shipment.vehicleModel}
-													</TableCell>
-													<TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-														{shipment.vehicleVIN || 'N/A'}
-													</TableCell>
-													<TableCell>
-														{shipment.user?.name || shipment.user?.email || 'N/A'}
-													</TableCell>
-													<TableCell>
-														<Chip label={shipment.status} size="small" color="primary" sx={{ fontSize: '0.75rem' }} />
-													</TableCell>
-												</TableRow>
-											);
-										})}
-									</TableBody>
-								</Table>
-							</TableContainer>
-						)}
-					</DialogContent>
-					<DialogActions sx={{ p: 3, borderTop: '1px solid var(--border)' }}>
 						<Button
 							variant="outline"
 							onClick={() => setAssignShipmentModalOpen(false)}
 							disabled={assigningShipments}
+							sx={{
+								color: 'var(--text-secondary)',
+								borderColor: 'var(--border)',
+								'&:hover': {
+									bgcolor: 'var(--background)',
+								}
+							}}
 						>
 							Cancel
 						</Button>
@@ -2752,9 +2895,46 @@ export default function ContainerDetailPage() {
 							variant="primary"
 							onClick={handleAssignShipments}
 							disabled={selectedShipmentIds.length === 0 || assigningShipments}
-							loading={assigningShipments}
+							sx={{
+								bgcolor: 'var(--accent-gold)',
+								color: 'white',
+								'&:hover': {
+									bgcolor: 'var(--accent-gold)',
+									opacity: 0.9,
+								},
+								'&:disabled': {
+									opacity: 0.5,
+									cursor: 'not-allowed',
+								}
+							}}
 						>
-							Assign {selectedShipmentIds.length > 0 ? `(${selectedShipmentIds.length})` : ''}
+							{assigningShipments ? (
+								<>
+									<Box
+										component="span"
+										sx={{
+											display: 'inline-block',
+											width: 16,
+											height: 16,
+											mr: 1,
+											border: '2px solid white',
+											borderTopColor: 'transparent',
+											borderRadius: '50%',
+											animation: 'spin 0.6s linear infinite',
+											'@keyframes spin': {
+												'0%': { transform: 'rotate(0deg)' },
+												'100%': { transform: 'rotate(360deg)' },
+											},
+										}}
+									/>
+									Assigning...
+								</>
+							) : (
+								<>
+									<Package className="w-4 h-4 mr-2" />
+									Assign{selectedShipmentIds.length > 0 ? ` (${selectedShipmentIds.length})` : ''}
+								</>
+							)}
 						</Button>
 					</DialogActions>
 				</Dialog>
