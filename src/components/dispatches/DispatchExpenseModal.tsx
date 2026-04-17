@@ -27,6 +27,7 @@ import {
 
 export interface EditableDispatchExpense {
   id: string;
+  shipmentId?: string | null;
   category: string | null;
   type: string;
   description: string;
@@ -41,15 +42,21 @@ export interface EditableDispatchExpense {
   attachmentType?: string | null;
 }
 
+export interface ExpenseTargetShipment {
+  id: string;
+  label: string;
+}
+
 interface DispatchExpenseModalProps {
   open: boolean;
   onClose: () => void;
   dispatchId: string;
   onSuccess: () => void;
   initialExpense?: EditableDispatchExpense | null;
+  targetShipment?: ExpenseTargetShipment | null;
 }
 
-function createInitialForm(expense?: EditableDispatchExpense | null) {
+function createInitialForm(expense?: EditableDispatchExpense | null, targetShipmentId?: string | null) {
   const category = (expense?.category as DispatchExpenseCategory | null) || DEFAULT_DISPATCH_EXPENSE_CATEGORY;
   const availableTypes = getDispatchExpenseTypes(category);
   const defaultType = availableTypes.some((option) => option.value === expense?.type)
@@ -57,6 +64,7 @@ function createInitialForm(expense?: EditableDispatchExpense | null) {
     : availableTypes[0].value;
 
   return {
+    shipmentId: expense?.shipmentId ?? targetShipmentId ?? null,
     category,
     type: defaultType,
     description: expense?.description || '',
@@ -78,19 +86,20 @@ export default function DispatchExpenseModal({
   dispatchId,
   onSuccess,
   initialExpense,
+  targetShipment,
 }: DispatchExpenseModalProps) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [formData, setFormData] = useState(createInitialForm(initialExpense));
+  const [formData, setFormData] = useState(createInitialForm(initialExpense, targetShipment?.id));
 
   const typeOptions = useMemo(() => getDispatchExpenseTypes(formData.category), [formData.category]);
   const isEditing = Boolean(initialExpense?.id);
 
   useEffect(() => {
     if (open) {
-      setFormData(createInitialForm(initialExpense));
+      setFormData(createInitialForm(initialExpense, targetShipment?.id));
     }
-  }, [initialExpense, open]);
+  }, [initialExpense, open, targetShipment]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -107,7 +116,7 @@ export default function DispatchExpenseModal({
 
   const resetAndClose = () => {
     if (loading || uploading) return;
-    setFormData(createInitialForm(initialExpense));
+    setFormData(createInitialForm(initialExpense, targetShipment?.id));
     onClose();
   };
 
@@ -166,6 +175,7 @@ export default function DispatchExpenseModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...(initialExpense?.id ? { expenseId: initialExpense.id } : {}),
+          shipmentId: formData.shipmentId,
           category: formData.category,
           type: formData.type,
           description: formData.description.trim(),
@@ -187,7 +197,7 @@ export default function DispatchExpenseModal({
 
       toast.success(isEditing ? 'Dispatch expense updated' : 'Dispatch expense added');
       onSuccess();
-      setFormData(createInitialForm(null));
+      setFormData(createInitialForm(null, null));
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save expense');
@@ -254,6 +264,12 @@ export default function DispatchExpenseModal({
             onChange={(e) => handleChange('description', e.target.value)}
             required
             placeholder="What was this dispatch expense for?"
+          />
+          <TextField
+            size="small"
+            label="Applies To"
+            value={targetShipment?.label || 'All dispatch shipments'}
+            disabled
           />
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr' }, gap: 2 }}>
