@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (roleType === 'customers') {
       where.role = 'user';
     } else if (roleType === 'users') {
-      where.role = 'admin';
+      where.role = { in: ['admin', 'manager', 'finance', 'operations', 'customer_service'] };
     }
 
     // Execute database queries in parallel for performance

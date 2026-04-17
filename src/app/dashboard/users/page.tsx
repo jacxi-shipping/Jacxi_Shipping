@@ -371,7 +371,7 @@ export default function UsersPage() {
 			{/* Search Panel */}
 			<DashboardPanel
 				title="Users Directory"
-				description="Internal users (admin accounts)"
+				description="Internal users (admin, finance, manager, operations, customer service)"
 				noBodyPadding
 				actions={
 					<Link href="/dashboard/users/new?accountType=user" style={{ textDecoration: 'none' }}>
