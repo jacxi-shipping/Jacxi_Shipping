@@ -64,7 +64,7 @@ function createInitialForm(expense?: EditableDispatchExpense | null, targetShipm
     : availableTypes[0].value;
 
   return {
-    shipmentId: expense?.shipmentId ?? targetShipmentId ?? '',
+    shipmentId: expense?.shipmentId ?? targetShipmentId ?? null,
     category,
     type: defaultType,
     description: expense?.description || '',
@@ -175,7 +175,7 @@ export default function DispatchExpenseModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...(initialExpense?.id ? { expenseId: initialExpense.id } : {}),
-          shipmentId: formData.shipmentId || null,
+          shipmentId: formData.shipmentId,
           category: formData.category,
           type: formData.type,
           description: formData.description.trim(),

@@ -209,7 +209,7 @@ export default function DispatchDetailPage() {
   const isDispatchWorkflowLocked = isClosedDispatchState && !canOverrideClosedStages;
   const canHandoffToContainer = Boolean(dispatch && canManageWorkflow && !isDispatchWorkflowLocked && dispatch.shipments.length > 0);
   const canReceiveToYard = Boolean(dispatch && canManageWorkflow && !isDispatchWorkflowLocked && dispatch.shipments.length > 0);
-  const getShipmentLabel = (shipment: Pick<Shipment, 'vehicleYear' | 'vehicleMake' | 'vehicleModel' | 'vehicleVIN'>) =>
+  const getShipmentLabel = (shipment: { vehicleYear?: number | null; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null }) =>
     [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleVIN || 'Shipment';
 
   const fetchAvailableShipments = async (searchTerm = '') => {
@@ -632,7 +632,7 @@ export default function DispatchDetailPage() {
                   setSelectedExpense(row);
                   setExpenseTargetShipment(
                     row.shipment
-                      ? { id: row.shipment.id, label: getShipmentLabel({ vehicleYear: null, ...row.shipment }) }
+                      ? { id: row.shipment.id, label: getShipmentLabel(row.shipment) }
                       : null,
                   );
                   setExpenseModalOpen(true);
