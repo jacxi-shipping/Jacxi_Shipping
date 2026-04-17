@@ -231,7 +231,7 @@ function resolveDispatchExpenseShipments(
     return {
       expenseShipmentId: matchedShipment.id,
       expenseShipments: [matchedShipment],
-    } as const;
+    };
   }
 
   if (dispatchShipments.length === 0) {
@@ -241,7 +241,7 @@ function resolveDispatchExpenseShipments(
   return {
     expenseShipmentId: null,
     expenseShipments: dispatchShipments,
-  } as const;
+  };
 }
 
 export async function GET(
