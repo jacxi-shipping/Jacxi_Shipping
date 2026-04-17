@@ -123,6 +123,8 @@ interface Dispatch {
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => <div hidden={value !== index}>{value === index && <Box sx={{ pt: 2 }}>{children}</Box>}</div>;
+const getShipmentLabel = (shipment: { vehicleYear?: number | null; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null }) =>
+  [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleVIN || 'Shipment';
 
 function getDispatchEventStatusLabel(status: string) {
   if (status === 'HANDOFF_TO_CONTAINER') {
@@ -209,8 +211,6 @@ export default function DispatchDetailPage() {
   const isDispatchWorkflowLocked = isClosedDispatchState && !canOverrideClosedStages;
   const canHandoffToContainer = Boolean(dispatch && canManageWorkflow && !isDispatchWorkflowLocked && dispatch.shipments.length > 0);
   const canReceiveToYard = Boolean(dispatch && canManageWorkflow && !isDispatchWorkflowLocked && dispatch.shipments.length > 0);
-  const getShipmentLabel = (shipment: { vehicleYear?: number | null; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null }) =>
-    [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleVIN || 'Shipment';
 
   const fetchAvailableShipments = async (searchTerm = '') => {
     try {

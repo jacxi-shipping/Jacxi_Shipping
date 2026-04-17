@@ -333,9 +333,6 @@ export async function POST(
     const expenseDate = validatedData.date ? new Date(validatedData.date) : new Date();
     const normalizedNotes = normalizeOptionalDispatchExpenseText(validatedData.notes);
     const requestedShipmentId = normalizeOptionalDispatchExpenseText(validatedData.shipmentId);
-    if (!requestedShipmentId && dispatch.shipments.length === 0) {
-      return NextResponse.json({ error: 'Add at least one shipment to the dispatch before posting expenses' }, { status: 400 });
-    }
     const shipmentSelection = resolveDispatchExpenseShipments(dispatch.shipments, requestedShipmentId);
     if (shipmentSelection.error) {
       return NextResponse.json({ error: shipmentSelection.error }, { status: 400 });
@@ -490,9 +487,6 @@ export async function PATCH(
     const normalizedAttachmentType = normalizeOptionalDispatchExpenseText(validatedData.attachmentType);
     const expenseDate = validatedData.date ? new Date(validatedData.date) : existingExpense.date;
     const requestedShipmentId = normalizeOptionalDispatchExpenseText(validatedData.shipmentId);
-    if (!requestedShipmentId && dispatch.shipments.length === 0) {
-      return NextResponse.json({ error: 'Add at least one shipment to the dispatch before posting expenses' }, { status: 400 });
-    }
     const shipmentSelection = resolveDispatchExpenseShipments(dispatch.shipments, requestedShipmentId);
     if (shipmentSelection.error) {
       return NextResponse.json({ error: shipmentSelection.error }, { status: 400 });
