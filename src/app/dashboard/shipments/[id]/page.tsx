@@ -2210,7 +2210,13 @@ export default function ShipmentDetailPage() {
         <AddShipmentExpenseModal
           open={Boolean(expenseAction)}
           onClose={() => setExpenseAction(null)}
-          shipmentId={shipment.id}
+          shipments={[{
+            id: shipment.id,
+            vehicleMake: shipment.vehicleMake,
+            vehicleModel: shipment.vehicleModel,
+            vehicleVIN: shipment.vehicleVIN,
+            user: shipment.user,
+          }]}
           modalTitle={expenseAction?.modalTitle}
           contextType={expenseAction?.contextType}
           contextId={expenseAction?.contextId}
