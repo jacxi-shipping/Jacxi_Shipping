@@ -71,6 +71,11 @@ interface PaymentAllocation {
 }
 
 const steps = ['Select Customer', 'Choose Shipments', 'Payment Details', 'Review & Submit'];
+const transactionInfoTypeLabels: Record<string, string> = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+};
 
 export default function RecordPaymentPage() {
   const { data: session, status } = useSession();
@@ -715,7 +720,7 @@ export default function RecordPaymentPage() {
                         Transaction Info Type
                       </Box>
                       <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {transactionInfoType.replace(/_/g, ' ')}
+                        {transactionInfoTypeLabels[transactionInfoType]}
                       </Box>
                     </Box>
                   </Box>

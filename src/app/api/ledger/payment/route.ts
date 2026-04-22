@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
           paymentType: 'received',
           paymentMethod: validatedData.paymentMethod,
           paymentSource: validatedData.transactionInfoType,
-          transactionInfoType: validatedData.transactionInfoType,
         },
       },
       include: {
@@ -162,7 +161,6 @@ export async function POST(request: NextRequest) {
             parentEntryId: entry.id,
             paymentType: 'applied',
             paymentSource: validatedData.transactionInfoType,
-            transactionInfoType: validatedData.transactionInfoType,
           },
         });
 
