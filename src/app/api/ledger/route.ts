@@ -5,12 +5,16 @@ import { z } from 'zod';
 import { createAuditLog } from '@/lib/audit';
 import { hasPermission } from '@/lib/rbac';
 
+const transactionInfoTypeSchema = z.enum(['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT']);
+const transactionInfoTypes = ['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT'] as const;
+
 // Schema for creating a ledger entry
 const createLedgerEntrySchema = z.object({
   userId: z.string(),
   shipmentId: z.string().optional(),
   description: z.string().min(1),
   type: z.enum(['DEBIT', 'CREDIT']),
+  transactionInfoType: transactionInfoTypeSchema.optional(),
   amount: z.number().positive(),
   notes: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
@@ -31,6 +35,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const type = searchParams.get('type');
+    const transactionInfoType = searchParams.get('transactionInfoType');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const search = searchParams.get('search');
@@ -52,6 +57,10 @@ export async function GET(request: NextRequest) {
       where.type = type;
     }
 
+    if (transactionInfoType && transactionInfoTypeSchema.safeParse(transactionInfoType).success) {
+      where.transactionInfoType = transactionInfoType;
+    }
+
     if (startDate || endDate) {
       where.transactionDate = {};
       if (startDate) {
@@ -71,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
     // Execute database queries in parallel for performance
-    const [totalCount, entries, groupedSums, latestEntry] = await Promise.all([
+    const [totalCount, entries, groupedSums, transactionInfoGroupedSums, latestEntry] = await Promise.all([
       // Get total count
       prisma.ledgerEntry.count({ where }),
 
@@ -113,6 +122,18 @@ export async function GET(request: NextRequest) {
         },
       }),
 
+      prisma.ledgerEntry.groupBy({
+        by: ['transactionInfoType', 'type'],
+        where: {
+          ...where,
+          transactionInfoType: { in: [...transactionInfoTypes] },
+          type: { in: ['DEBIT', 'CREDIT'] },
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+
       // Get current balance (latest entry's balance)
       prisma.ledgerEntry.findFirst({
         where: { userId: targetUserId },
@@ -133,6 +154,19 @@ export async function GET(request: NextRequest) {
         totalDebit: groupedSums.find(g => g.type === 'DEBIT')?._sum.amount || 0,
         totalCredit: groupedSums.find(g => g.type === 'CREDIT')?._sum.amount || 0,
         currentBalance: latestEntry?.balance || 0,
+        transactionInfoBreakdown: transactionInfoTypes.reduce<Record<string, { totalDebit: number; totalCredit: number; balance: number }>>((accumulator, currentType) => {
+          const typeRows = transactionInfoGroupedSums.filter((row) => row.transactionInfoType === currentType);
+          const totalDebit = typeRows.find((row) => row.type === 'DEBIT')?._sum.amount || 0;
+          const totalCredit = typeRows.find((row) => row.type === 'CREDIT')?._sum.amount || 0;
+
+          accumulator[currentType] = {
+            totalDebit,
+            totalCredit,
+            balance: totalDebit - totalCredit,
+          };
+
+          return accumulator;
+        }, {}),
       },
     });
   } catch (error) {
@@ -185,6 +219,7 @@ export async function POST(request: NextRequest) {
         shipmentId: validatedData.shipmentId,
         description: validatedData.description,
         type: validatedData.type,
+        transactionInfoType: validatedData.transactionInfoType,
         amount: validatedData.amount,
         balance: newBalance,
         createdBy: session.user.id as string,

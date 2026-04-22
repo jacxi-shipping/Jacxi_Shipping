@@ -10,8 +10,15 @@ const recordPaymentSchema = z.object({
   shipmentIds: z.array(z.string()).min(1),
   amount: z.number().positive(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHECK', 'CREDIT_CARD', 'WIRE']).optional().default('CASH'),
+  transactionInfoType: z.enum(['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT']).optional().default('SHIPPING_PAYMENT'),
   notes: z.string().optional(),
 });
+
+const transactionInfoTypeLabels = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+} as const;
 
 // POST - Record a payment from a user
 export async function POST(request: NextRequest) {
@@ -67,13 +74,15 @@ export async function POST(request: NextRequest) {
     const shipmentInfo = shipments
       .map((s) => s.vehicleVIN || `${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.id)
       .join(', ');
-    const description = `Payment received for shipment(s): ${shipmentInfo}`;
+    const transactionInfoLabel = transactionInfoTypeLabels[validatedData.transactionInfoType];
+    const description = `${transactionInfoLabel} received for shipment(s): ${shipmentInfo}`;
 
     const entry = await prisma.ledgerEntry.create({
       data: {
         userId: validatedData.userId,
         description,
         type: 'CREDIT',
+        transactionInfoType: validatedData.transactionInfoType,
         amount: validatedData.amount,
         balance: newBalance,
         createdBy: session.user.id as string,
@@ -151,6 +160,7 @@ export async function POST(request: NextRequest) {
           shipmentId: shipment.id,
           description: `Payment applied to ${shipment.vehicleVIN ? `VIN ${shipment.vehicleVIN}` : `shipment ${shipment.id || ''}`}`,
           type: 'CREDIT' as const,
+          transactionInfoType: validatedData.transactionInfoType,
           amount: paymentForShipment,
           balance: newBalance, // Same balance as the main entry
           createdBy: session.user.id as string,

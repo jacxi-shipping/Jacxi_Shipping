@@ -659,6 +659,7 @@ model LedgerEntry {
   transactionDate DateTime        @default(now())
   description     String
   type            LedgerEntryType
+  transactionInfoType TransactionInfoType?
   amount          Float
   balance         Float
   createdBy       String
@@ -673,6 +674,7 @@ model LedgerEntry {
   @@index([userId])
   @@index([shipmentId])
   @@index([transactionDate])
+  @@index([transactionInfoType])
 }
 
 model Company {
@@ -1068,6 +1070,12 @@ enum PaymentMode {
 enum LedgerEntryType {
   DEBIT
   CREDIT
+}
+
+enum TransactionInfoType {
+  CAR_PAYMENT
+  SHIPPING_PAYMENT
+  STORAGE_PAYMENT
 }
 
 enum AuditAction {

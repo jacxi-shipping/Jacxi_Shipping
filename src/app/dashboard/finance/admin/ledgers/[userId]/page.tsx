@@ -50,6 +50,7 @@ interface LedgerEntry {
   transactionDate: string;
   description: string;
   type: 'DEBIT' | 'CREDIT';
+  transactionInfoType?: TransactionInfoType;
   amount: number;
   balance: number;
   notes?: string;
@@ -70,7 +71,20 @@ interface LedgerSummary {
   totalDebit: number;
   totalCredit: number;
   currentBalance: number;
+  transactionInfoBreakdown: Record<TransactionInfoType, {
+    totalDebit: number;
+    totalCredit: number;
+    balance: number;
+  }>;
 }
+
+type TransactionInfoType = 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT';
+
+const transactionInfoTypeLabels: Record<TransactionInfoType, string> = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+};
 
 export default function UserLedgerManagementPage() {
   const { data: session, status } = useSession();
@@ -84,6 +98,11 @@ export default function UserLedgerManagementPage() {
     totalDebit: 0,
     totalCredit: 0,
     currentBalance: 0,
+    transactionInfoBreakdown: {
+      CAR_PAYMENT: { totalDebit: 0, totalCredit: 0, balance: 0 },
+      SHIPPING_PAYMENT: { totalDebit: 0, totalCredit: 0, balance: 0 },
+      STORAGE_PAYMENT: { totalDebit: 0, totalCredit: 0, balance: 0 },
+    },
   });
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -91,6 +110,7 @@ export default function UserLedgerManagementPage() {
   const [filters, setFilters] = useState({
     search: '',
     type: '',
+    transactionInfoType: '',
     startDate: '',
     endDate: '',
   });
@@ -107,6 +127,7 @@ export default function UserLedgerManagementPage() {
   const [formData, setFormData] = useState({
     description: '',
     type: 'DEBIT' as 'DEBIT' | 'CREDIT',
+    transactionInfoType: 'SHIPPING_PAYMENT' as TransactionInfoType,
     amount: '',
     notes: '',
   });
@@ -146,6 +167,7 @@ export default function UserLedgerManagementPage() {
         limit: '20',
         ...(filters.search && { search: filters.search }),
         ...(filters.type && { type: filters.type }),
+        ...(filters.transactionInfoType && { transactionInfoType: filters.transactionInfoType }),
         ...(filters.startDate && { startDate: filters.startDate }),
         ...(filters.endDate && { endDate: filters.endDate }),
       });
@@ -178,6 +200,7 @@ export default function UserLedgerManagementPage() {
           userId,
           description: formData.description,
           type: formData.type,
+          transactionInfoType: formData.transactionInfoType,
           amount: parseFloat(formData.amount),
           notes: formData.notes,
         }),
@@ -186,7 +209,7 @@ export default function UserLedgerManagementPage() {
       if (response.ok) {
         toast.success('Transaction added successfully');
         setShowAddModal(false);
-        setFormData({ description: '', type: 'DEBIT', amount: '', notes: '' });
+        setFormData({ description: '', type: 'DEBIT', transactionInfoType: 'SHIPPING_PAYMENT', amount: '', notes: '' });
         fetchLedgerEntries();
       } else {
         const error = await response.json();
@@ -216,7 +239,7 @@ export default function UserLedgerManagementPage() {
         toast.success('Transaction updated successfully');
         setShowEditModal(false);
         setSelectedEntry(null);
-        setFormData({ description: '', type: 'DEBIT', amount: '', notes: '' });
+        setFormData({ description: '', type: 'DEBIT', transactionInfoType: 'SHIPPING_PAYMENT', amount: '', notes: '' });
         fetchLedgerEntries();
       } else {
         const error = await response.json();
@@ -256,6 +279,7 @@ export default function UserLedgerManagementPage() {
     setFormData({
       description: entry.description,
       type: entry.type,
+      transactionInfoType: entry.transactionInfoType || 'SHIPPING_PAYMENT',
       amount: entry.amount.toString(),
       notes: entry.notes || '',
     });
@@ -315,6 +339,12 @@ export default function UserLedgerManagementPage() {
     return 'var(--text-secondary)';
   };
 
+  const getSummaryVariant = (balance: number): 'error' | 'success' | 'info' => {
+    if (balance > 0) return 'error';
+    if (balance < 0) return 'success';
+    return 'info';
+  };
+
   const columns = useMemo<Column<LedgerEntry>[]>(() => [
     {
       key: 'transactionDate',
@@ -336,6 +366,9 @@ export default function UserLedgerManagementPage() {
         <Box>
           <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
             {row.description}
+          </Typography>
+          <Typography sx={{ fontSize: '0.72rem', color: 'var(--accent-gold)', mt: 0.5, fontWeight: 600 }}>
+            {row.transactionInfoType ? transactionInfoTypeLabels[row.transactionInfoType] : 'Not specified'}
           </Typography>
           {row.notes && (
             <Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
@@ -478,6 +511,23 @@ export default function UserLedgerManagementPage() {
           />
         </DashboardGrid>
 
+        <DashboardGrid className="grid-cols-1 md:grid-cols-3">
+          {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([transactionType, label]) => {
+            const transactionSummary = summary.transactionInfoBreakdown[transactionType];
+
+            return (
+              <StatsCard
+                key={transactionType}
+                icon={transactionSummary.balance > 0 ? <TrendingUpIcon /> : transactionSummary.balance < 0 ? <TrendingDownIcon /> : <AccountBalance />}
+                title={label}
+                value={formatCurrency(transactionSummary.balance)}
+                subtitle={`Debit ${formatCurrency(transactionSummary.totalDebit)} | Credit ${formatCurrency(transactionSummary.totalCredit)}`}
+                variant={getSummaryVariant(transactionSummary.balance)}
+              />
+            );
+          })}
+        </DashboardGrid>
+
         {/* Filters Panel */}
         <DashboardPanel
           title="Filters & Actions"
@@ -518,7 +568,7 @@ export default function UserLedgerManagementPage() {
             </Box>
 
             {showFilters && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
                 <FormControl size="small" fullWidth>
                   <InputLabel>Type</InputLabel>
                   <Select
@@ -529,6 +579,19 @@ export default function UserLedgerManagementPage() {
                     <MenuItem value="">All Types</MenuItem>
                     <MenuItem value="DEBIT">Debit Only</MenuItem>
                     <MenuItem value="CREDIT">Credit Only</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Transaction Info</InputLabel>
+                  <Select
+                    value={filters.transactionInfoType}
+                    onChange={(e) => setFilters({ ...filters, transactionInfoType: e.target.value })}
+                    label="Transaction Info"
+                  >
+                    <MenuItem value="">All Transaction Types</MenuItem>
+                    {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([value, label]) => (
+                      <MenuItem key={value} value={value}>{label}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 <TextField
@@ -664,6 +727,20 @@ export default function UserLedgerManagementPage() {
                 fullWidth
               />
 
+              <FormControl fullWidth>
+                <InputLabel>Transaction Info Type *</InputLabel>
+                <Select
+                  value={formData.transactionInfoType}
+                  onChange={(e) => setFormData({ ...formData, transactionInfoType: e.target.value as TransactionInfoType })}
+                  label="Transaction Info Type *"
+                  required
+                >
+                  {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>{label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
               <TextField
                 label="Amount * (USD)"
                 type="number"
@@ -724,6 +801,13 @@ export default function UserLedgerManagementPage() {
               <TextField
                 label="Amount (Read-only)"
                 value={formatCurrency(parseFloat(formData.amount))}
+                disabled
+                fullWidth
+              />
+
+              <TextField
+                label="Transaction Info Type (Read-only)"
+                value={transactionInfoTypeLabels[formData.transactionInfoType]}
                 disabled
                 fullWidth
               />

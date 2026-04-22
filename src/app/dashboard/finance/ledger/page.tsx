@@ -26,6 +26,7 @@ interface LedgerEntry {
   transactionDate: string;
   description: string;
   type: 'DEBIT' | 'CREDIT';
+  transactionInfoType?: TransactionInfoType;
   amount: number;
   balance: number;
   notes?: string;
@@ -43,6 +44,14 @@ interface LedgerSummary {
   currentBalance: number;
 }
 
+type TransactionInfoType = 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT';
+
+const transactionInfoTypeLabels: Record<TransactionInfoType, string> = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+};
+
 export default function LedgerPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -58,6 +67,7 @@ export default function LedgerPage() {
   const [filters, setFilters] = useState({
     search: '',
     type: '',
+    transactionInfoType: '',
     startDate: '',
     endDate: '',
   });
@@ -80,6 +90,7 @@ export default function LedgerPage() {
         limit: '20',
         ...(filters.search && { search: filters.search }),
         ...(filters.type && { type: filters.type }),
+        ...(filters.transactionInfoType && { transactionInfoType: filters.transactionInfoType }),
         ...(filters.startDate && { startDate: filters.startDate }),
         ...(filters.endDate && { endDate: filters.endDate }),
       });
@@ -104,6 +115,9 @@ export default function LedgerPage() {
   const handleExport = async (format: 'csv' | 'pdf' | 'excel') => {
     try {
       const params = new URLSearchParams({
+        ...(filters.search && { search: filters.search }),
+        ...(filters.type && { type: filters.type }),
+        ...(filters.transactionInfoType && { transactionInfoType: filters.transactionInfoType }),
         ...(filters.startDate && { startDate: filters.startDate }),
         ...(filters.endDate && { endDate: filters.endDate }),
       });
@@ -209,6 +223,9 @@ export default function LedgerPage() {
         <Box>
           <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
             {normalizeShipmentReference(row)}
+          </Typography>
+          <Typography sx={{ fontSize: '0.72rem', color: 'var(--accent-gold)', mt: 0.5, fontWeight: 600 }}>
+            {row.transactionInfoType ? transactionInfoTypeLabels[row.transactionInfoType] : 'Not specified'}
           </Typography>
           {row.notes && (
             <Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
@@ -353,7 +370,7 @@ export default function LedgerPage() {
                 }}
                 fullWidth
               />
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
                 <FormControl size="small" fullWidth>
                   <InputLabel>Type</InputLabel>
                   <Select
@@ -364,6 +381,19 @@ export default function LedgerPage() {
                     <MenuItem value="">All Types</MenuItem>
                     <MenuItem value="DEBIT">Debit</MenuItem>
                     <MenuItem value="CREDIT">Credit</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Transaction Info</InputLabel>
+                  <Select
+                    value={filters.transactionInfoType}
+                    onChange={(e) => setFilters({ ...filters, transactionInfoType: e.target.value })}
+                    label="Transaction Info"
+                  >
+                    <MenuItem value="">All Transaction Types</MenuItem>
+                    {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([value, label]) => (
+                      <MenuItem key={value} value={value}>{label}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 <TextField

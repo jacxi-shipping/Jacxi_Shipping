@@ -3,6 +3,12 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 
+const TRANSACTION_INFO_TYPE_LABELS = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+} as const;
+
 // GET - Export ledger as PDF (generates HTML that can be printed to PDF)
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +20,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const type = searchParams.get('type');
+    const transactionInfoType = searchParams.get('transactionInfoType');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const search = searchParams.get('search');
 
     // Non-admin users can only export their own ledger
     const isAdmin = hasPermission(session.user.role, 'finance:manage');
@@ -34,6 +43,21 @@ export async function GET(request: NextRequest) {
       if (endDate) {
         (where.transactionDate as Record<string, unknown>).lte = new Date(endDate);
       }
+    }
+
+    if (type && (type === 'DEBIT' || type === 'CREDIT')) {
+      where.type = type;
+    }
+
+    if (transactionInfoType && transactionInfoType in TRANSACTION_INFO_TYPE_LABELS) {
+      where.transactionInfoType = transactionInfoType;
+    }
+
+    if (search) {
+      where.OR = [
+        { description: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
     // Fetch ledger entries and user info
@@ -246,6 +270,7 @@ export async function GET(request: NextRequest) {
         <tr>
           <th>Date</th>
           <th>Description</th>
+          <th>Transaction Info</th>
           <th>Shipment</th>
           <th class="right">Debit</th>
           <th class="right">Credit</th>
@@ -257,12 +282,16 @@ export async function GET(request: NextRequest) {
           const shipmentInfo = entry.shipment
             ? `${entry.shipment.vehicleVIN || 'N/A'}`
             : 'N/A';
+          const transactionInfoLabel = entry.transactionInfoType
+            ? TRANSACTION_INFO_TYPE_LABELS[entry.transactionInfoType]
+            : 'Not specified';
           const date = new Date(entry.transactionDate).toLocaleString();
           
           return `
             <tr>
               <td>${date}</td>
               <td>${entry.description}</td>
+              <td>${transactionInfoLabel}</td>
               <td>${shipmentInfo}</td>
               <td class="right ${entry.type === 'DEBIT' ? 'debit' : ''}">
                 ${entry.type === 'DEBIT' ? '$' + entry.amount.toFixed(2) : '-'}

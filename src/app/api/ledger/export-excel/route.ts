@@ -3,6 +3,12 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 
+const TRANSACTION_INFO_TYPE_LABELS = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+} as const;
+
 // GET - Export ledger as Excel-compatible CSV with extended format
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +20,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const type = searchParams.get('type');
+    const transactionInfoType = searchParams.get('transactionInfoType');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const search = searchParams.get('search');
 
     // Non-admin users can only export their own ledger
     const isAdmin = hasPermission(session.user.role, 'finance:manage');
@@ -34,6 +43,21 @@ export async function GET(request: NextRequest) {
       if (endDate) {
         (where.transactionDate as Record<string, unknown>).lte = new Date(endDate);
       }
+    }
+
+    if (type && (type === 'DEBIT' || type === 'CREDIT')) {
+      where.type = type;
+    }
+
+    if (transactionInfoType && transactionInfoType in TRANSACTION_INFO_TYPE_LABELS) {
+      where.transactionInfoType = transactionInfoType;
+    }
+
+    if (search) {
+      where.OR = [
+        { description: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
     // Fetch ledger entries and user info
@@ -105,6 +129,7 @@ export async function GET(request: NextRequest) {
       'Date',
       'Time',
       'Description',
+      'Transaction Info Type',
       'Shipment',
       'Vehicle',
       'Type',
@@ -130,6 +155,7 @@ export async function GET(request: NextRequest) {
         date.toLocaleDateString(),
         date.toLocaleTimeString(),
         `"${entry.description.replace(/"/g, '""')}"`,
+        entry.transactionInfoType ? TRANSACTION_INFO_TYPE_LABELS[entry.transactionInfoType] : '',
         shipmentInfo,
         `"${vehicleInfo}"`,
         entry.type,

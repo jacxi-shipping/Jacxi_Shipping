@@ -70,6 +70,14 @@ interface PaymentAllocation {
   amountToPay: number;
 }
 
+type TransactionInfoType = 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT';
+
+const transactionInfoTypeLabels: Record<TransactionInfoType, string> = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+};
+
 const steps = ['Select Customer', 'Choose Shipments', 'Payment Details', 'Review & Submit'];
 
 export default function RecordPaymentPage() {
@@ -85,6 +93,7 @@ export default function RecordPaymentPage() {
   // Form state
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [transactionInfoType, setTransactionInfoType] = useState<TransactionInfoType>('SHIPPING_PAYMENT');
   const [notes, setNotes] = useState('');
   
   // UI state
@@ -258,6 +267,7 @@ export default function RecordPaymentPage() {
           shipmentIds: selectedShipmentIds,
           amount: parseFloat(amount),
           paymentMethod,
+          transactionInfoType,
           notes,
         }),
       });
@@ -613,6 +623,21 @@ export default function RecordPaymentPage() {
                   </Select>
                 </FormControl>
 
+                <FormControl fullWidth size="medium">
+                  <InputLabel>Transaction Info Type *</InputLabel>
+                  <Select
+                    value={transactionInfoType}
+                    onChange={(e) => setTransactionInfoType(e.target.value as TransactionInfoType)}
+                    label="Transaction Info Type *"
+                  >
+                    {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([value, label]) => (
+                      <MenuItem key={value} value={value}>
+                        {label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
                 {/* Notes */}
                 <TextField
                   fullWidth
@@ -685,6 +710,14 @@ export default function RecordPaymentPage() {
                       </Box>
                       <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {paymentMethod.replace('_', ' ')}
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                        Transaction Type
+                      </Box>
+                      <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {transactionInfoTypeLabels[transactionInfoType]}
                       </Box>
                     </Box>
                   </Box>
