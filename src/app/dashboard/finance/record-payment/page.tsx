@@ -85,6 +85,7 @@ export default function RecordPaymentPage() {
   // Form state
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [transactionInfoType, setTransactionInfoType] = useState('');
   const [notes, setNotes] = useState('');
   
   // UI state
@@ -232,6 +233,10 @@ export default function RecordPaymentPage() {
         toast.error('Please enter a valid payment amount');
         return;
       }
+      if (!transactionInfoType) {
+        toast.error('Please select a transaction info type');
+        return;
+      }
     }
     setActiveStep((prev) => prev + 1);
   };
@@ -258,6 +263,7 @@ export default function RecordPaymentPage() {
           shipmentIds: selectedShipmentIds,
           amount: parseFloat(amount),
           paymentMethod,
+          transactionInfoType,
           notes,
         }),
       });
@@ -613,6 +619,23 @@ export default function RecordPaymentPage() {
                   </Select>
                 </FormControl>
 
+                {/* Transaction Info Type */}
+                <FormControl fullWidth size="medium" required>
+                  <InputLabel>Transaction Info Type *</InputLabel>
+                  <Select
+                    value={transactionInfoType}
+                    onChange={(e) => setTransactionInfoType(e.target.value)}
+                    label="Transaction Info Type *"
+                  >
+                    <MenuItem value="">
+                      <em>Select transaction info type...</em>
+                    </MenuItem>
+                    <MenuItem value="CAR_PAYMENT">Car Payment</MenuItem>
+                    <MenuItem value="SHIPPING_PAYMENT">Shipping Payment</MenuItem>
+                    <MenuItem value="STORAGE_PAYMENT">Storage Payment</MenuItem>
+                  </Select>
+                </FormControl>
+
                 {/* Notes */}
                 <TextField
                   fullWidth
@@ -685,6 +708,14 @@ export default function RecordPaymentPage() {
                       </Box>
                       <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {paymentMethod.replace('_', ' ')}
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                        Transaction Info Type
+                      </Box>
+                      <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {transactionInfoType.replace(/_/g, ' ')}
                       </Box>
                     </Box>
                   </Box>
