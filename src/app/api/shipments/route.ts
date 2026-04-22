@@ -44,6 +44,12 @@ export async function GET(request: NextRequest) {
     // Regular users can only see their own shipments
     if (!canReadAllShipments) {
       where.userId = session.user?.id;
+    } else {
+      // Admins may optionally filter by a specific customer's userId
+      const filterUserId = searchParams.get('userId');
+      if (filterUserId) {
+        where.userId = filterUserId;
+      }
     }
 
     // Add status filter
@@ -85,6 +91,7 @@ export async function GET(request: NextRequest) {
       status: true,
       createdAt: true,
       paymentStatus: true,
+      price: true,
       dispatchId: true,
       containerId: true,
       transitId: true,
