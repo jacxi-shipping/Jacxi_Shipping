@@ -42,6 +42,11 @@ interface LedgerSummary {
   totalDebit: number;
   totalCredit: number;
   currentBalance: number;
+  transactionInfoBreakdown?: Partial<Record<TransactionInfoType, {
+    totalDebit: number;
+    totalCredit: number;
+    balance: number;
+  }>>;
 }
 
 type TransactionInfoType = 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT';
@@ -294,6 +299,9 @@ export default function LedgerPage() {
     }
   ], []);
 
+  const totalCarPayment = summary.transactionInfoBreakdown?.CAR_PAYMENT?.totalCredit || 0;
+  const totalShippingPayment = summary.transactionInfoBreakdown?.SHIPPING_PAYMENT?.totalCredit || 0;
+
   if (status === 'loading' || loading) {
     return (
       <ProtectedRoute>
@@ -318,7 +326,7 @@ export default function LedgerPage() {
 					<Breadcrumbs />
 				</Box>
         {/* Stats Cards */}
-        <DashboardGrid className="grid-cols-1 md:grid-cols-3">
+        <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
           <StatsCard
             icon={<TrendingUpIcon />}
             title="Total Debit"
@@ -339,6 +347,20 @@ export default function LedgerPage() {
             value={formatCurrency(summary.currentBalance)}
             subtitle={summary.currentBalance > 0 ? 'Amount owed' : summary.currentBalance < 0 ? 'Credit balance' : 'Settled'}
             variant={summary.currentBalance > 0 ? 'error' : summary.currentBalance < 0 ? 'success' : 'info'}
+          />
+          <StatsCard
+            icon={<AttachMoney />}
+            title="Total Car Payment"
+            value={formatCurrency(totalCarPayment)}
+            subtitle="Credits tagged as car payment"
+            variant="success"
+          />
+          <StatsCard
+            icon={<AttachMoney />}
+            title="Total Shipping Payment"
+            value={formatCurrency(totalShippingPayment)}
+            subtitle="Credits tagged as shipping payment"
+            variant="success"
           />
         </DashboardGrid>
 

@@ -3,6 +3,7 @@ import { Prisma, TitleStatus, PaymentStatus, ShipmentSimpleStatus } from '@prism
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
+import { syncShipmentPurchasePriceEntries } from '@/lib/shipment-purchase-price';
 
 const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
   'ON_HAND',
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
     const containerId = searchParams.get('containerId');
+    const userId = searchParams.get('userId');
     const search = searchParams.get('search');
     const includeFinancial = searchParams.get('includeFinancial') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
@@ -41,9 +43,12 @@ export async function GET(request: NextRequest) {
     const where: Prisma.ShipmentWhereInput = {};
     const canReadAllShipments = hasPermission(session.user?.role, 'shipments:read_all');
     
-    // Regular users can only see their own shipments
+    // Regular users can only see their own shipments.
+    // Privileged users can optionally scope results to a specific user via ?userId=...
     if (!canReadAllShipments) {
       where.userId = session.user?.id;
+    } else if (userId) {
+      where.userId = userId;
     }
 
     // Add status filter
@@ -423,6 +428,21 @@ export async function POST(request: NextRequest) {
           dealerName: dealerName || null,
           purchaseNotes: purchaseNotes || null,
         },
+      });
+
+      const vehicleLabel = [parsedVehicleYear, vehicleMake, vehicleModel]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || vehicleType;
+
+      await syncShipmentPurchasePriceEntries(tx, {
+        shipmentId: createdShipment.id,
+        userId,
+        purchasePriceAmount: parsedPurchasePrice,
+        serviceType: serviceType || 'SHIPPING_ONLY',
+        vehicleLabel,
+        vehicleVIN,
+        actorUserId: session.user.id as string,
       });
 
       // Update container count if assigned

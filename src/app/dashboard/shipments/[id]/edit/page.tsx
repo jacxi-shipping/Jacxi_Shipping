@@ -132,12 +132,14 @@ export default function EditShipmentPage() {
     resolver: zodResolver(shipmentSchema),
     mode: 'onBlur',
     defaultValues: {
+      serviceType: 'SHIPPING_ONLY',
       vehiclePhotos: [],
       status: 'ON_HAND',
     },
   });
 
   const statusValue = watch('status');
+  const serviceTypeValue = watch('serviceType');
   const vinValue = watch('vehicleVIN');
   const isTransitManaged = Boolean(transitWorkflowContext?.transitId);
   const isDispatchManaged = Boolean(dispatchWorkflowContext?.dispatchId);
@@ -190,6 +192,7 @@ export default function EditShipmentPage() {
           // Populate form
           reset({
             userId: shipment.userId,
+            serviceType: shipment.serviceType || 'SHIPPING_ONLY',
             vehicleType: shipment.vehicleType,
             vehicleMake: shipment.vehicleMake || '',
             vehicleModel: shipment.vehicleModel || '',
@@ -200,6 +203,11 @@ export default function EditShipmentPage() {
             auctionName: shipment.auctionName || '',
             weight: shipment.weight?.toString() || '',
             dimensions: shipment.dimensions || '',
+            purchasePrice: shipment.purchasePrice?.toString() || '',
+            purchaseDate: shipment.purchaseDate ? new Date(shipment.purchaseDate).toISOString().split('T')[0] : '',
+            purchaseLocation: shipment.purchaseLocation || '',
+            dealerName: shipment.dealerName || '',
+            purchaseNotes: shipment.purchaseNotes || '',
             hasKey: shipment.hasKey,
             hasTitle: shipment.hasTitle,
             titleStatus: shipment.titleStatus || undefined,
@@ -568,6 +576,37 @@ export default function EditShipmentPage() {
                 <Box>
                   <Typography
                     component="label"
+                    htmlFor="serviceType"
+                    sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}
+                  >
+                    Service Type *
+                  </Typography>
+                  <select
+                    id="serviceType"
+                    {...register('serviceType')}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '16px',
+                      border: errors.serviceType ? '2px solid var(--error)' : '1px solid rgba(var(--border-rgb), 0.9)',
+                      backgroundColor: 'var(--background)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    <option value="SHIPPING_ONLY">Shipping Only</option>
+                    <option value="PURCHASE_AND_SHIPPING">Purchase + Shipping</option>
+                  </select>
+                  {errors.serviceType && (
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--error)', mt: 0.5 }}>
+                      {errors.serviceType.message}
+                    </Typography>
+                  )}
+                </Box>
+
+                <Box>
+                  <Typography
+                    component="label"
                     htmlFor="vehicleType"
                     sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}
                   >
@@ -702,6 +741,99 @@ export default function EditShipmentPage() {
                             <option value="DELIVERED">Delivered</option>
                         </select>
                     </Box>
+                )}
+
+                {serviceTypeValue === 'SHIPPING_ONLY' && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 2,
+                      borderRadius: '12px',
+                      border: '1px solid rgba(var(--border-rgb), 0.9)',
+                      backgroundColor: 'var(--surface)',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Purchase Information is hidden while Service Type is set to Shipping Only.
+                    </Typography>
+                  </Box>
+                )}
+
+                {serviceTypeValue === 'PURCHASE_AND_SHIPPING' && (
+                  <Box
+                    sx={{
+                      mt: 3,
+                      p: 3,
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(var(--accent-gold-rgb), 0.05)',
+                      border: '1px solid rgba(var(--accent-gold-rgb), 0.2)',
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        mb: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
+                      Purchase Information
+                    </Typography>
+
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
+                      <FormField
+                        id="purchasePrice"
+                        label="Purchase Price *"
+                        type="number"
+                        placeholder="Amount paid for vehicle"
+                        error={!!errors.purchasePrice}
+                        helperText={errors.purchasePrice?.message || 'Price company paid for the vehicle'}
+                        {...register('purchasePrice')}
+                        required
+                      />
+                      <FormField
+                        id="purchaseDate"
+                        label="Purchase Date"
+                        type="date"
+                        error={!!errors.purchaseDate}
+                        helperText={errors.purchaseDate?.message}
+                        {...register('purchaseDate')}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
+                      <FormField
+                        id="dealerName"
+                        label="Dealer/Auction Name"
+                        placeholder="e.g., Copart, IAAI, Local Dealer"
+                        error={!!errors.dealerName}
+                        helperText={errors.dealerName?.message}
+                        {...register('dealerName')}
+                      />
+                      <FormField
+                        id="purchaseLocation"
+                        label="Purchase Location"
+                        placeholder="City, State"
+                        error={!!errors.purchaseLocation}
+                        helperText={errors.purchaseLocation?.message}
+                        {...register('purchaseLocation')}
+                      />
+                    </Box>
+
+                    <FormField
+                      id="purchaseNotes"
+                      label="Purchase Notes"
+                      placeholder="Additional details about the purchase..."
+                      error={!!errors.purchaseNotes}
+                      helperText={errors.purchaseNotes?.message}
+                      {...register('purchaseNotes')}
+                      multiline
+                      rows={3}
+                    />
+                  </Box>
                 )}
               </Box>
             </DashboardPanel>

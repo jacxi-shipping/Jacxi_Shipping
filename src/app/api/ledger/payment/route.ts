@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const currentBalance = latestEntry?.balance || 0;
     const newBalance = currentBalance - validatedData.amount;
 
-    // Create a credit ledger entry
+    // Create a credit ledger entry (payment received)
     const shipmentInfo = shipments
       .map((s) => s.vehicleVIN || `${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.id)
       .join(', ');

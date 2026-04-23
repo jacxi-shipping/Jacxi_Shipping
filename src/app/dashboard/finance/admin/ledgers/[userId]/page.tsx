@@ -21,7 +21,6 @@ import {
   TrendingDown as TrendingDownIcon,
   Close,
   Check,
-  AccountBalance,
 } from '@mui/icons-material';
 import {
   Box,
@@ -339,11 +338,8 @@ export default function UserLedgerManagementPage() {
     return 'var(--text-secondary)';
   };
 
-  const getSummaryVariant = (balance: number): 'error' | 'success' | 'info' => {
-    if (balance > 0) return 'error';
-    if (balance < 0) return 'success';
-    return 'info';
-  };
+  const totalCarPayment = summary.transactionInfoBreakdown.CAR_PAYMENT?.totalDebit || 0;
+  const totalShippingPayment = summary.transactionInfoBreakdown.SHIPPING_PAYMENT?.totalDebit || 0;
 
   const columns = useMemo<Column<LedgerEntry>[]>(() => [
     {
@@ -487,7 +483,7 @@ export default function UserLedgerManagementPage() {
         </Box>
 
         {/* Summary Cards */}
-        <DashboardGrid className="grid-cols-1 md:grid-cols-3">
+        <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
           <StatsCard
             icon={summary.currentBalance > 0 ? <TrendingUpIcon /> : summary.currentBalance < 0 ? <TrendingDownIcon /> : <AttachMoney />}
             title="Current Balance"
@@ -509,23 +505,20 @@ export default function UserLedgerManagementPage() {
             subtitle="Amount paid"
             variant="success"
           />
-        </DashboardGrid>
-
-        <DashboardGrid className="grid-cols-1 md:grid-cols-3">
-          {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([transactionType, label]) => {
-            const transactionSummary = summary.transactionInfoBreakdown[transactionType];
-
-            return (
-              <StatsCard
-                key={transactionType}
-                icon={transactionSummary.balance > 0 ? <TrendingUpIcon /> : transactionSummary.balance < 0 ? <TrendingDownIcon /> : <AccountBalance />}
-                title={label}
-                value={formatCurrency(transactionSummary.balance)}
-                subtitle={`Debit ${formatCurrency(transactionSummary.totalDebit)} | Credit ${formatCurrency(transactionSummary.totalCredit)}`}
-                variant={getSummaryVariant(transactionSummary.balance)}
-              />
-            );
-          })}
+          <StatsCard
+            icon={<AttachMoney />}
+            title="Total Lots or Cars Payment"
+            value={formatCurrency(totalCarPayment)}
+            subtitle="Purchase charges"
+            variant="warning"
+          />
+          <StatsCard
+            icon={<AttachMoney />}
+            title="Total Shipping Payment"
+            value={formatCurrency(totalShippingPayment)}
+            subtitle="Shipping service charges"
+            variant="warning"
+          />
         </DashboardGrid>
 
         {/* Filters Panel */}
