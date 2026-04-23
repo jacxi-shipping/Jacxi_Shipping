@@ -191,7 +191,7 @@ export default function RecordPaymentPage() {
     let total = 0;
     for (const s of shipments) {
       if (selectedSet.has(s.id)) {
-        total += (s.amountDue || 0);
+        total += (s.amountDue || s.price || 0);
       }
     }
     return total;
@@ -210,11 +210,11 @@ export default function RecordPaymentPage() {
           shipmentId: shipment.id,
           trackingNumber: shipment.trackingNumber,
           vehicleInfo: `${shipment.vehicleMake} ${shipment.vehicleModel}`,
-          amountDue: shipment.amountDue || 0,
+          amountDue: shipment.amountDue || shipment.price || 0,
           amountToPay: 0,
         });
       } else {
-        const amountDue = shipment.amountDue || 0;
+        const amountDue = shipment.amountDue || shipment.price || 0;
         const amountToPay = Math.min(remainingPayment, amountDue);
         remainingPayment -= amountToPay;
 
@@ -593,7 +593,7 @@ export default function RecordPaymentPage() {
                             Amount Due
                           </Box>
                           <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                            {formatCurrency(shipment.amountDue || 0)}
+                            {formatCurrency(shipment.amountDue || shipment.price || 0)}
                           </Box>
                         </Box>
                       </Box>

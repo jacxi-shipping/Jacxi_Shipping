@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
       status: true,
       createdAt: true,
       paymentStatus: true,
+      price: true,
       dispatchId: true,
       containerId: true,
       transitId: true,
