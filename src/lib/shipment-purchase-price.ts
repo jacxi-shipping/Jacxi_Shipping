@@ -47,6 +47,7 @@ export async function syncShipmentPurchasePriceEntries(
     input.purchasePriceAmount > 0;
 
   if (shouldPost) {
+    const purchaseAmount = input.purchasePriceAmount as number;
     const vinSuffix = input.vehicleVIN ? ` (VIN: ${input.vehicleVIN})` : '';
 
     await db.ledgerEntry.create({
@@ -56,7 +57,7 @@ export async function syncShipmentPurchasePriceEntries(
         description: `Car purchase price for ${input.vehicleLabel}${vinSuffix}`,
         type: 'DEBIT',
         transactionInfoType: 'CAR_PAYMENT',
-        amount: input.purchasePriceAmount,
+        amount: purchaseAmount,
         balance: 0,
         createdBy: input.actorUserId,
         notes: 'Auto-posted from shipment purchase information',
