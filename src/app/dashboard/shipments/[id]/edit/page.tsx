@@ -604,7 +604,7 @@ export default function EditShipmentPage() {
                     id="purchasePrice"
                     label="Purchase Price (USD) *"
                     type="number"
-                    step="0.01"
+                    inputProps={{ step: '0.01' }}
                     error={!!errors.purchasePrice}
                     helperText={errors.purchasePrice?.message}
                     {...register('purchasePrice')}
