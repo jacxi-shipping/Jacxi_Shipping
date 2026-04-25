@@ -21,7 +21,6 @@ import {
   TrendingDown as TrendingDownIcon,
   Close,
   Check,
-  AccountBalance,
 } from '@mui/icons-material';
 import {
   Box,
@@ -54,6 +53,7 @@ interface LedgerEntry {
   amount: number;
   balance: number;
   notes?: string;
+  metadata?: Record<string, unknown>;
   shipment?: {
     id: string;
     vehicleMake?: string;
@@ -351,13 +351,9 @@ export default function UserLedgerManagementPage() {
     return 'var(--text-secondary)';
   };
 
-  const getSummaryVariant = (balance: number): 'error' | 'success' | 'info' => {
-    if (balance > 0) return 'error';
-    if (balance < 0) return 'success';
-    return 'info';
-  };
-
-  const totalCarPayment = summary.transactionInfoBreakdown.CAR_PAYMENT?.totalCredit || 0;
+  const totalCarPayment =
+    (summary.transactionInfoBreakdown.CAR_PAYMENT?.totalDebit || 0) +
+    (summary.transactionInfoBreakdown.SHIPPING_PAYMENT?.totalDebit || 0);
   const totalShippingPayment = summary.transactionInfoBreakdown.SHIPPING_PAYMENT?.totalCredit || 0;
 
   const columns = useMemo<Column<LedgerEntry>[]>(() => [
@@ -377,26 +373,74 @@ export default function UserLedgerManagementPage() {
       header: 'Description',
       sortable: true,
       width: '35%',
-      render: (_, row) => (
-        <Box>
-          <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-            {row.description}
-          </Typography>
-          <Typography sx={{ fontSize: '0.72rem', color: 'var(--accent-gold)', mt: 0.5, fontWeight: 600 }}>
-            {row.transactionInfoType ? transactionInfoTypeLabels[row.transactionInfoType] : 'Not specified'}
-          </Typography>
-          {row.notes && (
-            <Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
-              {row.notes}
+      render: (_, row) => {
+        const isPending = row.metadata?.pendingInvoice === true;
+        const isInvoicePaid = !isPending && (typeof row.metadata?.invoiceId === 'string' || typeof row.metadata?.invoiceNumber === 'string');
+        return (
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                {row.description}
+              </Typography>
+              {isPending && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+                    color: '#ca8a04',
+                    border: '1px solid rgba(234, 179, 8, 0.3)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Pending Invoice
+                </Box>
+              )}
+              {isInvoicePaid && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    color: '#16a34a',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Invoice Paid
+                </Box>
+              )}
+            </Box>
+            <Typography sx={{ fontSize: '0.72rem', color: 'var(--accent-gold)', mt: 0.5, fontWeight: 600 }}>
+              {row.transactionInfoType ? transactionInfoTypeLabels[row.transactionInfoType] : 'Not specified'}
             </Typography>
-          )}
-          {row.shipment && (
-            <Typography sx={{ fontSize: '0.75rem', color: 'var(--accent-gold)', mt: 0.5 }}>
-              {row.shipment.vehicleMake} {row.shipment.vehicleModel}
-            </Typography>
-          )}
-        </Box>
-      )
+            {row.notes && (
+              <Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                {row.notes}
+              </Typography>
+            )}
+            {row.shipment && (
+              <Typography sx={{ fontSize: '0.75rem', color: 'var(--accent-gold)', mt: 0.5 }}>
+                {row.shipment.vehicleMake} {row.shipment.vehicleModel}
+              </Typography>
+            )}
+          </Box>
+        );
+      }
     },
     {
       key: 'type',
@@ -502,19 +546,12 @@ export default function UserLedgerManagementPage() {
         </Box>
 
         {/* Summary Cards */}
-        <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
+        <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           <StatsCard
-            icon={summary.currentBalance > 0 ? <TrendingUpIcon /> : summary.currentBalance < 0 ? <TrendingDownIcon /> : <AttachMoney />}
-            title="Current Balance"
-            value={formatCurrency(summary.currentBalance)}
-            subtitle={summary.currentBalance > 0 ? 'Amount Owed' : summary.currentBalance < 0 ? 'Credit Balance' : 'Settled'}
-            variant={summary.currentBalance > 0 ? 'error' : summary.currentBalance < 0 ? 'success' : 'info'}
-          />
-          <StatsCard
-            icon={<TrendingUpIcon />}
-            title="Total Debits"
-            value={formatCurrency(summary.totalDebit)}
-            subtitle="Amount charged"
+            icon={<AttachMoney />}
+            title="Total Car Payments"
+            value={formatCurrency(totalCarPayment)}
+            subtitle="Total charged from car + shipment payment records"
             variant="warning"
           />
           <StatsCard
@@ -525,36 +562,19 @@ export default function UserLedgerManagementPage() {
             variant="success"
           />
           <StatsCard
-            icon={<AttachMoney />}
-            title="Total Car Payment"
-            value={formatCurrency(totalCarPayment)}
-            subtitle="Credits tagged as car payment"
-            variant="success"
+            icon={<TrendingUpIcon />}
+            title="Total Debits"
+            value={formatCurrency(summary.totalDebit)}
+            subtitle="Amount charged"
+            variant="warning"
           />
           <StatsCard
             icon={<AttachMoney />}
-            title="Total Shipping Payment"
+            title="Total Shipping Payments"
             value={formatCurrency(totalShippingPayment)}
             subtitle="Credits tagged as shipping payment"
             variant="success"
           />
-        </DashboardGrid>
-
-        <DashboardGrid className="grid-cols-1 md:grid-cols-3">
-          {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([transactionType, label]) => {
-            const transactionSummary = summary.transactionInfoBreakdown[transactionType];
-
-            return (
-              <StatsCard
-                key={transactionType}
-                icon={transactionSummary.balance > 0 ? <TrendingUpIcon /> : transactionSummary.balance < 0 ? <TrendingDownIcon /> : <AccountBalance />}
-                title={label}
-                value={formatCurrency(transactionSummary.balance)}
-                subtitle={`Debit ${formatCurrency(transactionSummary.totalDebit)} | Credit ${formatCurrency(transactionSummary.totalCredit)}`}
-                variant={getSummaryVariant(transactionSummary.balance)}
-              />
-            );
-          })}
         </DashboardGrid>
 
         {/* Filters Panel */}

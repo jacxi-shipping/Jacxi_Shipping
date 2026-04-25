@@ -167,6 +167,8 @@ async function replaceDispatchExpenseLedgerEffects(
         metadata: {
           isExpense: true,
           isDispatchExpense: true,
+          paymentMode: 'DUE',
+          pendingInvoice: true,
           dispatchExpenseId: input.expenseId,
           dispatchId: input.dispatchId,
           dispatchRef: input.dispatchReferenceNumber,

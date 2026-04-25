@@ -9,7 +9,7 @@ const addExpenseSchema = z.object({
   amount: z.number().positive(),
   companyAmount: z.number().positive().optional(),
   expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
-  paymentMode: z.enum(['CASH', 'DUE']).default('DUE'),
+  paymentMode: z.enum(['DUE']).default('DUE'),
   notes: z.string().optional(),
   contextType: z.enum(['TRANSIT', 'CONTAINER', 'DISPATCH']).optional(),
   contextId: z.string().optional(),
@@ -140,8 +140,11 @@ export async function POST(request: NextRequest) {
           notes: validatedData.notes,
           metadata: {
             expenseType: validatedData.expenseType,
-            paymentMode: validatedData.paymentMode,
+            paymentMode: 'DUE',
             isExpense: true,
+            // Shipment expenses are always staged for invoice payment — they must NOT
+            // affect the customer's credit balance until the invoice is actually paid.
+            pendingInvoice: true,
             linkedCompanyId: resolvedCompanyId,
             expenseSource,
             ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
@@ -171,7 +174,7 @@ export async function POST(request: NextRequest) {
             shipmentId: shipment.id,
             userId: shipment.userId,
             expenseType: validatedData.expenseType,
-            paymentMode: validatedData.paymentMode,
+            paymentMode: 'DUE',
             ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
             ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
             ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
@@ -180,35 +183,6 @@ export async function POST(request: NextRequest) {
       });
 
       const createdEntries = [debitEntry];
-
-      // For CASH payments: also create a CREDIT entry (cash received)
-      if (validatedData.paymentMode === 'CASH') {
-        const creditEntry = await tx.ledgerEntry.create({
-          data: {
-            userId: shipment.userId,
-            shipmentId: validatedData.shipmentId,
-            description: `Cash payment received - ${validatedData.description}`,
-            type: 'CREDIT',
-            amount: userAmount,
-            balance: 0,
-            createdBy: session.user!.id as string,
-            notes: validatedData.notes,
-            metadata: {
-              expenseType: validatedData.expenseType,
-              paymentMode: validatedData.paymentMode,
-              isExpense: true,
-              isCashPayment: true,
-              parentExpenseEntryId: debitEntry.id,
-              linkedCompanyId: resolvedCompanyId,
-              expenseSource,
-              ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
-              ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
-              ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
-            },
-          },
-        });
-        createdEntries.push(creditEntry);
-      }
 
       await routeDeps.recalculateUserLedgerBalances(tx, shipment.userId);
       await routeDeps.recalculateCompanyLedgerBalances(tx, resolvedCompanyId);
@@ -223,9 +197,7 @@ export async function POST(request: NextRequest) {
       entries: entries.userEntries,
       entry: entries.userEntries[0],
       companyEntry: entries.companyEntry,
-      message: validatedData.paymentMode === 'CASH'
-        ? 'Expense added and cash payment recorded successfully'
-        : 'Expense added successfully',
+      message: 'Expense added and staged for invoice payment successfully',
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

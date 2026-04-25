@@ -18,8 +18,16 @@ export async function recalculateUserLedgerBalances(db: DbClient, userId: string
   const updates = [];
 
   for (const entry of entries) {
-    runningBalance = applyLedgerDelta(runningBalance, entry.type, entry.amount);
+    const meta = (entry.metadata ?? {}) as Record<string, unknown>;
+    // Pending invoice entries (DUE expenses awaiting invoice payment) do NOT affect
+    // the running balance — they only become real when the invoice is paid.
+    const isPendingInvoice = meta.pendingInvoice === true;
 
+    if (!isPendingInvoice) {
+      runningBalance = applyLedgerDelta(runningBalance, entry.type, entry.amount);
+    }
+    // Pending entries store the same balance as the previous non-pending entry
+    // so that latestEntry.balance always reflects the effective balance.
     if (entry.balance !== runningBalance) {
       updates.push(
         db.ledgerEntry.update({

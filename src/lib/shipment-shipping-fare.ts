@@ -84,7 +84,11 @@ export async function syncShipmentShippingFareEntries(
           createdBy: input.actorUserId,
           notes: 'Auto-posted when shipment assigned to container',
           metadata: {
+            isExpense: true,
             isShipmentShippingFare: true,
+            expenseType: 'SHIPPING_FEE',
+            paymentMode: 'DUE',
+            pendingInvoice: true,
             shipmentId: input.shipmentId,
             shippingCompanyId: input.shippingCompanyId,
           } as Prisma.InputJsonValue,

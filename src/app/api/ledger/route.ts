@@ -44,9 +44,24 @@ export async function GET(request: NextRequest) {
     const isAdmin = hasPermission(session.user.role, 'finance:manage');
     const targetUserId = isAdmin && userId ? userId : session.user.id;
 
+    // Non-admin customers never see pending invoice entries — those only appear once the
+    // invoice is paid and the entries are activated (pendingInvoice flag removed/set to false).
+    // Admins see all entries so they know what is staged for invoicing.
+    const pendingFilter = !isAdmin
+      ? {
+          NOT: {
+            metadata: {
+              path: ['pendingInvoice'],
+              equals: true,
+            },
+          },
+        }
+      : {};
+
     // Build where clause
     const where: Record<string, unknown> = {
       userId: targetUserId,
+      ...pendingFilter,
     };
 
     if (shipmentId) {
@@ -80,11 +95,23 @@ export async function GET(request: NextRequest) {
 
     // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
     // Execute database queries in parallel for performance
+    // Summary queries exclude pendingInvoice entries — those only affect balance when invoice is paid.
+    const pendingExcludeFilter = {
+      NOT: {
+        metadata: {
+          path: ['pendingInvoice'],
+          equals: true,
+        },
+      },
+    } as const;
+
+    const summaryWhere = { ...where, ...pendingExcludeFilter };
+
     const [totalCount, entries, groupedSums, transactionInfoGroupedSums, latestEntry] = await Promise.all([
       // Get total count
       prisma.ledgerEntry.count({ where }),
 
-      // Fetch ledger entries
+      // Fetch ledger entries (show ALL including pending — they appear with a badge in the UI)
       prisma.ledgerEntry.findMany({
         where,
         include: {
@@ -113,10 +140,10 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
 
-      // Calculate debit and credit summaries in a single query
+      // Calculate debit and credit summaries — exclude pending entries
       prisma.ledgerEntry.groupBy({
         by: ['type'],
-        where: { ...where, type: { in: ['DEBIT', 'CREDIT'] } },
+        where: { ...summaryWhere, type: { in: ['DEBIT', 'CREDIT'] } },
         _sum: {
           amount: true,
         },
@@ -125,7 +152,7 @@ export async function GET(request: NextRequest) {
       prisma.ledgerEntry.groupBy({
         by: ['transactionInfoType', 'type'],
         where: {
-          ...where,
+          ...summaryWhere,
           transactionInfoType: { in: [...transactionInfoTypes] },
           type: { in: ['DEBIT', 'CREDIT'] },
         },
@@ -134,7 +161,8 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // Get current balance (latest entry's balance)
+      // Get current balance (latest entry's balance — recalculate skips pending entries
+      // so this reflects the true effective balance even if the latest entry is pending)
       prisma.ledgerEntry.findFirst({
         where: { userId: targetUserId },
         orderBy: { transactionDate: 'desc' },

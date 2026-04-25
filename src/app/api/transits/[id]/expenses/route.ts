@@ -224,6 +224,8 @@ export async function POST(
             metadata: {
               isExpense: true,
               isTransitExpense: true,
+              paymentMode: 'DUE',
+              pendingInvoice: true,
               transitExpenseId: createdExpense.id,
               transitId: params.id,
               transitRef: transit.referenceNumber,

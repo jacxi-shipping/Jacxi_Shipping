@@ -244,6 +244,8 @@ export async function POST(
             metadata: {
               isExpense: true,
               isContainerExpense: true,
+              paymentMode: 'DUE',
+              pendingInvoice: true,
               containerExpenseId: createdExpense.id,
               containerId: params.id,
               expenseType: validatedData.type,

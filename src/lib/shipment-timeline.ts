@@ -265,13 +265,20 @@ export function buildUnifiedShipmentTimeline(input: BuildUnifiedShipmentTimeline
   for (const entry of input.customerLedgerEntries) {
     const metadata = normalizeMetadata(entry.metadata);
     const category = classifyLedgerCategory(metadata);
+    const isPendingInvoice = metadata?.pendingInvoice === true;
+    const isInvoicePaid = !isPendingInvoice && (typeof metadata?.invoiceId === 'string' || typeof metadata?.invoiceNumber === 'string');
+    const entryDescription = isPendingInvoice
+      ? `${entry.description} (Pending Invoice)`
+      : isInvoicePaid
+      ? `${entry.description} (Invoice Paid)`
+      : entry.description;
     items.push({
       id: `customer-ledger-${entry.id}`,
       source: 'CUSTOMER_LEDGER',
       category,
       occurredAt: toIsoString(entry.transactionDate),
       title: category === 'EXPENSE' ? 'Customer Expense Posting' : humanize(entry.type),
-      description: entry.description,
+      description: entryDescription,
       amount: entry.amount,
       currency: 'USD',
       status: entry.type,

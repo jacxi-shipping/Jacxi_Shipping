@@ -7,6 +7,7 @@ import { createInvoiceAuditLogs } from '@/lib/entity-audit-history';
 import { z } from 'zod';
 import { hasPermission } from '@/lib/rbac';
 import { buildLinkedCompanyLedgerEntryMap } from '@/lib/company-ledger-links';
+import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 
 function normalizeShipmentRefInDescription(
   description: string,
@@ -385,12 +386,120 @@ export async function PATCH(
 
     const previousStatus = currentInvoice.status;
 
+    // When marking as PAID:
+    //   1. Check customer credit balance is sufficient
+    //   2. Activate all pending DUE expense ledger entries for shipments in this invoice
+    //      (pendingInvoice: true → false, so they now count in the balance)
+    //   3. Create a DEBIT for the non-expense portion (vehicle price, insurance, etc.)
+    //   4. Recalculate running balances
+    let paymentLedgerEntryId: string | undefined;
+    if (validatedData.status === 'PAID' && previousStatus !== 'PAID') {
+      const invoiceTotal = total;
+
+      // Collect shipment IDs from invoice line items
+      const invoiceShipmentIds = [
+        ...new Set(
+          currentInvoice.lineItems
+            .map((li) => li.shipmentId)
+            .filter((id): id is string => Boolean(id))
+        ),
+      ];
+
+      // Find all pending expense entries for those shipments belonging to this customer
+      const pendingExpenseEntries = invoiceShipmentIds.length > 0
+        ? await prisma.ledgerEntry.findMany({
+            where: {
+              userId: currentInvoice.userId,
+              shipmentId: { in: invoiceShipmentIds },
+              type: 'DEBIT',
+              metadata: {
+                path: ['pendingInvoice'],
+                equals: true,
+              },
+            },
+            select: { id: true, amount: true, metadata: true },
+          })
+        : [];
+
+      const pendingExpenseTotal = pendingExpenseEntries.reduce((sum, e) => sum + e.amount, 0);
+
+      // Effective balance: recalculate skips pending entries, so latestEntry.balance is correct
+      const latestEntry = await prisma.ledgerEntry.findFirst({
+        where: { userId: currentInvoice.userId },
+        orderBy: { transactionDate: 'desc' },
+        select: { balance: true },
+      });
+      const effectiveBalance = latestEntry?.balance ?? 0;
+      const availableCredit = effectiveBalance < 0 ? -effectiveBalance : 0;
+
+      if (invoiceTotal > availableCredit + 0.001) {
+        return NextResponse.json(
+          {
+            error: `Insufficient credit balance. Customer has $${availableCredit.toFixed(2)} available but invoice total is $${invoiceTotal.toFixed(2)}. Please deposit credit first.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      // The non-expense portion = invoice items not already tracked as pending ledger entries
+      // (vehicle price, insurance, shared container expenses, etc.)
+      const nonExpenseAmount = Math.max(0, invoiceTotal - pendingExpenseTotal);
+
+      await prisma.$transaction(async (tx) => {
+        // Activate each pending expense entry — remove pendingInvoice flag so it now
+        // counts toward the balance during recalculation below.
+        for (const entry of pendingExpenseEntries) {
+          const meta = (entry.metadata ?? {}) as Record<string, unknown>;
+          await tx.ledgerEntry.update({
+            where: { id: entry.id },
+            data: {
+              metadata: {
+                ...meta,
+                pendingInvoice: false,
+                invoiceId: currentInvoice.id,
+                invoiceNumber: currentInvoice.invoiceNumber,
+              },
+            },
+          });
+        }
+
+        // Create a DEBIT for the non-expense portion (vehicle price, insurance, etc.)
+        let nonExpenseEntry: { id: string } | undefined;
+        if (nonExpenseAmount > 0.001) {
+          nonExpenseEntry = await tx.ledgerEntry.create({
+            data: {
+              userId: currentInvoice.userId,
+              description: `Invoice ${currentInvoice.invoiceNumber} payment — vehicle / other charges`,
+              type: 'DEBIT',
+              transactionInfoType: 'CAR_PAYMENT',
+              amount: nonExpenseAmount,
+              balance: 0, // will be corrected by recalculate below
+              createdBy: actorId,
+              notes: validatedData.notes,
+              metadata: {
+                invoiceId: currentInvoice.id,
+                invoiceNumber: currentInvoice.invoiceNumber,
+                paymentMethod: validatedData.paymentMethod ?? null,
+                paymentType: 'invoice_payment',
+              },
+            },
+          });
+        }
+
+        // Recalculate all running balances (pending entries now activated)
+        await recalculateUserLedgerBalances(tx, currentInvoice.userId);
+
+        paymentLedgerEntryId = nonExpenseEntry?.id ?? pendingExpenseEntries[0]?.id;
+      });
+    }
+
     // Update invoice
     const invoice = await prisma.userInvoice.update({
       where: { id: params.id },
       data: {
         ...validatedData,
         total,
+        paymentReference: paymentLedgerEntryId ?? validatedData.paymentReference,
         dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
         paidDate: validatedData.paidDate ? new Date(validatedData.paidDate) : undefined,
       },

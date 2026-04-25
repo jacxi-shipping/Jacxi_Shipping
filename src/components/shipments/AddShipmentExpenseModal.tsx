@@ -78,7 +78,7 @@ export default function AddShipmentExpenseModal({
 		companyAmount: '',
 		description: '',
 		notes: '',
-		paymentMode: 'DUE' as 'CASH' | 'DUE',
+		paymentMode: 'DUE' as 'DUE',
 	});
 	const createEmptyItem = () => ({
 		shipmentId: '',
@@ -87,7 +87,7 @@ export default function AddShipmentExpenseModal({
 		companyAmount: '',
 		description: '',
 		notes: '',
-		paymentMode: 'DUE' as 'CASH' | 'DUE',
+		paymentMode: 'DUE' as 'DUE',
 		useSplitAmounts: false,
 	});
 	const [expenseItems, setExpenseItems] = useState([createEmptyItem()]);
@@ -154,7 +154,7 @@ export default function AddShipmentExpenseModal({
 							...(item.useSplitAmounts ? { companyAmount: parseFloat(item.companyAmount) } : {}),
 							description: item.description,
 							notes: item.notes || undefined,
-							paymentMode: item.paymentMode,
+							paymentMode: 'DUE',
 							...(contextType ? { contextType } : {}),
 							...(contextId ? { contextId } : {}),
 						}),
@@ -220,7 +220,7 @@ export default function AddShipmentExpenseModal({
 					...(useSplitAmounts ? { companyAmount: parseFloat(formData.companyAmount) } : {}),
 					description: formData.description,
 					notes: formData.notes || undefined,
-					paymentMode: formData.paymentMode,
+					paymentMode: 'DUE',
 					...(contextType ? { contextType } : {}),
 					...(contextId ? { contextId } : {}),
 				}),
@@ -375,14 +375,8 @@ export default function AddShipmentExpenseModal({
 										</>
 									)}
 
-									<Box>
-										<Box sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>
-											Payment Mode <span style={{ color: 'var(--error)' }}>*</span>
-										</Box>
-										<ToggleButtonGroup value={item.paymentMode} exclusive onChange={(_, val) => { if (val) updateItem(index, 'paymentMode', val); }} size="small" fullWidth>
-											<ToggleButton value="DUE" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>Due (Owed)</ToggleButton>
-											<ToggleButton value="CASH" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>Cash (Paid)</ToggleButton>
-										</ToggleButtonGroup>
+									<Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+										Payment mode: Due (invoice first)
 									</Box>
 
 									<TextField size="small" label="Notes" value={item.notes} onChange={(e) => updateItem(index, 'notes', e.target.value)} multiline rows={2} />
@@ -430,19 +424,8 @@ export default function AddShipmentExpenseModal({
 								</>
 							)}
 
-							<Box>
-								<Box sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>
-									Payment Mode <span style={{ color: 'var(--error)' }}>*</span>
-								</Box>
-								<ToggleButtonGroup value={formData.paymentMode} exclusive onChange={(_, val) => { if (val) handleChange('paymentMode', val); }} size="small" fullWidth>
-									<ToggleButton value="DUE" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>Due (Owed)</ToggleButton>
-									<ToggleButton value="CASH" sx={{ flex: 1, textTransform: 'none', fontSize: '0.875rem', fontWeight: 500 }}>Cash (Paid)</ToggleButton>
-								</ToggleButtonGroup>
-								<Box sx={{ mt: 1, px: 0.5, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-									{formData.paymentMode === 'CASH'
-										? 'Cash: adds a DEBIT charge and a CREDIT payment.'
-										: 'Due: adds only a DEBIT charge.'}
-								</Box>
+							<Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+								Payment mode: Due (invoice first)
 							</Box>
 
 							<TextField size="small" label="Notes" value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} multiline rows={3} placeholder="Additional details..." />
