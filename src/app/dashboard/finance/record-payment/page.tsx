@@ -7,6 +7,10 @@ import Link from 'next/link';
 import { 
   Box, 
   TextField, 
+  Select, 
+  MenuItem, 
+  FormControl, 
+  InputLabel, 
   Checkbox, 
   Divider, 
   InputAdornment,
@@ -34,6 +38,7 @@ import {
   CheckCircle2, 
   User, 
   FileText,
+  CreditCard,
   ArrowRight,
   Info
 } from 'lucide-react';
@@ -56,6 +61,9 @@ interface Shipment {
   vehicleModel?: string;
   vehicleVIN?: string | null;
   price?: number;
+  purchasePrice?: number | null;
+  purchasePricePaid?: number;
+  serviceType?: string;
   amountDue?: number;
   paymentStatus: string;
 }
@@ -68,6 +76,14 @@ interface PaymentAllocation {
   amountToPay: number;
 }
 
+type TransactionInfoType = 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT';
+
+const transactionInfoTypeLabels: Record<TransactionInfoType, string> = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+};
+
 const steps = ['Select Customer', 'Choose Shipments', 'Payment Details', 'Review & Submit'];
 
 export default function RecordPaymentPage() {
@@ -79,9 +95,13 @@ export default function RecordPaymentPage() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [selectedShipmentIds, setSelectedShipmentIds] = useState<string[]>([]);
+  const [customerBalance, setCustomerBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
   
   // Form state
   const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const transactionInfoType = 'CAR_PAYMENT' as const;
   const [notes, setNotes] = useState('');
   
   // UI state
@@ -105,11 +125,14 @@ export default function RecordPaymentPage() {
     if (selectedUserId) {
       setSelectedShipmentIds([]);
       setShipmentSearch('');
+      setCustomerBalance(null);
       fetchUserShipments(selectedUserId);
+      fetchCustomerBalance(selectedUserId);
     } else {
       setShipments([]);
       setSelectedShipmentIds([]);
       setShipmentSearch('');
+      setCustomerBalance(null);
       setActiveStep(0);
     }
   }, [selectedUserId]);
@@ -143,6 +166,21 @@ export default function RecordPaymentPage() {
     }
   };
 
+  const fetchCustomerBalance = async (userId: string) => {
+    try {
+      setLoadingBalance(true);
+      const response = await fetch(`/api/ledger?userId=${userId}&limit=1`);
+      if (response.ok) {
+        const data = await response.json();
+        setCustomerBalance(data.summary?.currentBalance ?? 0);
+      }
+    } catch (error) {
+      console.error('Error fetching customer balance:', error);
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
+
   const fetchUserShipments = async (userId: string) => {
     try {
       setLoadingShipments(true);
@@ -150,16 +188,24 @@ export default function RecordPaymentPage() {
       if (response.ok) {
         const data = await response.json();
         const dueShipments = (data.shipments as Shipment[])
-          .map((s) => ({
-            ...s,
-            amountDue: (s.amountDue && s.amountDue > 0) ? s.amountDue : (s.price || 0),
-          }))
           .filter(
             (s) =>
               s.paymentStatus !== 'CANCELLED' &&
               s.paymentStatus !== 'REFUNDED' &&
-              (s.amountDue || 0) > 0
-          );
+              s.serviceType === 'PURCHASE_AND_SHIPPING' &&
+              s.purchasePrice != null &&
+              s.purchasePrice > 0
+          )
+          .map((s) => {
+            const alreadyPaid = s.purchasePricePaid || 0;
+            const remainingDue = Math.max(0, (s.purchasePrice || 0) - alreadyPaid);
+
+            return {
+              ...s,
+              amountDue: remainingDue,
+            };
+          })
+          .filter((s) => (s.amountDue || 0) > 0);
         setShipments(dueShipments);
       }
     } catch (error) {
@@ -174,10 +220,17 @@ export default function RecordPaymentPage() {
     setSelectedShipmentIds((prev) => {
       const newSelection = prev.includes(shipmentId)
         ? prev.filter((id) => id !== shipmentId)
-        : [...prev, shipmentId];
+        : [shipmentId]; // only one shipment at a time
       
-      // Clear amount when shipments change so it can auto-fill
-      if (newSelection.length !== prev.length) {
+      // Auto-fill amount with remaining due (purchase price - previously paid)
+      if (newSelection.length === 1) {
+        const selected = shipments.find(s => s.id === newSelection[0]);
+        if ((selected?.amountDue || 0) > 0) {
+          setAmount((selected?.amountDue || 0).toFixed(2));
+        } else {
+          setAmount('');
+        }
+      } else {
         setAmount('');
       }
       
@@ -186,12 +239,11 @@ export default function RecordPaymentPage() {
   };
 
   const calculateTotalSelected = () => {
-    // ⚡ Bolt: Replaced chained .filter().reduce() with a single O(N) loop
     const selectedSet = new Set(selectedShipmentIds);
     let total = 0;
     for (const s of shipments) {
       if (selectedSet.has(s.id)) {
-        total += (s.amountDue || s.price || 0);
+        total += (s.amountDue || 0);
       }
     }
     return total;
@@ -199,33 +251,19 @@ export default function RecordPaymentPage() {
 
   const calculatePaymentAllocation = (): PaymentAllocation[] => {
     const paymentAmount = parseFloat(amount) || 0;
-    let remainingPayment = paymentAmount;
     const allocations: PaymentAllocation[] = [];
 
     const selectedShips = shipments.filter(s => selectedShipmentIds.includes(s.id));
 
     for (const shipment of selectedShips) {
-      if (remainingPayment <= 0) {
-        allocations.push({
-          shipmentId: shipment.id,
-          trackingNumber: shipment.trackingNumber,
-          vehicleInfo: `${shipment.vehicleMake} ${shipment.vehicleModel}`,
-          amountDue: shipment.amountDue || shipment.price || 0,
-          amountToPay: 0,
-        });
-      } else {
-        const amountDue = shipment.amountDue || shipment.price || 0;
-        const amountToPay = Math.min(remainingPayment, amountDue);
-        remainingPayment -= amountToPay;
-
-        allocations.push({
-          shipmentId: shipment.id,
-          trackingNumber: shipment.trackingNumber,
-          vehicleInfo: `${shipment.vehicleMake} ${shipment.vehicleModel}`,
-          amountDue,
-          amountToPay,
-        });
-      }
+      const amountDue = shipment.amountDue || 0;
+      allocations.push({
+        shipmentId: shipment.id,
+        trackingNumber: shipment.trackingNumber,
+        vehicleInfo: `${shipment.vehicleMake} ${shipment.vehicleModel}`,
+        amountDue,
+        amountToPay: paymentAmount,
+      });
     }
 
     return allocations;
@@ -245,6 +283,15 @@ export default function RecordPaymentPage() {
         toast.error('Please enter a valid payment amount');
         return;
       }
+      if (parseFloat(amount) > totalSelectedAmount) {
+        toast.error(`Amount exceeds remaining due. Maximum allowed is ${formatCurrency(totalSelectedAmount)}.`);
+        return;
+      }
+      const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
+      if (parseFloat(amount) > availableCredit) {
+        toast.error(`Insufficient credit. Customer only has ${formatCurrency(availableCredit)} available.`);
+        return;
+      }
     }
     setActiveStep((prev) => prev + 1);
   };
@@ -256,6 +303,15 @@ export default function RecordPaymentPage() {
   const handleSubmit = async () => {
     if (!selectedUserId || selectedShipmentIds.length === 0 || !amount || parseFloat(amount) <= 0) {
       toast.error('Please complete all required fields');
+      return;
+    }
+    if (parseFloat(amount) > totalSelectedAmount) {
+      toast.error(`Cannot process payment. Maximum allowed for selected shipment is ${formatCurrency(totalSelectedAmount)}.`);
+      return;
+    }
+    const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
+    if (parseFloat(amount) > availableCredit) {
+      toast.error(`Cannot process payment. Customer only has ${formatCurrency(availableCredit)} available credit.`);
       return;
     }
 
@@ -270,6 +326,8 @@ export default function RecordPaymentPage() {
           userId: selectedUserId,
           shipmentIds: selectedShipmentIds,
           amount: parseFloat(amount),
+          paymentMethod,
+          transactionInfoType,
           notes,
         }),
       });
@@ -323,8 +381,8 @@ export default function RecordPaymentPage() {
         </Box>
 
         <PageHeader
-          title="Record Payment"
-          description="Record a payment received from a customer"
+          title="Record Purchase Payment"
+          description="Record a vehicle purchase price payment received from a customer"
           actions={
             <Link href="/dashboard/finance" style={{ textDecoration: 'none' }}>
               <Button variant="outline" size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
@@ -372,34 +430,51 @@ export default function RecordPaymentPage() {
                 {/* Selected customer display */}
                 {selectedUserId && (() => {
                   const sel = users.find(u => u.id === selectedUserId);
+                  const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
+                  const hasNoCredit = customerBalance !== null && customerBalance >= 0;
                   return sel ? (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        p: 2,
-                        borderRadius: 2,
-                        border: '2px solid var(--accent-gold)',
-                        bgcolor: 'rgba(201,155,47,0.08)',
-                      }}
-                    >
-                      <Box>
-                        <Box sx={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                          {sel.name || sel.email}
-                        </Box>
-                        {sel.name && (
-                          <Box sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{sel.email}</Box>
-                        )}
-                      </Box>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => { setSelectedUserId(''); setCustomerSearch(''); }}
+                    <>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          p: 2,
+                          borderRadius: 2,
+                          border: '2px solid var(--accent-gold)',
+                          bgcolor: 'rgba(201,155,47,0.08)',
+                        }}
                       >
-                        Change
-                      </Button>
-                    </Box>
+                        <Box>
+                          <Box sx={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                            {sel.name || sel.email}
+                          </Box>
+                          {sel.name && (
+                            <Box sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{sel.email}</Box>
+                          )}
+                        </Box>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setSelectedUserId(''); setCustomerSearch(''); }}
+                        >
+                          Change
+                        </Button>
+                      </Box>
+
+                      {/* Credit balance status */}
+                      {loadingBalance ? (
+                        <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)', py: 1 }}>Checking account balance...</Box>
+                      ) : customerBalance !== null && (
+                        <Alert severity={hasNoCredit ? 'error' : 'success'} sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                          {hasNoCredit
+                            ? customerBalance === 0
+                              ? `❌ ${sel.name || sel.email} has $0.00 in their account. They must deposit funds before any payment can be made. Go to their ledger and add a Credit transaction first.`
+                              : `❌ ${sel.name || sel.email} owes ${formatCurrency(customerBalance)} — no credit available. They must deposit funds first before any payment can be made.`
+                            : `✓ Available credit: ${formatCurrency(availableCredit)} — payment can proceed.`}
+                        </Alert>
+                      )}
+                    </>
                   ) : null;
                 })()}
 
@@ -467,6 +542,7 @@ export default function RecordPaymentPage() {
                       onClick={handleNext}
                       variant="primary"
                       icon={<ArrowRight className="w-4 h-4" />}
+                      disabled={loadingBalance || customerBalance === null || customerBalance >= 0}
                     >
                       Continue to Shipments
                     </Button>
@@ -479,8 +555,8 @@ export default function RecordPaymentPage() {
           {/* Step 2: Shipment Selection */}
           {activeStep === 1 && (
             <DashboardPanel
-              title="Step 2: Select Shipments"
-              description={`Choose which shipments to apply the payment to for ${selectedUser?.name || selectedUser?.email}`}
+              title="Step 2: Select Vehicle Shipment"
+              description={`Choose the vehicle shipment to record purchase price payment for — ${selectedUser?.name || selectedUser?.email}`}
             >
               {loadingShipments ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -489,8 +565,8 @@ export default function RecordPaymentPage() {
               ) : shipments.length === 0 ? (
                 <EmptyState
                   icon={<AlertCircle className="w-12 h-12" />}
-                  title="No Pending Shipments"
-                  description="This customer has no pending payments"
+                  title="No Purchase Price Shipments"
+                  description="This customer has no PURCHASE & SHIPPING shipments with an outstanding purchase price"
                 />
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -508,7 +584,7 @@ export default function RecordPaymentPage() {
                     return (
                       <>
                         <Alert severity="info" icon={<Info className="w-5 h-5" />}>
-                          Enter VIN or Lot Number to find and select the shipment for payment.
+                          Enter VIN or Lot Number to find the vehicle. Only PURCHASE &amp; SHIPPING vehicles are shown — payment will be recorded as Car Purchase Price Payment.
                         </Alert>
 
                         <TextField
@@ -589,12 +665,31 @@ export default function RecordPaymentPage() {
                           )}
                         </Box>
                         <Box sx={{ textAlign: 'right' }}>
-                          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                            Amount Due
-                          </Box>
-                          <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                            {formatCurrency(shipment.amountDue || shipment.price || 0)}
-                          </Box>
+                          {shipment.serviceType === 'PURCHASE_AND_SHIPPING' && shipment.purchasePrice != null ? (
+                            <>
+                              <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                                Purchase Price
+                              </Box>
+                              <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+                                {formatCurrency(shipment.purchasePrice)}
+                              </Box>
+                              <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                                Paid: {formatCurrency(shipment.purchasePricePaid || 0)}
+                              </Box>
+                              <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                Remaining: {formatCurrency(shipment.amountDue || 0)}
+                              </Box>
+                            </>
+                          ) : (
+                            <>
+                              <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                                Amount Due
+                              </Box>
+                              <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+                                {formatCurrency(shipment.amountDue || 0)}
+                              </Box>
+                            </>
+                          )}
                         </Box>
                       </Box>
                     </Box>
@@ -617,7 +712,7 @@ export default function RecordPaymentPage() {
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Box>
                             <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                              Total Selected Amount
+                              Remaining Due
                             </Box>
                             <Box sx={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                               {selectedShipmentIds.length} shipment{selectedShipmentIds.length !== 1 ? 's' : ''} selected
@@ -655,30 +750,132 @@ export default function RecordPaymentPage() {
           {/* Step 3: Payment Details */}
           {activeStep === 2 && (
             <DashboardPanel
-              title="Step 3: Enter Payment Amount"
-              description="Enter the payment amount received from the customer"
+              title="Step 3: Enter Payment Details"
+              description="Enter the purchase price payment amount received and payment method"
             >
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {/* Amount Input */}
-                <TextField
-                  fullWidth
-                  label="Amount Received (USD) *"
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  required
-                  size="medium"
-                  inputProps={{ step: '0.01', min: '0.01' }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <DollarSign className="w-5 h-5 text-[var(--text-secondary)]" />
-                      </InputAdornment>
-                    ),
+                {/* Payment Summary */}
+                <Box
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    bgcolor: 'rgba(201, 155, 47, 0.08)',
+                    border: '1px solid var(--accent-gold)',
                   }}
-                  helperText="This payment will be applied to the selected shipment(s) and reduce the customer's balance."
-                />
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Purchase Price Payment Summary
+                    </Box>
+                    <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      {selectedShipmentIds.length} shipment{selectedShipmentIds.length !== 1 ? 's' : ''}
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                      Remaining Due:
+                    </Box>
+                    <Box sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+                      {formatCurrency(totalSelectedAmount)}
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* Amount Input */}
+                {(() => {
+                  const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
+                  const enteredAmount = parseFloat(amount) || 0;
+                  const exceedsCredit = enteredAmount > 0 && enteredAmount > availableCredit;
+                  const exceedsRemainingDue = enteredAmount > 0 && enteredAmount > totalSelectedAmount;
+                  return (
+                    <>
+                      <Alert severity="info" sx={{ fontSize: '0.85rem' }}>
+                        Available credit: <strong>{formatCurrency(availableCredit)}</strong>. Remaining shipment due: <strong>{formatCurrency(totalSelectedAmount)}</strong>.
+                      </Alert>
+                      {exceedsRemainingDue && (
+                        <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                          ❌ Amount exceeds remaining due. Maximum allowed for this shipment is {formatCurrency(totalSelectedAmount)}.
+                        </Alert>
+                      )}
+                      {exceedsCredit && (
+                        <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                          ❌ Insufficient credit. Customer has {formatCurrency(availableCredit)} but you entered {formatCurrency(enteredAmount)}. Reduce the amount.
+                        </Alert>
+                      )}
+                      <TextField
+                        fullWidth
+                        label="Amount Received (USD) *"
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        required
+                        size="medium"
+                        inputProps={{ step: '0.01', min: '0.01', max: Math.min(availableCredit, totalSelectedAmount) }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <DollarSign className="w-5 h-5 text-[var(--text-secondary)]" />
+                            </InputAdornment>
+                          ),
+                        }}
+                        helperText={
+                          exceedsRemainingDue
+                            ? `Maximum remaining due: ${formatCurrency(totalSelectedAmount)}`
+                            : exceedsCredit
+                            ? `Maximum allowed: ${formatCurrency(availableCredit)}`
+                            : isPartialPayment
+                            ? '💡 This is a partial payment. Remaining balance will stay pending.'
+                            : paymentAmount === totalSelectedAmount && paymentAmount > 0
+                            ? '✓ Full purchase price payment.'
+                            : 'Enter the payment amount to apply against the remaining shipment balance'
+                        }
+                        error={exceedsCredit || exceedsRemainingDue}
+                      />
+                    </>
+                  );
+                })()}
+
+                {/* Payment Method */}
+                <FormControl fullWidth size="medium">
+                  <InputLabel>Payment Method *</InputLabel>
+                  <Select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    label="Payment Method *"
+                  >
+                    <MenuItem value="CASH">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <DollarSign className="w-4 h-4" />
+                        Cash
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="BANK_TRANSFER">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CreditCard className="w-4 h-4" />
+                        Bank Transfer
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="CHECK">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FileText className="w-4 h-4" />
+                        Check
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="CREDIT_CARD">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CreditCard className="w-4 h-4" />
+                        Credit Card
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="WIRE">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CreditCard className="w-4 h-4" />
+                        Wire Transfer
+                      </Box>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
 
                 {/* Notes */}
                 <TextField
@@ -694,13 +891,19 @@ export default function RecordPaymentPage() {
 
                 {/* Navigation */}
                 <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                  <Button onClick={handleBack} variant="outline">
+                  <Button
+                    onClick={handleBack}
+                    variant="outline"
+                  >
                     Back
                   </Button>
                   <Button
                     onClick={handleNext}
                     variant="primary"
-                    disabled={!amount || parseFloat(amount) <= 0}
+                    disabled={!amount || parseFloat(amount) <= 0 || parseFloat(amount) > totalSelectedAmount || (() => {
+                      const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
+                      return parseFloat(amount) > availableCredit;
+                    })()}
                     icon={<ArrowRight className="w-4 h-4" />}
                   >
                     Review Payment
@@ -710,161 +913,162 @@ export default function RecordPaymentPage() {
             </DashboardPanel>
           )}
 
-            {/* Step 4: Review & Confirm */}
-            {activeStep === 3 && (
-              <DashboardPanel
-                title="Step 4: Review & Confirm"
-                description="Review the payment details before submitting"
-              >
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {/* Customer Info */}
-                  <Box>
-                    <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 1 }}>
-                      Customer
-                    </Box>
-                    <Box sx={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {selectedUser?.name || selectedUser?.email}
-                    </Box>
+          {/* Step 4: Review & Confirm */}
+          {activeStep === 3 && (
+            <DashboardPanel
+              title="Step 4: Review & Confirm"
+              description="Review the payment details before submitting"
+            >
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* Customer Info */}
+                <Box>
+                  <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 1 }}>
+                    Customer
                   </Box>
+                  <Box sx={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {selectedUser?.name || selectedUser?.email}
+                  </Box>
+                </Box>
 
-                  <Divider />
+                <Divider />
 
-                  {/* Payment Details Summary */}
-                  <Box>
-                    <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 2 }}>
-                      Payment Details
-                    </Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                      <Box>
-                        <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                          Payment Amount
-                        </Box>
-                        <Box sx={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                          {formatCurrency(paymentAmount)}
-                        </Box>
+                {/* Payment Details Summary */}
+                <Box>
+                  <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 2 }}>
+                    Payment Details
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <Box>
+                      <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                        Payment Amount
                       </Box>
-
+                      <Box sx={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+                        {formatCurrency(paymentAmount)}
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                        Payment Method
+                      </Box>
+                      <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {paymentMethod.replace('_', ' ')}
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                        Transaction Type
+                      </Box>
+                      <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
+                        Car Purchase Price Payment
+                      </Box>
                     </Box>
                   </Box>
+                </Box>
 
-                  <Divider />
+                <Divider />
 
-                  {/* Payment Allocation */}
-                  <Box>
-                    <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 2 }}>
-                      Payment Allocation
-                    </Box>
+                {/* Payment Allocation */}
+                <Box>
+                  <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 2 }}>
+                    Payment Allocation
+                  </Box>
                   
-                    <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid var(--border)' }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: 'var(--surface)' }}>
-                            <TableCell sx={{ fontWeight: 600 }}>Tracking #</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>Vehicle</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600 }}>Amount Due</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600 }}>Amount to Pay</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid var(--border)' }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: 'var(--surface)' }}>
+                          <TableCell sx={{ fontWeight: 600 }}>Tracking #</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Vehicle</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>Purchase Price</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>Amount Paid</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>Status</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {paymentAllocations.map((allocation) => (
+                          <TableRow key={allocation.shipmentId}>
+                            <TableCell>{allocation.trackingNumber}</TableCell>
+                            <TableCell>{allocation.vehicleInfo}</TableCell>
+                            <TableCell align="right">{formatCurrency(allocation.amountDue)}</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, color: 'var(--accent-gold)' }}>
+                              {formatCurrency(allocation.amountToPay)}
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip 
+                                label={allocation.amountToPay >= allocation.amountDue ? 'PAID' : 'PARTIAL'}
+                                size="small"
+                                color={allocation.amountToPay >= allocation.amountDue ? 'success' : 'warning'}
+                                sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                              />
+                            </TableCell>
                           </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {paymentAllocations.map((allocation) => (
-                            <TableRow key={allocation.shipmentId}>
-                              <TableCell>{allocation.trackingNumber}</TableCell>
-                              <TableCell>{allocation.vehicleInfo}</TableCell>
-                              <TableCell align="right">{formatCurrency(allocation.amountDue)}</TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 600, color: 'var(--accent-gold)' }}>
-                                {formatCurrency(allocation.amountToPay)}
-                              </TableCell>
-                              <TableCell align="right">
-                                {allocation.amountToPay === 0 ? (
-                                  <Chip label="Not Paid" size="small" color="default" sx={{ fontSize: '0.7rem' }} />
-                                ) : allocation.amountToPay >= allocation.amountDue ? (
-                                  <Chip label="Fully Paid" size="small" color="success" sx={{ fontSize: '0.7rem' }} />
-                                ) : (
-                                  <Chip label="Partially Paid" size="small" color="warning" sx={{ fontSize: '0.7rem' }} />
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Box>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
 
-                  {notes && (
-                    <>
-                      <Divider />
-                      <Box>
-                        <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 1 }}>
-                          Notes
-                        </Box>
-                        <Box sx={{ fontSize: '0.9rem', color: 'var(--text-primary)', p: 2, bgcolor: 'var(--surface)', borderRadius: 1 }}>
-                          {notes}
-                        </Box>
-                      </Box>
-                    </>
-                  )}
-
-                  {/* Total Summary */}
-                  <Box
-                    sx={{
-                      p: 3,
-                      borderRadius: 2,
-                      bgcolor: 'rgba(201, 155, 47, 0.12)',
-                      border: '2px solid var(--accent-gold)',
-                    }}
-                  >
+                  {/* Summary Row */}
+                  <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(201, 155, 47, 0.08)', borderRadius: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                        Total Payment:
-                      </Box>
+                      <Box sx={{ fontSize: '0.9rem', fontWeight: 600 }}>Total Payment:</Box>
                       <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
                         {formatCurrency(paymentAmount)}
                       </Box>
                     </Box>
                   </Box>
-
-                  {/* Warnings/Info */}
-                  {isOverpayment && (
-                    <Alert severity="warning" icon={<AlertCircle className="w-5 h-5" />}>
-                      <strong>Overpayment:</strong> The payment amount exceeds the total due by {formatCurrency(paymentAmount - totalSelectedAmount)}. 
-                      This excess will be credited to the customer's account.
-                    </Alert>
-                  )}
-
-                  {isPartialPayment && (
-                    <Alert severity="info" icon={<Info className="w-5 h-5" />}>
-                      <strong>Partial Payment:</strong> This payment will cover {formatCurrency(paymentAmount)} of the total {formatCurrency(totalSelectedAmount)}. 
-                      Remaining balance: {formatCurrency(totalSelectedAmount - paymentAmount)}
-                    </Alert>
-                  )}
-
-                  {/* Navigation */}
-                  <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                    <Button
-                      onClick={handleBack}
-                      variant="outline"
-                      disabled={loading}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      onClick={() => setShowConfirmDialog(true)}
-                      variant="primary"
-                      icon={<CheckCircle2 className="w-4 h-4" />}
-                      disabled={loading}
-                    >
-                      Record Payment
-                    </Button>
-                  </Box>
                 </Box>
-              </DashboardPanel>
-            )}
+
+                {/* Warnings/Info */}
+                {isOverpayment && (
+                  <Alert severity="error" icon={<AlertCircle className="w-5 h-5" />}>
+                    <strong>Invalid Amount:</strong> Payment cannot exceed remaining due. Reduce by {formatCurrency(paymentAmount - totalSelectedAmount)} to continue.
+                  </Alert>
+                )}
+
+                {isPartialPayment && (
+                  <Alert severity="info" icon={<Info className="w-5 h-5" />}>
+                    <strong>Partial Payment:</strong> This payment will cover {formatCurrency(paymentAmount)} of the total {formatCurrency(totalSelectedAmount)}. 
+                    The remaining {formatCurrency(totalSelectedAmount - paymentAmount)} will stay pending.
+                  </Alert>
+                )}
+
+                {notes && (
+                  <Box>
+                    <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', mb: 1 }}>
+                      Notes
+                    </Box>
+                    <Box sx={{ p: 2, bgcolor: 'var(--surface)', borderRadius: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      {notes}
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Navigation */}
+                <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button
+                    onClick={handleBack}
+                    variant="outline"
+                    disabled={loading}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    onClick={() => setShowConfirmDialog(true)}
+                    variant="primary"
+                    icon={<CheckCircle2 className="w-4 h-4" />}
+                    disabled={loading}
+                  >
+                    Record Payment
+                  </Button>
+                </Box>
+              </Box>
+            </DashboardPanel>
+          )}
         </Box>
 
         {/* Confirmation Dialog */}
-        <Dialog
-          open={showConfirmDialog}
+        <Dialog 
+          open={showConfirmDialog} 
           onClose={() => !loading && setShowConfirmDialog(false)}
           maxWidth="sm"
           fullWidth
@@ -880,10 +1084,9 @@ export default function RecordPaymentPage() {
             <Box sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
               This action will:
               <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-                <li>Create a credit ledger entry for this payment</li>
-                <li>Reduce the customer's outstanding balance</li>
-                <li>Apply the payment to {selectedShipmentIds.length} selected shipment{selectedShipmentIds.length !== 1 ? 's' : ''}</li>
-                <li>Update shipment payment statuses accordingly</li>
+                <li>Create a Car Purchase Price ledger entry</li>
+                <li>Update the customer's balance</li>
+                <li>Record the purchase payment for the selected vehicle</li>
               </ul>
             </Box>
           </DialogContent>

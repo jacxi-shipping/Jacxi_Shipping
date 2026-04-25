@@ -204,6 +204,18 @@ export async function POST(request: NextRequest) {
 
     const currentBalance = latestEntry?.balance || 0;
 
+    // Balance check: for manual DEBIT transactions (no transactionInfoType = system-generated),
+    // the customer must have enough credit in their account.
+    if (validatedData.type === 'DEBIT' && !validatedData.transactionInfoType) {
+      const availableCredit = currentBalance < 0 ? -currentBalance : 0;
+      if (validatedData.amount > availableCredit) {
+        return NextResponse.json(
+          { error: `Insufficient balance. Customer has $${availableCredit.toFixed(2)} available. Ask the customer to deposit more credit first.` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Calculate new balance
     let newBalance = currentBalance;
     if (validatedData.type === 'DEBIT') {

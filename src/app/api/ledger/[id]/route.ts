@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
-import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { z } from 'zod';
 import { hasPermission } from '@/lib/rbac';
 
@@ -164,41 +163,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Ledger entry not found' }, { status: 404 });
     }
 
-    const entryMetadata =
-      entry.metadata && typeof entry.metadata === 'object' && !Array.isArray(entry.metadata)
-        ? (entry.metadata as Record<string, unknown>)
-        : null;
-
-    const metadataShipmentIds = Array.isArray(entryMetadata?.shipmentIds)
-      ? entryMetadata.shipmentIds.filter((shipmentId): shipmentId is string => typeof shipmentId === 'string')
-      : [];
-
-    // Use transaction to ensure payment-related user/company ledger entries are deleted atomically
+    // Use transaction to ensure both user and company ledger entries are deleted atomically
     await prisma.$transaction(async (tx) => {
-      const affectedShipmentIds = new Set<string>([
-        ...(entry.shipmentId ? [entry.shipmentId] : []),
-        ...metadataShipmentIds,
-      ]);
-
-      const childPaymentEntries = await tx.ledgerEntry.findMany({
-        where: {
-          metadata: {
-            path: ['parentEntryId'],
-            equals: params.id,
-          },
-        },
-        select: {
-          id: true,
-          shipmentId: true,
-        },
-      });
-
-      for (const childEntry of childPaymentEntries) {
-        if (childEntry.shipmentId) {
-          affectedShipmentIds.add(childEntry.shipmentId);
-        }
-      }
-
       // Find and delete the corresponding company ledger entry (if it exists)
       // Company ledger entries created from expenses have reference: "shipment-expense:{ledgerEntryId}"
       const companyLedgerReference = `shipment-expense:${params.id}`;
@@ -215,81 +181,51 @@ export async function DELETE(
         await recalculateCompanyLedgerBalances(tx, companyLedgerEntry.companyId);
       }
 
-      if (childPaymentEntries.length > 0) {
-        await tx.ledgerEntry.deleteMany({
-          where: {
-            id: {
-              in: childPaymentEntries.map((childEntry) => childEntry.id),
-            },
-          },
-        });
-      }
-
-      // Delete the target user ledger entry
+      // Delete the user ledger entry
       await tx.ledgerEntry.delete({
         where: { id: params.id },
       });
 
-      await recalculateUserLedgerBalances(tx, entry.userId);
+      // Recalculate balances for all subsequent user ledger entries
+      const subsequentEntries = await tx.ledgerEntry.findMany({
+        where: {
+          userId: entry.userId,
+          transactionDate: {
+            gte: entry.transactionDate,
+          },
+        },
+        orderBy: {
+          transactionDate: 'asc',
+        },
+      });
 
-      if (affectedShipmentIds.size > 0) {
-        const shipmentLedgerSums = await tx.ledgerEntry.groupBy({
-          by: ['shipmentId', 'type'],
-          where: {
-            shipmentId: {
-              in: Array.from(affectedShipmentIds),
-            },
+      // Get the balance before the deleted entry
+      const previousEntry = await tx.ledgerEntry.findFirst({
+        where: {
+          userId: entry.userId,
+          transactionDate: {
+            lt: entry.transactionDate,
           },
-          _sum: {
-            amount: true,
-          },
+        },
+        orderBy: {
+          transactionDate: 'desc',
+        },
+      });
+
+      let runningBalance = previousEntry?.balance || 0;
+
+      // Update balances for all subsequent entries
+      for (const subsequentEntry of subsequentEntries) {
+        if (subsequentEntry.type === 'DEBIT') {
+          runningBalance += subsequentEntry.amount;
+        } else {
+          runningBalance -= subsequentEntry.amount;
+        }
+
+        await tx.ledgerEntry.update({
+          where: { id: subsequentEntry.id },
+          data: { balance: runningBalance },
         });
-
-        const shipmentBalanceMap: Record<string, { totalDebit: number; totalCredit: number }> = {};
-
-        for (const ledgerSum of shipmentLedgerSums) {
-          if (!ledgerSum.shipmentId) {
-            continue;
-          }
-
-          if (!shipmentBalanceMap[ledgerSum.shipmentId]) {
-            shipmentBalanceMap[ledgerSum.shipmentId] = { totalDebit: 0, totalCredit: 0 };
-          }
-
-          if (ledgerSum.type === 'DEBIT') {
-            shipmentBalanceMap[ledgerSum.shipmentId].totalDebit += ledgerSum._sum.amount || 0;
-          } else if (ledgerSum.type === 'CREDIT') {
-            shipmentBalanceMap[ledgerSum.shipmentId].totalCredit += ledgerSum._sum.amount || 0;
-          }
-        }
-
-        const completedShipmentIds: string[] = [];
-        const pendingShipmentIds: string[] = [];
-
-        for (const shipmentId of affectedShipmentIds) {
-          const shipmentTotals = shipmentBalanceMap[shipmentId] || { totalDebit: 0, totalCredit: 0 };
-          const amountDue = Math.max(0, shipmentTotals.totalDebit - shipmentTotals.totalCredit);
-
-          if (shipmentTotals.totalDebit > 0 && amountDue === 0) {
-            completedShipmentIds.push(shipmentId);
-          } else {
-            pendingShipmentIds.push(shipmentId);
-          }
-        }
-
-        if (completedShipmentIds.length > 0) {
-          await tx.shipment.updateMany({
-            where: { id: { in: completedShipmentIds } },
-            data: { paymentStatus: 'COMPLETED' },
-          });
-        }
-
-        if (pendingShipmentIds.length > 0) {
-          await tx.shipment.updateMany({
-            where: { id: { in: pendingShipmentIds } },
-            data: { paymentStatus: 'PENDING' },
-          });
-        }
       }
     });
 

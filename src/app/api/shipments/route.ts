@@ -3,7 +3,6 @@ import { Prisma, TitleStatus, PaymentStatus, ShipmentSimpleStatus } from '@prism
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
-import { syncShipmentPurchasePriceEntries } from '@/lib/shipment-purchase-price';
 
 const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
   'ON_HAND',
@@ -91,6 +90,8 @@ export async function GET(request: NextRequest) {
       createdAt: true,
       paymentStatus: true,
       price: true,
+      purchasePrice: true,
+      serviceType: true,
       dispatchId: true,
       containerId: true,
       transitId: true,
@@ -146,6 +147,7 @@ export async function GET(request: NextRequest) {
                 select: {
                   type: true,
                   amount: true,
+                  transactionInfoType: true,
                 },
               },
             }
@@ -165,11 +167,15 @@ export async function GET(request: NextRequest) {
           // replacing it with an O(N) loop to compute debits and credits efficiently.
           let totalDebit = 0;
           let totalCredit = 0;
+          let purchasePricePaid = 0;
           for (const entry of shipment.ledgerEntries) {
             if (entry.type === 'DEBIT') {
               totalDebit += entry.amount;
             } else if (entry.type === 'CREDIT') {
               totalCredit += entry.amount;
+              if (entry.transactionInfoType === 'CAR_PAYMENT') {
+                purchasePricePaid += entry.amount;
+              }
             }
           }
           const amountDue = Math.max(0, totalDebit - totalCredit);
@@ -177,6 +183,7 @@ export async function GET(request: NextRequest) {
           return {
             ...shipment,
             amountDue,
+            purchasePricePaid,
             ledgerEntries: undefined,
           };
         })
@@ -429,21 +436,6 @@ export async function POST(request: NextRequest) {
           dealerName: dealerName || null,
           purchaseNotes: purchaseNotes || null,
         },
-      });
-
-      const vehicleLabel = [parsedVehicleYear, vehicleMake, vehicleModel]
-        .filter(Boolean)
-        .join(' ')
-        .trim() || vehicleType;
-
-      await syncShipmentPurchasePriceEntries(tx, {
-        shipmentId: createdShipment.id,
-        userId,
-        purchasePriceAmount: parsedPurchasePrice,
-        serviceType: serviceType || 'SHIPPING_ONLY',
-        vehicleLabel,
-        vehicleVIN,
-        actorUserId: session.user.id as string,
       });
 
       // Update container count if assigned

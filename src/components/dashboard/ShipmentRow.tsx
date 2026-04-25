@@ -43,6 +43,8 @@ interface ShipmentRowProps {
 	} | null;
 	yardReceived?: boolean;
 	yardReceivedAt?: string | null;
+	purchasePrice?: number | null;
+	purchasePricePaid?: number | null;
 	user?: {
 		name: string | null;
 		email: string;
@@ -74,11 +76,17 @@ export default function ShipmentRow({
 	transit,
 	yardReceived = false,
 	yardReceivedAt,
+	purchasePrice,
+	purchasePricePaid,
 	user,
 	showCustomer = false,
 	delay = 0,
 }: ShipmentRowProps) {
 	const vehicleInfo = [vehicleMake, vehicleModel, vehicleYear].filter(Boolean).join(' ') || vehicleType;
+	const paidAmount = Math.max(0, purchasePricePaid || 0);
+	const totalPurchasePrice = Math.max(0, purchasePrice || 0);
+	const remainingAmount = Math.max(0, totalPurchasePrice - paidAmount);
+	const isPurchasePaidOff = totalPurchasePrice > 0 && remainingAmount <= 0;
 
 	// ⚡ Bolt: Removed `useState` and `useEffect` for visibility and replaced `<Slide>` with a pure CSS animation
 	// from `globals.css` (`className="animate-fade-in-up"`) applying the delay using inline styles.
@@ -98,7 +106,9 @@ export default function ShipmentRow({
 					display: 'grid',
 					gridTemplateColumns: {
 						xs: '1fr',
-						md: 'minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) auto',
+						md: purchasePrice != null
+							? 'minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto'
+							: 'minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) auto',
 					},
 					gap: { xs: 1.25, md: 1.5 },
 					alignItems: 'center',
@@ -172,6 +182,30 @@ export default function ShipmentRow({
 						</Typography>
 					)}
 				</Box>
+
+				{/* Column 2b: Purchase Price (finance roles only) */}
+				{purchasePrice != null && (
+					<Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+						<Typography sx={{ fontSize: { xs: '0.6rem', sm: '0.62rem', md: '0.65rem' }, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--text-secondary)', mb: 0.3 }}>
+							Purchase Price
+						</Typography>
+						<Typography sx={{ fontSize: { xs: '0.85rem', sm: '0.9rem', md: '0.95rem' }, fontWeight: 700, color: 'var(--accent-gold)' }}>
+							${purchasePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+						</Typography>
+						{paidAmount > 0 ? (
+							<>
+								<Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: isPurchasePaidOff ? 'rgb(34, 197, 94)' : 'rgb(251, 191, 36)', mt: 0.3 }}>
+									Paid ${Math.min(paidAmount, totalPurchasePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} of ${totalPurchasePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+								</Typography>
+								<Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: isPurchasePaidOff ? 'rgb(34, 197, 94)' : 'var(--text-secondary)', mt: 0.2 }}>
+									{isPurchasePaidOff ? '✓ Paid Off' : `Remaining $${remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+								</Typography>
+							</>
+						) : (
+							<Typography sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', mt: 0.3 }}>Unpaid</Typography>
+						)}
+					</Box>
+				)}
 
 				{/* Column 3: Container Info or Status Info */}
 				<Box sx={{ minWidth: 0, overflow: 'hidden' }}>
