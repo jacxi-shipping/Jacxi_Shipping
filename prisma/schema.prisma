@@ -686,10 +686,7 @@ model Company {
   address       String?
   country       String?
   notes         String?
-  companyType   CompanyType          @default(SHIPPING) // Kept for backward compat
-  isDispatch    Boolean              @default(false)
-  isShipping    Boolean              @default(false)
-  isTransit     Boolean              @default(false)
+  companyType   CompanyType          @default(SHIPPING) // Type: SHIPPING or TRANSIT
   isActive      Boolean              @default(true)
   createdBy     String?
   createdAt     DateTime             @default(now())

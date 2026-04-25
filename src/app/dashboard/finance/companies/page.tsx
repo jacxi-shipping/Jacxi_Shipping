@@ -4,14 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
-  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
-  FormGroup,
-  FormLabel,
   IconButton,
   MenuItem,
   TextField,
@@ -28,9 +24,6 @@ interface Company {
   name: string;
   code: string | null;
   companyType: 'SHIPPING' | 'DISPATCH' | 'TRANSIT';
-  isDispatch: boolean;
-  isShipping: boolean;
-  isTransit: boolean;
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -46,7 +39,7 @@ interface Company {
   };
 }
 
-const emptyForm = { name: '', code: '', email: '', phone: '', address: '', country: '', notes: '', isDispatch: false, isShipping: false, isTransit: false };
+const emptyForm = { name: '', code: '', email: '', phone: '', address: '', country: '', notes: '', companyType: 'SHIPPING' as 'SHIPPING' | 'DISPATCH' | 'TRANSIT' };
 
 export default function CompanyFinancePage() {
   const router = useRouter();
@@ -108,19 +101,13 @@ export default function CompanyFinancePage() {
       toast.error('Company name is required');
       return;
     }
-    if (!formData.isDispatch && !formData.isShipping && !formData.isTransit) {
-      toast.error('Select at least one company type');
-      return;
-    }
 
     try {
       setCreating(true);
-      // Derive companyType for backward compat (first selected)
-      const companyType = formData.isDispatch ? 'DISPATCH' : formData.isShipping ? 'SHIPPING' : 'TRANSIT';
       const response = await fetch('/api/finance/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, companyType }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
@@ -150,9 +137,7 @@ export default function CompanyFinancePage() {
     setEditForm({
       name: company.name,
       code: company.code || '',
-      isDispatch: company.isDispatch ?? company.companyType === 'DISPATCH',
-      isShipping: company.isShipping ?? company.companyType === 'SHIPPING',
-      isTransit: company.isTransit ?? company.companyType === 'TRANSIT',
+      companyType: company.companyType,
       email: company.email || '',
       phone: company.phone || '',
       address: company.address || '',
@@ -167,24 +152,16 @@ export default function CompanyFinancePage() {
       toast.error('Company name is required');
       return;
     }
-    if (!editForm.isDispatch && !editForm.isShipping && !editForm.isTransit) {
-      toast.error('Select at least one company type');
-      return;
-    }
 
     try {
       setSaving(true);
-      const companyType = editForm.isDispatch ? 'DISPATCH' : editForm.isShipping ? 'SHIPPING' : 'TRANSIT';
       const response = await fetch(`/api/finance/companies/${editCompany.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editForm.name,
           code: editForm.code || null,
-          companyType,
-          isDispatch: editForm.isDispatch,
-          isShipping: editForm.isShipping,
-          isTransit: editForm.isTransit,
+          companyType: editForm.companyType,
           email: editForm.email || null,
           phone: editForm.phone || null,
           address: editForm.address || null,
@@ -283,13 +260,7 @@ export default function CompanyFinancePage() {
         key: 'companyType',
         header: 'Type',
         align: 'center',
-        render: (_, row) => {
-          const roles: string[] = [];
-          if (row.isDispatch) roles.push('Dispatch');
-          if (row.isShipping) roles.push('Shipping');
-          if (row.isTransit) roles.push('Transit');
-          return roles.length > 0 ? roles.join(' / ') : row.companyType === 'SHIPPING' ? 'Shipping' : row.companyType === 'DISPATCH' ? 'Dispatch' : 'Transit';
-        },
+        render: (_, row) => row.companyType === 'SHIPPING' ? 'Shipping' : row.companyType === 'DISPATCH' ? 'Dispatch' : 'Transit',
       },
       {
         key: 'phone',
@@ -440,38 +411,16 @@ export default function CompanyFinancePage() {
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
             <TextField label="Company Name" value={formData.name} onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))} required />
             <TextField label="Code" value={formData.code} onChange={(event) => setFormData((prev) => ({ ...prev, code: event.target.value }))} />
-            <Box>
-              <FormLabel component="legend" sx={{ fontSize: '0.85rem', mb: 0.5 }}>Company Type (select all that apply)</FormLabel>
-              <FormGroup row>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.isDispatch}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, isDispatch: e.target.checked }))}
-                    />
-                  }
-                  label="Dispatch"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.isShipping}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, isShipping: e.target.checked }))}
-                    />
-                  }
-                  label="Shipping"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.isTransit}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, isTransit: e.target.checked }))}
-                    />
-                  }
-                  label="Transit"
-                />
-              </FormGroup>
-            </Box>
+            <TextField
+              select
+              label="Company Type"
+              value={formData.companyType}
+              onChange={(event) => setFormData((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'DISPATCH' | 'TRANSIT' }))}
+            >
+              <MenuItem value="SHIPPING">Shipping Company</MenuItem>
+              <MenuItem value="DISPATCH">Dispatch Company</MenuItem>
+              <MenuItem value="TRANSIT">Transit Company</MenuItem>
+            </TextField>
             <TextField label="Email" value={formData.email} onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))} />
             <TextField label="Phone" value={formData.phone} onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))} />
             <TextField label="Address" value={formData.address} onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))} />
@@ -489,38 +438,16 @@ export default function CompanyFinancePage() {
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
             <TextField label="Company Name" value={editForm.name} onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))} required />
             <TextField label="Code" value={editForm.code} onChange={(event) => setEditForm((prev) => ({ ...prev, code: event.target.value }))} />
-            <Box>
-              <FormLabel component="legend" sx={{ fontSize: '0.85rem', mb: 0.5 }}>Company Type (select all that apply)</FormLabel>
-              <FormGroup row>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={editForm.isDispatch}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, isDispatch: e.target.checked }))}
-                    />
-                  }
-                  label="Dispatch"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={editForm.isShipping}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, isShipping: e.target.checked }))}
-                    />
-                  }
-                  label="Shipping"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={editForm.isTransit}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, isTransit: e.target.checked }))}
-                    />
-                  }
-                  label="Transit"
-                />
-              </FormGroup>
-            </Box>
+            <TextField
+              select
+              label="Company Type"
+              value={editForm.companyType}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, companyType: event.target.value as 'SHIPPING' | 'DISPATCH' | 'TRANSIT' }))}
+            >
+              <MenuItem value="SHIPPING">Shipping Company</MenuItem>
+              <MenuItem value="DISPATCH">Dispatch Company</MenuItem>
+              <MenuItem value="TRANSIT">Transit Company</MenuItem>
+            </TextField>
             <TextField label="Email" value={editForm.email} onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))} />
             <TextField label="Phone" value={editForm.phone} onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))} />
             <TextField label="Address" value={editForm.address} onChange={(event) => setEditForm((prev) => ({ ...prev, address: event.target.value }))} />

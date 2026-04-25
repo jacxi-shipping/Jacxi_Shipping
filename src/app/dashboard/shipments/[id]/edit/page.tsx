@@ -138,7 +138,6 @@ export default function EditShipmentPage() {
   });
 
   const statusValue = watch('status');
-  const serviceTypeValue = watch('serviceType');
   const vinValue = watch('vehicleVIN');
   const isTransitManaged = Boolean(transitWorkflowContext?.transitId);
   const isDispatchManaged = Boolean(dispatchWorkflowContext?.dispatchId);
@@ -191,7 +190,6 @@ export default function EditShipmentPage() {
           // Populate form
           reset({
             userId: shipment.userId,
-            serviceType: shipment.serviceType || 'SHIPPING_ONLY',
             vehicleType: shipment.vehicleType,
             vehicleMake: shipment.vehicleMake || '',
             vehicleModel: shipment.vehicleModel || '',
@@ -202,7 +200,6 @@ export default function EditShipmentPage() {
             auctionName: shipment.auctionName || '',
             weight: shipment.weight?.toString() || '',
             dimensions: shipment.dimensions || '',
-            purchasePrice: shipment.purchasePrice?.toString() || '',
             hasKey: shipment.hasKey,
             hasTitle: shipment.hasTitle,
             titleStatus: shipment.titleStatus || undefined,
@@ -567,49 +564,6 @@ export default function EditShipmentPage() {
                         </Button>
                     </Box>
                 </Box>
-
-                <Box>
-                  <Typography
-                    component="label"
-                    htmlFor="serviceType"
-                    sx={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', mb: 1 }}
-                  >
-                    Service Type *
-                  </Typography>
-                  <select
-                    id="serviceType"
-                    {...register('serviceType')}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '16px',
-                      border: errors.serviceType ? '2px solid var(--error)' : '1px solid rgba(var(--border-rgb), 0.9)',
-                      backgroundColor: 'var(--background)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    <option value="SHIPPING_ONLY">Shipping Only</option>
-                    <option value="PURCHASE_AND_SHIPPING">Purchase + Shipping</option>
-                  </select>
-                  {errors.serviceType && (
-                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--error)', mt: 0.5 }}>
-                      {errors.serviceType.message}
-                    </Typography>
-                  )}
-                </Box>
-
-                {serviceTypeValue === 'PURCHASE_AND_SHIPPING' && (
-                  <FormField
-                    id="purchasePrice"
-                    label="Purchase Price (USD) *"
-                    type="number"
-                    step="0.01"
-                    error={!!errors.purchasePrice}
-                    helperText={errors.purchasePrice?.message}
-                    {...register('purchasePrice')}
-                  />
-                )}
 
                 <Box>
                   <Typography

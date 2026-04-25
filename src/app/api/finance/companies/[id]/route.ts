@@ -13,9 +13,6 @@ const updateCompanySchema = z.object({
   country: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   companyType: z.enum(['SHIPPING', 'DISPATCH', 'TRANSIT']).optional(),
-  isDispatch: z.boolean().optional(),
-  isShipping: z.boolean().optional(),
-  isTransit: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
 

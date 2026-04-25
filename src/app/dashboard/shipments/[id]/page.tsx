@@ -100,7 +100,6 @@ interface Shipment {
   id: string;
   userId: string;
   serviceType?: string;
-  purchasePrice?: number | null;
   vehicleType: string;
   vehicleMake: string | null;
   vehicleModel: string | null;
@@ -1490,13 +1489,6 @@ export default function ShipmentDetailPage() {
                         </span>
                       )}
                     </div>
-                  </div>
-                )}
-                {hasPermission(session?.user?.role, 'finance:manage') && shipment.purchasePrice != null && (
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
-                    <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Car Purchase Amount</p>
-                    <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">${shipment.purchasePrice.toFixed(2)}</p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">Price company paid for the vehicle</p>
                   </div>
                 )}
                 {shipment.price && (

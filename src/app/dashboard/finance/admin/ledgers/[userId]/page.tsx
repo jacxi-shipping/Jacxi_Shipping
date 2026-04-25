@@ -193,19 +193,6 @@ export default function UserLedgerManagementPage() {
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const amount = parseFloat(formData.amount);
-      // Balance check: customer must have enough credit for a DEBIT
-      if (formData.type === 'DEBIT') {
-        const availableCredit = summary.currentBalance < 0 ? -summary.currentBalance : 0;
-        if (amount > availableCredit) {
-          setSnackbar({
-            open: true,
-            message: `Insufficient balance. Customer only has ${formatCurrency(availableCredit)} available. Ask the customer to deposit more credit first.`,
-            severity: 'error',
-          });
-          return;
-        }
-      }
       const response = await fetch('/api/ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,7 +200,8 @@ export default function UserLedgerManagementPage() {
           userId,
           description: formData.description,
           type: formData.type,
-          amount,
+          transactionInfoType: formData.transactionInfoType,
+          amount: parseFloat(formData.amount),
           notes: formData.notes,
         }),
       });
@@ -597,7 +585,7 @@ export default function UserLedgerManagementPage() {
             </Box>
 
             {showFilters && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
                 <FormControl size="small" fullWidth>
                   <InputLabel>Type</InputLabel>
                   <Select
@@ -608,6 +596,19 @@ export default function UserLedgerManagementPage() {
                     <MenuItem value="">All Types</MenuItem>
                     <MenuItem value="DEBIT">Debit Only</MenuItem>
                     <MenuItem value="CREDIT">Credit Only</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Transaction Info</InputLabel>
+                  <Select
+                    value={filters.transactionInfoType}
+                    onChange={(e) => setFilters({ ...filters, transactionInfoType: e.target.value })}
+                    label="Transaction Info"
+                  >
+                    <MenuItem value="">All Transaction Types</MenuItem>
+                    {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([value, label]) => (
+                      <MenuItem key={value} value={value}>{label}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 <TextField
@@ -721,38 +722,6 @@ export default function UserLedgerManagementPage() {
         <form onSubmit={handleAddEntry}>
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Account balance info */}
-              {(() => {
-                const availableCredit = summary.currentBalance < 0 ? -summary.currentBalance : 0;
-                const enteredAmount = parseFloat(formData.amount) || 0;
-                const isInsufficientCredit = formData.type === 'DEBIT' && enteredAmount > 0 && enteredAmount > availableCredit;
-                const hasNoCredit = summary.currentBalance >= 0;
-                return (
-                  <>
-                    <Alert
-                      severity={hasNoCredit ? 'error' : 'success'}
-                      sx={{ fontSize: '0.9rem', fontWeight: 500 }}
-                    >
-                      {hasNoCredit
-                        ? summary.currentBalance === 0
-                          ? 'Account Balance: $0.00 — No credit available. Customer must deposit funds first before any payment can be made.'
-                          : `Account Balance: Customer owes ${formatCurrency(summary.currentBalance)} — No credit available. Customer must deposit funds first.`
-                        : `Available Credit: ${formatCurrency(availableCredit)} — Customer can pay up to this amount.`}
-                    </Alert>
-                    {isInsufficientCredit && (
-                      <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                        ❌ Insufficient credit. Customer only has {formatCurrency(availableCredit)} available but you entered {formatCurrency(enteredAmount)}. Ask the customer to deposit more funds first.
-                      </Alert>
-                    )}
-                    {formData.type === 'DEBIT' && hasNoCredit && (
-                      <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                        ❌ Cannot make a payment — this customer has no credit in their account. Add a deposit (Credit) first.
-                      </Alert>
-                    )}
-                  </>
-                );
-              })()}
-
               <FormControl fullWidth>
                 <InputLabel>Type *</InputLabel>
                 <Select
@@ -761,8 +730,8 @@ export default function UserLedgerManagementPage() {
                   label="Type *"
                   required
                 >
-                  <MenuItem value="CREDIT">Deposit / Add Credit (Customer pays in)</MenuItem>
-                  <MenuItem value="DEBIT">Payment / Debit (Pay from account)</MenuItem>
+                  <MenuItem value="DEBIT">Debit (User Owes)</MenuItem>
+                  <MenuItem value="CREDIT">Credit (Payment Received)</MenuItem>
                 </Select>
               </FormControl>
 
@@ -770,10 +739,24 @@ export default function UserLedgerManagementPage() {
                 label="Description *"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="e.g. Customer deposit, Car purchase payment"
+                placeholder="Enter transaction description"
                 required
                 fullWidth
               />
+
+              <FormControl fullWidth>
+                <InputLabel>Transaction Info Type *</InputLabel>
+                <Select
+                  value={formData.transactionInfoType}
+                  onChange={(e) => setFormData({ ...formData, transactionInfoType: e.target.value as TransactionInfoType })}
+                  label="Transaction Info Type *"
+                  required
+                >
+                  {(Object.entries(transactionInfoTypeLabels) as Array<[TransactionInfoType, string]>).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>{label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <TextField
                 label="Amount * (USD)"
@@ -782,19 +765,6 @@ export default function UserLedgerManagementPage() {
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 placeholder="0.00"
                 inputProps={{ step: '0.01', min: '0.01' }}
-                helperText={
-                  formData.type === 'CREDIT' && formData.amount
-                    ? `After deposit: account will have ${formatCurrency((summary.currentBalance < 0 ? -summary.currentBalance : 0) + parseFloat(formData.amount || '0'))} available`
-                    : formData.type === 'DEBIT' && formData.amount
-                    ? (() => {
-                        const amt = parseFloat(formData.amount);
-                        const avail = summary.currentBalance < 0 ? -summary.currentBalance : 0;
-                        if (amt <= avail) return `After payment: ${formatCurrency(avail - amt)} will remain available`;
-                        return '';
-                      })()
-                    : ''
-                }
-                FormHelperTextProps={{ sx: { color: '#22c55e' } }}
                 required
                 fullWidth
               />
@@ -814,20 +784,7 @@ export default function UserLedgerManagementPage() {
             <Button onClick={() => setShowAddModal(false)} sx={{ textTransform: 'none' }}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              icon={<Check />}
-              sx={{ textTransform: 'none' }}
-              disabled={(() => {
-                if (formData.type === 'DEBIT') {
-                  const avail = summary.currentBalance < 0 ? -summary.currentBalance : 0;
-                  const amt = parseFloat(formData.amount) || 0;
-                  return avail === 0 || amt > avail;
-                }
-                return false;
-              })()}
-            >
+            <Button type="submit" variant="primary" icon={<Check />} sx={{ textTransform: 'none' }}>
               Add Transaction
             </Button>
           </DialogActions>
@@ -861,6 +818,13 @@ export default function UserLedgerManagementPage() {
               <TextField
                 label="Amount (Read-only)"
                 value={formatCurrency(parseFloat(formData.amount))}
+                disabled
+                fullWidth
+              />
+
+              <TextField
+                label="Transaction Info Type (Read-only)"
+                value={transactionInfoTypeLabels[formData.transactionInfoType]}
                 disabled
                 fullWidth
               />

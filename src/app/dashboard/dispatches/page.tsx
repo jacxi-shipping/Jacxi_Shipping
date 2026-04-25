@@ -44,15 +44,6 @@ interface Dispatch {
   };
 }
 
-function formatDateTime(value: string | null) {
-  if (!value) return '-';
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-
-  return date.toLocaleString();
-}
-
 export default function DispatchesPage() {
   const router = useRouter();
   const [dispatches, setDispatches] = useState<Dispatch[]>([]);
@@ -275,11 +266,6 @@ export default function DispatchesPage() {
       },
     },
     {
-      key: 'dispatchDate',
-      header: 'Dispatch Date & Time',
-      render: (_, row) => formatDateTime(row.dispatchDate),
-    },
-    {
       key: '_count',
       header: 'Shipments',
       align: 'center',
@@ -324,7 +310,7 @@ export default function DispatchesPage() {
               size="small"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by reference, notes, or VIN"
+              placeholder="Search dispatch by reference or notes"
               InputProps={{ startAdornment: <Search className="w-4 h-4 mr-2 text-[var(--text-secondary)]" /> }}
             />
             <TextField select size="small" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
@@ -341,7 +327,7 @@ export default function DispatchesPage() {
             <EmptyState
               icon={<Truck className="w-8 h-8" />}
               title={search || statusFilter ? 'No dispatches match these filters' : 'No dispatches yet'}
-              description={search || statusFilter ? 'Try clearing the current filters or searching for a different reference or VIN.' : 'Create the first dispatch to start tracking the yard-to-port leg.'}
+              description={search || statusFilter ? 'Try clearing the current filters or searching for a different reference.' : 'Create the first dispatch to start tracking the yard-to-port leg.'}
               action={<Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenCreate(true)}>New dispatch</Button>}
             />
           ) : (

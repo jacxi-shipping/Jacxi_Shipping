@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         price: true,
-        purchasePrice: true,
         vehicleMake: true,
         vehicleModel: true,
         vehicleVIN: true,
@@ -61,51 +60,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate already-paid amount per shipment for this payment type.
-    // This keeps partial/second/third payments accurate even with legacy ledger data.
-    const existingCredits = await prisma.ledgerEntry.groupBy({
-      by: ['shipmentId'],
-      where: {
-        shipmentId: { in: validatedData.shipmentIds },
-        type: 'CREDIT',
-        transactionInfoType: validatedData.transactionInfoType,
-      },
-      _sum: {
-        amount: true,
-      },
-    });
-
-    const paidByShipmentId = new Map<string, number>();
-    for (const credit of existingCredits) {
-      if (credit.shipmentId) {
-        paidByShipmentId.set(credit.shipmentId, credit._sum.amount || 0);
-      }
-    }
-
-    const shipmentDueMap = new Map<string, number>();
-    let totalRemainingDue = 0;
-    for (const shipment of shipments) {
-      const totalPurchaseDue = Math.max(0, shipment.purchasePrice ?? shipment.price ?? 0);
-      const alreadyPaid = paidByShipmentId.get(shipment.id) || 0;
-      const shipmentDue = Math.max(0, totalPurchaseDue - alreadyPaid);
-      shipmentDueMap.set(shipment.id, shipmentDue);
-      totalRemainingDue += shipmentDue;
-    }
-
-    if (totalRemainingDue <= 0) {
-      return NextResponse.json(
-        { error: 'Selected shipment(s) are already fully paid.' },
-        { status: 400 }
-      );
-    }
-
-    if (validatedData.amount > totalRemainingDue) {
-      return NextResponse.json(
-        { error: `Amount exceeds remaining due. Maximum allowed is $${totalRemainingDue.toFixed(2)}.` },
-        { status: 400 }
-      );
-    }
-
     // Get current balance for the user
     const latestEntry = await prisma.ledgerEntry.findFirst({
       where: { userId: validatedData.userId },
@@ -114,32 +68,20 @@ export async function POST(request: NextRequest) {
     });
 
     const currentBalance = latestEntry?.balance || 0;
+    const newBalance = currentBalance - validatedData.amount;
 
-    // A service payment is a DEBIT — it consumes the customer's available credit.
-    // Credit (depositing money) builds up the balance. Debit (paying for services) uses it.
-    const availableCredit = currentBalance < 0 ? -currentBalance : 0;
-    if (validatedData.amount > availableCredit) {
-      return NextResponse.json(
-        { error: `Insufficient credit. Customer has $${availableCredit.toFixed(2)} available. Please deposit more credit first.` },
-        { status: 400 }
-      );
-    }
-
-    // DEBIT adds to the balance (moves it toward 0 / positive), consuming the customer's credit.
-    const newBalance = currentBalance + validatedData.amount;
-
-    // Create a DEBIT ledger entry — customer is spending their account credit on a service
+    // Create a credit ledger entry
     const shipmentInfo = shipments
       .map((s) => s.vehicleVIN || `${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.id)
       .join(', ');
     const transactionInfoLabel = transactionInfoTypeLabels[validatedData.transactionInfoType];
-    const description = `${transactionInfoLabel} payment applied to shipment(s): ${shipmentInfo}`;
+    const description = `${transactionInfoLabel} received for shipment(s): ${shipmentInfo}`;
 
     const entry = await prisma.ledgerEntry.create({
       data: {
         userId: validatedData.userId,
         description,
-        type: 'DEBIT',
+        type: 'CREDIT',
         transactionInfoType: validatedData.transactionInfoType,
         amount: validatedData.amount,
         balance: newBalance,
@@ -147,7 +89,7 @@ export async function POST(request: NextRequest) {
         notes: validatedData.notes,
         metadata: {
           shipmentIds: validatedData.shipmentIds,
-          paymentType: 'service_payment',
+          paymentType: 'received',
           paymentMethod: validatedData.paymentMethod,
         },
       },
@@ -166,6 +108,33 @@ export async function POST(request: NextRequest) {
     let remainingAmount = validatedData.amount;
     const updatedShipments = [];
 
+    // ⚡ Bolt: Fetch ledger entries for all shipments in one go to fix N+1 query problem
+    const allShipmentLedgers = await prisma.ledgerEntry.groupBy({
+      by: ['shipmentId', 'type'],
+      where: {
+        shipmentId: { in: validatedData.shipmentIds },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    // ⚡ Bolt: Create O(1) lookup map for shipment ledgers
+    const ledgerMap: Record<string, { totalDebit: number; totalCredit: number }> = {};
+    for (const entry of allShipmentLedgers) {
+      if (!entry.shipmentId) continue;
+
+      if (!ledgerMap[entry.shipmentId]) {
+        ledgerMap[entry.shipmentId] = { totalDebit: 0, totalCredit: 0 };
+      }
+
+      if (entry.type === 'DEBIT') {
+        ledgerMap[entry.shipmentId].totalDebit += entry._sum.amount || 0;
+      } else if (entry.type === 'CREDIT') {
+        ledgerMap[entry.shipmentId].totalCredit += entry._sum.amount || 0;
+      }
+    }
+
     // ⚡ Bolt: Collect all database mutations and run them in a single transaction
     // This reduces O(2N) sequential database roundtrips to 1 bulk operation.
     const ledgerEntryCreations = [];
@@ -175,7 +144,11 @@ export async function POST(request: NextRequest) {
     for (const shipment of shipments) {
       if (remainingAmount <= 0) break;
 
-      const shipmentDue = shipmentDueMap.get(shipment.id) || 0;
+      // ⚡ Bolt: Use O(1) lookup instead of awaiting DB query inside the loop
+      const ledgerInfo = ledgerMap[shipment.id] || { totalDebit: 0, totalCredit: 0 };
+      const totalDebit = ledgerInfo.totalDebit;
+      const totalCredit = ledgerInfo.totalCredit;
+      const shipmentDue = totalDebit - totalCredit;
 
       if (shipmentDue > 0) {
         const paymentForShipment = Math.min(remainingAmount, shipmentDue);
@@ -199,8 +172,8 @@ export async function POST(request: NextRequest) {
         });
 
         // Check if shipment is now fully paid
-        const remainingAfterPayment = Math.max(0, shipmentDue - paymentForShipment);
-        const isPaid = remainingAfterPayment <= 0;
+        const newTotalCredit = totalCredit + paymentForShipment;
+        const isPaid = newTotalCredit >= totalDebit;
 
         if (isPaid) {
           completedShipmentIds.push(shipment.id);
@@ -212,7 +185,7 @@ export async function POST(request: NextRequest) {
           id: shipment.id,
           paymentStatus: isPaid ? 'COMPLETED' : 'PENDING',
           amountPaid: paymentForShipment,
-          remainingDue: remainingAfterPayment,
+          remainingDue: Math.max(0, totalDebit - newTotalCredit),
         });
       }
     }
