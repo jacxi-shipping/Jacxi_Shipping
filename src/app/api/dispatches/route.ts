@@ -42,7 +42,11 @@ export async function GET(request: NextRequest) {
     const where: {
       status?: DispatchStatus;
       companyId?: string;
-      OR?: Array<{ referenceNumber?: { contains: string; mode: 'insensitive' }; notes?: { contains: string; mode: 'insensitive' } }>;
+      OR?: Array<
+        | { referenceNumber: { contains: string; mode: 'insensitive' } }
+        | { notes: { contains: string; mode: 'insensitive' } }
+        | { shipments: { some: { vehicleVIN: { contains: string; mode: 'insensitive' } } } }
+      >;
     } = {};
 
     if (status && Object.values(DispatchStatus).includes(status as DispatchStatus)) {
@@ -57,6 +61,7 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { referenceNumber: { contains: search, mode: 'insensitive' } },
         { notes: { contains: search, mode: 'insensitive' } },
+        { shipments: { some: { vehicleVIN: { contains: search, mode: 'insensitive' } } } },
       ];
     }
 

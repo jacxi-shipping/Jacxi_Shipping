@@ -134,6 +134,7 @@ export async function GET(request: NextRequest) {
             userId: true,
             internalNotes: true,
             price: true,
+            purchasePrice: true,
             paymentStatus: true,
             paymentMode: true,
             createdAt: true,
@@ -192,6 +193,13 @@ export async function GET(request: NextRequest) {
               },
               take: 1,
             },
+            ledgerEntries: {
+              select: {
+                type: true,
+                amount: true,
+                transactionInfoType: true,
+              },
+            },
           },
           orderBy: {
             [sortBy]: sortOrder as 'asc' | 'desc',
@@ -202,13 +210,23 @@ export async function GET(request: NextRequest) {
         prisma.shipment.count({ where }),
       ]);
 
-      results.shipments = shipments.map((shipment) => ({
-        ...shipment,
-        workflowStage: getShipmentWorkflowStage(shipment),
-        yardReceived: shipment.auditLogs.length > 0,
-        yardReceivedAt: shipment.auditLogs[0]?.timestamp ?? null,
-        auditLogs: undefined,
-      }));
+      results.shipments = (shipments as Array<any>).map((shipment) => {
+        let purchasePricePaid = 0;
+        for (const entry of (shipment.ledgerEntries || [])) {
+          if (entry.type === 'CREDIT' && entry.transactionInfoType === 'CAR_PAYMENT') {
+            purchasePricePaid += entry.amount;
+          }
+        }
+        return {
+          ...shipment,
+          purchasePricePaid,
+          workflowStage: getShipmentWorkflowStage(shipment),
+          yardReceived: shipment.auditLogs.length > 0,
+          yardReceivedAt: shipment.auditLogs[0]?.timestamp ?? null,
+          auditLogs: undefined,
+          ledgerEntries: undefined,
+        };
+      });
       results.totalShipments = totalShipments;
     }
 

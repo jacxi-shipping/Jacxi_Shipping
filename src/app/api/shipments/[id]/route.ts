@@ -11,6 +11,7 @@ import { buildUnifiedShipmentTimeline } from '@/lib/shipment-timeline';
 
 type UpdateShipmentPayload = {
   userId?: string;
+  serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
   vehicleType?: string;
   vehicleMake?: string | null;
   vehicleModel?: string | null;
@@ -26,6 +27,12 @@ type UpdateShipmentPayload = {
   replacePhotos?: boolean;
   weight?: number | string | null;
   dimensions?: string | null;
+  purchasePrice?: number | string | null;
+  purchaseDate?: string | null;
+  purchaseLocation?: string | null;
+  dealerName?: string | null;
+  purchaseNotes?: string | null;
+  paymentMode?: 'CASH' | 'DUE' | null;
   specialInstructions?: string | null;
   internalNotes?: string | null;
   hasKey?: boolean | null;
@@ -79,6 +86,8 @@ export async function GET(
       where: { id },
       select: {
         id: true,
+        serviceType: true,
+        purchasePrice: true,
         vehicleType: true,
         vehicleMake: true,
         vehicleModel: true,
@@ -626,6 +635,7 @@ export async function PATCH(
 
     // Basic vehicle info
     if (data.userId !== undefined) updateData.user = { connect: { id: data.userId } };
+    if (data.serviceType !== undefined) updateData.serviceType = data.serviceType;
     if (data.vehicleType !== undefined) updateData.vehicleType = data.vehicleType;
     if (data.vehicleMake !== undefined) updateData.vehicleMake = data.vehicleMake;
     if (data.vehicleModel !== undefined) updateData.vehicleModel = data.vehicleModel;
@@ -719,8 +729,24 @@ export async function PATCH(
           : null;
     }
 
+    if (data.purchasePrice !== undefined) {
+      updateData.purchasePrice =
+        typeof data.purchasePrice === 'number'
+          ? data.purchasePrice
+          : typeof data.purchasePrice === 'string'
+          ? parseFloat(data.purchasePrice)
+          : null;
+    }
+
     // Other fields
     if (data.dimensions !== undefined) updateData.dimensions = data.dimensions;
+    if (data.purchaseDate !== undefined) {
+      updateData.purchaseDate = data.purchaseDate ? new Date(data.purchaseDate) : null;
+    }
+    if (data.purchaseLocation !== undefined) updateData.purchaseLocation = data.purchaseLocation;
+    if (data.dealerName !== undefined) updateData.dealerName = data.dealerName;
+    if (data.purchaseNotes !== undefined) updateData.purchaseNotes = data.purchaseNotes;
+    if (data.paymentMode !== undefined) updateData.paymentMode = data.paymentMode;
     if (data.internalNotes !== undefined) updateData.internalNotes = data.internalNotes;
     if (data.hasKey !== undefined) updateData.hasKey = data.hasKey;
     if (data.hasTitle !== undefined) updateData.hasTitle = data.hasTitle;

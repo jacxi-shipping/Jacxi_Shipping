@@ -22,6 +22,8 @@ interface Shipment {
 	vehicleModel: string | null;
 	vehicleYear?: number | null;
 	vehicleVIN?: string | null;
+	purchasePrice?: number | null;
+	purchasePricePaid?: number | null;
 	origin?: string;
 	destination?: string;
 	status: string;
@@ -65,6 +67,8 @@ interface ShipmentTableRow {
 	id: string;
 	vehicle: string;
 	vin: string;
+	purchasePrice: number | null;
+	purchasePricePaid: number | null;
 	status: string;
 	yardReceived: boolean;
 	paymentStatus: string;
@@ -146,6 +150,8 @@ export default function ShipmentsListPage() {
 			id: shipment.id,
 			vehicle: vehicleInfo,
 			vin: shipment.vehicleVIN ?? '-',
+			purchasePrice: shipment.purchasePrice ?? null,
+			purchasePricePaid: shipment.purchasePricePaid ?? null,
 			status: shipment.status,
 			yardReceived: Boolean(shipment.yardReceived),
 			paymentStatus: shipment.paymentStatus ?? '-',
@@ -161,8 +167,45 @@ export default function ShipmentsListPage() {
 		};
 	});
 
+	const canViewFinance = hasPermission(session?.user?.role, 'finance:manage');
+
 	const shipmentColumns: Column<ShipmentTableRow>[] = [
 		{ key: 'vehicle', header: 'Vehicle', sortable: true },
+		...(canViewFinance ? [{
+			key: 'purchasePrice' as const,
+			header: 'Purchase Price',
+			sortable: true,
+			render: (_: unknown, row: ShipmentTableRow) => {
+				if (row.purchasePrice == null) {
+					return <span style={{ color: 'var(--text-secondary)' }}>-</span>;
+				}
+
+				const total = Math.max(0, row.purchasePrice);
+				const paid = Math.max(0, row.purchasePricePaid || 0);
+				const remaining = Math.max(0, total - paid);
+				const isPaidOff = total > 0 && remaining <= 0;
+
+				return (
+					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2 }}>
+						<span style={{ fontWeight: 700, color: 'var(--accent-gold)' }}>
+							${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+						</span>
+						{paid > 0 ? (
+							<>
+								<span style={{ fontSize: '0.74rem', fontWeight: 700, color: isPaidOff ? 'rgb(34, 197, 94)' : 'rgb(251, 191, 36)' }}>
+									Paid ${Math.min(paid, total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+								</span>
+								<span style={{ fontSize: '0.72rem', fontWeight: 600, color: isPaidOff ? 'rgb(34, 197, 94)' : 'var(--text-secondary)' }}>
+									{isPaidOff ? '✓ Paid Off' : `Remaining $${remaining.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+								</span>
+							</>
+						) : (
+							<span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Unpaid</span>
+						)}
+					</Box>
+				);
+			},
+		}] : []),
 		{ key: 'vin', header: 'VIN', sortable: true },
 		{
 			key: 'status',
@@ -402,6 +445,8 @@ export default function ShipmentsListPage() {
               <ShipmentRow
                 key={shipment.id}
                 {...shipment}
+                purchasePrice={canViewFinance ? (shipment.purchasePrice ?? null) : null}
+                purchasePricePaid={canViewFinance ? (shipment.purchasePricePaid ?? null) : null}
                 showCustomer={isAdmin}
                 delay={index * 0.05}
               />

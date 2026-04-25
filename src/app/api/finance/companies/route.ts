@@ -14,6 +14,9 @@ const createCompanySchema = z.object({
   country: z.string().optional(),
   notes: z.string().optional(),
   companyType: z.enum(['SHIPPING', 'DISPATCH', 'TRANSIT']).default('SHIPPING'),
+  isDispatch: z.boolean().optional().default(false),
+  isShipping: z.boolean().optional().default(false),
+  isTransit: z.boolean().optional().default(false),
   isActive: z.boolean().optional().default(true),
 });
 
@@ -49,7 +52,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (companyType && Object.values(CompanyType).includes(companyType as CompanyType)) {
-      where.companyType = companyType as CompanyType;
+      const boolField =
+        companyType === 'DISPATCH' ? 'isDispatch' :
+        companyType === 'TRANSIT'  ? 'isTransit'  :
+        companyType === 'SHIPPING' ? 'isShipping'  : null;
+      if (boolField) {
+        where.OR = [
+          ...(Array.isArray(where.OR) ? where.OR : []),
+          { companyType: companyType as CompanyType },
+          { [boolField]: true },
+        ];
+      } else {
+        where.companyType = companyType as CompanyType;
+      }
     }
 
     // Parallelize independent queries: fetching companies and calculating aggregate ledgers
@@ -137,6 +152,9 @@ export async function POST(request: NextRequest) {
         country: validatedData.country || null,
         notes: validatedData.notes || null,
         companyType: validatedData.companyType,
+        isDispatch: validatedData.isDispatch ?? false,
+        isShipping: validatedData.isShipping ?? false,
+        isTransit: validatedData.isTransit ?? false,
         isActive: validatedData.isActive,
         createdBy: session.user.id as string,
       },
