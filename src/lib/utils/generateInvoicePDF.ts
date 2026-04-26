@@ -43,7 +43,17 @@ interface Invoice {
     vesselName: string | null;
     loadingPort: string | null;
     destinationPort: string | null;
-  };
+  } | null;
+  shipment: {
+    id: string;
+    vehicleType: string;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    vehicleYear: number | null;
+    vehicleVIN: string | null;
+    vehicleColor: string | null;
+    paymentStatus: string | null;
+  } | null;
   lineItems: LineItem[];
 }
 
@@ -175,34 +185,38 @@ export const generateInvoicePDF = (invoice: Invoice) => {
   doc.text('INVOICE DETAILS', pageWidth / 2 + 10, yPos);
   
   yPos += 8;
+  const sectionTopY = yPos;
+
+  // Track left and right column positions separately, then merge at the end.
+  let leftY = sectionTopY;
 
   // Bill To - Customer Information
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...COLORS.textPrimary);
-  doc.text(invoice.user.name || 'Valued Customer', 20, yPos);
-  yPos += 5;
+  doc.text(invoice.user.name || 'Valued Customer', 20, leftY);
+  leftY += 5;
   
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...COLORS.textSecondary);
   doc.setFontSize(9);
-  doc.text(invoice.user.email, 20, yPos);
-  yPos += 5;
+  doc.text(invoice.user.email, 20, leftY);
+  leftY += 5;
   
   if (invoice.user.phone) {
-    doc.text(invoice.user.phone, 20, yPos);
-    yPos += 5;
+    doc.text(invoice.user.phone, 20, leftY);
+    leftY += 5;
   }
   
   if (invoice.user.address) {
     const address = `${invoice.user.address}${invoice.user.city ? ', ' + invoice.user.city : ''}${invoice.user.country ? ', ' + invoice.user.country : ''}`;
     const addressLines = doc.splitTextToSize(address, 70);
-    doc.text(addressLines, 20, yPos);
-    yPos += addressLines.length * 5;
+    doc.text(addressLines, 20, leftY);
+    leftY += addressLines.length * 5;
   }
 
   // Invoice Details (right side) with better formatting
-  let detailsY = 72;
+  let detailsY = sectionTopY;
   const labelX = pageWidth / 2 + 10;
   const valueX = pageWidth - 20;
 
@@ -222,15 +236,26 @@ export const generateInvoicePDF = (invoice: Invoice) => {
   if (invoice.paidDate) {
     addDetailRow('Paid Date', formatDate(invoice.paidDate));
   }
-  addDetailRow('Container #', invoice.container.containerNumber);
-  if (invoice.container.trackingNumber) {
-    addDetailRow('Tracking #', invoice.container.trackingNumber);
+  if (invoice.container) {
+    addDetailRow('Container #', invoice.container.containerNumber);
+    if (invoice.container.trackingNumber) {
+      addDetailRow('Tracking #', invoice.container.trackingNumber);
+    }
+  } else if (invoice.shipment) {
+    const vehicleLabel = [invoice.shipment.vehicleYear, invoice.shipment.vehicleMake, invoice.shipment.vehicleModel].filter(Boolean).join(' ') || invoice.shipment.vehicleType;
+    addDetailRow('Vehicle', vehicleLabel);
+    if (invoice.shipment.vehicleVIN) {
+      addDetailRow('VIN', invoice.shipment.vehicleVIN);
+    }
+    if (invoice.shipment.vehicleColor) {
+      addDetailRow('Color', invoice.shipment.vehicleColor);
+    }
   }
 
-  yPos = Math.max(yPos, detailsY) + 10;
+  yPos = Math.max(leftY, detailsY) + 10;
 
   // Container Information Section with modern design
-  if (invoice.container.vesselName || invoice.container.loadingPort || invoice.container.destinationPort) {
+  if (invoice.container && (invoice.container.vesselName || invoice.container.loadingPort || invoice.container.destinationPort)) {
     doc.setFillColor(...COLORS.background);
     doc.roundedRect(20, yPos - 3, pageWidth - 40, 18, 2, 2, 'F');
     
@@ -245,14 +270,14 @@ export const generateInvoicePDF = (invoice: Invoice) => {
     doc.setTextColor(...COLORS.textSecondary);
 
     let shippingInfo = '';
-    if (invoice.container.vesselName) {
+    if (invoice.container?.vesselName) {
       shippingInfo += `Vessel: ${invoice.container.vesselName}`;
     }
-    if (invoice.container.loadingPort) {
+    if (invoice.container?.loadingPort) {
       if (shippingInfo) shippingInfo += ' • ';
       shippingInfo += `From: ${invoice.container.loadingPort}`;
     }
-    if (invoice.container.destinationPort) {
+    if (invoice.container?.destinationPort) {
       if (shippingInfo) shippingInfo += ' • ';
       shippingInfo += `To: ${invoice.container.destinationPort}`;
     }
@@ -263,9 +288,10 @@ export const generateInvoicePDF = (invoice: Invoice) => {
     yPos += 12;
   }
 
-  // Line Items Section Header
-  doc.setFillColor(...COLORS.accentGold);
-  doc.rect(20, yPos - 2, pageWidth - 40, 1, 'F');
+  // Line Items Section Header (gold accent line)
+  doc.setDrawColor(...COLORS.accentGold);
+  doc.setLineWidth(0.6);
+  doc.line(24, yPos, pageWidth - 24, yPos);
   yPos += 4;
 
   // Group line items by shipment
@@ -283,10 +309,12 @@ export const generateInvoicePDF = (invoice: Invoice) => {
 
   // Generate table data
   const tableData: any[] = [];
+  const groupKeys = Object.keys(groupedItems);
+  const hasMultipleVehicles = groupKeys.length > 1;
   
   Object.values(groupedItems).forEach(group => {
-    // Vehicle header row
-    if (group.shipment) {
+    // Vehicle header row — only show when there are multiple vehicles (container with many shipments)
+    if (group.shipment && hasMultipleVehicles) {
       const vehicleDesc = `${group.shipment.vehicleYear || ''} ${group.shipment.vehicleMake || ''} ${group.shipment.vehicleModel || ''}`.trim();
       const vehicleVIN = group.shipment.vehicleVIN ? `VIN: ${group.shipment.vehicleVIN}` : '';
       tableData.push([
@@ -305,12 +333,17 @@ export const generateInvoicePDF = (invoice: Invoice) => {
 
     // Line items
     group.items.forEach(item => {
+      const isPurchasePaid =
+        (item.type === 'PURCHASE_PRICE' || item.type === 'VEHICLE_PRICE') &&
+        invoice.shipment?.paymentStatus === 'COMPLETED';
+      const descLabel = getLineItemTypeLabel(item.type, item.description)
+        + (isPurchasePaid ? ' ✓ PAID' : '');
       tableData.push([
-        { content: item.description, styles: { cellPadding: { left: group.shipment ? 8 : 5 }, textColor: COLORS.textPrimary } },
-        { content: getLineItemTypeLabel(item.type, item.description), styles: { textColor: COLORS.textSecondary } },
-        { content: item.quantity.toString(), styles: { textColor: COLORS.textSecondary } },
-        { content: formatCurrency(item.unitPrice), styles: { textColor: COLORS.textSecondary } },
-        { content: formatCurrency(item.amount), styles: { fontStyle: 'bold', textColor: COLORS.textPrimary } },
+        { content: descLabel, styles: { halign: 'left', textColor: isPurchasePaid ? COLORS.success : COLORS.textPrimary } },
+        { content: getLineItemTypeLabel(item.type, item.description), styles: { halign: 'left', textColor: COLORS.textSecondary } },
+        { content: item.quantity.toString(), styles: { halign: 'center', textColor: COLORS.textSecondary } },
+        { content: formatCurrency(item.unitPrice), styles: { halign: 'center', textColor: COLORS.textSecondary } },
+        { content: formatCurrency(item.amount), styles: { halign: 'center', fontStyle: 'bold', textColor: COLORS.textPrimary } },
       ]);
     });
   });
@@ -319,23 +352,37 @@ export const generateInvoicePDF = (invoice: Invoice) => {
     startY: yPos,
     head: [['Description', 'Type', 'Qty', 'Unit Price', 'Amount']],
     body: tableData,
-    foot: [
-      ['', '', '', { content: 'Subtotal', styles: { textColor: COLORS.textSecondary } }, formatCurrency(invoice.subtotal)],
-      ...(invoice.discount > 0 ? [['', '', '', { content: 'Discount', styles: { textColor: COLORS.success } }, { content: `-${formatCurrency(invoice.discount)}`, styles: { textColor: COLORS.success } }]] : []),
-      ...(invoice.tax > 0 ? [['', '', '', { content: 'Tax', styles: { textColor: COLORS.textSecondary } }, formatCurrency(invoice.tax)]] : []),
-      ['', '', '', { content: 'TOTAL DUE', styles: { fontStyle: 'bold', textColor: COLORS.textPrimary, fontSize: 11 } }, { content: formatCurrency(invoice.total), styles: { fontStyle: 'bold', textColor: COLORS.accentGold, fontSize: 11 } }],
-    ],
+    foot: (() => {
+      const purchasePaid = invoice.shipment?.paymentStatus === 'COMPLETED'
+        ? invoice.lineItems
+            .filter(i => i.type === 'PURCHASE_PRICE' || i.type === 'VEHICLE_PRICE')
+            .reduce((sum, i) => sum + i.amount, 0)
+        : 0;
+      const balanceDue = invoice.total - purchasePaid;
+      return [
+        ['', '', '', { content: 'Subtotal', styles: { textColor: COLORS.textSecondary } }, formatCurrency(invoice.subtotal)],
+        ...(invoice.discount > 0 ? [['', '', '', { content: 'Discount', styles: { textColor: COLORS.success } }, { content: `-${formatCurrency(invoice.discount)}`, styles: { textColor: COLORS.success } }]] : []),
+        ...(invoice.tax > 0 ? [['', '', '', { content: 'Tax', styles: { textColor: COLORS.textSecondary } }, formatCurrency(invoice.tax)]] : []),
+        ['', '', '', { content: 'TOTAL', styles: { fontStyle: 'bold', textColor: COLORS.textPrimary, fontSize: 11 } }, { content: formatCurrency(invoice.total), styles: { fontStyle: 'bold', textColor: COLORS.accentGold, fontSize: 11 } }],
+        ...(purchasePaid > 0 ? [
+          ['', '', '', { content: 'Purchase Price Paid', styles: { textColor: COLORS.success } }, { content: `-${formatCurrency(purchasePaid)}`, styles: { textColor: COLORS.success } }],
+          ['', '', '', { content: 'BALANCE DUE', styles: { fontStyle: 'bold', textColor: COLORS.textPrimary, fontSize: 11 } }, { content: formatCurrency(balanceDue), styles: { fontStyle: 'bold', textColor: balanceDue > 0 ? COLORS.error : COLORS.success, fontSize: 11 } }],
+        ] : []),
+      ];
+    })(),
     theme: 'plain',
     headStyles: {
       fillColor: COLORS.background,
       textColor: COLORS.textSecondary,
       fontStyle: 'bold',
       fontSize: 9,
+      halign: 'left',
       cellPadding: { top: 3, bottom: 3, left: 5, right: 5 },
     },
     bodyStyles: {
       fontSize: 9,
       textColor: COLORS.textSecondary,
+      halign: 'left',
       cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
     },
     footStyles: {
@@ -343,19 +390,20 @@ export const generateInvoicePDF = (invoice: Invoice) => {
       textColor: COLORS.textPrimary,
       fontStyle: 'bold',
       fontSize: 10,
+      halign: 'right',
       cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
     },
     alternateRowStyles: {
       fillColor: [252, 252, 253],
     },
     columnStyles: {
-      0: { cellWidth: 70 },
-      1: { cellWidth: 35, halign: 'center' },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 30, halign: 'right' },
+      0: { cellWidth: 62, halign: 'left' },
+      1: { cellWidth: 30, halign: 'left' },
+      2: { cellWidth: 16, halign: 'center' },
+      3: { cellWidth: 27, halign: 'center' },
+      4: { cellWidth: 27, halign: 'center' },
     },
-    margin: { left: 20, right: 20 },
+    margin: { left: 24, right: 24 },
     didDrawPage: function (data) {
       // Modern footer with gold accent
       const footerY = pageHeight - 25;

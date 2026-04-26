@@ -17,6 +17,7 @@ import {
   type DispatchExpenseCategory,
 } from '@/lib/dispatch-expenses';
 import { ensureExpensePostingAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
+import { addExpenseLineItemToShipmentInvoice, mapExpenseTypeToLineItemType } from '@/lib/shipment-invoice';
 
 const expenseSchema = z.object({
   expenseId: z.string().optional(),
@@ -177,6 +178,17 @@ async function replaceDispatchExpenseLedgerEffects(
         },
       },
     });
+
+    // Add line item to this shipment's pending invoice
+    await addExpenseLineItemToShipmentInvoice(
+      shipment.id,
+      {
+        description: `Dispatch expense - ${input.type} for ${vehicleLabel || 'shipment'}${vinSuffix}`,
+        type: mapExpenseTypeToLineItemType(input.type),
+        amount: allocation.amount,
+      },
+      tx
+    );
   }
 
   const affectedUserIds = new Set([

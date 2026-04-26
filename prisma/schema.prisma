@@ -177,6 +177,7 @@ model Shipment {
   qualityChecks    QualityCheck[]
   ledgerEntries    LedgerEntry[]
   invoiceLineItems InvoiceLineItem[]
+  invoices         UserInvoice[]     @relation("ShipmentInvoice")
   dispatchExpenses DispatchExpense[]
   transitExpenses  TransitExpense[]
   containerDamages ContainerDamage[]
@@ -563,7 +564,8 @@ model UserInvoice {
   id            String @id @default(cuid())
   invoiceNumber String @unique // INV-2025-001
   userId        String
-  containerId   String
+  containerId   String? // Optional: container-level invoices
+  shipmentId    String? // Per-shipment invoice (auto-created on shipment creation)
 
   // Invoice Details
   status    UserInvoiceStatus @default(PENDING)
@@ -591,12 +593,14 @@ model UserInvoice {
 
   // Relations
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  container Container         @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  container Container?        @relation(fields: [containerId], references: [id], onDelete: SetNull)
+  shipment  Shipment?         @relation("ShipmentInvoice", fields: [shipmentId], references: [id], onDelete: SetNull)
   lineItems InvoiceLineItem[]
   auditLogs InvoiceAuditLog[]
 
   @@index([userId])
   @@index([containerId])
+  @@index([shipmentId])
   @@index([status])
   @@index([invoiceNumber])
   @@index([issueDate])

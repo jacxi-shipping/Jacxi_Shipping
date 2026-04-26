@@ -73,6 +73,19 @@ export async function GET(
             estimatedArrival: true,
           },
         },
+        shipment: {
+          select: {
+            id: true,
+            vehicleType: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            vehicleYear: true,
+            vehicleVIN: true,
+            vehicleColor: true,
+            status: true,
+            paymentStatus: true,
+          },
+        },
         lineItems: {
           include: {
             shipment: {
@@ -370,7 +383,6 @@ export async function PATCH(
         lineItems: true,
       },
     });
-
     if (!currentInvoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
@@ -397,11 +409,15 @@ export async function PATCH(
       const invoiceTotal = total;
 
       // Collect shipment IDs from invoice line items
+      // Collect shipment IDs from invoice line items AND the invoice's direct shipmentId
       const invoiceShipmentIds = [
         ...new Set(
-          currentInvoice.lineItems
-            .map((li) => li.shipmentId)
-            .filter((id): id is string => Boolean(id))
+          [
+            ...currentInvoice.lineItems
+              .map((li) => li.shipmentId)
+              .filter((id): id is string => Boolean(id)),
+            currentInvoice.shipmentId ?? undefined,
+          ].filter((id): id is string => Boolean(id))
         ),
       ];
 
@@ -488,6 +504,14 @@ export async function PATCH(
 
         // Recalculate all running balances (pending entries now activated)
         await recalculateUserLedgerBalances(tx, currentInvoice.userId);
+
+        // Mark related shipments as paymentStatus COMPLETED
+        if (invoiceShipmentIds.length > 0) {
+          await tx.shipment.updateMany({
+            where: { id: { in: invoiceShipmentIds } },
+            data: { paymentStatus: 'COMPLETED' },
+          });
+        }
 
         paymentLedgerEntryId = nonExpenseEntry?.id ?? pendingExpenseEntries[0]?.id;
       });

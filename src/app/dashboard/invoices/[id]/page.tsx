@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { hasPermission } from '@/lib/rbac';
-import Link from 'next/link';
 import { 
 	Box, 
 	Table, 
@@ -23,30 +22,20 @@ import {
 import {
 	ArrowLeft,
 	FileText,
-	Calendar,
-	DollarSign,
 	Package,
 	User,
-	Mail,
-	Phone,
-	MapPin,
 	Download,
-	Send,
-	Edit,
-	Trash2,
 	Check,
 } from 'lucide-react';
-import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
+import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { ActivityLog } from '@/components/dashboard/ActivityLog';
 import { 
-	PageHeader, 
+	PageHeader,
 	Button, 
 	Breadcrumbs, 
 	toast, 
-	LoadingState, 
 	EmptyState, 
-	StatsCard,
-	DetailPageSkeleton, 
+	DetailPageSkeleton,
 } from '@/components/design-system';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 
@@ -84,7 +73,8 @@ interface Invoice {
 	id: string;
 	invoiceNumber: string;
 	userId: string;
-	containerId: string;
+	containerId: string | null;
+	shipmentId: string | null;
 	status: string;
 	issueDate: string;
 	dueDate: string | null;
@@ -115,7 +105,18 @@ interface Invoice {
 		loadingPort: string | null;
 		destinationPort: string | null;
 		estimatedArrival: string | null;
-	};
+	} | null;
+	shipment: {
+		id: string;
+		vehicleType: string;
+		vehicleMake: string | null;
+		vehicleModel: string | null;
+		vehicleYear: number | null;
+		vehicleVIN: string | null;
+		vehicleColor: string | null;
+		status: string;
+		paymentStatus: string | null;
+	} | null;
 	lineItems: LineItem[];
 	auditLogs?: Array<{
 		id: string;
@@ -137,17 +138,6 @@ const statusConfig: Record<string, { label: string; color: 'success' | 'warning'
 	OVERDUE: { label: 'Overdue', color: 'error' },
 	CANCELLED: { label: 'Cancelled', color: 'default' },
 };
-
-function normalizeShipmentRefInDescription(
-	description: string,
-	shipment?: { id: string; vehicleVIN: string | null }
-): string {
-	if (!shipment?.id || !shipment.vehicleVIN) return description;
-	return description
-		.replace(new RegExp(`\\(Shipment\\s+${shipment.id}\\)`, 'gi'), `(VIN ${shipment.vehicleVIN})`)
-		.replace(new RegExp(`Shipment\\s+${shipment.id}`, 'gi'), `VIN ${shipment.vehicleVIN}`)
-		.replace(new RegExp(`shipment\\s+${shipment.id}`, 'g'), `VIN ${shipment.vehicleVIN}`);
-}
 
 export default function InvoiceDetailPage() {
 	const params = useParams();
@@ -237,10 +227,15 @@ export default function InvoiceDetailPage() {
 		}
 	};
 
-	const handleDownloadPDF = () => {
+	const handleDownloadPDF = async () => {
 		if (!invoice) return;
-		// Open the server-side PDF generation endpoint
-		window.open(`/api/invoices/${params.id}/pdf`, '_blank');
+		try {
+			const { downloadInvoicePDF } = await import('@/lib/utils/generateInvoicePDF');
+			downloadInvoicePDF(invoice);
+		} catch (error) {
+			console.error('PDF generation error:', error);
+			toast.error('Failed to generate PDF');
+		}
 	};
 
 	const formatCurrency = (amount: number) => {
@@ -263,8 +258,22 @@ export default function InvoiceDetailPage() {
 		if (item.type === 'DISCOUNT' && /damage/i.test(item.description)) {
 			return 'DAMAGE CREDIT';
 		}
+		return item.type.replace(/_/g, ' ');
+	};
 
-		return item.type.replace('_', ' ');
+	const getExpenseShortLabel = (item: LineItem): string => {
+		const typeMap: Record<string, string> = {
+			PURCHASE_PRICE: 'Vehicle Purchase',
+			VEHICLE_PRICE: 'Vehicle Purchase',
+			SHIPPING_FEE: 'Shipping',
+			INSURANCE: 'Insurance',
+			CUSTOMS_FEE: 'Customs',
+			STORAGE_FEE: 'Storage',
+			HANDLING_FEE: 'Handling / Towing',
+			OTHER_FEE: 'Other',
+			DISCOUNT: 'Discount',
+		};
+		return typeMap[item.type] ?? item.type.replace(/_/g, ' ');
 	};
 
 	const openCompanyLedgerEntry = (entry: NonNullable<LineItem['linkedCompanyLedgerEntry']>) => {
@@ -305,6 +314,14 @@ export default function InvoiceDetailPage() {
 	}
 
 	const statusInfo = statusConfig[invoice.status] || { label: invoice.status, color: 'default' };
+	const groupedEntries = Object.entries(groupedLineItems || {});
+	const hasMultipleShipmentGroups = groupedEntries.length > 1;
+	const purchasePaid = invoice.shipment?.paymentStatus === 'COMPLETED'
+		? invoice.lineItems
+			.filter((i) => i.type === 'PURCHASE_PRICE' || i.type === 'VEHICLE_PRICE')
+			.reduce((sum, i) => sum + i.amount, 0)
+		: 0;
+	const balanceDue = invoice.total - purchasePaid;
 
 	return (
 		<AdminRoute>
@@ -313,8 +330,12 @@ export default function InvoiceDetailPage() {
 				<Breadcrumbs
 					items={[
 						{ label: 'Dashboard', href: '/dashboard' },
-						{ label: 'Containers', href: '/dashboard/containers' },
-						{ label: invoice.container.containerNumber, href: `/dashboard/containers/${invoice.containerId}` },
+						{ label: 'Invoices', href: '/dashboard/invoices' },
+						...(invoice.container
+							? [{ label: invoice.container.containerNumber, href: `/dashboard/containers/${invoice.containerId}` }]
+							: invoice.shipment
+							? [{ label: [invoice.shipment.vehicleYear, invoice.shipment.vehicleMake, invoice.shipment.vehicleModel].filter(Boolean).join(' ') || 'Shipment', href: `/dashboard/shipments/${invoice.shipmentId}` }]
+							: []),
 						{ label: invoice.invoiceNumber, href: '#' },
 					]}
 				/>
@@ -361,9 +382,15 @@ export default function InvoiceDetailPage() {
 								variant="outline"
 								size="sm"
 								icon={<ArrowLeft className="w-4 h-4" />}
-								onClick={() => router.push(`/dashboard/containers/${invoice.containerId}`)}
+								onClick={() => router.push(
+									invoice.containerId
+										? `/dashboard/containers/${invoice.containerId}`
+										: invoice.shipmentId
+										? `/dashboard/shipments/${invoice.shipmentId}`
+										: '/dashboard/invoices'
+								)}
 							>
-								Back to Container
+								{invoice.containerId ? 'Back to Container' : invoice.shipmentId ? 'Back to Shipment' : 'Back to Invoices'}
 							</Button>
 						</Box>
 					}
@@ -481,7 +508,8 @@ export default function InvoiceDetailPage() {
 							</Box>
 						</DashboardPanel>
 
-						{/* Container Information */}
+						{/* Container or Shipment Information */}
+						{invoice.container ? (
 						<DashboardPanel 
 							title="Container"
 							description="Shipping container"
@@ -536,6 +564,52 @@ export default function InvoiceDetailPage() {
 								</Button>
 							</Box>
 						</DashboardPanel>
+						) : invoice.shipment ? (
+						<DashboardPanel
+							title="Vehicle"
+							description="Shipment details"
+						>
+							<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+								<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+									<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Vehicle</Box>
+									<Box sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+										{[invoice.shipment.vehicleYear, invoice.shipment.vehicleMake, invoice.shipment.vehicleModel].filter(Boolean).join(' ') || invoice.shipment.vehicleType}
+									</Box>
+								</Box>
+								{invoice.shipment.vehicleVIN && (
+									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+										<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>VIN</Box>
+										<Box sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+											{invoice.shipment.vehicleVIN}
+										</Box>
+									</Box>
+								)}
+								{invoice.shipment.vehicleColor && (
+									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+										<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Color</Box>
+										<Box sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+											{invoice.shipment.vehicleColor}
+										</Box>
+									</Box>
+								)}
+								<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+									<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Status</Box>
+									<Box sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+										{invoice.shipment.status.replace(/_/g, ' ')}
+									</Box>
+								</Box>
+								<Divider sx={{ borderColor: 'var(--border)' }} />
+								<Button
+									variant="outline"
+									size="sm"
+									icon={<Package className="w-3 h-3" />}
+									onClick={() => router.push(`/dashboard/shipments/${invoice.shipmentId}`)}
+								>
+									View Shipment
+								</Button>
+							</Box>
+						</DashboardPanel>
+						) : null}
 					</Box>
 
 					{/* Line Items */}
@@ -544,23 +618,31 @@ export default function InvoiceDetailPage() {
 							title="Line Items"
 							description="Detailed breakdown of charges"
 						>
-						<TableContainer>
-							<Table size="small">
+						<TableContainer sx={{ border: '1px solid var(--border)', borderRadius: 2 }}>
+							<Table
+								size="small"
+								sx={{
+									'& .MuiTableCell-head': {
+										bgcolor: 'var(--background)',
+										color: 'var(--text-secondary)',
+									},
+								}}
+							>
 								<TableHead>
 									<TableRow>
-										<TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
-										<TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
-										<TableCell sx={{ fontWeight: 600 }} align="right">Qty</TableCell>
-										<TableCell sx={{ fontWeight: 600 }} align="right">Unit Price</TableCell>
-										<TableCell sx={{ fontWeight: 600 }} align="right">Amount</TableCell>
+										<TableCell sx={{ fontWeight: 600 }} align="left">Description</TableCell>
+										<TableCell sx={{ fontWeight: 600 }} align="left">Type</TableCell>
+										<TableCell sx={{ fontWeight: 600 }} align="center">Qty</TableCell>
+										<TableCell sx={{ fontWeight: 600 }} align="center">Unit Price</TableCell>
+										<TableCell sx={{ fontWeight: 600 }} align="center">Amount</TableCell>
 									</TableRow>
 								</TableHead>
 								<TableBody>
-									{Object.entries(groupedLineItems || {}).map(([key, group]) => (
-										<>
-											{group.shipment && (
+									{groupedEntries.map(([key, group]) => (
+										<React.Fragment key={key}>
+											{group.shipment && hasMultipleShipmentGroups && (
 												<TableRow key={`header-${key}`}>
-													<TableCell colSpan={5} sx={{ 
+													<TableCell colSpan={5} align="left" sx={{ 
 														bgcolor: 'var(--background)', 
 														fontWeight: 600,
 														fontSize: '0.875rem',
@@ -572,39 +654,49 @@ export default function InvoiceDetailPage() {
 												</TableRow>
 											)}
 											{group.items.map((item) => (
-												<TableRow key={item.id} hover>
-													<TableCell sx={{ pl: group.shipment ? 4 : 2 }}>
-														<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-															<span>{normalizeShipmentRefInDescription(item.description, group.shipment)}</span>
+													<TableRow key={item.id} hover>
+													<TableCell align="left" sx={{ pl: 2, pr: 2 }}>
+														<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 1, flexWrap: 'wrap', textAlign: 'left' }}>
+															<span>{getExpenseShortLabel(item)}</span>
+															{(item.type === 'PURCHASE_PRICE' || item.type === 'VEHICLE_PRICE') &&
+																invoice.shipment?.paymentStatus === 'COMPLETED' && (
+																<Chip
+																	label="Purchase Paid"
+																	size="small"
+																	color="success"
+																	sx={{ fontSize: '0.65rem' }}
+																/>
+															)}
 															{item.linkedCompanyLedgerEntry && (
 																<Button
 																	variant="outline"
 																	size="sm"
 																	onClick={() => openCompanyLedgerEntry(item.linkedCompanyLedgerEntry!)}
+																	sx={{ minWidth: 'auto', px: 1 }}
 																>
 																	Company Ledger
 																</Button>
 															)}
 														</Box>
 													</TableCell>
-													<TableCell>
+													<TableCell align="left">
 														<Chip 
 															label={getLineItemTypeLabel(item)} 
 															size="small"
 															sx={{ fontSize: '0.7rem' }}
 														/>
 													</TableCell>
-													<TableCell align="right">{item.quantity}</TableCell>
-													<TableCell align="right">{formatCurrency(item.unitPrice)}</TableCell>
-													<TableCell align="right" sx={{ fontWeight: 600 }}>
+													<TableCell align="center">{item.quantity}</TableCell>
+													<TableCell align="center">{formatCurrency(item.unitPrice)}</TableCell>
+													<TableCell align="center" sx={{ fontWeight: 600 }}>
 														{formatCurrency(item.amount)}
 													</TableCell>
 												</TableRow>
 											))}
-										</>
+										</React.Fragment>
 									))}
 									<TableRow>
-										<TableCell colSpan={4} sx={{ fontWeight: 600, borderTop: '2px solid var(--border)' }}>
+										<TableCell colSpan={4} align="right" sx={{ fontWeight: 600, borderTop: '2px solid var(--border)' }}>
 											Subtotal
 										</TableCell>
 										<TableCell align="right" sx={{ fontWeight: 600, borderTop: '2px solid var(--border)' }}>
@@ -613,7 +705,7 @@ export default function InvoiceDetailPage() {
 									</TableRow>
 									{invoice.discount > 0 && (
 										<TableRow>
-											<TableCell colSpan={4} sx={{ fontWeight: 600, color: 'var(--success)' }}>
+											<TableCell colSpan={4} align="right" sx={{ fontWeight: 600, color: 'var(--success)' }}>
 												Discount
 											</TableCell>
 											<TableCell align="right" sx={{ fontWeight: 600, color: 'var(--success)' }}>
@@ -623,7 +715,7 @@ export default function InvoiceDetailPage() {
 									)}
 									{invoice.tax > 0 && (
 										<TableRow>
-											<TableCell colSpan={4} sx={{ fontWeight: 600 }}>
+											<TableCell colSpan={4} align="right" sx={{ fontWeight: 600 }}>
 												Tax
 											</TableCell>
 											<TableCell align="right" sx={{ fontWeight: 600 }}>
@@ -632,7 +724,7 @@ export default function InvoiceDetailPage() {
 										</TableRow>
 									)}
 									<TableRow>
-										<TableCell colSpan={4} sx={{ 
+										<TableCell colSpan={4} align="right" sx={{ 
 											fontWeight: 700, 
 											fontSize: '1.1rem',
 											borderTop: '2px solid var(--border)',
@@ -648,6 +740,35 @@ export default function InvoiceDetailPage() {
 											{formatCurrency(invoice.total)}
 										</TableCell>
 									</TableRow>
+									{purchasePaid > 0 && (
+										<>
+											<TableRow>
+												<TableCell colSpan={4} align="right" sx={{ color: 'var(--success)', fontWeight: 600 }}>
+													Purchase Price Already Paid
+												</TableCell>
+												<TableCell align="right" sx={{ color: 'var(--success)', fontWeight: 600 }}>
+													-{formatCurrency(purchasePaid)}
+												</TableCell>
+											</TableRow>
+											<TableRow>
+												<TableCell colSpan={4} align="right" sx={{ 
+													fontWeight: 700,
+													fontSize: '1.1rem',
+													borderTop: '2px solid var(--border)',
+												}}>
+													BALANCE DUE
+												</TableCell>
+												<TableCell align="right" sx={{ 
+													fontWeight: 700,
+													fontSize: '1.1rem',
+													color: balanceDue > 0 ? 'var(--error, #d32f2f)' : 'var(--success)',
+													borderTop: '2px solid var(--border)',
+												}}>
+													{formatCurrency(balanceDue)}
+												</TableCell>
+											</TableRow>
+										</>
+									)}
 								</TableBody>
 							</Table>
 						</TableContainer>

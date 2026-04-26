@@ -6,6 +6,7 @@ import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { hasAnyPermission } from '@/lib/rbac';
 import { ensureExpensePostingAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
+import { addExpenseLineItemToShipmentInvoice, mapExpenseTypeToLineItemType } from '@/lib/shipment-invoice';
 
 function allocateTransitExpense(
   shipments: Array<{ id: string; insuranceValue: number | null; weight: number | null }>,
@@ -234,6 +235,17 @@ export async function POST(
             },
           },
         });
+
+        // Add line item to this shipment's pending invoice
+        await addExpenseLineItemToShipmentInvoice(
+          shipment.id,
+          {
+            description: `Transit expense - ${validatedData.type} for ${vehicleLabel || 'shipment'}${vinSuffix}`,
+            type: mapExpenseTypeToLineItemType(validatedData.type),
+            amount: allocation.amount,
+          },
+          tx
+        );
       }
 
       // 4. Recalculate all affected user balances and company balance

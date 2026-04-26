@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, TitleStatus, PaymentStatus, ShipmentSimpleStatus } from '@prisma/client';
+import { Prisma, TitleStatus, PaymentStatus, ShipmentSimpleStatus, LineItemType } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
+import { generateInvoiceNumber } from '@/lib/shipment-invoice';
 
 const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
   'ON_HAND',
@@ -90,8 +91,6 @@ export async function GET(request: NextRequest) {
       createdAt: true,
       paymentStatus: true,
       price: true,
-      purchasePrice: true,
-      serviceType: true,
       dispatchId: true,
       containerId: true,
       transitId: true,
@@ -147,7 +146,6 @@ export async function GET(request: NextRequest) {
                 select: {
                   type: true,
                   amount: true,
-                  transactionInfoType: true,
                 },
               },
             }
@@ -167,15 +165,11 @@ export async function GET(request: NextRequest) {
           // replacing it with an O(N) loop to compute debits and credits efficiently.
           let totalDebit = 0;
           let totalCredit = 0;
-          let purchasePricePaid = 0;
           for (const entry of shipment.ledgerEntries) {
             if (entry.type === 'DEBIT') {
               totalDebit += entry.amount;
             } else if (entry.type === 'CREDIT') {
               totalCredit += entry.amount;
-              if (entry.transactionInfoType === 'CAR_PAYMENT') {
-                purchasePricePaid += entry.amount;
-              }
             }
           }
           const amountDue = Math.max(0, totalDebit - totalCredit);
@@ -183,7 +177,6 @@ export async function GET(request: NextRequest) {
           return {
             ...shipment,
             amountDue,
-            purchasePricePaid,
             ledgerEntries: undefined,
           };
         })
@@ -446,6 +439,38 @@ export async function POST(request: NextRequest) {
             currentCount: {
               increment: 1,
             },
+          },
+        });
+      }
+
+      // Auto-create a per-shipment invoice
+      const invoiceNumber = await generateInvoiceNumber(tx);
+      const initialSubtotal = parsedPurchasePrice && parsedPurchasePrice > 0 ? parsedPurchasePrice : 0;
+      const invoice = await tx.userInvoice.create({
+        data: {
+          invoiceNumber,
+          userId,
+          shipmentId: createdShipment.id,
+          status: 'PENDING',
+          subtotal: initialSubtotal,
+          total: initialSubtotal,
+          tax: 0,
+          discount: 0,
+        },
+      });
+
+      // Add purchase price as a line item if applicable
+      if (parsedPurchasePrice && parsedPurchasePrice > 0) {
+        const vehicleLabel = [parsedVehicleYear, vehicleMake, vehicleModel].filter(Boolean).join(' ') || vehicleType;
+        await tx.invoiceLineItem.create({
+          data: {
+            invoiceId: invoice.id,
+            shipmentId: createdShipment.id,
+            description: `${vehicleLabel} — Vehicle Purchase Price`,
+            type: LineItemType.PURCHASE_PRICE,
+            quantity: 1,
+            unitPrice: parsedPurchasePrice,
+            amount: parsedPurchasePrice,
           },
         });
       }

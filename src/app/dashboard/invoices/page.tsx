@@ -50,7 +50,8 @@ interface Invoice {
 	id: string;
 	invoiceNumber: string;
 	userId: string;
-	containerId: string;
+	containerId: string | null;
+	shipmentId: string | null;
 	status: string;
 	issueDate: string;
 	dueDate: string | null;
@@ -61,7 +62,15 @@ interface Invoice {
 	};
 	container: {
 		containerNumber: string;
-	};
+	} | null;
+	shipment: {
+		id: string;
+		vehicleYear: number | null;
+		vehicleMake: string | null;
+		vehicleModel: string | null;
+		vehicleVIN: string | null;
+		vehicleType: string;
+	} | null;
 	_count: {
 		lineItems: number;
 	};
@@ -71,8 +80,9 @@ interface InvoiceTableRow {
 	id: string;
 	invoiceNumber: string;
 	customer: string;
-	containerNumber: string;
-	containerId: string;
+	reference: string;
+	referenceId: string | null;
+	referenceType: 'container' | 'shipment' | 'none';
 	issueDate: string;
 	dueDate: string | null;
 	status: string;
@@ -173,45 +183,80 @@ export default function InvoicesPage() {
 	// Filter invoices based on search
 	const filteredInvoices = invoices.filter(invoice => {
 		const searchLower = searchTerm.toLowerCase();
+		const vehicleRef = invoice.shipment
+			? `${invoice.shipment.vehicleYear || ''} ${invoice.shipment.vehicleMake || ''} ${invoice.shipment.vehicleModel || ''} ${invoice.shipment.vehicleVIN || ''}`.toLowerCase()
+			: '';
+		const containerRef = invoice.container?.containerNumber?.toLowerCase() || '';
 		return (
 			invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
 			invoice.user.email.toLowerCase().includes(searchLower) ||
 			(invoice.user.name && invoice.user.name.toLowerCase().includes(searchLower)) ||
-			invoice.container.containerNumber.toLowerCase().includes(searchLower)
+			vehicleRef.includes(searchLower) ||
+			containerRef.includes(searchLower)
 		);
 	});
 
-	const invoiceRows: InvoiceTableRow[] = filteredInvoices.map((invoice) => ({
-		id: invoice.id,
-		invoiceNumber: invoice.invoiceNumber,
-		customer: invoice.user.name || invoice.user.email,
-		containerNumber: invoice.container.containerNumber,
-		containerId: invoice.containerId,
-		issueDate: invoice.issueDate,
-		dueDate: invoice.dueDate,
-		status: invoice.status,
-		total: invoice.total,
-	}));
+	const invoiceRows: InvoiceTableRow[] = filteredInvoices.map((invoice) => {
+		// Determine reference: per-shipment invoices show vehicle info, container-based show container number
+		let reference = 'N/A';
+		let referenceId: string | null = null;
+		let referenceType: 'container' | 'shipment' | 'none' = 'none';
+
+		if (invoice.shipment) {
+			const s = invoice.shipment;
+			reference = [s.vehicleYear, s.vehicleMake, s.vehicleModel].filter(Boolean).join(' ') || s.vehicleType;
+			if (s.vehicleVIN) reference += ` (${s.vehicleVIN})`;
+			referenceId = s.id;
+			referenceType = 'shipment';
+		} else if (invoice.container) {
+			reference = invoice.container.containerNumber;
+			referenceId = invoice.containerId;
+			referenceType = 'container';
+		}
+
+		return {
+			id: invoice.id,
+			invoiceNumber: invoice.invoiceNumber,
+			customer: invoice.user.name || invoice.user.email,
+			reference,
+			referenceId,
+			referenceType,
+			issueDate: invoice.issueDate,
+			dueDate: invoice.dueDate,
+			status: invoice.status,
+			total: invoice.total,
+		};
+	});
 
 	const invoiceColumns: Column<InvoiceTableRow>[] = [
 		{ key: 'invoiceNumber', header: 'Invoice #', sortable: true },
 		...(isAdmin ? [{ key: 'customer', header: 'Customer', sortable: true }] : []),
 		{
-			key: 'containerNumber',
-			header: 'Container',
-			render: (value, row) => (
-				<Link
-					href={`/dashboard/containers/${row.containerId}`}
-					style={{
-						color: 'var(--accent-gold)',
-						textDecoration: 'none',
-						fontFamily: 'monospace',
-						fontWeight: 600,
-					}}
-				>
-					{String(value)}
-				</Link>
-			),
+			key: 'reference',
+			header: 'Shipment / Container',
+			render: (value, row) => {
+				if (row.referenceType === 'shipment' && row.referenceId) {
+					return (
+						<Link
+							href={`/dashboard/shipments/${row.referenceId}`}
+							style={{ color: 'var(--accent-gold)', textDecoration: 'none', fontWeight: 600 }}
+						>
+							{String(value)}
+						</Link>
+					);
+				}
+				if (row.referenceType === 'container' && row.referenceId) {
+					return (
+						<Link
+							href={`/dashboard/containers/${row.referenceId}`}
+							style={{ color: 'var(--accent-gold)', textDecoration: 'none', fontFamily: 'monospace', fontWeight: 600 }}
+						>
+							{String(value)}
+						</Link>
+					);
+				}
+				return <span>{String(value)}</span>;
+			},
 		},
 		{
 			key: 'issueDate',
@@ -303,7 +348,7 @@ export default function InvoicesPage() {
 				rows.map((row) => ({
 					invoiceNumber: row.invoiceNumber,
 					customer: row.customer,
-					containerNumber: row.containerNumber,
+					reference: row.reference,
 					issueDate: formatDate(row.issueDate),
 					dueDate: formatDate(row.dueDate),
 					status: row.status,
@@ -312,7 +357,7 @@ export default function InvoicesPage() {
 				[
 					{ key: 'invoiceNumber', label: 'Invoice #' },
 					{ key: 'customer', label: 'Customer' },
-					{ key: 'containerNumber', label: 'Container' },
+					{ key: 'reference', label: 'Shipment / Container' },
 					{ key: 'issueDate', label: 'Issue Date' },
 					{ key: 'dueDate', label: 'Due Date' },
 					{ key: 'status', label: 'Status' },
@@ -423,7 +468,7 @@ export default function InvoicesPage() {
 					{/* Filters */}
 					<Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
 						<TextField
-							placeholder="Search by invoice #, customer, or container..."
+							placeholder="Search by invoice #, customer, VIN, vehicle, or container..."
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
 							size="small"
@@ -509,17 +554,26 @@ export default function InvoicesPage() {
 													</TableCell>
 												)}
 												<TableCell>
-													<Link 
-														href={`/dashboard/containers/${invoice.containerId}`}
-														style={{ 
-															color: 'var(--accent-gold)', 
-															textDecoration: 'none',
-															fontFamily: 'monospace',
-															fontWeight: 600,
-														}}
-													>
-														{invoice.container.containerNumber}
-													</Link>
+													{invoice.container ? (
+														<Link 
+															href={`/dashboard/containers/${invoice.containerId}`}
+															style={{ 
+																color: 'var(--accent-gold)', 
+																textDecoration: 'none',
+																fontFamily: 'monospace',
+																fontWeight: 600,
+															}}
+														>
+															{invoice.container.containerNumber}
+														</Link>
+													) : invoice.shipment ? (
+														<Link
+															href={`/dashboard/shipments/${invoice.shipment.id}`}
+															style={{ color: 'var(--accent-gold)', textDecoration: 'none', fontWeight: 600 }}
+														>
+															{[invoice.shipment.vehicleYear, invoice.shipment.vehicleMake, invoice.shipment.vehicleModel].filter(Boolean).join(' ') || invoice.shipment.vehicleType}
+														</Link>
+													) : 'N/A'}
 												</TableCell>
 												<TableCell>{formatDate(invoice.issueDate)}</TableCell>
 												<TableCell>{formatDate(invoice.dueDate)}</TableCell>

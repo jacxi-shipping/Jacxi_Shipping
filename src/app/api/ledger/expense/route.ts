@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { routeDeps } from '@/lib/route-deps';
 import { z } from 'zod';
+import { addExpenseLineItemToShipmentInvoice, mapExpenseTypeToLineItemType } from '@/lib/shipment-invoice';
 
 // Schema for adding an expense
 const addExpenseSchema = z.object({
@@ -181,6 +182,17 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
+      // Add this expense as a line item on the shipment's pending invoice
+      await addExpenseLineItemToShipmentInvoice(
+        validatedData.shipmentId,
+        {
+          description,
+          type: mapExpenseTypeToLineItemType(validatedData.expenseType),
+          amount: userAmount,
+        },
+        tx
+      );
 
       const createdEntries = [debitEntry];
 

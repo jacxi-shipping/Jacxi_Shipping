@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const userId = searchParams.get('userId');
     const containerId = searchParams.get('containerId');
+    const shipmentId = searchParams.get('shipmentId');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -42,6 +43,10 @@ export async function GET(req: NextRequest) {
       where.containerId = containerId;
     }
 
+    if (shipmentId) {
+      where.shipmentId = shipmentId;
+    }
+
     // Get invoices
     const [invoices, total] = await Promise.all([
       prisma.userInvoice.findMany({
@@ -60,6 +65,17 @@ export async function GET(req: NextRequest) {
               id: true,
               containerNumber: true,
               status: true,
+            },
+          },
+          shipment: {
+            select: {
+              id: true,
+              vehicleYear: true,
+              vehicleMake: true,
+              vehicleModel: true,
+              vehicleVIN: true,
+              vehicleColor: true,
+              vehicleType: true,
             },
           },
           lineItems: {

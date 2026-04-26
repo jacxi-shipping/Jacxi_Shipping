@@ -1,7 +1,8 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, LineItemType } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
+import { addExpenseLineItemToShipmentInvoice } from '@/lib/shipment-invoice';
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -94,6 +95,17 @@ export async function syncShipmentShippingFareEntries(
           } as Prisma.InputJsonValue,
         },
       });
+
+      // Add shipping fare as a line item on the shipment's pending invoice
+      await addExpenseLineItemToShipmentInvoice(
+        input.shipmentId,
+        {
+          description: `Shipping fare for ${input.vehicleLabel}${vinSuffix}`,
+          type: LineItemType.SHIPPING_FEE,
+          amount: input.userFareAmount,
+        },
+        db
+      );
     }
 
     if (input.companyFareAmount && input.companyFareAmount > 0) {

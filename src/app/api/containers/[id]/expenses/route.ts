@@ -6,6 +6,7 @@ import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { hasPermission, hasAnyPermission } from '@/lib/rbac';
 import { z } from 'zod';
 import { ensureExpensePostingAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
+import { addExpenseLineItemToShipmentInvoice, mapExpenseTypeToLineItemType } from '@/lib/shipment-invoice';
 
 function allocateContainerExpense(
   shipments: Array<{ id: string; insuranceValue: number | null; weight: number | null }>,
@@ -253,6 +254,17 @@ export async function POST(
             },
           },
         });
+
+        // Add line item to this shipment's pending invoice
+        await addExpenseLineItemToShipmentInvoice(
+          shipment.id,
+          {
+            description: `Container expense - ${validatedData.type} for ${vehicleLabel || 'shipment'}${vinSuffix}`,
+            type: mapExpenseTypeToLineItemType(validatedData.type),
+            amount: allocation.amount,
+          },
+          tx
+        );
       }
 
       const affectedUserIds = Array.from(new Set(container.shipments.map((shipment) => shipment.userId)));
