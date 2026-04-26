@@ -363,10 +363,10 @@ export const generateInvoicePDF = (invoice: Invoice) => {
         ['', '', '', { content: 'Subtotal', styles: { textColor: COLORS.textSecondary } }, formatCurrency(invoice.subtotal)],
         ...(invoice.discount > 0 ? [['', '', '', { content: 'Discount', styles: { textColor: COLORS.success } }, { content: `-${formatCurrency(invoice.discount)}`, styles: { textColor: COLORS.success } }]] : []),
         ...(invoice.tax > 0 ? [['', '', '', { content: 'Tax', styles: { textColor: COLORS.textSecondary } }, formatCurrency(invoice.tax)]] : []),
-        ['', '', '', { content: 'TOTAL', styles: { fontStyle: 'bold', textColor: COLORS.textPrimary, fontSize: 11 } }, { content: formatCurrency(invoice.total), styles: { fontStyle: 'bold', textColor: COLORS.accentGold, fontSize: 11 } }],
+        ['', '', '', { content: 'TOTAL', styles: { fontStyle: 'bold' as const, textColor: COLORS.textPrimary, fontSize: 11 } }, { content: formatCurrency(invoice.total), styles: { fontStyle: 'bold' as const, textColor: COLORS.accentGold, fontSize: 11 } }],
         ...(purchasePaid > 0 ? [
           ['', '', '', { content: 'Purchase Price Paid', styles: { textColor: COLORS.success } }, { content: `-${formatCurrency(purchasePaid)}`, styles: { textColor: COLORS.success } }],
-          ['', '', '', { content: 'BALANCE DUE', styles: { fontStyle: 'bold', textColor: COLORS.textPrimary, fontSize: 11 } }, { content: formatCurrency(balanceDue), styles: { fontStyle: 'bold', textColor: balanceDue > 0 ? COLORS.error : COLORS.success, fontSize: 11 } }],
+          ['', '', '', { content: 'BALANCE DUE', styles: { fontStyle: 'bold' as const, textColor: COLORS.textPrimary, fontSize: 11 } }, { content: formatCurrency(balanceDue), styles: { fontStyle: 'bold' as const, textColor: balanceDue > 0 ? COLORS.error : COLORS.success, fontSize: 11 } }],
         ] : []),
       ];
     })(),
