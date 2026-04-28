@@ -399,10 +399,10 @@ export async function PATCH(
     const previousStatus = currentInvoice.status;
 
     // When marking as PAID:
-    //   1. Check customer credit balance is sufficient
+    //   1. Check customer credit balance is sufficient (excluding car purchase price)
     //   2. Activate all pending DUE expense ledger entries for shipments in this invoice
     //      (pendingInvoice: true → false, so they now count in the balance)
-    //   3. Create a DEBIT for the non-expense portion (vehicle price, insurance, etc.)
+    //   3. Create a DEBIT for the non-expense portion (excluding car purchase price)
     //   4. Recalculate running balances
     let paymentLedgerEntryId: string | undefined;
     if (validatedData.status === 'PAID' && previousStatus !== 'PAID') {
@@ -420,6 +420,18 @@ export async function PATCH(
           ].filter((id): id is string => Boolean(id))
         ),
       ];
+
+      // Car purchase price line items are excluded from the customer ledger.
+      // Cap at invoiceTotal to ensure ledgerRelevantTotal is never negative.
+      const purchasePriceTotal = Math.min(
+        currentInvoice.lineItems
+          .filter((li) => li.type === 'PURCHASE_PRICE')
+          .reduce((sum, li) => sum + li.amount, 0),
+        invoiceTotal
+      );
+
+      // The ledger-relevant total excludes the car purchase price
+      const ledgerRelevantTotal = invoiceTotal - purchasePriceTotal;
 
       // Find all pending expense entries for those shipments belonging to this customer
       const pendingExpenseEntries = invoiceShipmentIds.length > 0
@@ -448,18 +460,18 @@ export async function PATCH(
       const effectiveBalance = latestEntry?.balance ?? 0;
       const availableCredit = effectiveBalance < 0 ? -effectiveBalance : 0;
 
-      if (invoiceTotal > availableCredit + 0.001) {
+      if (ledgerRelevantTotal > availableCredit + 0.001) {
         return NextResponse.json(
           {
-            error: `Insufficient credit balance. Customer has $${availableCredit.toFixed(2)} available but invoice total is $${invoiceTotal.toFixed(2)}. Please deposit credit first.`,
+            error: `Insufficient credit balance. Customer has $${availableCredit.toFixed(2)} available but invoice total is $${ledgerRelevantTotal.toFixed(2)}. Please deposit credit first.`,
           },
           { status: 400 }
         );
       }
 
       // The non-expense portion = invoice items not already tracked as pending ledger entries
-      // (vehicle price, insurance, shared container expenses, etc.)
-      const nonExpenseAmount = Math.max(0, invoiceTotal - pendingExpenseTotal);
+      // (insurance, shared container expenses, etc.) — car purchase price is excluded
+      const nonExpenseAmount = Math.max(0, ledgerRelevantTotal - pendingExpenseTotal);
 
       await prisma.$transaction(async (tx) => {
         // Activate each pending expense entry — remove pendingInvoice flag so it now
