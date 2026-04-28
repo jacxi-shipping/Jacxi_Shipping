@@ -62,7 +62,6 @@ interface Shipment {
   vehicleVIN?: string | null;
   price?: number;
   purchasePrice?: number | null;
-  purchasePricePaid?: number;
   serviceType?: string;
   amountDue?: number;
   paymentStatus: string;
@@ -192,20 +191,8 @@ export default function RecordPaymentPage() {
             (s) =>
               s.paymentStatus !== 'CANCELLED' &&
               s.paymentStatus !== 'REFUNDED' &&
-              s.serviceType === 'PURCHASE_AND_SHIPPING' &&
-              s.purchasePrice != null &&
-              s.purchasePrice > 0
-          )
-          .map((s) => {
-            const alreadyPaid = s.purchasePricePaid || 0;
-            const remainingDue = Math.max(0, (s.purchasePrice || 0) - alreadyPaid);
-
-            return {
-              ...s,
-              amountDue: remainingDue,
-            };
-          })
-          .filter((s) => (s.amountDue || 0) > 0);
+              (s.amountDue || 0) > 0
+          );
         setShipments(dueShipments);
       }
     } catch (error) {
@@ -565,8 +552,8 @@ export default function RecordPaymentPage() {
               ) : shipments.length === 0 ? (
                 <EmptyState
                   icon={<AlertCircle className="w-12 h-12" />}
-                  title="No Purchase Price Shipments"
-                  description="This customer has no PURCHASE & SHIPPING shipments with an outstanding purchase price"
+                  title="No Shipments With Outstanding Balance"
+                  description="This customer has no shipments with an outstanding balance"
                 />
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -584,7 +571,7 @@ export default function RecordPaymentPage() {
                     return (
                       <>
                         <Alert severity="info" icon={<Info className="w-5 h-5" />}>
-                          Enter VIN or Lot Number to find the vehicle. Only PURCHASE &amp; SHIPPING vehicles are shown — payment will be recorded as Car Purchase Price Payment.
+                          Enter VIN or Lot Number to find the vehicle. All shipments with an outstanding balance are shown — payment will be recorded against the shipment.
                         </Alert>
 
                         <TextField
@@ -672,9 +659,6 @@ export default function RecordPaymentPage() {
                               </Box>
                               <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
                                 {formatCurrency(shipment.purchasePrice)}
-                              </Box>
-                              <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', mt: 0.5 }}>
-                                Paid: {formatCurrency(shipment.purchasePricePaid || 0)}
                               </Box>
                               <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                                 Remaining: {formatCurrency(shipment.amountDue || 0)}

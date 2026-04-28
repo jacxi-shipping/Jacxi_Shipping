@@ -91,6 +91,8 @@ export async function GET(request: NextRequest) {
       createdAt: true,
       paymentStatus: true,
       price: true,
+      serviceType: true,
+      purchasePrice: true,
       dispatchId: true,
       containerId: true,
       transitId: true,
