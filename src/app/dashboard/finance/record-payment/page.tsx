@@ -274,11 +274,6 @@ export default function RecordPaymentPage() {
         toast.error(`Amount exceeds remaining due. Maximum allowed is ${formatCurrency(totalSelectedAmount)}.`);
         return;
       }
-      const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
-      if (parseFloat(amount) > availableCredit) {
-        toast.error(`Insufficient credit. Customer only has ${formatCurrency(availableCredit)} available.`);
-        return;
-      }
     }
     setActiveStep((prev) => prev + 1);
   };
@@ -294,11 +289,6 @@ export default function RecordPaymentPage() {
     }
     if (parseFloat(amount) > totalSelectedAmount) {
       toast.error(`Cannot process payment. Maximum allowed for selected shipment is ${formatCurrency(totalSelectedAmount)}.`);
-      return;
-    }
-    const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
-    if (parseFloat(amount) > availableCredit) {
-      toast.error(`Cannot process payment. Customer only has ${formatCurrency(availableCredit)} available credit.`);
       return;
     }
 
@@ -417,8 +407,6 @@ export default function RecordPaymentPage() {
                 {/* Selected customer display */}
                 {selectedUserId && (() => {
                   const sel = users.find(u => u.id === selectedUserId);
-                  const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
-                  const hasNoCredit = customerBalance !== null && customerBalance >= 0;
                   return sel ? (
                     <>
                       <Box
@@ -449,16 +437,16 @@ export default function RecordPaymentPage() {
                         </Button>
                       </Box>
 
-                      {/* Credit balance status */}
+                      {/* Account balance status */}
                       {loadingBalance ? (
                         <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)', py: 1 }}>Checking account balance...</Box>
                       ) : customerBalance !== null && (
-                        <Alert severity={hasNoCredit ? 'error' : 'success'} sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                          {hasNoCredit
-                            ? customerBalance === 0
-                              ? `❌ ${sel.name || sel.email} has $0.00 in their account. They must deposit funds before any payment can be made. Go to their ledger and add a Credit transaction first.`
-                              : `❌ ${sel.name || sel.email} owes ${formatCurrency(customerBalance)} — no credit available. They must deposit funds first before any payment can be made.`
-                            : `✓ Available credit: ${formatCurrency(availableCredit)} — payment can proceed.`}
+                        <Alert severity={customerBalance > 0 ? 'warning' : 'info'} sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                          {customerBalance > 0
+                            ? `Outstanding balance: ${formatCurrency(customerBalance)} — record payment to reduce the balance.`
+                            : customerBalance < 0
+                            ? `Customer has ${formatCurrency(-customerBalance)} credit on account.`
+                            : `No outstanding balance on this account.`}
                         </Alert>
                       )}
                     </>
@@ -529,7 +517,7 @@ export default function RecordPaymentPage() {
                       onClick={handleNext}
                       variant="primary"
                       icon={<ArrowRight className="w-4 h-4" />}
-                      disabled={loadingBalance || customerBalance === null || customerBalance >= 0}
+                      disabled={loadingBalance}
                     >
                       Continue to Shipments
                     </Button>
@@ -767,23 +755,13 @@ export default function RecordPaymentPage() {
 
                 {/* Amount Input */}
                 {(() => {
-                  const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
                   const enteredAmount = parseFloat(amount) || 0;
-                  const exceedsCredit = enteredAmount > 0 && enteredAmount > availableCredit;
                   const exceedsRemainingDue = enteredAmount > 0 && enteredAmount > totalSelectedAmount;
                   return (
                     <>
-                      <Alert severity="info" sx={{ fontSize: '0.85rem' }}>
-                        Available credit: <strong>{formatCurrency(availableCredit)}</strong>. Remaining shipment due: <strong>{formatCurrency(totalSelectedAmount)}</strong>.
-                      </Alert>
                       {exceedsRemainingDue && (
                         <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
                           ❌ Amount exceeds remaining due. Maximum allowed for this shipment is {formatCurrency(totalSelectedAmount)}.
-                        </Alert>
-                      )}
-                      {exceedsCredit && (
-                        <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                          ❌ Insufficient credit. Customer has {formatCurrency(availableCredit)} but you entered {formatCurrency(enteredAmount)}. Reduce the amount.
                         </Alert>
                       )}
                       <TextField
@@ -795,7 +773,7 @@ export default function RecordPaymentPage() {
                         placeholder="0.00"
                         required
                         size="medium"
-                        inputProps={{ step: '0.01', min: '0.01', max: Math.min(availableCredit, totalSelectedAmount) }}
+                        inputProps={{ step: '0.01', min: '0.01', max: totalSelectedAmount }}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -806,15 +784,13 @@ export default function RecordPaymentPage() {
                         helperText={
                           exceedsRemainingDue
                             ? `Maximum remaining due: ${formatCurrency(totalSelectedAmount)}`
-                            : exceedsCredit
-                            ? `Maximum allowed: ${formatCurrency(availableCredit)}`
                             : isPartialPayment
                             ? '💡 This is a partial payment. Remaining balance will stay pending.'
                             : paymentAmount === totalSelectedAmount && paymentAmount > 0
                             ? '✓ Full purchase price payment.'
                             : 'Enter the payment amount to apply against the remaining shipment balance'
                         }
-                        error={exceedsCredit || exceedsRemainingDue}
+                        error={exceedsRemainingDue}
                       />
                     </>
                   );
@@ -884,10 +860,7 @@ export default function RecordPaymentPage() {
                   <Button
                     onClick={handleNext}
                     variant="primary"
-                    disabled={!amount || parseFloat(amount) <= 0 || parseFloat(amount) > totalSelectedAmount || (() => {
-                      const availableCredit = customerBalance !== null && customerBalance < 0 ? -customerBalance : 0;
-                      return parseFloat(amount) > availableCredit;
-                    })()}
+                    disabled={!amount || parseFloat(amount) <= 0 || parseFloat(amount) > totalSelectedAmount}
                     icon={<ArrowRight className="w-4 h-4" />}
                   >
                     Review Payment

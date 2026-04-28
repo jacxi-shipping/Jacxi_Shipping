@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { hasPermission } from '@/lib/rbac';
+import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 
 // Schema for recording a payment
 const recordPaymentSchema = z.object({
@@ -115,31 +116,23 @@ export async function POST(request: NextRequest) {
 
     const currentBalance = latestEntry?.balance || 0;
 
-    // A service payment is a DEBIT — it consumes the customer's available credit.
-    // Credit (depositing money) builds up the balance. Debit (paying for services) uses it.
-    const availableCredit = currentBalance < 0 ? -currentBalance : 0;
-    if (validatedData.amount > availableCredit) {
-      return NextResponse.json(
-        { error: `Insufficient credit. Customer has $${availableCredit.toFixed(2)} available. Please deposit more credit first.` },
-        { status: 400 }
-      );
-    }
+    // Balance sign convention: positive balance = customer owes money (more DEBIT than CREDIT),
+    // negative balance = customer has pre-deposited credit (more CREDIT than DEBIT).
+    // A payment received is a CREDIT — it reduces the customer's outstanding balance.
+    const newBalance = currentBalance - validatedData.amount;
 
-    // DEBIT adds to the balance (moves it toward 0 / positive), consuming the customer's credit.
-    const newBalance = currentBalance + validatedData.amount;
-
-    // Create a DEBIT ledger entry — customer is spending their account credit on a service
+    // Create a CREDIT ledger entry — customer is paying their outstanding balance
     const shipmentInfo = shipments
       .map((s) => s.vehicleVIN || `${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.id)
       .join(', ');
     const transactionInfoLabel = transactionInfoTypeLabels[validatedData.transactionInfoType];
-    const description = `${transactionInfoLabel} payment applied to shipment(s): ${shipmentInfo}`;
+    const description = `${transactionInfoLabel} received for shipment(s): ${shipmentInfo}`;
 
     const entry = await prisma.ledgerEntry.create({
       data: {
         userId: validatedData.userId,
         description,
-        type: 'DEBIT',
+        type: 'CREDIT',
         transactionInfoType: validatedData.transactionInfoType,
         amount: validatedData.amount,
         balance: newBalance,
@@ -147,7 +140,7 @@ export async function POST(request: NextRequest) {
         notes: validatedData.notes,
         metadata: {
           shipmentIds: validatedData.shipmentIds,
-          paymentType: 'service_payment',
+          paymentType: 'payment_received',
           paymentMethod: validatedData.paymentMethod,
         },
       },
@@ -181,7 +174,10 @@ export async function POST(request: NextRequest) {
         const paymentForShipment = Math.min(remainingAmount, shipmentDue);
         remainingAmount -= paymentForShipment;
 
-        // Create a ledger entry specifically for this shipment
+        // Create a ledger entry specifically for this shipment to track payment allocation.
+        // isPaymentAllocation: true marks these entries so they are excluded from the
+        // user's running balance (the main CREDIT entry already handles the balance).
+        // They are still included in the per-shipment amountDue calculation.
         ledgerEntryCreations.push({
           userId: validatedData.userId,
           shipmentId: shipment.id,
@@ -195,6 +191,7 @@ export async function POST(request: NextRequest) {
           metadata: {
             parentEntryId: entry.id,
             paymentType: 'applied',
+            isPaymentAllocation: true,
           },
         });
 
@@ -248,6 +245,9 @@ export async function POST(request: NextRequest) {
     if (transactionOperations.length > 0) {
       await prisma.$transaction(transactionOperations);
     }
+
+    // Recalculate running balances so every entry reflects the correct balance.
+    await recalculateUserLedgerBalances(prisma, validatedData.userId);
 
     return NextResponse.json({
       entry,
