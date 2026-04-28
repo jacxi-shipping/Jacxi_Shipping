@@ -5,6 +5,7 @@ import { recalculateCompanyLedgerBalances } from '@/lib/company-ledger';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { hasAnyPermission } from '@/lib/rbac';
 import { z } from 'zod';
+import { LineItemType } from '@prisma/client';
 
 const damageSchema = z.object({
   shipmentId: z.string().min(1),
@@ -159,6 +160,36 @@ export async function POST(
         });
 
         await recalculateUserLedgerBalances(tx, shipment.userId);
+
+        // Add a DISCOUNT line item to the shipment's active invoice so the
+        // customer sees the damage compensation reflected in their full invoice.
+        const shipmentInvoice = await tx.userInvoice.findFirst({
+          where: { shipmentId: validatedData.shipmentId, status: { notIn: ['CANCELLED', 'PAID'] } },
+          select: { id: true, subtotal: true, discount: true, tax: true },
+        });
+
+        if (shipmentInvoice) {
+          await tx.invoiceLineItem.create({
+            data: {
+              invoiceId: shipmentInvoice.id,
+              shipmentId: validatedData.shipmentId,
+              description: `${vehicleLabel} - Damage Compensation (${validatedData.description})`.trim(),
+              type: LineItemType.DISCOUNT,
+              quantity: 1,
+              unitPrice: -validatedData.amount,
+              amount: -validatedData.amount,
+            },
+          });
+
+          const newSubtotal = shipmentInvoice.subtotal - validatedData.amount;
+          await tx.userInvoice.update({
+            where: { id: shipmentInvoice.id },
+            data: {
+              subtotal: newSubtotal,
+              total: newSubtotal - (shipmentInvoice.discount ?? 0) + (shipmentInvoice.tax ?? 0),
+            },
+          });
+        }
       } else {
         // COMPANY_PAYS: debit company ledger only (no customer ledger credit)
         await tx.companyLedgerEntry.create({
@@ -185,6 +216,28 @@ export async function POST(
         });
 
         await recalculateCompanyLedgerBalances(tx, container.companyId as string);
+
+        // Add an informational $0 line item to the shipment's active invoice so
+        // the customer is aware of the damage (company absorbed the cost).
+        const shipmentInvoice = await tx.userInvoice.findFirst({
+          where: { shipmentId: validatedData.shipmentId, status: { notIn: ['CANCELLED', 'PAID'] } },
+          select: { id: true },
+        });
+
+        if (shipmentInvoice) {
+          await tx.invoiceLineItem.create({
+            data: {
+              invoiceId: shipmentInvoice.id,
+              shipmentId: validatedData.shipmentId,
+              description: `${vehicleLabel} - Damage Note (Company Pays $${validatedData.amount.toFixed(2)}): ${validatedData.description}`.trim(),
+              type: LineItemType.OTHER_FEE,
+              quantity: 1,
+              unitPrice: validatedData.amount,
+              amount: 0,
+            },
+          });
+          // subtotal unchanged — company absorbs the cost
+        }
       }
 
       return createdDamage;
@@ -274,6 +327,40 @@ export async function DELETE(
             await recalculateUserLedgerBalances(tx, userId);
           }
         }
+
+        // Remove the corresponding DISCOUNT line item from the shipment's invoice.
+        // Filter on description (contains damage.description) to avoid accidentally
+        // removing a different damage entry that shares the same amount.
+        const shipmentInvoice = await tx.userInvoice.findFirst({
+          where: { shipmentId: damage.shipment.id, status: { notIn: ['CANCELLED', 'PAID'] } },
+          select: { id: true, subtotal: true, discount: true, tax: true },
+        });
+
+        if (shipmentInvoice) {
+          const matchingLineItems = await tx.invoiceLineItem.findMany({
+            where: {
+              invoiceId: shipmentInvoice.id,
+              shipmentId: damage.shipment.id,
+              type: LineItemType.DISCOUNT,
+              amount: -damage.amount,
+              description: { contains: damage.description },
+            },
+            select: { id: true },
+            take: 1,
+          });
+
+          if (matchingLineItems.length > 0) {
+            await tx.invoiceLineItem.delete({ where: { id: matchingLineItems[0].id } });
+            const newSubtotal = shipmentInvoice.subtotal + damage.amount;
+            await tx.userInvoice.update({
+              where: { id: shipmentInvoice.id },
+              data: {
+                subtotal: newSubtotal,
+                total: newSubtotal - (shipmentInvoice.discount ?? 0) + (shipmentInvoice.tax ?? 0),
+              },
+            });
+          }
+        }
       } else {
         const linkedEntries = await tx.companyLedgerEntry.findMany({
           where: {
@@ -307,6 +394,33 @@ export async function DELETE(
           const userIds = Array.from(new Set(linkedUserCredits.map((e) => e.userId)));
           for (const userId of userIds) {
             await recalculateUserLedgerBalances(tx, userId);
+          }
+        }
+
+        // Remove the informational $0 line item from the shipment's invoice.
+        // Filter on description (contains damage.description) to avoid accidentally
+        // removing a different damage entry that shares the same amount.
+        const shipmentInvoice = await tx.userInvoice.findFirst({
+          where: { shipmentId: damage.shipment.id, status: { notIn: ['CANCELLED', 'PAID'] } },
+          select: { id: true },
+        });
+
+        if (shipmentInvoice) {
+          const matchingLineItems = await tx.invoiceLineItem.findMany({
+            where: {
+              invoiceId: shipmentInvoice.id,
+              shipmentId: damage.shipment.id,
+              type: LineItemType.OTHER_FEE,
+              amount: 0,
+              unitPrice: damage.amount,
+              description: { contains: damage.description },
+            },
+            select: { id: true },
+            take: 1,
+          });
+
+          if (matchingLineItems.length > 0) {
+            await tx.invoiceLineItem.delete({ where: { id: matchingLineItems[0].id } });
           }
         }
       }

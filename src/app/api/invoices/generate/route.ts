@@ -140,9 +140,9 @@ export async function POST(req: NextRequest) {
       where: {
         shipmentId: { in: shipmentIds },
         type: 'DEBIT', // Customer owes money
-        description: {
-          contains: 'Expense',
-          mode: 'insensitive',
+        metadata: {
+          path: ['isExpense'],
+          equals: true,
         },
       },
     });
