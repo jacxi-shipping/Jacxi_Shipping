@@ -116,7 +116,9 @@ export async function POST(request: NextRequest) {
 
     const currentBalance = latestEntry?.balance || 0;
 
-    // A payment received from the customer is a CREDIT — it reduces what the customer owes.
+    // Balance sign convention: positive balance = customer owes money (more DEBIT than CREDIT),
+    // negative balance = customer has pre-deposited credit (more CREDIT than DEBIT).
+    // A payment received is a CREDIT — it reduces the customer's outstanding balance.
     const newBalance = currentBalance - validatedData.amount;
 
     // Create a CREDIT ledger entry — customer is paying their outstanding balance

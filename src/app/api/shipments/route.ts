@@ -482,7 +482,7 @@ export async function POST(request: NextRequest) {
       // entry so the owed amount appears in the customer's ledger immediately.
       if (
         paymentMode === 'DUE' &&
-        (serviceType === 'PURCHASE_AND_SHIPPING' || !serviceType) &&
+        serviceType === 'PURCHASE_AND_SHIPPING' &&
         parsedPurchasePrice &&
         parsedPurchasePrice > 0
       ) {
