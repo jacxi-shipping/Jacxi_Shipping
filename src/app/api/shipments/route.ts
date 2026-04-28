@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 import { generateInvoiceNumber } from '@/lib/shipment-invoice';
+import { syncShipmentPurchasePriceEntries } from '@/lib/shipment-purchase-price';
 
 const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
   'ON_HAND',
@@ -474,6 +475,27 @@ export async function POST(request: NextRequest) {
             unitPrice: parsedPurchasePrice,
             amount: parsedPurchasePrice,
           },
+        });
+      }
+
+      // When a PURCHASE_AND_SHIPPING shipment is created on DUE, post a DEBIT ledger
+      // entry so the owed amount appears in the customer's ledger immediately.
+      if (
+        paymentMode === 'DUE' &&
+        (serviceType === 'PURCHASE_AND_SHIPPING' || !serviceType) &&
+        parsedPurchasePrice &&
+        parsedPurchasePrice > 0
+      ) {
+        const vehicleLabel =
+          [parsedVehicleYear, vehicleMake, vehicleModel].filter(Boolean).join(' ') || vehicleType;
+        await syncShipmentPurchasePriceEntries(tx, {
+          shipmentId: createdShipment.id,
+          userId,
+          purchasePriceAmount: parsedPurchasePrice,
+          serviceType: 'PURCHASE_AND_SHIPPING',
+          vehicleLabel,
+          vehicleVIN: vehicleVIN ?? null,
+          actorUserId: session.user!.id as string,
         });
       }
 
