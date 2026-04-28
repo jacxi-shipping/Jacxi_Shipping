@@ -328,7 +328,9 @@ export async function DELETE(
           }
         }
 
-        // Remove the corresponding DISCOUNT line item from the shipment's invoice
+        // Remove the corresponding DISCOUNT line item from the shipment's invoice.
+        // Filter on description (contains damage.description) to avoid accidentally
+        // removing a different damage entry that shares the same amount.
         const shipmentInvoice = await tx.userInvoice.findFirst({
           where: { shipmentId: damage.shipment.id, status: { notIn: ['CANCELLED', 'PAID'] } },
           select: { id: true, subtotal: true, discount: true, tax: true },
@@ -341,6 +343,7 @@ export async function DELETE(
               shipmentId: damage.shipment.id,
               type: LineItemType.DISCOUNT,
               amount: -damage.amount,
+              description: { contains: damage.description },
             },
             select: { id: true },
             take: 1,
@@ -394,7 +397,9 @@ export async function DELETE(
           }
         }
 
-        // Remove the informational $0 line item from the shipment's invoice
+        // Remove the informational $0 line item from the shipment's invoice.
+        // Filter on description (contains damage.description) to avoid accidentally
+        // removing a different damage entry that shares the same amount.
         const shipmentInvoice = await tx.userInvoice.findFirst({
           where: { shipmentId: damage.shipment.id, status: { notIn: ['CANCELLED', 'PAID'] } },
           select: { id: true },
@@ -408,6 +413,7 @@ export async function DELETE(
               type: LineItemType.OTHER_FEE,
               amount: 0,
               unitPrice: damage.amount,
+              description: { contains: damage.description },
             },
             select: { id: true },
             take: 1,
