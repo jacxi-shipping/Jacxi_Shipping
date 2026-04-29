@@ -322,7 +322,7 @@ export async function GET(
 
     const lineItemsWithLinks = invoice.lineItems.map((lineItem) => {
       if (!lineItem.shipmentId) {
-        return lineItem;
+        return { ...lineItem, linkedCompanyLedgerEntry: null };
       }
 
       const key = buildExpenseLineItemKey(lineItem.shipmentId, lineItem.description, lineItem.amount);
