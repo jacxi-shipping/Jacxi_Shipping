@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
     // Build summaryWhere from where, adding pendingInvoice exclusion for admins (non-admins
     // already have it in where via hiddenEntryFilters).
     const summaryWhereNot: Record<string, unknown>[] = [
-      ...(where.NOT as Record<string, unknown>[]),
+      ...(Array.isArray(where.NOT) ? where.NOT : []),
       ...(isAdmin
         ? [{ metadata: { path: ['pendingInvoice'], equals: true } }]
         : []),
