@@ -13,7 +13,6 @@ import {
   Search,
   FilterList,
   Payment,
-  AddCircle,
 } from '@mui/icons-material';
 import {  Box, Typography, TextField, Select, MenuItem, FormControl, InputLabel, Chip } from '@mui/material';
 import { Breadcrumbs, Button, toast, EmptyState, SkeletonCard, SkeletonTable, Tooltip, StatusBadge, DashboardPageSkeleton, StatsCard } from '@/components/design-system';
@@ -389,16 +388,6 @@ export default function AdminLedgersPage() {
                   sx={{ textTransform: 'none', fontSize: '0.78rem', fontWeight: 600 }}
                 >
                   Record Payment
-                </Button>
-              </Link>
-              <Link href="/dashboard/finance/add-expense" style={{ textDecoration: 'none' }}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<AddCircle />}
-                  sx={{ textTransform: 'none', fontSize: '0.78rem' }}
-                >
-                  Add Expense
                 </Button>
               </Link>
             </Box>

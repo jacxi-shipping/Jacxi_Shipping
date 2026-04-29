@@ -4,9 +4,20 @@ import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { createAuditLog } from '@/lib/audit';
 import { hasPermission } from '@/lib/rbac';
+import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 
 const transactionInfoTypeSchema = z.enum(['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT']);
 const transactionInfoTypes = ['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT'] as const;
+
+function isPaymentAllocationEntry(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object') return false;
+  return (metadata as Record<string, unknown>).isPaymentAllocation === true;
+}
+
+function isPendingInvoiceEntry(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object') return false;
+  return (metadata as Record<string, unknown>).pendingInvoice === true;
+}
 
 // Schema for creating a ledger entry
 const createLedgerEntrySchema = z.object({
@@ -44,37 +55,11 @@ export async function GET(request: NextRequest) {
     const isAdmin = hasPermission(session.user.role, 'finance:manage');
     const targetUserId = isAdmin && userId ? userId : session.user.id;
 
-    // Non-admin customers never see pending invoice entries — those only appear once the
-    // invoice is paid and the entries are activated (pendingInvoice flag removed/set to false).
-    // Admins see all entries so they know what is staged for invoicing.
-    // Payment allocation entries are internal per-shipment tracking entries created alongside
-    // the main CREDIT payment entry. They must never appear in the ledger list because the
-    // main entry already represents the full transaction. Showing both would look like a
-    // duplicate payment to the user.
-    const hiddenEntryFilters: Record<string, unknown>[] = [
-      {
-        metadata: {
-          path: ['isPaymentAllocation'],
-          equals: true,
-        },
-      },
-    ];
-
-    if (!isAdmin) {
-      hiddenEntryFilters.push({
-        metadata: {
-          path: ['pendingInvoice'],
-          equals: true,
-        },
-      });
-    }
-
-    const hiddenEntryFilter = { NOT: hiddenEntryFilters };
+    await recalculateUserLedgerBalances(prisma, targetUserId);
 
     // Build where clause
     const where: Record<string, unknown> = {
       userId: targetUserId,
-      ...hiddenEntryFilter,
     };
 
     if (shipmentId) {
@@ -106,25 +91,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
-    // Execute database queries in parallel for performance
-    // Summary queries exclude pendingInvoice entries — those only affect balance when invoice is paid.
-    // They also always exclude payment allocation entries for the same reason as the list view.
-    // Build summaryWhere from where, adding pendingInvoice exclusion for admins (non-admins
-    // already have it in where via hiddenEntryFilters).
-    const summaryWhereNot: Record<string, unknown>[] = [
-      ...(Array.isArray(where.NOT) ? where.NOT : []),
-      ...(isAdmin
-        ? [{ metadata: { path: ['pendingInvoice'], equals: true } }]
-        : []),
-    ];
-    const summaryWhere: Record<string, unknown> = { ...where, NOT: summaryWhereNot };
-
-    const [totalCount, entries, groupedSums, transactionInfoGroupedSums, latestEntry] = await Promise.all([
-      // Get total count
-      prisma.ledgerEntry.count({ where }),
-
-      // Fetch ledger entries (show ALL including pending — they appear with a badge in the UI)
+    const [allEntries, latestEntry] = await Promise.all([
       prisma.ledgerEntry.findMany({
         where,
         include: {
@@ -149,33 +116,8 @@ export async function GET(request: NextRequest) {
         orderBy: {
           transactionDate: 'desc',
         },
-        skip: (page - 1) * limit,
-        take: limit,
       }),
 
-      // Calculate debit and credit summaries — exclude pending entries
-      prisma.ledgerEntry.groupBy({
-        by: ['type'],
-        where: { ...summaryWhere, type: { in: ['DEBIT', 'CREDIT'] } },
-        _sum: {
-          amount: true,
-        },
-      }),
-
-      prisma.ledgerEntry.groupBy({
-        by: ['transactionInfoType', 'type'],
-        where: {
-          ...summaryWhere,
-          transactionInfoType: { in: [...transactionInfoTypes] },
-          type: { in: ['DEBIT', 'CREDIT'] },
-        },
-        _sum: {
-          amount: true,
-        },
-      }),
-
-      // Get current balance (latest entry's balance — recalculate skips pending entries
-      // so this reflects the true effective balance even if the latest entry is pending)
       prisma.ledgerEntry.findFirst({
         where: { userId: targetUserId },
         orderBy: { transactionDate: 'desc' },
@@ -183,8 +125,63 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Prisma JSON path filtering is unreliable for this dataset when metadata is null/missing.
+    // Filter flags in application code to keep ledger visibility deterministic.
+    const visibleEntries = allEntries.filter((entry) => {
+      const isPaymentAllocation = isPaymentAllocationEntry(entry.metadata);
+      if (isPaymentAllocation) return false;
+
+      return true;
+    });
+
+    const totalCount = visibleEntries.length;
+    const pagedEntries = visibleEntries.slice((page - 1) * limit, page * limit);
+
+    // Summary follows the same balance semantics as the running ledger: shipment expenses
+    // affect balances immediately, while payment allocation helper rows stay hidden.
+    const summaryEntries = visibleEntries;
+
+    const summary = summaryEntries.reduce(
+      (accumulator, entry) => {
+        if (entry.type === 'DEBIT') {
+          accumulator.totalDebit += entry.amount;
+        } else if (entry.type === 'CREDIT') {
+          accumulator.totalCredit += entry.amount;
+        }
+
+        if (
+          entry.transactionInfoType &&
+          (entry.transactionInfoType === 'CAR_PAYMENT' ||
+            entry.transactionInfoType === 'SHIPPING_PAYMENT' ||
+            entry.transactionInfoType === 'STORAGE_PAYMENT')
+        ) {
+          const breakdown = accumulator.transactionInfoBreakdown[entry.transactionInfoType];
+          if (entry.type === 'DEBIT') {
+            breakdown.totalDebit += entry.amount;
+          } else if (entry.type === 'CREDIT') {
+            breakdown.totalCredit += entry.amount;
+          }
+          breakdown.balance = breakdown.totalDebit - breakdown.totalCredit;
+        }
+
+        return accumulator;
+      },
+      {
+        totalDebit: 0,
+        totalCredit: 0,
+        transactionInfoBreakdown: transactionInfoTypes.reduce<Record<string, { totalDebit: number; totalCredit: number; balance: number }>>((accumulator, currentType) => {
+          accumulator[currentType] = {
+            totalDebit: 0,
+            totalCredit: 0,
+            balance: 0,
+          };
+          return accumulator;
+        }, {}),
+      }
+    );
+
     return NextResponse.json({
-      entries,
+      entries: pagedEntries,
       pagination: {
         page,
         limit,
@@ -192,22 +189,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(totalCount / limit),
       },
       summary: {
-        totalDebit: groupedSums.find(g => g.type === 'DEBIT')?._sum.amount || 0,
-        totalCredit: groupedSums.find(g => g.type === 'CREDIT')?._sum.amount || 0,
+        totalDebit: summary.totalDebit,
+        totalCredit: summary.totalCredit,
         currentBalance: latestEntry?.balance || 0,
-        transactionInfoBreakdown: transactionInfoTypes.reduce<Record<string, { totalDebit: number; totalCredit: number; balance: number }>>((accumulator, currentType) => {
-          const typeRows = transactionInfoGroupedSums.filter((row) => row.transactionInfoType === currentType);
-          const totalDebit = typeRows.find((row) => row.type === 'DEBIT')?._sum.amount || 0;
-          const totalCredit = typeRows.find((row) => row.type === 'CREDIT')?._sum.amount || 0;
-
-          accumulator[currentType] = {
-            totalDebit,
-            totalCredit,
-            balance: totalDebit - totalCredit,
-          };
-
-          return accumulator;
-        }, {}),
+        transactionInfoBreakdown: summary.transactionInfoBreakdown,
       },
     });
   } catch (error) {

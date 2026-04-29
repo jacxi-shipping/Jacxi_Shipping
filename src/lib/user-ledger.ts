@@ -19,19 +19,14 @@ export async function recalculateUserLedgerBalances(db: DbClient, userId: string
 
   for (const entry of entries) {
     const meta = (entry.metadata ?? {}) as Record<string, unknown>;
-    // Pending invoice entries (DUE expenses awaiting invoice payment) do NOT affect
-    // the running balance — they only become real when the invoice is paid.
-    const isPendingInvoice = meta.pendingInvoice === true;
     // Payment allocation entries track how a payment was split across shipments.
     // The overall balance impact is already captured by the main CREDIT payment entry,
     // so these per-shipment entries must be excluded to prevent double-counting.
     const isPaymentAllocation = meta.isPaymentAllocation === true;
 
-    if (!isPendingInvoice && !isPaymentAllocation) {
+    if (!isPaymentAllocation) {
       runningBalance = applyLedgerDelta(runningBalance, entry.type, entry.amount);
     }
-    // Pending entries store the same balance as the previous non-pending entry
-    // so that latestEntry.balance always reflects the effective balance.
     if (entry.balance !== runningBalance) {
       updates.push(
         db.ledgerEntry.update({

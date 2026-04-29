@@ -13,6 +13,13 @@ function isTruthyMetadataFlag(value: unknown): boolean {
   return value === true || value === 'true' || value === 1 || value === '1';
 }
 
+function isShipmentExpenseEntry(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object') return false;
+
+  const record = metadata as Record<string, unknown>;
+  return isTruthyMetadataFlag(record.isExpense) && isTruthyMetadataFlag(record.pendingInvoice);
+}
+
 function normalizeShipmentLabelInDescription(
   description: string,
   shipmentId: string,
@@ -134,18 +141,16 @@ export async function POST(req: NextRequest) {
       metadata?: Prisma.InputJsonValue;
     }> = [];
     
-    // Fetch all relevant ledger entries (expenses) for these shipments
+    // Fetch all relevant ledger entries for these shipments, then filter expense flags in code.
+    // Prisma JSON-path filters against metadata are unreliable in this dataset.
     const shipmentIds = container.shipments.map((s) => s.id);
-    const shipmentExpenseEntries = await prisma.ledgerEntry.findMany({
+    const shipmentLedgerEntries = await prisma.ledgerEntry.findMany({
       where: {
         shipmentId: { in: shipmentIds },
         type: 'DEBIT', // Customer owes money
-        metadata: {
-          path: ['isExpense'],
-          equals: true,
-        },
       },
     });
+    const shipmentExpenseEntries = shipmentLedgerEntries.filter((entry) => isShipmentExpenseEntry(entry.metadata));
 
     // Fetch damage records for the shipments to process WE_PAY damages as discounts
     const shipmentDamageRecords = await prisma.containerDamage.findMany({

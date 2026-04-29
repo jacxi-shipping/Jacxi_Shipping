@@ -299,6 +299,7 @@ export default function ShipmentDetailPage() {
   const [creatingReleaseToken, setCreatingReleaseToken] = useState(false);
   const [expenseAction, setExpenseAction] = useState<ExpenseActionContext | null>(null);
   const [expenseSourceFilter, setExpenseSourceFilter] = useState<ExpenseSourceFilter>('ALL');
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
 
   const fetchShipment = useCallback(async () => {
     try {
@@ -376,6 +377,22 @@ export default function ShipmentDetailPage() {
       toast.error('Failed to download photo', { description: 'Please try again' });
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleDeleteExpense = async (entryId: string) => {
+    if (!confirm('Delete this expense? This will reverse the transaction from both the customer and company ledger.')) return;
+    try {
+      setDeletingExpenseId(entryId);
+      const response = await fetch(`/api/ledger/${entryId}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete expense');
+      toast.success('Expense deleted', { description: 'Ledger entries reversed successfully' });
+      void refreshShipmentPage();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete expense');
+    } finally {
+      setDeletingExpenseId(null);
     }
   };
 
@@ -1902,7 +1919,7 @@ export default function ShipmentDetailPage() {
                           <div className="space-y-3">
                         {expenseEntriesWithCompanyLedger.map((entry) => (
                                 <div key={entry.id} className="flex justify-between gap-4 border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
-                                    <div>
+                                    <div className="flex-1 min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
                                           <p className="text-sm font-medium text-[var(--text-primary)]">{entry.description}</p>
                                           <span
@@ -1927,9 +1944,22 @@ export default function ShipmentDetailPage() {
                                         </div>
                                         <p className="text-xs text-[var(--text-secondary)]">{new Date(entry.transactionDate).toLocaleDateString()}</p>
                                     </div>
-                                    <span className="text-sm font-medium text-[var(--error)]">
-                                        ${entry.amount.toFixed(2)}
-                                    </span>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                      <span className="text-sm font-medium text-[var(--error)]">
+                                          ${entry.amount.toFixed(2)}
+                                      </span>
+                                      {canManageShipmentExpenses && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteExpense(entry.id)}
+                                          disabled={deletingExpenseId === entry.id}
+                                          className="flex items-center justify-center rounded p-1 text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50 transition-colors"
+                                          title="Delete expense"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

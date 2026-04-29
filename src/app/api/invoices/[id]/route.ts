@@ -24,6 +24,24 @@ function buildExpenseLineItemKey(shipmentId: string, description: string, amount
   return `${shipmentId}::${description.trim().toLowerCase()}::${amount.toFixed(2)}`;
 }
 
+function isShipmentFinancialExpenseLineItem(lineItem: {
+  shipmentId: string | null;
+  description: string;
+}) {
+  if (!lineItem.shipmentId) return false;
+
+  const description = lineItem.description.toLowerCase();
+
+  if (description.includes('shared container expenses')) return false;
+  if (description.includes('damage note')) return false;
+  if (description.includes('damage compensation')) return false;
+  if (description.includes('damage credit')) return false;
+  if (description.endsWith('- vehicle price')) return false;
+  if (description.endsWith('- insurance')) return false;
+
+  return description.includes('(vin ') || description.includes('(shipment ');
+}
+
 /**
  * GET /api/invoices/[id]
  * Get a specific invoice
@@ -302,7 +320,7 @@ export async function GET(
       queuedExpenseEntriesByKey.set(key, queuedEntries);
     }
 
-    const lineItems = invoice.lineItems.map((lineItem) => {
+    const lineItemsWithLinks = invoice.lineItems.map((lineItem) => {
       if (!lineItem.shipmentId) {
         return lineItem;
       }
@@ -319,9 +337,29 @@ export async function GET(
       };
     });
 
+    const isEditableInvoice = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED';
+    const lineItems = isEditableInvoice
+      ? lineItemsWithLinks.filter((lineItem) => {
+          if (!isShipmentFinancialExpenseLineItem({ shipmentId: lineItem.shipmentId, description: lineItem.description })) {
+            return true;
+          }
+
+          return Boolean(lineItem.linkedCompanyLedgerEntry);
+        })
+      : lineItemsWithLinks;
+
+    const subtotal = isEditableInvoice
+      ? lineItems.reduce((sum, lineItem) => sum + lineItem.amount, 0)
+      : invoice.subtotal;
+    const total = isEditableInvoice
+      ? subtotal - (invoice.discount ?? 0) + (invoice.tax ?? 0)
+      : invoice.total;
+
     return NextResponse.json({
       ...invoice,
       lineItems,
+      subtotal,
+      total,
       auditLogs,
     });
 
@@ -399,9 +437,9 @@ export async function PATCH(
     const previousStatus = currentInvoice.status;
 
     // When marking as PAID:
-    //   1. Check customer credit balance is sufficient (excluding car purchase price)
-    //   2. Activate all pending DUE expense ledger entries for shipments in this invoice
-    //      (pendingInvoice: true → false, so they now count in the balance)
+    //   1. Check customer credit balance is sufficient for the portion not already posted
+    //      into the ledger (excluding car purchase price)
+    //   2. Tag pending DUE expense ledger entries with invoice details
     //   3. Create a DEBIT for the non-expense portion (excluding car purchase price)
     //   4. Recalculate running balances
     let paymentLedgerEntryId: string | undefined;
@@ -451,7 +489,7 @@ export async function PATCH(
 
       const pendingExpenseTotal = pendingExpenseEntries.reduce((sum, e) => sum + e.amount, 0);
 
-      // Effective balance: recalculate skips pending entries, so latestEntry.balance is correct
+      // Effective balance already includes pending shipment expenses.
       const latestEntry = await prisma.ledgerEntry.findFirst({
         where: { userId: currentInvoice.userId },
         orderBy: { transactionDate: 'desc' },
@@ -460,22 +498,22 @@ export async function PATCH(
       const effectiveBalance = latestEntry?.balance ?? 0;
       const availableCredit = effectiveBalance < 0 ? -effectiveBalance : 0;
 
-      if (ledgerRelevantTotal > availableCredit + 0.001) {
+      // The non-expense portion = invoice items not already tracked as ledger entries
+      // (insurance, shared container expenses, etc.) — car purchase price is excluded.
+      const nonExpenseAmount = Math.max(0, ledgerRelevantTotal - pendingExpenseTotal);
+
+      if (nonExpenseAmount > availableCredit + 0.001) {
         return NextResponse.json(
           {
-            error: `Insufficient credit balance. Customer has $${availableCredit.toFixed(2)} available but invoice total is $${ledgerRelevantTotal.toFixed(2)}. Please deposit credit first.`,
+            error: `Insufficient credit balance. Customer has $${availableCredit.toFixed(2)} available but invoice needs $${nonExpenseAmount.toFixed(2)} more for non-shipment charges. Please deposit credit first.`,
           },
           { status: 400 }
         );
       }
 
-      // The non-expense portion = invoice items not already tracked as pending ledger entries
-      // (insurance, shared container expenses, etc.) — car purchase price is excluded
-      const nonExpenseAmount = Math.max(0, ledgerRelevantTotal - pendingExpenseTotal);
-
       await prisma.$transaction(async (tx) => {
-        // Activate each pending expense entry — remove pendingInvoice flag so it now
-        // counts toward the balance during recalculation below.
+        // Tag each pending expense entry with invoice details. The entry already affects the
+        // balance; clearing pendingInvoice just marks it as invoiced/settled in workflow terms.
         for (const entry of pendingExpenseEntries) {
           const meta = (entry.metadata ?? {}) as Record<string, unknown>;
           await tx.ledgerEntry.update({

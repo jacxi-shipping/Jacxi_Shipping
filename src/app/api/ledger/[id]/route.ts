@@ -181,6 +181,56 @@ export async function DELETE(
         await recalculateCompanyLedgerBalances(tx, companyLedgerEntry.companyId);
       }
 
+      // If this is an expense entry linked to a shipment, remove the matching invoice line item
+      const metadata = entry.metadata as Record<string, unknown> | null;
+      const isExpense = metadata?.isExpense === true || metadata?.isExpense === 'true';
+      if (isExpense && entry.shipmentId) {
+        // Remove all matching line items from editable invoices so refreshed and draft invoices
+        // stay aligned with the current shipment financials.
+        const matchingLineItems = await tx.invoiceLineItem.findMany({
+          where: {
+            shipmentId: entry.shipmentId,
+            description: entry.description,
+            amount: entry.amount,
+            invoice: { status: { notIn: ['PAID', 'CANCELLED'] } },
+          },
+          include: { invoice: { select: { id: true, subtotal: true, discount: true, tax: true } } },
+        });
+
+        if (matchingLineItems.length > 0) {
+          const invoiceAdjustments = new Map<string, { subtotal: number; discount: number | null; tax: number | null; removedAmount: number }>();
+
+          for (const lineItem of matchingLineItems) {
+            const existing = invoiceAdjustments.get(lineItem.invoice.id);
+            if (existing) {
+              existing.removedAmount += lineItem.amount;
+            } else {
+              invoiceAdjustments.set(lineItem.invoice.id, {
+                subtotal: lineItem.invoice.subtotal,
+                discount: lineItem.invoice.discount,
+                tax: lineItem.invoice.tax,
+                removedAmount: lineItem.amount,
+              });
+            }
+          }
+
+          await tx.invoiceLineItem.deleteMany({
+            where: {
+              id: { in: matchingLineItems.map((lineItem) => lineItem.id) },
+            },
+          });
+
+          for (const [invoiceId, adjustment] of invoiceAdjustments.entries()) {
+            const newSubtotal = adjustment.subtotal - adjustment.removedAmount;
+            const newTotal = newSubtotal - (adjustment.discount ?? 0) + (adjustment.tax ?? 0);
+            await tx.userInvoice.update({
+              where: { id: invoiceId },
+              data: { subtotal: newSubtotal, total: newTotal },
+            });
+          }
+        }
+      }
+
       // Delete the user ledger entry
       await tx.ledgerEntry.delete({
         where: { id: params.id },
