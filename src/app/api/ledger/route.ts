@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
     const isAdmin = hasPermission(session.user.role, 'finance:manage');
     const targetUserId = isAdmin && userId ? userId : session.user.id;
 
-    await recalculateUserLedgerBalances(prisma, targetUserId);
+    if (targetUserId) {
+      await recalculateUserLedgerBalances(prisma, targetUserId);
+    }
 
     // Build where clause
     const where: Record<string, unknown> = {
