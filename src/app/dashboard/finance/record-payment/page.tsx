@@ -191,7 +191,7 @@ export default function RecordPaymentPage() {
             (s) =>
               s.paymentStatus !== 'CANCELLED' &&
               s.paymentStatus !== 'REFUNDED' &&
-              (s.amountDue || 0) > 0
+              (s.purchasePrice || s.price || 0) > 0
           );
         setShipments(dueShipments);
       }
@@ -209,11 +209,12 @@ export default function RecordPaymentPage() {
         ? prev.filter((id) => id !== shipmentId)
         : [shipmentId]; // only one shipment at a time
       
-      // Auto-fill amount with remaining due (purchase price - previously paid)
+      // Auto-fill amount with purchase price
       if (newSelection.length === 1) {
         const selected = shipments.find(s => s.id === newSelection[0]);
-        if ((selected?.amountDue || 0) > 0) {
-          setAmount((selected?.amountDue || 0).toFixed(2));
+        const purchaseAmount = selected?.purchasePrice || selected?.price || 0;
+        if (purchaseAmount > 0) {
+          setAmount(purchaseAmount.toFixed(2));
         } else {
           setAmount('');
         }
@@ -230,7 +231,7 @@ export default function RecordPaymentPage() {
     let total = 0;
     for (const s of shipments) {
       if (selectedSet.has(s.id)) {
-        total += (s.amountDue || 0);
+        total += (s.purchasePrice || s.price || 0);
       }
     }
     return total;
@@ -243,7 +244,7 @@ export default function RecordPaymentPage() {
     const selectedShips = shipments.filter(s => selectedShipmentIds.includes(s.id));
 
     for (const shipment of selectedShips) {
-      const amountDue = shipment.amountDue || 0;
+      const amountDue = shipment.purchasePrice || shipment.price || 0;
       allocations.push({
         shipmentId: shipment.id,
         trackingNumber: shipment.trackingNumber,
@@ -270,10 +271,6 @@ export default function RecordPaymentPage() {
         toast.error('Please enter a valid payment amount');
         return;
       }
-      if (parseFloat(amount) > totalSelectedAmount) {
-        toast.error(`Amount exceeds remaining due. Maximum allowed is ${formatCurrency(totalSelectedAmount)}.`);
-        return;
-      }
     }
     setActiveStep((prev) => prev + 1);
   };
@@ -285,10 +282,6 @@ export default function RecordPaymentPage() {
   const handleSubmit = async () => {
     if (!selectedUserId || selectedShipmentIds.length === 0 || !amount || parseFloat(amount) <= 0) {
       toast.error('Please complete all required fields');
-      return;
-    }
-    if (parseFloat(amount) > totalSelectedAmount) {
-      toast.error(`Cannot process payment. Maximum allowed for selected shipment is ${formatCurrency(totalSelectedAmount)}.`);
       return;
     }
 
@@ -339,7 +332,6 @@ export default function RecordPaymentPage() {
   const selectedUser = users.find(u => u.id === selectedUserId);
   const paymentAmount = parseFloat(amount) || 0;
   const paymentAllocations = calculatePaymentAllocation();
-  const isOverpayment = paymentAmount > totalSelectedAmount;
   const isPartialPayment = paymentAmount < totalSelectedAmount && paymentAmount > 0;
 
   if (status === 'loading') {
@@ -745,7 +737,7 @@ export default function RecordPaymentPage() {
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box sx={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                      Remaining Due:
+                      Purchase Price:
                     </Box>
                     <Box sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
                       {formatCurrency(totalSelectedAmount)}
@@ -754,47 +746,25 @@ export default function RecordPaymentPage() {
                 </Box>
 
                 {/* Amount Input */}
-                {(() => {
-                  const enteredAmount = parseFloat(amount) || 0;
-                  const exceedsRemainingDue = enteredAmount > 0 && enteredAmount > totalSelectedAmount;
-                  return (
-                    <>
-                      {exceedsRemainingDue && (
-                        <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                          ❌ Amount exceeds remaining due. Maximum allowed for this shipment is {formatCurrency(totalSelectedAmount)}.
-                        </Alert>
-                      )}
-                      <TextField
-                        fullWidth
-                        label="Amount Received (USD) *"
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="0.00"
-                        required
-                        size="medium"
-                        inputProps={{ step: '0.01', min: '0.01', max: totalSelectedAmount }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <DollarSign className="w-5 h-5 text-[var(--text-secondary)]" />
-                            </InputAdornment>
-                          ),
-                        }}
-                        helperText={
-                          exceedsRemainingDue
-                            ? `Maximum remaining due: ${formatCurrency(totalSelectedAmount)}`
-                            : isPartialPayment
-                            ? '💡 This is a partial payment. Remaining balance will stay pending.'
-                            : paymentAmount === totalSelectedAmount && paymentAmount > 0
-                            ? '✓ Full purchase price payment.'
-                            : 'Enter the payment amount to apply against the remaining shipment balance'
-                        }
-                        error={exceedsRemainingDue}
-                      />
-                    </>
-                  );
-                })()}
+                <TextField
+                  fullWidth
+                  label="Purchase Payment Amount (USD) *"
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  required
+                  size="medium"
+                  inputProps={{ step: '0.01', min: '0.01' }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <DollarSign className="w-5 h-5 text-[var(--text-secondary)]" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  helperText="Enter the shipment purchase price to charge to the customer's account"
+                />
 
                 {/* Payment Method */}
                 <FormControl fullWidth size="medium">
@@ -860,7 +830,7 @@ export default function RecordPaymentPage() {
                   <Button
                     onClick={handleNext}
                     variant="primary"
-                    disabled={!amount || parseFloat(amount) <= 0 || parseFloat(amount) > totalSelectedAmount}
+                    disabled={!amount || parseFloat(amount) <= 0}
                     icon={<ArrowRight className="w-4 h-4" />}
                   >
                     Review Payment
@@ -975,13 +945,7 @@ export default function RecordPaymentPage() {
                   </Box>
                 </Box>
 
-                {/* Warnings/Info */}
-                {isOverpayment && (
-                  <Alert severity="error" icon={<AlertCircle className="w-5 h-5" />}>
-                    <strong>Invalid Amount:</strong> Payment cannot exceed remaining due. Reduce by {formatCurrency(paymentAmount - totalSelectedAmount)} to continue.
-                  </Alert>
-                )}
-
+                {/* Info */}
                 {isPartialPayment && (
                   <Alert severity="info" icon={<Info className="w-5 h-5" />}>
                     <strong>Partial Payment:</strong> This payment will cover {formatCurrency(paymentAmount)} of the total {formatCurrency(totalSelectedAmount)}. 

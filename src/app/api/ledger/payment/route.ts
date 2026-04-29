@@ -93,20 +93,6 @@ export async function POST(request: NextRequest) {
       totalRemainingDue += shipmentDue;
     }
 
-    if (totalRemainingDue <= 0) {
-      return NextResponse.json(
-        { error: 'Selected shipment(s) are already fully paid.' },
-        { status: 400 }
-      );
-    }
-
-    if (validatedData.amount > totalRemainingDue) {
-      return NextResponse.json(
-        { error: `Amount exceeds remaining due. Maximum allowed is $${totalRemainingDue.toFixed(2)}.` },
-        { status: 400 }
-      );
-    }
-
     // Get current balance for the user
     const latestEntry = await prisma.ledgerEntry.findFirst({
       where: { userId: validatedData.userId },
@@ -118,21 +104,21 @@ export async function POST(request: NextRequest) {
 
     // Balance sign convention: positive balance = customer owes money (more DEBIT than CREDIT),
     // negative balance = customer has pre-deposited credit (more CREDIT than DEBIT).
-    // A payment received is a CREDIT — it reduces the customer's outstanding balance.
-    const newBalance = currentBalance - validatedData.amount;
+    // Shipment purchase payment is a DEBIT — customer is being charged for the car purchase.
+    const newBalance = currentBalance + validatedData.amount;
 
-    // Create a CREDIT ledger entry — customer is paying their outstanding balance
+    // Create a DEBIT ledger entry — recording the shipment purchase charge on the customer
     const shipmentInfo = shipments
       .map((s) => s.vehicleVIN || `${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.id)
       .join(', ');
     const transactionInfoLabel = transactionInfoTypeLabels[validatedData.transactionInfoType];
-    const description = `${transactionInfoLabel} received for shipment(s): ${shipmentInfo}`;
+    const description = `${transactionInfoLabel} charged for shipment(s): ${shipmentInfo}`;
 
     const entry = await prisma.ledgerEntry.create({
       data: {
         userId: validatedData.userId,
         description,
-        type: 'CREDIT',
+        type: 'DEBIT',
         transactionInfoType: validatedData.transactionInfoType,
         amount: validatedData.amount,
         balance: newBalance,
@@ -181,11 +167,11 @@ export async function POST(request: NextRequest) {
         ledgerEntryCreations.push({
           userId: validatedData.userId,
           shipmentId: shipment.id,
-          description: `Payment applied to ${shipment.vehicleVIN ? `VIN ${shipment.vehicleVIN}` : `shipment ${shipment.id || ''}`}`,
-          type: 'CREDIT' as const,
+          description: `Purchase charge applied to ${shipment.vehicleVIN ? `VIN ${shipment.vehicleVIN}` : `shipment ${shipment.id || ''}`}`,
+          type: 'DEBIT' as const,
           transactionInfoType: validatedData.transactionInfoType,
           amount: paymentForShipment,
-          balance: newBalance, // Same balance as the main entry
+          balance: newBalance,
           createdBy: session.user.id as string,
           notes: `Auto-applied from payment entry ${entry.id}`,
           metadata: {
@@ -197,17 +183,13 @@ export async function POST(request: NextRequest) {
 
         // Check if shipment is now fully paid
         const remainingAfterPayment = Math.max(0, shipmentDue - paymentForShipment);
-        const isPaid = remainingAfterPayment <= 0;
-
-        if (isPaid) {
-          completedShipmentIds.push(shipment.id);
-        } else {
-          pendingShipmentIds.push(shipment.id);
-        }
+        // When recording a purchase charge (DEBIT), mark the shipment as PENDING
+        // (awaiting payment). It will become COMPLETED when credits offset the debit.
+        pendingShipmentIds.push(shipment.id);
 
         updatedShipments.push({
           id: shipment.id,
-          paymentStatus: isPaid ? 'COMPLETED' : 'PENDING',
+          paymentStatus: 'PENDING',
           amountPaid: paymentForShipment,
           remainingDue: remainingAfterPayment,
         });
