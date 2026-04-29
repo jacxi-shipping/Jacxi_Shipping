@@ -47,21 +47,34 @@ export async function GET(request: NextRequest) {
     // Non-admin customers never see pending invoice entries — those only appear once the
     // invoice is paid and the entries are activated (pendingInvoice flag removed/set to false).
     // Admins see all entries so they know what is staged for invoicing.
-    const pendingFilter = !isAdmin
-      ? {
-          NOT: {
-            metadata: {
-              path: ['pendingInvoice'],
-              equals: true,
-            },
-          },
-        }
-      : {};
+    // Payment allocation entries are internal per-shipment tracking entries created alongside
+    // the main CREDIT payment entry. They must never appear in the ledger list because the
+    // main entry already represents the full transaction. Showing both would look like a
+    // duplicate payment to the user.
+    const hiddenEntryFilters: Record<string, unknown>[] = [
+      {
+        metadata: {
+          path: ['isPaymentAllocation'],
+          equals: true,
+        },
+      },
+    ];
+
+    if (!isAdmin) {
+      hiddenEntryFilters.push({
+        metadata: {
+          path: ['pendingInvoice'],
+          equals: true,
+        },
+      });
+    }
+
+    const hiddenEntryFilter = { NOT: hiddenEntryFilters };
 
     // Build where clause
     const where: Record<string, unknown> = {
       userId: targetUserId,
-      ...pendingFilter,
+      ...hiddenEntryFilter,
     };
 
     if (shipmentId) {
@@ -96,16 +109,16 @@ export async function GET(request: NextRequest) {
     // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
     // Execute database queries in parallel for performance
     // Summary queries exclude pendingInvoice entries — those only affect balance when invoice is paid.
-    const pendingExcludeFilter = {
-      NOT: {
-        metadata: {
-          path: ['pendingInvoice'],
-          equals: true,
-        },
-      },
-    } as const;
-
-    const summaryWhere = { ...where, ...pendingExcludeFilter };
+    // They also always exclude payment allocation entries for the same reason as the list view.
+    // Build summaryWhere from where, adding pendingInvoice exclusion for admins (non-admins
+    // already have it in where via hiddenEntryFilters).
+    const summaryWhereNot: Record<string, unknown>[] = [
+      ...(where.NOT as Record<string, unknown>[]),
+      ...(isAdmin
+        ? [{ metadata: { path: ['pendingInvoice'], equals: true } }]
+        : []),
+    ];
+    const summaryWhere: Record<string, unknown> = { ...where, NOT: summaryWhereNot };
 
     const [totalCount, entries, groupedSums, transactionInfoGroupedSums, latestEntry] = await Promise.all([
       // Get total count
