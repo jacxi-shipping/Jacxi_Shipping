@@ -201,7 +201,7 @@ export async function POST(
         data: {
           companyId: container.companyId as string,
           description: `Container expense recovery - ${validatedData.type}`,
-          type: 'CREDIT',
+          type: 'DEBIT',
           amount: validatedData.amount,
           balance: 0,
           category: 'Container Expense Recovery',
