@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // The user (debit) amount is always `amount`. Company (credit) amount defaults to `amount` unless overridden.
+    // The user (debit) amount is always `amount`. Company (debit/payable) amount defaults to `amount` unless overridden.
     const userAmount = validatedData.amount;
     const companyAmount = validatedData.companyAmount ?? validatedData.amount;
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
 
       const reference = `shipment-expense:${debitEntry.id}`;
 
-      const companyCreditEntry = await tx.companyLedgerEntry.create({
+      const companyDebitEntry = await tx.companyLedgerEntry.create({
         data: {
           companyId: resolvedCompanyId,
           description: `Expense recovery - ${description}`,
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
 
       return {
         userEntries: createdEntries,
-        companyEntry: companyCreditEntry,
+        companyEntry: companyDebitEntry,
       };
     });
 

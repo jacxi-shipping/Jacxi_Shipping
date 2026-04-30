@@ -106,26 +106,40 @@ export default function InvoicesPage() {
 	const [searchTerm, setSearchTerm] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [showBulkTable, setShowBulkTable] = useState(false);
+	const [itemsPerPage, setItemsPerPage] = useState(25);
+	const [currentPage, setCurrentPage] = useState(1);
+	const [pagination, setPagination] = useState({ total: 0, totalAll: 0, limit: 25, offset: 0, hasMore: false });
 
 	const isAdmin = hasPermission(session?.user?.role, 'invoices:manage');
 
 	useEffect(() => {
-		fetchInvoices();
-	}, [statusFilter]);
+		setCurrentPage(1);
+		const timeout = setTimeout(() => {
+			fetchInvoices(0, itemsPerPage);
+		}, 250);
 
-	const fetchInvoices = async () => {
+		return () => clearTimeout(timeout);
+	}, [statusFilter, itemsPerPage, searchTerm]);
+
+	const fetchInvoices = async (offset = 0, limit = itemsPerPage) => {
 		try {
 			setLoading(true);
 			const params = new URLSearchParams();
 			if (statusFilter !== 'all') {
 				params.append('status', statusFilter.toUpperCase());
 			}
+			if (searchTerm.trim()) {
+				params.append('search', searchTerm.trim());
+			}
+			params.append('limit', limit.toString());
+			params.append('offset', offset.toString());
 			
 			const response = await fetch(`/api/invoices?${params}`, { cache: 'no-store' });
 			const data = await response.json();
 
 			if (response.ok) {
 				setInvoices(data.invoices || []);
+				setPagination(data.pagination || { total: 0, totalAll: 0, limit, offset, hasMore: false });
 			} else {
 				toast.error('Failed to load invoices');
 			}
@@ -135,6 +149,18 @@ export default function InvoicesPage() {
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const handlePageChange = (newPage: number) => {
+		const offset = (newPage - 1) * itemsPerPage;
+		setCurrentPage(newPage);
+		fetchInvoices(offset, itemsPerPage);
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	};
+
+	const handleItemsPerPageChange = (newLimit: number) => {
+		setItemsPerPage(newLimit);
+		setCurrentPage(1);
 	};
 
 	const handleDownloadPDF = async (invoice: Invoice) => {
@@ -180,21 +206,8 @@ export default function InvoicesPage() {
 		});
 	};
 
-	// Filter invoices based on search
-	const filteredInvoices = invoices.filter(invoice => {
-		const searchLower = searchTerm.toLowerCase();
-		const vehicleRef = invoice.shipment
-			? `${invoice.shipment.vehicleYear || ''} ${invoice.shipment.vehicleMake || ''} ${invoice.shipment.vehicleModel || ''} ${invoice.shipment.vehicleVIN || ''}`.toLowerCase()
-			: '';
-		const containerRef = invoice.container?.containerNumber?.toLowerCase() || '';
-		return (
-			invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
-			invoice.user.email.toLowerCase().includes(searchLower) ||
-			(invoice.user.name && invoice.user.name.toLowerCase().includes(searchLower)) ||
-			vehicleRef.includes(searchLower) ||
-			containerRef.includes(searchLower)
-		);
-	});
+	// Search and orphan filtering are handled by the API.
+	const filteredInvoices = invoices;
 
 	const invoiceRows: InvoiceTableRow[] = filteredInvoices.map((invoice) => {
 		// Determine reference: per-shipment invoices show vehicle info, container-based show container number
@@ -375,7 +388,7 @@ export default function InvoicesPage() {
 	// Calculate stats
 	// ⚡ Bolt: Consolidated multiple filter and reduce operations into a single O(N) loop
 	const stats = {
-		total: invoices.length,
+		total: pagination.totalAll,
 		paid: 0,
 		pending: 0,
 		overdue: 0,
@@ -463,7 +476,7 @@ export default function InvoicesPage() {
 			<DashboardSurface>
 				<DashboardPanel 
 					title="Invoices"
-					description={`${filteredInvoices.length} invoice(s)`}
+					description={`${pagination.total} invoice(s)`}
 				>
 					{/* Filters */}
 					<Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
@@ -616,6 +629,94 @@ export default function InvoicesPage() {
 						</TableContainer>
 					)}
 				</DashboardPanel>
+
+				{/* Pagination Controls */}
+				<Box sx={{ mt: 4, pt: 3, borderTop: '1px solid var(--border-color)' }}>
+					<Box sx={{ 
+						display: 'flex', 
+						justifyContent: 'space-between', 
+						alignItems: 'center',
+						flexWrap: 'wrap',
+						gap: 2,
+						mb: 3
+					}}>
+						{/* Items per page selector */}
+						<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+							<span style={{ fontSize: '0.875rem' }}>Items per page:</span>
+							<FormControl size="small" sx={{ minWidth: 80 }}>
+								<Select
+									value={itemsPerPage}
+									onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+								>
+									<MenuItem value={10}>10</MenuItem>
+									<MenuItem value={25}>25</MenuItem>
+									<MenuItem value={50}>50</MenuItem>
+									<MenuItem value={100}>100</MenuItem>
+								</Select>
+							</FormControl>
+						</Box>
+
+						{/* Pagination info and controls */}
+						<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+							<span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+								{pagination.total === 0
+									? 'Showing 0 of 0 invoices'
+									: `Showing ${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, pagination.total)} of ${pagination.total} invoices`}
+							</span>
+						</Box>
+
+						{/* Page Navigation */}
+						<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={currentPage === 1 || loading}
+								onClick={() => handlePageChange(currentPage - 1)}
+							>
+								← Previous
+							</Button>
+
+							{/* Page Numbers */}
+							<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+								{Array.from({ length: Math.min(5, Math.ceil(pagination.total / itemsPerPage)) }).map((_, index) => {
+									const totalPages = Math.ceil(pagination.total / itemsPerPage);
+									let pageNum = index + 1;
+
+									// Show pages around current page
+									if (currentPage > 3 && index === 0) {
+										pageNum = 1;
+									} else if (currentPage > 3) {
+										pageNum = currentPage - 2 + index;
+									}
+
+									if (pageNum > totalPages) return null;
+
+									return (
+										<Button
+											key={pageNum}
+											variant={pageNum === currentPage ? 'primary' : 'outline'}
+											size="sm"
+											disabled={loading}
+											onClick={() => handlePageChange(pageNum)}
+											sx={{ minWidth: '32px' }}
+										>
+											{pageNum}
+										</Button>
+									);
+								})}
+							</Box>
+
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={currentPage >= Math.ceil(pagination.total / itemsPerPage) || loading}
+								onClick={() => handlePageChange(currentPage + 1)}
+							>
+								Next →
+							</Button>
+						</Box>
+					</Box>
+				</Box>
 			</DashboardSurface>
 		</Box>
 	);

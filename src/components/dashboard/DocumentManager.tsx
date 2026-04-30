@@ -221,6 +221,7 @@ export function DocumentManager({
                   {getIcon(doc.type)}
                 </ListItemIcon>
                 <ListItemText
+                  primaryTypographyProps={{ component: 'div' }}
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>

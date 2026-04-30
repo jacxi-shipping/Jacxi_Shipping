@@ -38,7 +38,7 @@ interface AddShipmentExpenseModalProps {
 	shipments?: ShipmentOption[];
 	onSuccess: () => void;
 	modalTitle?: string;
-	/** Context type: determines which company ledger to credit */
+	/** Context type: determines which company ledger to debit */
 	contextType?: 'TRANSIT' | 'CONTAINER' | 'DISPATCH';
 	/** Context ID: the dispatch, transit, or container ID for additional routing context */
 	contextId?: string;
@@ -416,11 +416,11 @@ export default function AddShipmentExpenseModal({
 							/>
 
 							{!useSplitAmounts ? (
-								<TextField size="small" label="Amount (USD)" type="number" value={formData.amount} onChange={(e) => handleChange('amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Same amount charged to customer ledger and company ledger" />
+								<TextField size="small" label="Amount (USD)" type="number" value={formData.amount} onChange={(e) => handleChange('amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Same amount debited to customer ledger and company ledger" />
 							) : (
 								<>
 									<TextField size="small" label="User Amount (USD)" type="number" value={formData.amount} onChange={(e) => handleChange('amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount debited to customer ledger" />
-									<TextField size="small" label="Company Amount (USD)" type="number" value={formData.companyAmount} onChange={(e) => handleChange('companyAmount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount credited to company ledger (internal - not visible to customer)" />
+									<TextField size="small" label="Company Amount (USD)" type="number" value={formData.companyAmount} onChange={(e) => handleChange('companyAmount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount debited to company ledger (internal - not visible to customer)" />
 								</>
 							)}
 

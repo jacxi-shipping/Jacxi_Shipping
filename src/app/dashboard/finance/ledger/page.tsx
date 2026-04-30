@@ -13,6 +13,7 @@ import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   AttachMoney,
+  LocalShipping,
 } from '@mui/icons-material';
 import {  Box, Typography, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { Breadcrumbs, Button, toast, EmptyState, SkeletonCard, SkeletonTable, Tooltip, StatusBadge, TableSkeleton, StatsCard } from '@/components/design-system';
@@ -41,6 +42,8 @@ interface LedgerEntry {
 interface LedgerSummary {
   totalDebit: number;
   totalCredit: number;
+  totalShipmentPurchaseAmount: number;
+  totalShipmentExpenses: number;
   currentBalance: number;
   transactionInfoBreakdown?: Partial<Record<TransactionInfoType, {
     totalDebit: number;
@@ -64,6 +67,8 @@ export default function LedgerPage() {
   const [summary, setSummary] = useState<LedgerSummary>({
     totalDebit: 0,
     totalCredit: 0,
+    totalShipmentPurchaseAmount: 0,
+    totalShipmentExpenses: 0,
     currentBalance: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -348,11 +353,6 @@ export default function LedgerPage() {
     }
   ], []);
 
-  const totalCarPayment =
-    (summary.transactionInfoBreakdown?.CAR_PAYMENT?.totalDebit || 0) +
-    (summary.transactionInfoBreakdown?.SHIPPING_PAYMENT?.totalDebit || 0);
-  const totalShippingPayment = summary.transactionInfoBreakdown?.SHIPPING_PAYMENT?.totalCredit || 0;
-
   if (status === 'loading' || loading) {
     return (
       <ProtectedRoute>
@@ -379,13 +379,6 @@ export default function LedgerPage() {
         {/* Stats Cards */}
         <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           <StatsCard
-            icon={<AttachMoney />}
-            title="Total Car Payments"
-            value={formatCurrency(totalCarPayment)}
-            subtitle="Total charged from car + shipment payment records"
-            variant="warning"
-          />
-          <StatsCard
             icon={<TrendingDownIcon />}
             title="Total Credits"
             value={formatCurrency(summary.totalCredit)}
@@ -400,11 +393,18 @@ export default function LedgerPage() {
             variant="warning"
           />
           <StatsCard
+            icon={<LocalShipping />}
+            title="Total Shipment Purchase Amount"
+            value={formatCurrency(summary.totalShipmentPurchaseAmount)}
+            subtitle="Total car purchase amount in your account"
+            variant="default"
+          />
+          <StatsCard
             icon={<AttachMoney />}
-            title="Total Shipping Payments"
-            value={formatCurrency(totalShippingPayment)}
-            subtitle="Credits tagged as shipping payment"
-            variant="success"
+            title="Total Shipment Expenses"
+            value={formatCurrency(summary.totalShipmentExpenses)}
+            subtitle="All shipment expense debits"
+            variant="info"
           />
         </DashboardGrid>
 

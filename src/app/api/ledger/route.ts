@@ -19,6 +19,16 @@ function isPendingInvoiceEntry(metadata: unknown): boolean {
   return (metadata as Record<string, unknown>).pendingInvoice === true;
 }
 
+function isExpenseEntry(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object') return false;
+  return (metadata as Record<string, unknown>).isExpense === true;
+}
+
+function isShipmentPurchasePriceEntry(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object') return false;
+  return (metadata as Record<string, unknown>).isShipmentPurchasePrice === true;
+}
+
 // Schema for creating a ledger entry
 const createLedgerEntrySchema = z.object({
   userId: z.string(),
@@ -59,14 +69,19 @@ export async function GET(request: NextRequest) {
       await recalculateUserLedgerBalances(prisma, targetUserId);
     }
 
-    // Build where clause
-    const where: Record<string, unknown> = {
+    // Build base where clause for summary cards.
+    const summaryWhere: Record<string, unknown> = {
       userId: targetUserId,
     };
 
     if (shipmentId) {
-      where.shipmentId = shipmentId;
+      summaryWhere.shipmentId = shipmentId;
     }
+
+    // Build filtered where clause for the table.
+    const where: Record<string, unknown> = {
+      ...summaryWhere,
+    };
 
     if (type && (type === 'DEBIT' || type === 'CREDIT')) {
       where.type = type;
@@ -93,7 +108,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const [allEntries, latestEntry] = await Promise.all([
+    const [allEntries, summaryEntriesRaw, latestEntry, shipmentPurchaseSummary, unpaidShipmentPurchaseSummary] = await Promise.all([
       prisma.ledgerEntry.findMany({
         where,
         include: {
@@ -119,11 +134,42 @@ export async function GET(request: NextRequest) {
           transactionDate: 'desc',
         },
       }),
+      prisma.ledgerEntry.findMany({
+        where: summaryWhere,
+        select: {
+          type: true,
+          amount: true,
+          transactionInfoType: true,
+          shipmentId: true,
+          metadata: true,
+        },
+      }),
 
       prisma.ledgerEntry.findFirst({
         where: { userId: targetUserId },
         orderBy: { transactionDate: 'desc' },
         select: { balance: true },
+      }),
+      prisma.shipment.aggregate({
+        where: {
+          userId: targetUserId,
+          ...(shipmentId ? { id: shipmentId } : {}),
+        },
+        _sum: {
+          purchasePrice: true,
+        },
+      }),
+      prisma.shipment.aggregate({
+        where: {
+          userId: targetUserId,
+          ...(shipmentId ? { id: shipmentId } : {}),
+          paymentStatus: {
+            notIn: ['COMPLETED', 'CANCELLED', 'REFUNDED'],
+          },
+        },
+        _sum: {
+          purchasePrice: true,
+        },
       }),
     ]);
 
@@ -136,17 +182,29 @@ export async function GET(request: NextRequest) {
       return true;
     });
 
+    const summaryVisibleEntries = summaryEntriesRaw.filter((entry) => {
+      const isPaymentAllocation = isPaymentAllocationEntry(entry.metadata);
+      if (isPaymentAllocation) return false;
+
+      return true;
+    });
+
     const totalCount = visibleEntries.length;
     const pagedEntries = visibleEntries.slice((page - 1) * limit, page * limit);
 
     // Summary follows the same balance semantics as the running ledger: shipment expenses
     // affect balances immediately, while payment allocation helper rows stay hidden.
-    const summaryEntries = visibleEntries;
+    const summaryEntries = summaryVisibleEntries;
 
     const summary = summaryEntries.reduce(
       (accumulator, entry) => {
         if (entry.type === 'DEBIT') {
-          accumulator.totalDebit += entry.amount;
+          if (!isShipmentPurchasePriceEntry(entry.metadata)) {
+            accumulator.totalDebit += entry.amount;
+          }
+          if (isExpenseEntry(entry.metadata)) {
+            accumulator.totalShipmentExpenses += entry.amount;
+          }
         } else if (entry.type === 'CREDIT') {
           accumulator.totalCredit += entry.amount;
         }
@@ -171,6 +229,7 @@ export async function GET(request: NextRequest) {
       {
         totalDebit: 0,
         totalCredit: 0,
+        totalShipmentExpenses: 0,
         transactionInfoBreakdown: transactionInfoTypes.reduce<Record<string, { totalDebit: number; totalCredit: number; balance: number }>>((accumulator, currentType) => {
           accumulator[currentType] = {
             totalDebit: 0,
@@ -191,8 +250,11 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(totalCount / limit),
       },
       summary: {
-        totalDebit: summary.totalDebit,
+        totalDebit: summary.totalDebit + (unpaidShipmentPurchaseSummary._sum.purchasePrice || 0),
         totalCredit: summary.totalCredit,
+        totalShipmentPurchaseAmount: shipmentPurchaseSummary._sum.purchasePrice || 0,
+        totalUnpaidShipmentPurchaseAmount: unpaidShipmentPurchaseSummary._sum.purchasePrice || 0,
+        totalShipmentExpenses: summary.totalShipmentExpenses,
         currentBalance: latestEntry?.balance || 0,
         transactionInfoBreakdown: summary.transactionInfoBreakdown,
       },

@@ -496,6 +496,8 @@ export function ActivityLog({ logs }: ActivityLogProps) {
                 {getIcon(log.action)}
               </ListItemIcon>
               <ListItemText
+                primaryTypographyProps={{ component: 'div' }}
+                secondaryTypographyProps={{ component: 'div' }}
                 primary={
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>

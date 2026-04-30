@@ -136,6 +136,7 @@ export default function CompanyLedgerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [openEntry, setOpenEntry] = useState(false);
+  const [isPaymentMode, setIsPaymentMode] = useState(false);
   const [filters, setFilters] = useState({ search: '', type: '' });
   const [formData, setFormData] = useState({
     description: '',
@@ -172,6 +173,24 @@ export default function CompanyLedgerDetailPage() {
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+
+  const isExpenseRecoveryEntry = (row: LedgerEntry) => {
+    const category = (row.category || '').toLowerCase();
+    if (category.includes('expense recovery')) return true;
+
+    const metadata = (row.metadata || {}) as Record<string, unknown>;
+    return (
+      metadata.isExpenseRecovery === true ||
+      metadata.isDispatchExpense === true ||
+      metadata.isTransitExpense === true ||
+      metadata.isContainerExpense === true ||
+      typeof row.reference === 'string' &&
+        (row.reference.startsWith('shipment-expense:') ||
+          row.reference.startsWith('dispatch-expense:') ||
+          row.reference.startsWith('transit-expense:') ||
+          row.reference.startsWith('container-expense:'))
+    );
+  };
 
   const fetchCompany = async () => {
     const response = await fetch(`/api/finance/companies/${companyId}`);
@@ -311,6 +330,7 @@ export default function CompanyLedgerDetailPage() {
 
       toast.success('Transaction created');
       setOpenEntry(false);
+      setIsPaymentMode(false);
       setFormData({
         description: '',
         type: 'DEBIT',
@@ -320,6 +340,8 @@ export default function CompanyLedgerDetailPage() {
         reference: '',
         notes: '',
       });
+      // Reset type filter so the new entry is always visible
+      setFilters((prev) => ({ ...prev, type: '' }));
 
       await Promise.all([fetchLedger(), fetchReport()]);
     } catch (error) {
@@ -437,17 +459,23 @@ export default function CompanyLedgerDetailPage() {
         key: 'type',
         header: 'Type',
         align: 'center',
-        render: (_, row) => row.type,
+        render: (_, row) => {
+          const normalizedType = isExpenseRecoveryEntry(row) ? 'DEBIT' : row.type;
+          return normalizedType;
+        },
       },
       {
         key: 'amount',
         header: 'Amount',
         align: 'right',
-        render: (_, row) => (
-          <span style={{ color: row.type === 'DEBIT' ? 'var(--error)' : '#22c55e', fontWeight: 600 }}>
-            {row.type === 'DEBIT' ? '+' : '-'}{formatCurrency(row.amount)}
+        render: (_, row) => {
+          const normalizedType = isExpenseRecoveryEntry(row) ? 'DEBIT' : row.type;
+          return (
+          <span style={{ color: normalizedType === 'DEBIT' ? 'var(--error)' : '#22c55e', fontWeight: 600 }}>
+            {normalizedType === 'DEBIT' ? '+' : '-'}{formatCurrency(row.amount)}
           </span>
-        ),
+          );
+        },
       },
       {
         key: 'balance',
@@ -525,16 +553,27 @@ export default function CompanyLedgerDetailPage() {
               <Link href="/dashboard/finance/companies" style={{ textDecoration: 'none' }}>
                 <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
               </Link>
-              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenEntry(true)}>
+              <Button variant="outline" icon={<DollarSign className="w-4 h-4" />} onClick={() => {
+                setIsPaymentMode(true);
+                setFormData((prev) => ({ ...prev, type: 'CREDIT', category: 'Payment', description: `Payment to ${company?.name || 'Company'}` }));
+                setOpenEntry(true);
+              }}>
+                Record Payment
+              </Button>
+              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => {
+                setIsPaymentMode(false);
+                setFormData((prev) => ({ ...prev, type: 'DEBIT', category: '', description: '' }));
+                setOpenEntry(true);
+              }}>
                 Add Transaction
               </Button>
             </Box>
           }
         >
           <DashboardGrid className="grid-cols-1 md:grid-cols-4 mb-4">
-            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Debit" value={formatCurrency(summary.totalDebit)} variant="error" />
-            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Credit" value={formatCurrency(summary.totalCredit)} variant="success" />
-            <StatsCard icon={<Building2 className="w-5 h-5" />} title="Current Balance" value={formatCurrency(summary.currentBalance)} variant="info" />
+            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Expenses" value={formatCurrency(summary.totalDebit)} variant="error" />
+            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Paid" value={formatCurrency(summary.totalCredit)} variant="success" />
+            <StatsCard icon={<Building2 className="w-5 h-5" />} title="Amount Owed" value={formatCurrency(summary.currentBalance)} variant="info" />
             <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Transactions" value={report?.summary.transactionCount || entries.length} variant="default" />
           </DashboardGrid>
 
@@ -848,8 +887,8 @@ export default function CompanyLedgerDetailPage() {
           </DashboardPanel>
         )}
 
-        <Dialog open={openEntry} onClose={() => !posting && setOpenEntry(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Add Company Transaction</DialogTitle>
+        <Dialog open={openEntry} onClose={() => { if (!posting) { setOpenEntry(false); setIsPaymentMode(false); } }} maxWidth="sm" fullWidth>
+          <DialogTitle>{isPaymentMode ? `Record Payment to ${company?.name || 'Company'}` : 'Add Company Transaction'}</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
             <TextField label="Description" value={formData.description} onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))} required />
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
@@ -867,8 +906,8 @@ export default function CompanyLedgerDetailPage() {
             <TextField label="Notes" rows={3} multiline value={formData.notes} onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))} />
           </DialogContent>
           <DialogActions>
-            <Button variant="outline" onClick={() => setOpenEntry(false)} disabled={posting}>Cancel</Button>
-            <Button variant="primary" onClick={handleCreateEntry} disabled={posting}>{posting ? 'Saving...' : 'Save Transaction'}</Button>
+            <Button variant="outline" onClick={() => { setOpenEntry(false); setIsPaymentMode(false); }} disabled={posting}>Cancel</Button>
+            <Button variant="primary" onClick={handleCreateEntry} disabled={posting}>{posting ? 'Saving...' : isPaymentMode ? 'Record Payment' : 'Save Transaction'}</Button>
           </DialogActions>
         </Dialog>
 
