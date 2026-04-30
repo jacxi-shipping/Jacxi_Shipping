@@ -1,0 +1,500 @@
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Add, ChevronLeft, ChevronRight, Inventory2 } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
+import ShipmentRow from '@/components/dashboard/ShipmentRow';
+import SmartSearch, { SearchFilters } from '@/components/dashboard/SmartSearch';
+import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
+import { Button, EmptyState, Breadcrumbs, SkeletonTable, toast, StatusBadge } from '@/components/design-system';
+import { DataTable, Column } from '@/components/ui/DataTable';
+import { exportToCSVWithHeaders } from '@/lib/export';
+import { hasPermission } from '@/lib/rbac';
+
+interface Shipment {
+	id: string;
+	trackingNumber?: string;
+	vehicleType: string;
+	vehicleMake: string | null;
+	vehicleModel: string | null;
+	vehicleYear?: number | null;
+	vehicleVIN?: string | null;
+	purchasePrice?: number | null;
+	purchasePricePaid?: number | null;
+	origin?: string;
+	destination?: string;
+	status: string;
+	progress?: number;
+	estimatedDelivery?: string | null;
+	createdAt: string;
+	paymentStatus?: string;
+	dispatchId?: string | null;
+	containerId?: string | null;
+	transitId?: string | null;
+	dispatch?: {
+		id: string;
+		referenceNumber: string;
+		status?: string;
+		origin?: string | null;
+		destination?: string | null;
+	} | null;
+	container?: {
+		id: string;
+		containerNumber: string;
+		trackingNumber?: string | null;
+		status?: string;
+		currentLocation?: string | null;
+		progress?: number;
+	} | null;
+	transit?: {
+		id: string;
+		referenceNumber: string;
+		status?: string;
+		destination?: string | null;
+	} | null;
+	yardReceived?: boolean;
+	yardReceivedAt?: string | null;
+	user?: {
+		name: string | null;
+		email: string;
+	};
+}
+
+interface ShipmentTableRow {
+	id: string;
+	vehicle: string;
+	vin: string;
+	purchasePrice: number | null;
+	purchasePricePaid: number | null;
+	status: string;
+	yardReceived: boolean;
+	paymentStatus: string;
+	container: string;
+	createdAt: string;
+	customer: string;
+}
+
+export default function ShipmentsListPage() {
+	const router = useRouter();
+	const { data: session } = useSession();
+	const [shipments, setShipments] = useState<Shipment[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [showBulkTable, setShowBulkTable] = useState(false);
+	const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+		query: '',
+		type: 'shipments',
+	});
+	const [currentPage, setCurrentPage] = useState(1);
+	const [totalPages, setTotalPages] = useState(1);
+
+	const fetchShipments = useCallback(async () => {
+		try {
+			setLoading(true);
+			
+			// Build query params from search filters
+			const params = new URLSearchParams();
+			params.append('page', currentPage.toString());
+			params.append('limit', '10');
+			
+			if (searchFilters.query) params.append('query', searchFilters.query);
+			if (searchFilters.status) params.append('status', searchFilters.status);
+			if (searchFilters.workflowStage) params.append('workflowStage', searchFilters.workflowStage);
+			if (searchFilters.yardReceived) params.append('yardReceived', searchFilters.yardReceived);
+			if (searchFilters.dateFrom) params.append('dateFrom', searchFilters.dateFrom);
+			if (searchFilters.dateTo) params.append('dateTo', searchFilters.dateTo);
+			if (searchFilters.minPrice) params.append('minPrice', searchFilters.minPrice);
+			if (searchFilters.maxPrice) params.append('maxPrice', searchFilters.maxPrice);
+
+			const response = await fetch(`/api/search?${params.toString()}&type=shipments&sortBy=createdAt&sortOrder=desc`, { cache: 'no-store' });
+			const data = await response.json();
+			
+			setShipments(data.shipments ?? []);
+			setTotalPages(Math.ceil((data.totalShipments ?? 0) / 10) || 1);
+		} catch (error) {
+			console.error('Error fetching shipments:', error);
+			toast.error('Failed to load shipments', {
+				description: 'Please try again or refresh the page'
+			});
+			setShipments([]);
+		} finally {
+			setLoading(false);
+		}
+	}, [searchFilters, currentPage]);
+
+	useEffect(() => {
+		fetchShipments();
+	}, [fetchShipments]);
+
+	const handleSearch = (filters: SearchFilters) => {
+		setSearchFilters(filters);
+		setCurrentPage(1); // Reset to first page on new search
+	};
+
+	const isAdmin = session?.user?.role === 'admin';
+	const canManageShipments = hasPermission(session?.user?.role, 'shipments:manage');
+	const canMoveWorkflow = hasPermission(session?.user?.role, 'workflow:move') && canManageShipments;
+	const canUseBulkMode = canManageShipments || canMoveWorkflow;
+
+	const formatDate = (value: string) => new Date(value).toLocaleDateString();
+
+	const shipmentTableRows: ShipmentTableRow[] = shipments.map((shipment) => {
+		const vehicleInfo =
+			[shipment.vehicleMake, shipment.vehicleModel, shipment.vehicleYear]
+				.filter(Boolean)
+				.join(' ') || shipment.vehicleType;
+
+		return {
+			id: shipment.id,
+			vehicle: vehicleInfo,
+			vin: shipment.vehicleVIN ?? '-',
+			purchasePrice: shipment.purchasePrice ?? null,
+			purchasePricePaid: shipment.purchasePricePaid ?? null,
+			status: shipment.status,
+			yardReceived: Boolean(shipment.yardReceived),
+			paymentStatus: shipment.paymentStatus ?? '-',
+			container: shipment.transit?.referenceNumber
+				? `Transit ${shipment.transit.referenceNumber}`
+				: shipment.container?.containerNumber
+					? `Container ${shipment.container.containerNumber}`
+					: shipment.dispatch?.referenceNumber
+						? `Dispatch ${shipment.dispatch.referenceNumber}`
+						: 'Warehouse',
+			createdAt: shipment.createdAt,
+			customer: shipment.user?.name || shipment.user?.email || '-',
+		};
+	});
+
+	const canViewFinance = hasPermission(session?.user?.role, 'finance:manage');
+
+	const shipmentColumns: Column<ShipmentTableRow>[] = [
+		{ key: 'vehicle', header: 'Vehicle', sortable: true },
+		...(canViewFinance ? [{
+			key: 'purchasePrice' as const,
+			header: 'Purchase Price',
+			sortable: true,
+			render: (_: unknown, row: ShipmentTableRow) => {
+				if (row.purchasePrice == null) {
+					return <span style={{ color: 'var(--text-secondary)' }}>-</span>;
+				}
+
+				const total = Math.max(0, row.purchasePrice);
+				const paid = Math.max(0, row.purchasePricePaid || 0);
+				const remaining = Math.max(0, total - paid);
+				const isPaidOff = total > 0 && remaining <= 0;
+
+				return (
+					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2 }}>
+						<span style={{ fontWeight: 700, color: 'var(--accent-gold)' }}>
+							${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+						</span>
+						{paid > 0 ? (
+							<>
+								<span style={{ fontSize: '0.74rem', fontWeight: 700, color: isPaidOff ? 'rgb(34, 197, 94)' : 'rgb(251, 191, 36)' }}>
+									Paid ${Math.min(paid, total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+								</span>
+								<span style={{ fontSize: '0.72rem', fontWeight: 600, color: isPaidOff ? 'rgb(34, 197, 94)' : 'var(--text-secondary)' }}>
+									{isPaidOff ? '✓ Paid Off' : `Remaining $${remaining.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+								</span>
+							</>
+						) : (
+							<span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Unpaid</span>
+						)}
+					</Box>
+				);
+			},
+		}] : []),
+		{ key: 'vin', header: 'VIN', sortable: true },
+		{
+			key: 'status',
+			header: 'Status',
+			render: (value, row) => (
+				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+					<StatusBadge status={String(value)} size="sm" />
+					{row.yardReceived && (
+						<Box
+							sx={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								px: 1,
+								py: 0.35,
+								borderRadius: 999,
+								fontSize: '0.72rem',
+								fontWeight: 700,
+								bgcolor: 'rgba(34, 197, 94, 0.12)',
+								color: 'rgb(21, 128, 61)',
+								border: '1px solid rgba(34, 197, 94, 0.28)',
+							}}
+						>
+							Yard Received
+						</Box>
+					)}
+				</Box>
+			),
+		},
+		{
+			key: 'paymentStatus',
+			header: 'Payment',
+			render: (value) => <StatusBadge status={String(value)} size="sm" />,
+		},
+		{ key: 'container', header: 'Workflow', sortable: true },
+		{
+			key: 'createdAt',
+			header: 'Created',
+			sortable: true,
+			render: (value) => formatDate(String(value)),
+		},
+		...(isAdmin ? [{ key: 'customer', header: 'Customer', sortable: true }] : []),
+	];
+
+	const shipmentStatusOptions = [
+		{ value: 'ON_HAND', label: 'On Hand' },
+		{ value: 'IN_TRANSIT', label: 'In Transit' },
+		{ value: 'RELEASED', label: 'Released' },
+	];
+
+	const handleBulkDelete = async (shipmentIds: string[]) => {
+		if (!canManageShipments) return;
+		if (!confirm(`Delete ${shipmentIds.length} shipment(s)? This cannot be undone.`)) {
+			return;
+		}
+
+		try {
+			const response = await fetch('/api/bulk/shipments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'delete', shipmentIds }),
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data?.message || 'Bulk delete failed');
+			}
+
+			const data = await response.json();
+			toast.success('Shipments deleted', {
+				description: `${data.count || 0} shipment(s) removed`,
+			});
+			fetchShipments();
+		} catch (error) {
+			console.error('Error deleting shipments:', error);
+			toast.error('Failed to delete shipments');
+		}
+	};
+
+	const handleBulkExport = (rows: ShipmentTableRow[]) => {
+		try {
+			exportToCSVWithHeaders(
+				rows,
+				[
+					{ key: 'vehicle', label: 'Vehicle' },
+					{ key: 'vin', label: 'VIN' },
+					{ key: 'status', label: 'Status' },
+					{ key: 'paymentStatus', label: 'Payment' },
+						{ key: 'container', label: 'Workflow' },
+					{ key: 'createdAt', label: 'Created' },
+					...(isAdmin ? [{ key: 'customer' as const, label: 'Customer' }] : []),
+				],
+				'shipments'
+			);
+			toast.success('Export ready');
+		} catch (error) {
+			console.error('Error exporting shipments:', error);
+			toast.error('Failed to export shipments');
+		}
+	};
+
+	const handleBulkStatusUpdate = async (shipmentIds: string[], status: string) => {
+		if (!canMoveWorkflow) return;
+
+		try {
+			const response = await fetch('/api/bulk/shipments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'updateStatus', shipmentIds, data: { status } }),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data?.message || 'Bulk status update failed');
+			}
+
+			toast.success('Shipments updated', {
+				description: `${data.count || 0} shipment(s) updated`,
+			});
+			fetchShipments();
+		} catch (error) {
+			console.error('Error updating shipments:', error);
+			toast.error('Failed to update shipments');
+		}
+	};
+
+	return (
+		<DashboardSurface className="overflow-hidden">
+			{/* Breadcrumbs */}
+			<Box sx={{ px: 2, pt: 2 }}>
+				<Breadcrumbs />
+			</Box>
+			
+			<DashboardPanel
+				title="Search"
+				description="Filter shipments instantly"
+				noBodyPadding
+				className="overflow-hidden"
+				actions={
+					canManageShipments ? (
+						<Link href="/dashboard/shipments/new" style={{ textDecoration: 'none' }}>
+							<Button
+								variant="primary"
+								size="sm"
+								icon={<Add fontSize="small" />}
+								iconPosition="start"
+							>
+								New shipment
+							</Button>
+						</Link>
+					) : null
+				}
+			>
+				<Box sx={{ px: { xs: 1, sm: 1.25, md: 1.5 }, py: { xs: 1, sm: 1.25, md: 1.5 } }}>
+					<SmartSearch
+						onSearch={handleSearch}
+						placeholder="Search shipments by tracking number, VIN, origin, destination..."
+						showTypeFilter={false}
+						showStatusFilter
+						showWorkflowStageFilter
+						showYardFilter
+						showDateFilter
+						showPriceFilter
+						showUserFilter={isAdmin}
+						defaultType="shipments"
+					/>
+				</Box>
+			</DashboardPanel>
+
+			<DashboardPanel
+				title="Results"
+				description={
+					shipments.length
+						? `Showing ${shipments.length} shipment${shipments.length !== 1 ? 's' : ''}`
+						: 'No shipments found'
+				}
+				fullHeight
+				className="overflow-hidden"
+				bodyClassName="overflow-hidden"
+				actions={
+					canUseBulkMode ? (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setShowBulkTable((prev) => !prev)}
+						>
+							{showBulkTable ? 'Card view' : 'Bulk mode'}
+						</Button>
+					) : null
+				}
+			>
+				{loading ? (
+					<SkeletonTable rows={5} columns={6} />
+				) : shipments.length === 0 ? (
+					<EmptyState
+						icon={<Inventory2 />}
+						title="No shipments found"
+						description={searchFilters.query ? "Try adjusting your search filters" : "Get started by creating your first shipment"}
+						action={
+							canManageShipments ? (
+								<Link href="/dashboard/shipments/new" style={{ textDecoration: 'none' }}>
+									<Button variant="primary" icon={<Add />} iconPosition="start">
+										Create shipment
+									</Button>
+								</Link>
+							) : undefined
+						}
+					/>
+				) : (
+					<>
+						{showBulkTable ? (
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <DataTable
+                  data={shipmentTableRows}
+                  columns={shipmentColumns}
+                  keyField="id"
+									selectable={canUseBulkMode}
+                  onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
+									onDelete={canManageShipments ? handleBulkDelete : undefined}
+									onExport={canUseBulkMode ? handleBulkExport : undefined}
+                  bulkStatusOptions={shipmentStatusOptions}
+									onBulkStatusChange={canMoveWorkflow ? handleBulkStatusUpdate : undefined}
+                />
+              </Box>
+					) : null}
+
+          {/* Mobile/Tablet Card View - Always shown if not bulk table, or if bulk table is active but screen is small */}
+          <Box sx={{
+            display: showBulkTable ? { xs: 'flex', md: 'none' } : 'flex',
+            flexDirection: 'column',
+            gap: { xs: 1, sm: 1.15, md: 1.25 },
+            minWidth: 0,
+            width: '100%',
+            overflow: 'hidden',
+          }}>
+            {shipments.map((shipment, index) => (
+              <ShipmentRow
+                key={shipment.id}
+                {...shipment}
+                purchasePrice={canViewFinance ? (shipment.purchasePrice ?? null) : null}
+                purchasePricePaid={canViewFinance ? (shipment.purchasePricePaid ?? null) : null}
+                showCustomer={isAdmin}
+                delay={index * 0.05}
+              />
+            ))}
+          </Box>
+					
+					{totalPages > 1 && (
+						<Box
+							sx={{
+								mt: 2,
+								display: 'flex',
+								flexDirection: { xs: 'column', sm: 'row' },
+								alignItems: 'center',
+								justifyContent: 'space-between',
+								gap: 1,
+								width: '100%',
+							}}
+						>
+							<Button
+								variant="outline"
+								size="sm"
+								icon={<ChevronLeft sx={{ fontSize: { xs: 12, sm: 14 } }} />}
+								iconPosition="start"
+								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+								disabled={currentPage === 1}
+								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }} // Touch target size
+							>
+								Previous
+							</Button>
+							<Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.72rem', md: '0.75rem' }, color: 'var(--text-secondary)' }}>
+								Page {currentPage} of {totalPages}
+							</Typography>
+							<Button
+								variant="outline"
+								size="sm"
+								icon={<ChevronRight sx={{ fontSize: { xs: 12, sm: 14 } }} />}
+								iconPosition="end"
+								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+								disabled={currentPage === totalPages}
+								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }} // Touch target size
+							>
+								Next
+							</Button>
+						</Box>
+					)}
+				</>
+			)}
+			</DashboardPanel>
+		</DashboardSurface>
+	);
+}

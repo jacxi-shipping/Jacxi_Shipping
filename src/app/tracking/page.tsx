@@ -1,0 +1,429 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { motion } from 'framer-motion';
+import Button from '@/components/design-system/Button';
+import { AlertCircle, CheckCircle2, Clock, MapPin, Search, ArrowLeft, Ship, Package } from 'lucide-react';
+import Link from 'next/link';
+import Footer from '@/components/sections/Footer';
+
+interface TrackingEventEntry {
+	id: string;
+	status: string;
+	statusCode?: string;
+	location?: string;
+	terminal?: string;
+	timestamp?: string;
+	actual: boolean;
+	description?: string;
+}
+
+interface TrackingDetails {
+	containerNumber: string;
+	containerType?: string;
+	shipmentStatus?: string;
+	customerTracking?: {
+		currentStageKey: string;
+		currentStageLabel: string;
+		summary: string;
+		progressPercent: number;
+		milestones: Array<{
+			key: string;
+			label: string;
+			description: string;
+			state: 'pending' | 'current' | 'complete';
+			timestamp?: string;
+		}>;
+	};
+	origin?: string;
+	destination?: string;
+	currentLocation?: string;
+	estimatedArrival?: string;
+	estimatedDeparture?: string;
+	progress?: number | null;
+	company?: {
+		name?: string;
+		url?: string | null;
+		scacs?: string[];
+	};
+	events: TrackingEventEntry[];
+}
+
+const normalizeProgress = (value: TrackingDetails['progress']) => {
+	if (typeof value !== 'number' || Number.isNaN(value)) return null;
+	return Math.min(100, Math.max(0, Math.round(value)));
+};
+
+const formatDisplayDate = (value?: string) => {
+	if (!value) return null;
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return date.toLocaleString(undefined, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	});
+};
+
+export default function TrackingPage() {
+	return (
+		<Suspense fallback={null}>
+			<TrackingPageInner />
+		</Suspense>
+	);
+}
+
+function TrackingPageInner() {
+	const searchParams = useSearchParams();
+	const [trackingNumber, setTrackingNumber] = useState(() => searchParams.get('container') ?? '');
+	const [trackingDetails, setTrackingDetails] = useState<TrackingDetails | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const autoSearchDone = useRef(false);
+
+	const handleTrack = useCallback(async (overrideValue?: string) => {
+		const value = (overrideValue ?? trackingNumber).trim();
+		if (!value) {
+			setErrorMessage('Enter a container or tracking number to continue.');
+			setTrackingDetails(null);
+			return;
+		}
+
+		setIsLoading(true);
+		setErrorMessage(null);
+		setTrackingDetails(null);
+
+		try {
+			const response = await fetch('/api/tracking', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ trackNumber: value, needRoute: true }),
+			});
+
+			const payload = (await response.json()) as {
+				tracking?: TrackingDetails;
+				message?: string;
+			};
+
+			if (!response.ok) {
+				setErrorMessage(payload?.message || 'Unable to fetch tracking information.');
+				return;
+			}
+
+			const details: TrackingDetails | undefined = payload?.tracking;
+			if (!details) {
+				setErrorMessage('No tracking data returned for that number.');
+				return;
+			}
+
+			setTrackingDetails(details);
+		} catch (error: unknown) {
+			console.error('Tracking error:', error);
+			setErrorMessage(error instanceof Error ? error.message : 'Failed to fetch tracking information.');
+		} finally {
+			setIsLoading(false);
+		}
+	}, [trackingNumber]);
+
+	// Auto-search when the page is opened from a QR code scan
+	useEffect(() => {
+		const containerParam = searchParams.get('container');
+		if (containerParam && !autoSearchDone.current) {
+			autoSearchDone.current = true;
+			handleTrack(containerParam);
+		}
+	}, [handleTrack, searchParams]);
+
+	const progressValue = normalizeProgress(trackingDetails?.progress);
+	const customerMilestones = trackingDetails?.customerTracking?.milestones || [];
+	const timelineEvents = (trackingDetails?.events || []).map((event) => ({
+		...event,
+		displayTimestamp: formatDisplayDate(event.timestamp) || event.timestamp || 'Pending update',
+		icon: event.actual ? CheckCircle2 : Clock,
+	}));
+
+	return (
+		<>
+			{/* Simple Header with Back Button */}
+			<header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-4">
+							<Link href="/">
+								<Button variant="outline" size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
+									Back to Home
+								</Button>
+							</Link>
+							<div className="h-6 w-px bg-gray-300" />
+							<div className="flex items-center gap-2">
+								<Ship className="w-6 h-6 text-blue-600" />
+								<span className="text-lg font-bold text-gray-900">Track Shipment</span>
+							</div>
+						</div>
+						<Link href="/">
+							<div className="flex items-center gap-2">
+								<Ship className="w-7 h-7 text-blue-600" />
+								<span className="text-xl font-bold text-gray-900">JACXI Shipping</span>
+							</div>
+						</Link>
+					</div>
+				</div>
+			</header>
+
+			<main className="min-h-screen bg-gradient-to-br from-[rgb(var(--soft-white))] via-white to-blue-50/30 pt-24 pb-16">
+				<div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+					{/* Page Header */}
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.6 }}
+						className="text-center mb-12"
+					>
+						<h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+							Track Your <span className="text-[rgb(var(--jacxi-blue))]">Shipment</span>
+						</h1>
+						<p className="text-xl text-gray-600">
+							Enter your container or tracking number to get real-time updates
+						</p>
+					</motion.div>
+
+					{/* Tracking Input Card */}
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.5, delay: 0.1 }}
+						className="mb-10"
+					>
+					<div className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-2xl shadow-xl p-6 sm:p-8">
+						<form 
+							onSubmit={(e) => {
+								e.preventDefault();
+								handleTrack();
+							}}
+							className="flex flex-col sm:flex-row gap-3"
+							role="search"
+							aria-label="Container tracking search"
+						>
+							<div className="flex-1 relative">
+								<label htmlFor="tracking-input" className="sr-only">
+									Container or tracking number
+								</label>
+								<Package className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" aria-hidden="true" />
+								<input
+									id="tracking-input"
+									type="text"
+									value={trackingNumber}
+									onChange={(event) => setTrackingNumber(event.target.value)}
+									onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
+									placeholder="Enter container number (e.g., UETU6059142)"
+									autoComplete="off"
+									aria-required="true"
+									aria-describedby={errorMessage ? 'tracking-error' : undefined}
+									className="w-full pl-12 pr-4 py-4 text-base rounded-xl bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--jacxi-blue))]/50 focus:border-[rgb(var(--jacxi-blue))] transition-all touch-manipulation"
+								/>
+							</div>
+							<motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+								<Button
+									type="submit"
+									disabled={isLoading}
+									aria-label={isLoading ? "Tracking shipment" : "Track shipment"}
+									sx={{
+										width: { xs: '100%', sm: 'auto' },
+										height: '100%',
+										minHeight: '56px',
+										borderRadius: '0.75rem', // rounded-xl
+										fontSize: '1rem',
+										px: 4,
+										boxShadow: 'var(--shadow-lg)',
+										'&:hover': {
+											boxShadow: 'var(--shadow-xl)',
+										}
+									}}
+								>
+									{isLoading ? (
+										<span className="flex items-center justify-center gap-2">
+											Tracking...
+										</span>
+									) : (
+										<span className="flex items-center justify-center gap-2">
+											<Search className="w-5 h-5" aria-hidden="true" />
+											Track Now
+										</span>
+									)}
+								</Button>
+							</motion.div>
+						</form>
+
+							{errorMessage && (
+								<motion.div
+									initial={{ opacity: 0, y: -10 }}
+									animate={{ opacity: 1, y: 0 }}
+									className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 mt-4"
+								>
+									<AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+									<span>{errorMessage}</span>
+								</motion.div>
+							)}
+						</div>
+					</motion.div>
+
+					{/* Tracking Results */}
+					{trackingDetails && (
+						<div className="space-y-8">
+							{/* Container Details Card */}
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.4, delay: 0.1 }}
+								className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-2xl shadow-xl p-6 sm:p-8"
+							>
+								<h2 className="text-2xl font-bold text-gray-900 mb-6">Container Details</h2>
+								
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+									<div>
+										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Container Number</h3>
+										<p className="text-lg font-bold text-gray-900 break-all">{trackingDetails.containerNumber}</p>
+										{trackingDetails.company?.name && (
+											<p className="text-xs text-gray-500 mt-1">Carrier: {trackingDetails.company.name}</p>
+										)}
+									</div>
+									<div>
+										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Status</h3>
+										<span className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--jacxi-blue))]/40 bg-[rgb(var(--jacxi-blue))]/10 px-4 py-1.5 text-sm font-medium text-[rgb(var(--jacxi-blue))]">
+											{trackingDetails.customerTracking?.currentStageLabel || trackingDetails.shipmentStatus || 'In Transit'}
+										</span>
+										{trackingDetails.customerTracking?.summary && (
+											<p className="mt-2 text-sm text-gray-600">{trackingDetails.customerTracking.summary}</p>
+										)}
+									</div>
+									<div>
+										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Current Location</h3>
+										<p className="text-gray-900 text-sm font-medium">
+											{trackingDetails.currentLocation || 'Not available'}
+										</p>
+									</div>
+									<div>
+										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Estimated Arrival</h3>
+										<p className="text-gray-900 text-sm font-medium">
+											{formatDisplayDate(trackingDetails.estimatedArrival) || 'Not available'}
+										</p>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 text-sm">
+									<div>
+										<h4 className="text-xs uppercase tracking-wide text-gray-500 mb-1">Origin</h4>
+										<p className="text-gray-900 font-medium">{trackingDetails.origin || 'Not available'}</p>
+									</div>
+									<div>
+										<h4 className="text-xs uppercase tracking-wide text-gray-500 mb-1">Destination</h4>
+										<p className="text-gray-900 font-medium">{trackingDetails.destination || 'Not available'}</p>
+									</div>
+									<div>
+										<h4 className="text-xs uppercase tracking-wide text-gray-500 mb-1">Container Type</h4>
+										<p className="text-gray-900 font-medium">{trackingDetails.containerType || 'Not available'}</p>
+									</div>
+								</div>
+
+								{trackingDetails.customerTracking && (
+									<div className="space-y-3">
+										<div className="flex items-center justify-between text-sm">
+											<span className="font-medium text-gray-700">Customer Journey</span>
+											<span className="font-bold text-[rgb(var(--jacxi-blue))]">{trackingDetails.customerTracking.progressPercent}%</span>
+										</div>
+										<div className="h-3 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+											<div
+												className="h-full bg-gradient-to-r from-[rgb(var(--jacxi-blue))] to-[rgb(var(--jacxi-blue))]/80 transition-all duration-500"
+												style={{ width: `${trackingDetails.customerTracking.progressPercent}%` }}
+											/>
+										</div>
+									</div>
+								)}
+
+								{progressValue !== null && (
+									<div className="space-y-2">
+										<div className="flex items-center justify-between text-sm">
+											<span className="font-medium text-gray-700">Shipping Progress</span>
+											<span className="font-bold text-[rgb(var(--jacxi-blue))]">{progressValue}%</span>
+										</div>
+										<div className="h-3 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+											<div
+												className="h-full bg-gradient-to-r from-[rgb(var(--jacxi-blue))] to-[rgb(var(--jacxi-blue))]/80 transition-all duration-500"
+												style={{ width: `${progressValue}%` }}
+											/>
+										</div>
+									</div>
+								)}
+							</motion.div>
+
+							{/* Simplified Journey */}
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.4, delay: 0.2 }}
+								className="space-y-4"
+							>
+								<h2 className="text-2xl font-bold text-gray-900">Shipment Journey</h2>
+								<div className="space-y-3">
+									{customerMilestones.length === 0 && (
+										<div className="rounded-xl border border-gray-200 bg-white/80 px-6 py-4 text-sm text-gray-600">
+											No shipment milestones available yet.
+										</div>
+									)}
+									{customerMilestones.map((milestone) => {
+										const Icon = milestone.state === 'complete' ? CheckCircle2 : milestone.state === 'current' ? Package : Clock;
+										return (
+											<div key={milestone.key} className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-xl px-6 py-4 hover:shadow-lg transition-shadow duration-300">
+												<div className="flex flex-col gap-2">
+													<div className="flex items-center gap-3">
+														<Icon className={`w-5 h-5 ${milestone.state === 'complete' ? 'text-green-500' : milestone.state === 'current' ? 'text-[rgb(var(--jacxi-blue))]' : 'text-gray-400'}`} />
+														<span className="text-base font-semibold text-gray-900">{milestone.label}</span>
+													</div>
+													<div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 ml-8">
+														<span className="inline-flex items-center gap-1.5">
+															<Clock className="w-4 h-4" />
+															{formatDisplayDate(milestone.timestamp) || (milestone.state === 'pending' ? 'Pending update' : 'Updated')}
+														</span>
+													</div>
+													<p className="text-sm text-gray-600 ml-8">{milestone.description}</p>
+													{milestone.state === 'current' && trackingDetails.currentLocation && (
+														<p className="text-sm text-[rgb(var(--jacxi-blue))] ml-8 inline-flex items-center gap-1.5">
+															<MapPin className="w-4 h-4" />
+															Current update: {trackingDetails.currentLocation}
+														</p>
+													)}
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							</motion.div>
+						</div>
+					)}
+
+					{/* Help Section */}
+					{!trackingDetails && !errorMessage && (
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.5, delay: 0.3 }}
+							className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-2xl shadow-xl p-8 text-center"
+						>
+							<Package className="w-16 h-16 text-[rgb(var(--jacxi-blue))] mx-auto mb-4" />
+							<h3 className="text-xl font-bold text-gray-900 mb-2">Need Help Finding Your Tracking Number?</h3>
+							<p className="text-gray-600 mb-4">
+								Your container number should be provided in your booking confirmation email or shipping documents.
+							</p>
+							<p className="text-sm text-gray-500">
+								For assistance, contact us at <a href="tel:+971501234567" className="text-[rgb(var(--jacxi-blue))] hover:underline">+971 50 123 4567</a>
+							</p>
+						</motion.div>
+					)}
+				</div>
+			</main>
+			<Footer />
+		</>
+	);
+}

@@ -1,0 +1,930 @@
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
+import { hasPermission } from '@/lib/rbac';
+import {
+  ArrowBack,
+  Add,
+  Edit,
+  Delete,
+  Download,
+  Print,
+  FilterList,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  AttachMoney,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  LocalShipping,
+  Close,
+  Check,
+} from '@mui/icons-material';
+import {
+  Box,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Alert,
+  Snackbar,
+  Chip,
+} from '@mui/material';
+import { Breadcrumbs, Button, toast, EmptyState, SkeletonCard, SkeletonTable, Tooltip, StatusBadge, DashboardPageSkeleton, StatsCard } from '@/components/design-system';
+import { DataTable, Column } from '@/components/ui/DataTable';
+import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+
+interface LedgerEntry {
+  id: string;
+  transactionDate: string;
+  description: string;
+  type: 'DEBIT' | 'CREDIT';
+  transactionInfoType?: TransactionInfoType;
+  amount: number;
+  balance: number;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+  shipment?: {
+    id: string;
+    vehicleMake?: string;
+    vehicleModel?: string;
+  };
+}
+
+interface User {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+interface LedgerSummary {
+  totalDebit: number;
+  totalCredit: number;
+  totalShipmentPurchaseAmount: number;
+  totalShipmentExpenses: number;
+  currentBalance: number;
+  transactionInfoBreakdown: Record<TransactionInfoType, {
+    totalDebit: number;
+    totalCredit: number;
+    balance: number;
+  }>;
+}
+
+type TransactionInfoType = 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT';
+
+const transactionInfoTypeLabels: Record<TransactionInfoType, string> = {
+  CAR_PAYMENT: 'Car Payment',
+  SHIPPING_PAYMENT: 'Shipping Payment',
+  STORAGE_PAYMENT: 'Storage Payment',
+};
+
+export default function UserLedgerManagementPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const params = useParams();
+  const userId = params.userId as string;
+
+  const [user, setUser] = useState<User | null>(null);
+  const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  const [summary, setSummary] = useState<LedgerSummary>({
+    totalDebit: 0,
+    totalCredit: 0,
+    totalShipmentPurchaseAmount: 0,
+    totalShipmentExpenses: 0,
+    currentBalance: 0,
+    transactionInfoBreakdown: {
+      CAR_PAYMENT: { totalDebit: 0, totalCredit: 0, balance: 0 },
+      SHIPPING_PAYMENT: { totalDebit: 0, totalCredit: 0, balance: 0 },
+      STORAGE_PAYMENT: { totalDebit: 0, totalCredit: 0, balance: 0 },
+    },
+  });
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filters, setFilters] = useState({
+    search: '',
+    type: '',
+    transactionInfoType: '',
+    startDate: '',
+    endDate: '',
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<LedgerEntry | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const [formData, setFormData] = useState({
+    description: '',
+    type: 'DEBIT' as 'DEBIT' | 'CREDIT',
+    transactionInfoType: 'SHIPPING_PAYMENT' as TransactionInfoType,
+    amount: '',
+    notes: '',
+  });
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (!session) {
+      router.replace('/auth/signin');
+      return;
+    }
+    if (!hasPermission(session.user?.role, 'finance:manage')) {
+      router.replace('/dashboard/finance/ledger');
+      return;
+    }
+    fetchUser();
+    fetchLedgerEntries();
+  }, [session, status, router, userId, page, filters]);
+
+  const fetchUser = async () => {
+    try {
+      const response = await fetch(`/api/users/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
+
+  const fetchLedgerEntries = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        userId,
+        page: page.toString(),
+        limit: '20',
+        ...(filters.search && { search: filters.search }),
+        ...(filters.type && { type: filters.type }),
+        ...(filters.transactionInfoType && { transactionInfoType: filters.transactionInfoType }),
+        ...(filters.startDate && { startDate: filters.startDate }),
+        ...(filters.endDate && { endDate: filters.endDate }),
+      });
+
+      const response = await fetch(`/api/ledger?${params}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch ledger entries');
+      }
+
+      const data = await response.json();
+      setEntries(data.entries);
+      setSummary(data.summary);
+      setTotalPages(data.pagination.totalPages);
+    } catch (error) {
+      console.error('Error fetching ledger:', error);
+      toast.error('Failed to load ledger');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const amount = parseFloat(formData.amount);
+      // Balance check: customer must have enough credit for a DEBIT
+      if (formData.type === 'DEBIT') {
+        const availableCredit = summary.currentBalance < 0 ? -summary.currentBalance : 0;
+        if (amount > availableCredit) {
+          setSnackbar({
+            open: true,
+            message: `Insufficient balance. Customer only has ${formatCurrency(availableCredit)} available. Ask the customer to deposit more credit first.`,
+            severity: 'error',
+          });
+          return;
+        }
+      }
+      const response = await fetch('/api/ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          description: formData.description,
+          type: formData.type,
+          amount,
+          notes: formData.notes,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Transaction added successfully');
+        setShowAddModal(false);
+        setFormData({ description: '', type: 'DEBIT', transactionInfoType: 'SHIPPING_PAYMENT', amount: '', notes: '' });
+        fetchLedgerEntries();
+      } else {
+        const error = await response.json();
+        setSnackbar({ open: true, message: error.error || 'Failed to add transaction', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Error adding entry:', error);
+      toast.error('An error occurred');
+    }
+  };
+
+  const handleEditEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEntry) return;
+
+    try {
+      const response = await fetch(`/api/ledger/${selectedEntry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: formData.description,
+          notes: formData.notes,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Transaction updated successfully');
+        setShowEditModal(false);
+        setSelectedEntry(null);
+        setFormData({ description: '', type: 'DEBIT', transactionInfoType: 'SHIPPING_PAYMENT', amount: '', notes: '' });
+        fetchLedgerEntries();
+      } else {
+        const error = await response.json();
+        setSnackbar({ open: true, message: error.error || 'Failed to update transaction', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Error updating entry:', error);
+      toast.error('An error occurred');
+    }
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/ledger/${entryId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast.success('Transaction deleted successfully');
+        fetchLedgerEntries();
+      } else {
+        const error = await response.json();
+        setSnackbar({ open: true, message: error.error || 'Failed to delete transaction', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      toast.error('An error occurred');
+    }
+  };
+
+  const openEditModal = (entry: LedgerEntry) => {
+    setSelectedEntry(entry);
+    setFormData({
+      description: entry.description,
+      type: entry.type,
+      transactionInfoType: entry.transactionInfoType || 'SHIPPING_PAYMENT',
+      amount: entry.amount.toString(),
+      notes: entry.notes || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    try {
+      const params = new URLSearchParams({
+        userId,
+        ...(filters.startDate && { startDate: filters.startDate }),
+        ...(filters.endDate && { endDate: filters.endDate }),
+      });
+
+      const endpoint = format === 'pdf' ? '/api/ledger/export-pdf' : '/api/ledger/export';
+      const response = await fetch(`${endpoint}?${params}`);
+
+      if (!response.ok) throw new Error('Failed to export ledger');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ledger-${user?.name || 'user'}-${Date.now()}.${format === 'pdf' ? 'html' : 'csv'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Ledger exported successfully');
+    } catch (error) {
+      console.error('Error exporting ledger:', error);
+      toast.error('Failed to export ledger');
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getBalanceColor = (balance: number) => {
+    if (balance > 0) return '#ef4444';
+    if (balance < 0) return '#22c55e';
+    return 'var(--text-secondary)';
+  };
+
+  const columns = useMemo<Column<LedgerEntry>[]>(() => [
+    {
+      key: 'transactionDate',
+      header: 'Date',
+      sortable: true,
+      width: '15%',
+      render: (_, row) => (
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          {formatDate(row.transactionDate)}
+        </span>
+      )
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      sortable: true,
+      width: '35%',
+      render: (_, row) => {
+        const isPending = row.metadata?.pendingInvoice === true;
+        const isInvoicePaid = !isPending && (typeof row.metadata?.invoiceId === 'string' || typeof row.metadata?.invoiceNumber === 'string');
+        return (
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                {row.description}
+              </Typography>
+              {isPending && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+                    color: '#ca8a04',
+                    border: '1px solid rgba(234, 179, 8, 0.3)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Pending Invoice
+                </Box>
+              )}
+              {isInvoicePaid && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    color: '#16a34a',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Invoice Paid
+                </Box>
+              )}
+            </Box>
+            <Typography sx={{ fontSize: '0.72rem', color: 'var(--accent-gold)', mt: 0.5, fontWeight: 600 }}>
+              {row.transactionInfoType ? transactionInfoTypeLabels[row.transactionInfoType] : 'Not specified'}
+            </Typography>
+            {row.notes && (
+              <Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                {row.notes}
+              </Typography>
+            )}
+            {row.shipment && (
+              <Typography sx={{ fontSize: '0.75rem', color: 'var(--accent-gold)', mt: 0.5 }}>
+                {row.shipment.vehicleMake} {row.shipment.vehicleModel}
+              </Typography>
+            )}
+          </Box>
+        );
+      }
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      sortable: true,
+      align: 'center' as const,
+      width: '10%',
+      render: (_, row) => (
+        <Chip
+          label={row.type}
+          size="small"
+          icon={row.type === 'DEBIT' ? <TrendingUpIcon /> : <TrendingDownIcon />}
+          sx={{
+            backgroundColor: row.type === 'DEBIT' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+            color: row.type === 'DEBIT' ? '#ef4444' : '#22c55e',
+            fontWeight: 600,
+            fontSize: '0.75rem',
+          }}
+        />
+      )
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      sortable: true,
+      align: 'right' as const,
+      width: '15%',
+      render: (_, row) => (
+        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: row.type === 'DEBIT' ? '#ef4444' : '#22c55e' }}>
+          {row.type === 'DEBIT' ? '+' : '-'}{formatCurrency(row.amount)}
+        </span>
+      )
+    },
+    {
+      key: 'balance',
+      header: 'Balance',
+      sortable: true,
+      align: 'right' as const,
+      width: '15%',
+      render: (_, row) => (
+        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: getBalanceColor(row.balance) }}>
+          {formatCurrency(row.balance)}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center' as const,
+      width: '10%',
+      render: (_, row) => (
+        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+          <IconButton
+            size="small"
+            onClick={() => openEditModal(row)}
+            sx={{ color: 'var(--accent-gold)' }}
+          >
+            <Edit fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => handleDeleteEntry(row.id)}
+            sx={{ color: '#ef4444' }}
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+        </Box>
+      )
+    }
+  ], []);
+
+  if (status === 'loading' || loading || !user) {
+    return (
+      <ProtectedRoute>
+        <DashboardSurface>
+          <DashboardPageSkeleton />
+        </DashboardSurface>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      <DashboardSurface>
+        {/* Back Button & Title */}
+        <Box sx={{ mb: 2 }}>
+          <Link href="/dashboard/finance/admin/ledgers" style={{ textDecoration: 'none' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<ArrowBack />}
+              sx={{ textTransform: 'none', fontSize: '0.78rem', mb: 2 }}
+            >
+              Back to All Ledgers
+            </Button>
+          </Link>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+            {user.name || user.email}'s Ledger
+          </Typography>
+          <Typography sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+            Manage financial transactions for {user.email}
+          </Typography>
+        </Box>
+
+        {/* Summary Cards */}
+        <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+          <StatsCard
+            icon={<TrendingDownIcon />}
+            title="Total Credits"
+            value={formatCurrency(summary.totalCredit)}
+            subtitle="Amount paid"
+            variant="success"
+          />
+          <StatsCard
+            icon={<TrendingUpIcon />}
+            title="Total Debits"
+            value={formatCurrency(summary.totalDebit)}
+            subtitle="Amount charged"
+            variant="warning"
+          />
+          <StatsCard
+            icon={<LocalShipping />}
+            title="Total Shipment Purchase Amount"
+            value={formatCurrency(summary.totalShipmentPurchaseAmount)}
+            subtitle="Total car purchase amount for this customer"
+            variant="default"
+          />
+          <StatsCard
+            icon={<AttachMoney />}
+            title="Total Shipment Expenses"
+            value={formatCurrency(summary.totalShipmentExpenses)}
+            subtitle="All shipment expense debits"
+            variant="info"
+          />
+        </DashboardGrid>
+
+        {/* Filters Panel */}
+        <DashboardPanel
+          title="Filters & Actions"
+          description="Search and filter transactions"
+          actions={
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowAddModal(true)}
+              icon={<Add />}
+              sx={{ textTransform: 'none', fontSize: '0.78rem', fontWeight: 600 }}
+            >
+              Add Transaction
+            </Button>
+          }
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <TextField
+                placeholder="Search transactions..."
+                size="small"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                InputProps={{
+                  startAdornment: <Search sx={{ mr: 1, color: 'var(--text-secondary)', fontSize: 20 }} />,
+                }}
+                fullWidth
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                icon={<FilterList />}
+                sx={{ textTransform: 'none', fontSize: '0.75rem', minWidth: 120 }}
+              >
+                {showFilters ? 'Hide' : 'Show'} Filters
+              </Button>
+            </Box>
+
+            {showFilters && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    value={filters.type}
+                    onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                    label="Type"
+                  >
+                    <MenuItem value="">All Types</MenuItem>
+                    <MenuItem value="DEBIT">Debit Only</MenuItem>
+                    <MenuItem value="CREDIT">Credit Only</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  size="small"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+                <TextField
+                  label="End Date"
+                  type="date"
+                  size="small"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </Box>
+            )}
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                icon={<Print />}
+                sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+              >
+                Print
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('pdf')}
+                icon={<Download />}
+                sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+              >
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('excel')}
+                icon={<Download />}
+                sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+              >
+                Excel
+              </Button>
+            </Box>
+          </Box>
+        </DashboardPanel>
+
+        {/* Transactions Table */}
+        <DashboardPanel
+          title="Transaction History"
+          description={`${entries.length} transaction${entries.length !== 1 ? 's' : ''}`}
+          fullHeight
+        >
+          <DataTable 
+            data={entries}
+            columns={columns}
+            keyField="id"
+          />
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 3 }}>
+              <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Page {page} of {totalPages}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  icon={<ChevronLeft />}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  icon={<ChevronRight />}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                >
+                  Next
+                </Button>
+              </Box>
+            </Box>
+          )}
+        </DashboardPanel>
+      </DashboardSurface>
+
+      {/* Add Transaction Modal */}
+      <Dialog open={showAddModal} onClose={() => setShowAddModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6">Add Transaction</Typography>
+            <IconButton onClick={() => setShowAddModal(false)} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <form onSubmit={handleAddEntry}>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Account balance info */}
+              {(() => {
+                const availableCredit = summary.currentBalance < 0 ? -summary.currentBalance : 0;
+                const enteredAmount = parseFloat(formData.amount) || 0;
+                const isInsufficientCredit = formData.type === 'DEBIT' && enteredAmount > 0 && enteredAmount > availableCredit;
+                const hasNoCredit = summary.currentBalance >= 0;
+                return (
+                  <>
+                    <Alert
+                      severity={hasNoCredit ? 'error' : 'success'}
+                      sx={{ fontSize: '0.9rem', fontWeight: 500 }}
+                    >
+                      {hasNoCredit
+                        ? summary.currentBalance === 0
+                          ? 'Account Balance: $0.00 — No credit available. Customer must deposit funds first before any payment can be made.'
+                          : `Account Balance: Customer owes ${formatCurrency(summary.currentBalance)} — No credit available. Customer must deposit funds first.`
+                        : `Available Credit: ${formatCurrency(availableCredit)} — Customer can pay up to this amount.`}
+                    </Alert>
+                    {isInsufficientCredit && (
+                      <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                        ❌ Insufficient credit. Customer only has {formatCurrency(availableCredit)} available but you entered {formatCurrency(enteredAmount)}. Ask the customer to deposit more funds first.
+                      </Alert>
+                    )}
+                    {formData.type === 'DEBIT' && hasNoCredit && (
+                      <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                        ❌ Cannot make a payment — this customer has no credit in their account. Add a deposit (Credit) first.
+                      </Alert>
+                    )}
+                  </>
+                );
+              })()}
+
+              <FormControl fullWidth>
+                <InputLabel>Type *</InputLabel>
+                <Select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'DEBIT' | 'CREDIT' })}
+                  label="Type *"
+                  required
+                >
+                  <MenuItem value="CREDIT">Deposit / Add Credit (Customer pays in)</MenuItem>
+                  <MenuItem value="DEBIT">Payment / Debit (Pay from account)</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                label="Description *"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="e.g. Customer deposit, Car purchase payment"
+                required
+                fullWidth
+              />
+
+              <TextField
+                label="Amount * (USD)"
+                type="number"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                placeholder="0.00"
+                inputProps={{ step: '0.01', min: '0.01' }}
+                helperText={
+                  formData.type === 'CREDIT' && formData.amount
+                    ? `After deposit: account will have ${formatCurrency((summary.currentBalance < 0 ? -summary.currentBalance : 0) + parseFloat(formData.amount || '0'))} available`
+                    : formData.type === 'DEBIT' && formData.amount
+                    ? (() => {
+                        const amt = parseFloat(formData.amount);
+                        const avail = summary.currentBalance < 0 ? -summary.currentBalance : 0;
+                        if (amt <= avail) return `After payment: ${formatCurrency(avail - amt)} will remain available`;
+                        return '';
+                      })()
+                    : ''
+                }
+                FormHelperTextProps={{ sx: { color: '#22c55e' } }}
+                required
+                fullWidth
+              />
+
+              <TextField
+                label="Notes (Optional)"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Add any additional notes"
+                multiline
+                rows={3}
+                fullWidth
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowAddModal(false)} sx={{ textTransform: 'none' }}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              icon={<Check />}
+              sx={{ textTransform: 'none' }}
+              disabled={(() => {
+                if (formData.type === 'DEBIT') {
+                  const avail = summary.currentBalance < 0 ? -summary.currentBalance : 0;
+                  const amt = parseFloat(formData.amount) || 0;
+                  return avail === 0 || amt > avail;
+                }
+                return false;
+              })()}
+            >
+              Add Transaction
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Edit Transaction Modal */}
+      <Dialog open={showEditModal} onClose={() => setShowEditModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6">Edit Transaction</Typography>
+            <IconButton onClick={() => setShowEditModal(false)} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <form onSubmit={handleEditEntry}>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Alert severity="warning" sx={{ fontSize: '0.85rem' }}>
+                Note: Type and amount cannot be edited to maintain ledger integrity. Only description and notes can be updated.
+              </Alert>
+
+              <TextField
+                label="Type (Read-only)"
+                value={formData.type}
+                disabled
+                fullWidth
+              />
+
+              <TextField
+                label="Amount (Read-only)"
+                value={formatCurrency(parseFloat(formData.amount))}
+                disabled
+                fullWidth
+              />
+
+              <TextField
+                label="Description *"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                required
+                fullWidth
+              />
+
+              <TextField
+                label="Notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                multiline
+                rows={3}
+                fullWidth
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowEditModal(false)} sx={{ textTransform: 'none' }}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" icon={<Check />} sx={{ textTransform: 'none' }}>
+              Update Transaction
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </ProtectedRoute>
+  );
+}
