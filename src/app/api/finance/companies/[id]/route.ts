@@ -4,6 +4,38 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 
+function isCompanyExpenseLedgerEntry(entry: {
+  category?: string | null;
+  reference?: string | null;
+  metadata?: unknown;
+}) {
+  const category = (entry.category || '').toLowerCase();
+  const reference = (entry.reference || '').toLowerCase();
+  const metadata =
+    entry.metadata && typeof entry.metadata === 'object' && !Array.isArray(entry.metadata)
+      ? (entry.metadata as Record<string, unknown>)
+      : {};
+
+  if (category.includes('expense recovery') || category.includes('shipping fare') || category.includes('damage cost')) {
+    return true;
+  }
+
+  return (
+    metadata.isExpenseRecovery === true ||
+    metadata.isDispatchExpense === true ||
+    metadata.isTransitExpense === true ||
+    metadata.isContainerExpense === true ||
+    metadata.isShipmentShippingFare === true ||
+    metadata.isShipmentDamage === true ||
+    reference.startsWith('shipment-expense:') ||
+    reference.startsWith('dispatch-expense:') ||
+    reference.startsWith('transit-expense:') ||
+    reference.startsWith('container-expense:') ||
+    reference.startsWith('shipment-shipping-fare:') ||
+    reference.startsWith('shipment-damage:')
+  );
+}
+
 const updateCompanySchema = z.object({
   name: z.string().min(1).optional(),
   code: z.string().min(1).optional().nullable(),
@@ -160,7 +192,7 @@ export async function GET(
 
     // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
     // and parallelized with transit and dispatch shipment queries to reduce overall latency
-    const [transitShipments, dispatchShipments, groupedSums, latestEntry] = await Promise.all([
+    const [transitShipments, dispatchShipments, groupedSums, latestEntry, expenseEntries] = await Promise.all([
       transitShipmentsPromise,
       dispatchShipmentsPromise,
       prisma.companyLedgerEntry.groupBy({
@@ -173,7 +205,15 @@ export async function GET(
         orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
         select: { balance: true },
       }),
+      prisma.companyLedgerEntry.findMany({
+        where: { companyId: company.id },
+        select: { amount: true, category: true, reference: true, metadata: true },
+      }),
     ]);
+
+    const totalExpenseCharges = expenseEntries.reduce((sum, entry) => {
+      return isCompanyExpenseLedgerEntry(entry) ? sum + entry.amount : sum;
+    }, 0);
 
     const responseCompany = company.companyType === 'TRANSIT'
       ? {
@@ -200,6 +240,7 @@ export async function GET(
       summary: {
         totalDebit: groupedSums.find(g => g.type === 'DEBIT')?._sum?.amount || 0,
         totalCredit: groupedSums.find(g => g.type === 'CREDIT')?._sum?.amount || 0,
+        totalExpenseCharges,
         currentBalance: latestEntry?.balance || 0,
       },
     });

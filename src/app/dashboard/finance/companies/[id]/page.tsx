@@ -84,6 +84,7 @@ interface Company {
 interface CompanySummary {
   totalDebit: number;
   totalCredit: number;
+  totalExpenseCharges: number;
   currentBalance: number;
 }
 
@@ -130,7 +131,7 @@ export default function CompanyLedgerDetailPage() {
   const focusedEntryId = searchParams.get('entryId') || '';
 
   const [company, setCompany] = useState<Company | null>(null);
-  const [summary, setSummary] = useState<CompanySummary>({ totalDebit: 0, totalCredit: 0, currentBalance: 0 });
+  const [summary, setSummary] = useState<CompanySummary>({ totalDebit: 0, totalCredit: 0, totalExpenseCharges: 0, currentBalance: 0 });
   const [report, setReport] = useState<CompanyReport | null>(null);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,8 +224,10 @@ export default function CompanyLedgerDetailPage() {
     }
 
     setEntries(data.entries || []);
-    setSummary(data.summary || { totalDebit: 0, totalCredit: 0, currentBalance: 0 });
+    setSummary(data.summary || { totalDebit: 0, totalCredit: 0, totalExpenseCharges: 0, currentBalance: 0 });
   };
+
+  const canEditEntry = (row: LedgerEntry) => getDisplayType(row) === 'CREDIT' && !isExpenseRecoveryEntry(row);
 
   const fetchReport = async () => {
     const response = await fetch(`/api/finance/companies/${companyId}/reports`);
@@ -495,7 +498,7 @@ export default function CompanyLedgerDetailPage() {
         align: 'center',
         render: (_, row) => (
           <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-            {!isExpenseRecoveryEntry(row) && (
+            {canEditEntry(row) && (
               <Tooltip title="Edit transaction">
                 <IconButton
                   size="small"
@@ -579,10 +582,10 @@ export default function CompanyLedgerDetailPage() {
           }
         >
           <DashboardGrid className="grid-cols-1 md:grid-cols-4 mb-4">
-            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Expenses" value={formatCurrency(summary.totalDebit)} variant="error" />
-            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Paid" value={formatCurrency(summary.totalCredit)} variant="success" />
-            <StatsCard icon={<Building2 className="w-5 h-5" />} title="Amount Owed" value={formatCurrency(summary.currentBalance)} variant="info" />
-            <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Transactions" value={report?.summary.transactionCount || entries.length} variant="default" />
+            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Expenses" value={formatCurrency(summary.totalExpenseCharges)} variant="error" />
+            <StatsCard icon={<DollarSign className="w-5 h-5" />} title="Total Paid" value={formatCurrency(summary.totalDebit)} variant="success" />
+            <StatsCard icon={<Building2 className="w-5 h-5" />} title="Total Owed" value={formatCurrency(Math.abs(summary.currentBalance))} variant="info" />
+            <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Total Transactions" value={report?.summary.transactionCount || entries.length} variant="default" />
           </DashboardGrid>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px' }, gap: 1.5, mb: 2 }}>
