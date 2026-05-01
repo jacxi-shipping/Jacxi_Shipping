@@ -191,12 +191,12 @@ export async function POST(
           });
         }
       } else {
-        // COMPANY_PAYS: debit company ledger only (no customer ledger credit)
+        // COMPANY_PAYS: credit company ledger only (company service credit, no customer ledger credit)
         await tx.companyLedgerEntry.create({
           data: {
             companyId: container.companyId as string,
             description: `Shipment damage charge - ${validatedData.description} for ${vehicleLabel}${vinSuffix}`,
-            type: 'DEBIT',
+            type: 'CREDIT',
             amount: companyChargeAmount,
             balance: 0,
             category: 'Shipment Damage',

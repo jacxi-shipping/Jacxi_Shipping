@@ -169,12 +169,12 @@ export async function POST(
 
       const reference = `transit-expense:${createdExpense.id}`;
 
-      // 2. DEBIT transit company ledger (payable to company increases)
+      // 2. CREDIT transit company ledger (company service credit)
       const companyLedgerEntry = await tx.companyLedgerEntry.create({
         data: {
           companyId: transit.companyId as string,
           description: `Transit expense recovery - ${validatedData.type} (${transit.referenceNumber})`,
-          type: 'DEBIT',
+          type: 'CREDIT',
           amount: validatedData.amount,
           balance: 0,
           transactionDate: expenseDate,

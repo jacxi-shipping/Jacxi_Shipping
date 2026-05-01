@@ -118,7 +118,7 @@ async function replaceDispatchExpenseLedgerEffects(
     data: {
       companyId: input.companyId,
       description: `Dispatch expense recovery - ${input.type} (${input.dispatchReferenceNumber})`,
-      type: 'DEBIT',
+      type: 'CREDIT',
       amount: input.amount,
       balance: 0,
       transactionDate: input.date,

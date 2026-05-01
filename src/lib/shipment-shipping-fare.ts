@@ -113,7 +113,7 @@ export async function syncShipmentShippingFareEntries(
         data: {
           companyId: input.shippingCompanyId,
           description: `Shipping company charge for ${input.vehicleLabel}${vinSuffix}`,
-          type: 'DEBIT',
+          type: 'CREDIT',
           amount: input.companyFareAmount,
           balance: 0,
           category: 'Shipping Fare',

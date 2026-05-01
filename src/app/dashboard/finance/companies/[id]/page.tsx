@@ -140,7 +140,7 @@ export default function CompanyLedgerDetailPage() {
   const [filters, setFilters] = useState({ search: '', type: '' });
   const [formData, setFormData] = useState({
     description: '',
-    type: 'DEBIT',
+    type: 'CREDIT',
     amount: '',
     transactionDate: new Date().toISOString().slice(0, 10),
     category: '',
@@ -153,7 +153,7 @@ export default function CompanyLedgerDetailPage() {
   const [editEntry, setEditEntry] = useState<LedgerEntry | null>(null);
   const [editForm, setEditForm] = useState({
     description: '',
-    type: 'DEBIT',
+    type: 'CREDIT',
     amount: '',
     transactionDate: new Date().toISOString().slice(0, 10),
     category: '',
@@ -176,7 +176,7 @@ export default function CompanyLedgerDetailPage() {
 
   const isExpenseRecoveryEntry = (row: LedgerEntry) => {
     const category = (row.category || '').toLowerCase();
-    if (category.includes('expense recovery')) return true;
+    if (category.includes('expense recovery') || category.includes('shipping fare') || category.includes('damage cost')) return true;
 
     const metadata = (row.metadata || {}) as Record<string, unknown>;
     return (
@@ -184,13 +184,19 @@ export default function CompanyLedgerDetailPage() {
       metadata.isDispatchExpense === true ||
       metadata.isTransitExpense === true ||
       metadata.isContainerExpense === true ||
+      metadata.isShipmentShippingFare === true ||
+      metadata.isShipmentDamage === true ||
       typeof row.reference === 'string' &&
         (row.reference.startsWith('shipment-expense:') ||
           row.reference.startsWith('dispatch-expense:') ||
           row.reference.startsWith('transit-expense:') ||
-          row.reference.startsWith('container-expense:'))
+          row.reference.startsWith('container-expense:') ||
+          row.reference.startsWith('shipment-shipping-fare:') ||
+          row.reference.startsWith('shipment-damage:'))
     );
   };
+
+  const getDisplayType = (row: LedgerEntry) => (isExpenseRecoveryEntry(row) ? 'CREDIT' : row.type);
 
   const fetchCompany = async () => {
     const response = await fetch(`/api/finance/companies/${companyId}`);
@@ -333,7 +339,7 @@ export default function CompanyLedgerDetailPage() {
       setIsPaymentMode(false);
       setFormData({
         description: '',
-        type: 'DEBIT',
+        type: 'CREDIT',
         amount: '',
         transactionDate: new Date().toISOString().slice(0, 10),
         category: '',
@@ -460,7 +466,7 @@ export default function CompanyLedgerDetailPage() {
         header: 'Type',
         align: 'center',
         render: (_, row) => {
-          const normalizedType = isExpenseRecoveryEntry(row) ? 'DEBIT' : row.type;
+          const normalizedType = getDisplayType(row);
           return normalizedType;
         },
       },
@@ -469,7 +475,7 @@ export default function CompanyLedgerDetailPage() {
         header: 'Amount',
         align: 'right',
         render: (_, row) => {
-          const normalizedType = isExpenseRecoveryEntry(row) ? 'DEBIT' : row.type;
+          const normalizedType = getDisplayType(row);
           return (
           <span style={{ color: normalizedType === 'DEBIT' ? 'var(--error)' : '#22c55e', fontWeight: 600 }}>
             {normalizedType === 'DEBIT' ? '+' : '-'}{formatCurrency(row.amount)}
@@ -489,14 +495,16 @@ export default function CompanyLedgerDetailPage() {
         align: 'center',
         render: (_, row) => (
           <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-            <Tooltip title="Edit transaction">
-              <IconButton
-                size="small"
-                onClick={(event) => openEditEntryDialog(row, event)}
-              >
-                <Pencil className="w-4 h-4" />
-              </IconButton>
-            </Tooltip>
+            {!isExpenseRecoveryEntry(row) && (
+              <Tooltip title="Edit transaction">
+                <IconButton
+                  size="small"
+                  onClick={(event) => openEditEntryDialog(row, event)}
+                >
+                  <Pencil className="w-4 h-4" />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title="Delete transaction">
               <IconButton
                 size="small"
@@ -555,14 +563,14 @@ export default function CompanyLedgerDetailPage() {
               </Link>
               <Button variant="outline" icon={<DollarSign className="w-4 h-4" />} onClick={() => {
                 setIsPaymentMode(true);
-                setFormData((prev) => ({ ...prev, type: 'CREDIT', category: 'Payment', description: `Payment to ${company?.name || 'Company'}` }));
+                setFormData((prev) => ({ ...prev, type: 'DEBIT', category: 'Payment', description: `Payment to ${company?.name || 'Company'}` }));
                 setOpenEntry(true);
               }}>
                 Record Payment
               </Button>
               <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => {
                 setIsPaymentMode(false);
-                setFormData((prev) => ({ ...prev, type: 'DEBIT', category: '', description: '' }));
+                setFormData((prev) => ({ ...prev, type: 'CREDIT', category: '', description: '' }));
                 setOpenEntry(true);
               }}>
                 Add Transaction
@@ -617,7 +625,7 @@ export default function CompanyLedgerDetailPage() {
                     <>
                       <Box sx={{ mt: 1, fontWeight: 700, color: 'var(--text-primary)' }}>{focusedEntry.description}</Box>
                       <Box sx={{ mt: 0.75, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {new Date(focusedEntry.transactionDate).toLocaleString()} • {focusedEntry.type} • {formatCurrency(focusedEntry.amount)}
+                        {new Date(focusedEntry.transactionDate).toLocaleString()} • {getDisplayType(focusedEntry)} • {formatCurrency(focusedEntry.amount)}
                       </Box>
                       <Box sx={{ mt: 0.75, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                         {focusedEntry.category || 'General'}{focusedEntry.reference ? ` • Ref: ${focusedEntry.reference}` : ''}
@@ -893,8 +901,8 @@ export default function CompanyLedgerDetailPage() {
             <TextField label="Description" value={formData.description} onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))} required />
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
               <TextField select label="Type" value={formData.type} onChange={(event) => setFormData((prev) => ({ ...prev, type: event.target.value }))}>
-                <MenuItem value="DEBIT">DEBIT</MenuItem>
-                <MenuItem value="CREDIT">CREDIT</MenuItem>
+                <MenuItem value="DEBIT">DEBIT (Payment to Company)</MenuItem>
+                <MenuItem value="CREDIT">CREDIT (Company Charge/Expense)</MenuItem>
               </TextField>
               <TextField label="Amount" type="number" inputProps={{ min: 0.01, step: 0.01 }} value={formData.amount} onChange={(event) => setFormData((prev) => ({ ...prev, amount: event.target.value }))} />
             </Box>

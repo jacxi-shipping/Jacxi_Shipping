@@ -17,6 +17,44 @@ const createEntrySchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+function shouldForceCompanyExpenseCredit(input: {
+  description?: string;
+  category?: string;
+  reference?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const description = (input.description || '').toLowerCase();
+  const category = (input.category || '').toLowerCase();
+  const reference = (input.reference || '').toLowerCase();
+  const metadata = input.metadata || {};
+
+  const hasExpenseKeyword =
+    description.includes('expense') ||
+    description.includes('shipping fare') ||
+    description.includes('damage') ||
+    category.includes('expense') ||
+    category.includes('shipping fare') ||
+    category.includes('damage');
+
+  const hasExpenseReference =
+    reference.startsWith('shipment-expense:') ||
+    reference.startsWith('dispatch-expense:') ||
+    reference.startsWith('transit-expense:') ||
+    reference.startsWith('container-expense:') ||
+    reference.startsWith('shipment-shipping-fare:') ||
+    reference.startsWith('shipment-damage:');
+
+  const hasExpenseMetadata =
+    metadata.isExpenseRecovery === true ||
+    metadata.isDispatchExpense === true ||
+    metadata.isTransitExpense === true ||
+    metadata.isContainerExpense === true ||
+    metadata.isShipmentShippingFare === true ||
+    metadata.isShipmentDamage === true;
+
+  return hasExpenseKeyword || hasExpenseReference || hasExpenseMetadata;
+}
+
 export async function GET(
   request: NextRequest,
   props: { params: Promise<{ id: string }> }
@@ -131,13 +169,23 @@ export async function POST(
 
     const body = await request.json();
     const validatedData = createEntrySchema.parse(body);
+    const metadataObject = validatedData.metadata as Record<string, unknown> | undefined;
+    const normalizedType =
+      shouldForceCompanyExpenseCredit({
+        description: validatedData.description,
+        category: validatedData.category,
+        reference: validatedData.reference,
+        metadata: metadataObject,
+      })
+        ? 'CREDIT'
+        : validatedData.type;
 
     const entry = await prisma.$transaction(async (tx) => {
       const created = await tx.companyLedgerEntry.create({
         data: {
           companyId: params.id,
           description: validatedData.description,
-          type: validatedData.type,
+          type: normalizedType,
           amount: validatedData.amount,
           balance: 0,
           transactionDate: validatedData.transactionDate

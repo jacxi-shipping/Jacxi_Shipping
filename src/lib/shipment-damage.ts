@@ -11,7 +11,7 @@ export type SyncShipmentDamageInput = {
   shipmentId: string;
   userId: string;
   shippingCompanyId: string | null;
-  damageCost: number | null; // Cost to company (company debit)
+  damageCost: number | null; // Cost charged to company (company credit)
   damageCredit: number | null; // Credit to user (user credit)
   vehicleLabel: string;
   vehicleVIN?: string | null;
@@ -74,13 +74,13 @@ export async function syncShipmentDamageEntries(
   if (input.shouldPost) {
     const vinSuffix = input.vehicleVIN ? ` (VIN: ${input.vehicleVIN})` : '';
 
-    // Post damage cost as DEBIT to company ledger (company owes for damage)
+    // Post damage cost as CREDIT to company ledger (company charge)
     if (input.shippingCompanyId && input.damageCost && input.damageCost > 0) {
       await db.companyLedgerEntry.create({
         data: {
           companyId: input.shippingCompanyId,
           description: `Damage cost for ${input.vehicleLabel}${vinSuffix}`,
-          type: 'DEBIT',
+          type: 'CREDIT',
           amount: input.damageCost,
           balance: 0,
           category: 'Damage Cost',

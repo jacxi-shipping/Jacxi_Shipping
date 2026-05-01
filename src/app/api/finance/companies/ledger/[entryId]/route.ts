@@ -17,6 +17,44 @@ const updateEntrySchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+function shouldForceCompanyExpenseCredit(input: {
+  description?: string | null;
+  category?: string | null;
+  reference?: string | null;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const description = (input.description || '').toLowerCase();
+  const category = (input.category || '').toLowerCase();
+  const reference = (input.reference || '').toLowerCase();
+  const metadata = input.metadata || {};
+
+  const hasExpenseKeyword =
+    description.includes('expense') ||
+    description.includes('shipping fare') ||
+    description.includes('damage') ||
+    category.includes('expense') ||
+    category.includes('shipping fare') ||
+    category.includes('damage');
+
+  const hasExpenseReference =
+    reference.startsWith('shipment-expense:') ||
+    reference.startsWith('dispatch-expense:') ||
+    reference.startsWith('transit-expense:') ||
+    reference.startsWith('container-expense:') ||
+    reference.startsWith('shipment-shipping-fare:') ||
+    reference.startsWith('shipment-damage:');
+
+  const hasExpenseMetadata =
+    metadata.isExpenseRecovery === true ||
+    metadata.isDispatchExpense === true ||
+    metadata.isTransitExpense === true ||
+    metadata.isContainerExpense === true ||
+    metadata.isShipmentShippingFare === true ||
+    metadata.isShipmentDamage === true;
+
+  return hasExpenseKeyword || hasExpenseReference || hasExpenseMetadata;
+}
+
 export async function GET(
   _request: NextRequest,
   props: { params: Promise<{ entryId: string }> }
@@ -77,7 +115,15 @@ export async function PATCH(
 
     const existing = await prisma.companyLedgerEntry.findUnique({
       where: { id: params.entryId },
-      select: { id: true, companyId: true },
+      select: {
+        id: true,
+        companyId: true,
+        description: true,
+        type: true,
+        category: true,
+        reference: true,
+        metadata: true,
+      },
     });
 
     if (!existing) {
@@ -86,13 +132,28 @@ export async function PATCH(
 
     const body = await request.json();
     const validatedData = updateEntrySchema.parse(body);
+    const nextDescription = validatedData.description ?? existing.description;
+    const nextCategory = validatedData.category ?? existing.category;
+    const nextReference = validatedData.reference ?? existing.reference;
+    const nextMetadata =
+      (validatedData.metadata as Record<string, unknown> | undefined) ??
+      (existing.metadata as Record<string, unknown> | null);
+    const requestedType = validatedData.type ?? existing.type;
+    const normalizedType = shouldForceCompanyExpenseCredit({
+      description: nextDescription,
+      category: nextCategory,
+      reference: nextReference,
+      metadata: nextMetadata,
+    })
+      ? 'CREDIT'
+      : requestedType;
 
     const entry = await prisma.$transaction(async (tx) => {
       const updated = await tx.companyLedgerEntry.update({
         where: { id: params.entryId },
         data: {
           ...(validatedData.description !== undefined ? { description: validatedData.description } : {}),
-          ...(validatedData.type !== undefined ? { type: validatedData.type } : {}),
+          type: normalizedType,
           ...(validatedData.amount !== undefined ? { amount: validatedData.amount } : {}),
           ...(validatedData.transactionDate !== undefined
             ? { transactionDate: new Date(validatedData.transactionDate) }

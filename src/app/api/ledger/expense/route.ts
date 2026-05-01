@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId: resolvedCompanyId,
           description: `Expense recovery - ${description}`,
-          type: 'DEBIT',
+          type: 'CREDIT',
           amount: companyAmount,
           balance: 0,
           category: companyCategory,
