@@ -380,6 +380,32 @@ export default function ShipmentDetailPage() {
     }
   };
 
+  const downloadAllPhotos = async (urls: string[], label: string) => {
+    try {
+      setDownloading(true);
+      const response = await fetch('/api/photos/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photos: urls, filename: `${label.replace(/\s+/g, '-')}-photos.zip` }),
+      });
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${label.replace(/\s+/g, '-')}-photos.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading photos:', error);
+      toast.error('Failed to download photos', { description: 'Please try again' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleDeleteExpense = async (entryId: string) => {
     if (!confirm('Delete this expense? This will reverse the transaction from both the customer and company ledger.')) return;
     try {
@@ -1625,6 +1651,8 @@ export default function ShipmentDetailPage() {
               <PhotoGallery
                 photos={(shipment.vehiclePhotos || []).map(url => ({ url, label: 'Vehicle' }))}
                 onPhotoClick={(idx) => openLightbox(shipment.vehiclePhotos, idx, 'Vehicle Photos')}
+                onDownloadSingle={(url, idx) => downloadPhoto(url, idx)}
+                onDownloadAll={(urls) => downloadAllPhotos(urls, 'Vehicle Photos')}
               />
             </DashboardPanel>
 
@@ -1633,6 +1661,8 @@ export default function ShipmentDetailPage() {
               <PhotoGallery
                 photos={arrivalPhotos.map(url => ({ url, label: 'Arrival' }))}
                 onPhotoClick={(idx) => openLightbox(arrivalPhotos, idx, 'Arrival Photos')}
+                onDownloadSingle={(url, idx) => downloadPhoto(url, idx)}
+                onDownloadAll={(urls) => downloadAllPhotos(urls, 'Arrival Photos')}
                 canUpload={canUploadArrivalPhotos}
                 onUpload={handleArrivalPhotosUpload}
                 onDelete={canUploadArrivalPhotos ? removeArrivalPhoto : undefined}

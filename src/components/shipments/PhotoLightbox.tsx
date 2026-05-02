@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Download, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PhotoLightboxProps {
@@ -153,30 +153,31 @@ export default function PhotoLightbox({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
       >
-        {/* ── Top Bar ── */}
-        <div className="relative z-20 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 sm:px-6">
-          <div className="flex-1 min-w-0">
+        {/* ── Floating Copart-style Header ── */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex items-start justify-between px-4 pt-4 sm:px-6">
+          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-md border border-white/20 bg-black/65 px-2.5 py-1.5 backdrop-blur-md">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-white/75">Image</span>
+            <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-bold text-white">{index + 1}</span>
+            <span className="text-[11px] text-white/50">of</span>
+            <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-bold text-white">{images.length}</span>
             {title && (
-              <p className="truncate text-xs font-semibold uppercase tracking-widest text-white/50">{title}</p>
+              <span className="ml-1 max-w-[180px] truncate text-[10px] font-semibold uppercase tracking-widest text-white/45">
+                {title}
+              </span>
             )}
-            <p className="mt-0.5 text-sm font-bold text-white">
-              {index + 1}
-              <span className="ml-1 text-white/40">/ {images.length}</span>
-            </p>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2">
+          <div className="pointer-events-auto flex items-center gap-2">
             {onDownload && (
               <button
                 type="button"
                 onClick={() => void onDownload(current, index)}
                 disabled={downloading}
-                className="rounded-full bg-white/10 p-2 text-white transition-all hover:bg-white/20 disabled:opacity-50"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/65 text-white shadow-lg backdrop-blur-md transition-all hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] disabled:opacity-50"
                 aria-label="Download photo"
               >
                 {downloading ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
@@ -187,11 +188,11 @@ export default function PhotoLightbox({
                 type="button"
                 onClick={() => void handleDelete()}
                 disabled={deleting}
-                className="rounded-full bg-[var(--error)]/80 p-2 text-white transition-all hover:bg-[var(--error)] disabled:opacity-50"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-red-400/40 bg-red-500/20 text-red-200 shadow-lg backdrop-blur-md transition-all hover:bg-red-500/30 disabled:opacity-50"
                 aria-label="Delete photo"
               >
                 {deleting ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
@@ -200,7 +201,7 @@ export default function PhotoLightbox({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-white/10 p-2 text-white transition-all hover:bg-white/20"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/65 text-white shadow-lg backdrop-blur-md transition-all hover:bg-white/15"
               aria-label="Close viewer"
             >
               <X className="h-5 w-5" />
@@ -210,7 +211,7 @@ export default function PhotoLightbox({
 
         {/* ── Main image area ── */}
         <div
-          className="relative flex-1 overflow-hidden"
+          className="relative flex-1 overflow-hidden px-3 pb-3 pt-2 sm:px-8 sm:pb-6"
           onWheel={handleWheel}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
@@ -236,14 +237,14 @@ export default function PhotoLightbox({
                 onDragEnd={(_, info) => {
                   setPanOffset(prev => ({ x: prev.x + info.offset.x, y: prev.y + info.offset.y }));
                 }}
-                className="relative h-full w-full"
+                className="relative h-[min(82vh,980px)] w-[min(95vw,1600px)] overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-b from-white/5 to-white/[0.02] shadow-[0_30px_80px_rgba(0,0,0,0.65)]"
                 style={{ touchAction: 'none' }}
               >
                 <Image
                   src={current}
                   alt={`${title ? title + ' — ' : ''}Photo ${index + 1}`}
                   fill
-                  className="object-contain"
+                  className="object-contain p-2 sm:p-3"
                   unoptimized
                   priority
                 />
@@ -257,59 +258,28 @@ export default function PhotoLightbox({
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-white/40 hover:bg-black/80 sm:left-4 sm:p-3.5"
+                className="absolute left-4 top-1/2 z-30 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-gradient-to-b from-black/75 to-black/45 text-white shadow-[0_10px_26px_rgba(0,0,0,0.55)] backdrop-blur-md transition-all duration-200 hover:scale-105 hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:left-7 sm:h-14 sm:w-14"
                 aria-label="Previous photo"
               >
-                <ChevronLeft className="h-5 w-5 sm:h-7 sm:w-7" />
+                <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
               </button>
               <button
                 type="button"
                 onClick={() => navigate(1)}
-                className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-white/40 hover:bg-black/80 sm:right-4 sm:p-3.5"
+                className="absolute right-4 top-1/2 z-30 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-gradient-to-b from-black/75 to-black/45 text-white shadow-[0_10px_26px_rgba(0,0,0,0.55)] backdrop-blur-md transition-all duration-200 hover:scale-105 hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:right-7 sm:h-14 sm:w-14"
                 aria-label="Next photo"
               >
-                <ChevronRight className="h-5 w-5 sm:h-7 sm:w-7" />
+                <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
               </button>
             </>
           )}
         </div>
 
-        {/* ── Bottom Bar ── */}
-        <div className="relative z-20 bg-gradient-to-t from-black/80 to-transparent">
-          {/* Zoom controls */}
-          <div className="flex items-center justify-center gap-3 pt-3">
-            <button
-              type="button"
-              onClick={() => setZoom(z => Math.max(z - ZOOM_STEP, ZOOM_MIN))}
-              disabled={zoom <= ZOOM_MIN}
-              className="rounded-lg bg-white/10 p-1.5 text-white transition-all hover:bg-white/20 disabled:opacity-30"
-              aria-label="Zoom out"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom(1)}
-              className="min-w-[52px] rounded-lg bg-white/10 px-2 py-1 text-center text-xs font-semibold text-white transition-all hover:bg-white/20"
-              aria-label="Reset zoom"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom(z => Math.min(z + ZOOM_STEP, ZOOM_MAX))}
-              disabled={zoom >= ZOOM_MAX}
-              className="rounded-lg bg-white/10 p-1.5 text-white transition-all hover:bg-white/20 disabled:opacity-30"
-              aria-label="Zoom in"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Thumbnail strip */}
-          {images.length > 1 && (
-            <div className="overflow-x-auto pb-4 pt-2">
-              <div className="flex gap-2 px-4">
+        {/* ── Bottom Thumbnail Rail (Copart-style) ── */}
+        {images.length > 1 && (
+          <div className="relative z-20 border-t border-white/10 bg-black/70 backdrop-blur-sm">
+            <div className="overflow-x-auto py-3">
+              <div className="flex min-w-max items-center gap-2 px-4 sm:gap-2.5 sm:px-6">
                 {images.map((img, i) => (
                   <button
                     key={i}
@@ -319,10 +289,10 @@ export default function PhotoLightbox({
                       onNavigate(i);
                     }}
                     className={cn(
-                      'relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-200',
+                      'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border transition-all duration-200 sm:h-[72px] sm:w-[72px]',
                       i === index
-                        ? 'scale-110 border-[var(--accent-gold)] ring-1 ring-[var(--accent-gold)]/50'
-                        : 'border-white/20 opacity-50 hover:opacity-80 hover:border-white/50'
+                        ? 'border-[var(--accent-gold)] ring-2 ring-[var(--accent-gold)]/50'
+                        : 'border-white/25 opacity-70 hover:opacity-100 hover:border-white/60'
                     )}
                     aria-label={`Go to photo ${i + 1}`}
                   >
@@ -334,12 +304,18 @@ export default function PhotoLightbox({
                       loading="lazy"
                       unoptimized
                     />
+                    <span className={cn(
+                      'absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none',
+                      i === index ? 'bg-[var(--accent-gold)] text-black' : 'bg-black/70 text-white/90'
+                    )}>
+                      {i + 1}
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );
