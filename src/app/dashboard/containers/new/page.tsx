@@ -68,6 +68,7 @@ export default function NewContainerPage() {
         setFormData(prev => ({
           ...prev,
           trackingNumber: trackingData.trackingNumber || prev.trackingNumber,
+          bookingNumber: trackingData.bookingNumber || prev.bookingNumber,
           vesselName: trackingData.vesselName || prev.vesselName,
           voyageNumber: trackingData.voyageNumber || prev.voyageNumber,
           shippingLine: trackingData.shippingLine || prev.shippingLine,
