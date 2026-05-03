@@ -152,32 +152,50 @@ export default function PhotoLightbox({
     <AnimatePresence>
       <motion.div
         key="lightbox-backdrop"
-        className="fixed inset-0 z-[9999] flex flex-col bg-black/80"
-        style={{ backdropFilter: 'blur(8px)' }}
+        className="fixed inset-0 z-[9999] flex flex-col"
+        style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
         onClick={onClose}
       >
-        {/* ── Inner shell — prevents backdrop-click from firing on chrome ── */}
-        <div className="flex h-full flex-col" onClick={e => e.stopPropagation()}>
+        {/* ── Inner shell — stops backdrop-click from firing on chrome ── */}
+        <div
+          className="flex h-full flex-col overflow-hidden rounded-none shadow-2xl sm:m-6 sm:rounded-2xl"
+          style={{ backgroundColor: 'var(--panel)', border: '1px solid var(--border)' }}
+          onClick={e => e.stopPropagation()}
+        >
 
           {/* ══════════════════════════════════
-               TOP BAR — cinema header
+               TOP BAR
           ══════════════════════════════════ */}
-          <div className="z-40 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#18181b] px-4 py-2.5 sm:px-5">
+          <div
+            className="z-40 flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5"
+            style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--panel)' }}
+          >
 
-            {/* Left: title + counter */}
-            <div className="flex min-w-0 items-center gap-2.5">
+            {/* Left: title + counter + zoom badge */}
+            <div className="flex min-w-0 items-center gap-2">
               {title && (
-                <span className="truncate text-sm font-semibold text-white/90">{title}</span>
+                <span
+                  className="truncate text-sm font-semibold"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  {title}
+                </span>
               )}
-              <span className="shrink-0 rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-xs font-semibold text-white/70">
+              <span
+                className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
                 {index + 1} / {images.length}
               </span>
               {zoom > 1 && (
-                <span className="hidden shrink-0 rounded border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-2 py-0.5 text-[11px] font-bold text-[#D4AF37] sm:inline">
+                <span
+                  className="hidden shrink-0 rounded px-2 py-0.5 text-[11px] font-bold sm:inline"
+                  style={{ backgroundColor: 'var(--accent-gold)', color: '#000' }}
+                >
                   {zoomPct}%
                 </span>
               )}
@@ -190,7 +208,10 @@ export default function PhotoLightbox({
                 type="button"
                 onClick={() => setZoom(z => Math.max(z - ZOOM_STEP, ZOOM_MIN))}
                 disabled={zoom <= ZOOM_MIN}
-                className="hidden h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white/70 transition-all hover:border-white/30 hover:text-white disabled:opacity-30 sm:flex"
+                className="hidden h-8 w-8 items-center justify-center rounded-lg transition-all disabled:opacity-30 sm:flex"
+                style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-gold)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-gold)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
                 aria-label="Zoom out"
               >
                 <ZoomOut className="h-4 w-4" />
@@ -200,13 +221,16 @@ export default function PhotoLightbox({
                 type="button"
                 onClick={() => setZoom(z => Math.min(z + ZOOM_STEP, ZOOM_MAX))}
                 disabled={zoom >= ZOOM_MAX}
-                className="hidden h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white/70 transition-all hover:border-white/30 hover:text-white disabled:opacity-30 sm:flex"
+                className="hidden h-8 w-8 items-center justify-center rounded-lg transition-all disabled:opacity-30 sm:flex"
+                style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-gold)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-gold)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
                 aria-label="Zoom in"
               >
                 <ZoomIn className="h-4 w-4" />
               </button>
 
-              <div className="hidden h-5 w-px bg-white/10 sm:block" />
+              <div className="hidden h-5 w-px sm:block" style={{ backgroundColor: 'var(--border)' }} />
 
               {/* Download current */}
               {onDownload && (
@@ -214,7 +238,10 @@ export default function PhotoLightbox({
                   type="button"
                   onClick={() => void onDownload(current, index)}
                   disabled={downloading}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 text-xs font-semibold text-white/80 transition-all hover:border-[#D4AF37]/60 hover:text-[#D4AF37] disabled:opacity-40"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-all disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-gold)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-gold)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
                   aria-label="Download this photo"
                 >
                   {downloading ? (
@@ -232,7 +259,8 @@ export default function PhotoLightbox({
                   type="button"
                   onClick={() => void onDownloadAll(images)}
                   disabled={downloading}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#D4AF37] px-2.5 text-xs font-bold text-black transition-all hover:brightness-110 disabled:opacity-40"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--accent-gold)', color: '#000' }}
                   aria-label="Download all photos"
                 >
                   {downloading ? (
@@ -250,7 +278,8 @@ export default function PhotoLightbox({
                   type="button"
                   onClick={() => void handleDelete()}
                   disabled={deleting}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 text-xs font-semibold text-red-400 transition-all hover:bg-red-500/20 disabled:opacity-40"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-all disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--error-light)', border: '1px solid var(--error)', color: 'var(--error)' }}
                   aria-label="Delete photo"
                 >
                   {deleting ? (
@@ -262,13 +291,16 @@ export default function PhotoLightbox({
                 </button>
               )}
 
-              <div className="hidden h-5 w-px bg-white/10 sm:block" />
+              <div className="hidden h-5 w-px sm:block" style={{ backgroundColor: 'var(--border)' }} />
 
               {/* Close */}
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white/70 transition-all hover:border-white/35 hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+                style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--text-primary)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
                 aria-label="Close viewer"
               >
                 <X className="h-4 w-4" />
@@ -277,10 +309,10 @@ export default function PhotoLightbox({
           </div>
 
           {/* ══════════════════════════════════
-               MAIN IMAGE STAGE
+               MAIN IMAGE STAGE — intentionally dark for photo viewing
           ══════════════════════════════════ */}
           <div
-            className="relative flex-1 overflow-hidden bg-[#09090b]"
+            className="relative flex-1 overflow-hidden bg-black"
             onWheel={handleWheel}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
@@ -295,7 +327,7 @@ export default function PhotoLightbox({
                 animate="center"
                 exit="exit"
                 transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                className="absolute inset-0 flex items-center justify-center p-6 sm:p-10"
+                className="absolute inset-0 flex items-center justify-center p-4 sm:p-8"
                 style={{ cursor: zoom > 1 ? 'grab' : 'default' }}
               >
                 <motion.div
@@ -306,14 +338,14 @@ export default function PhotoLightbox({
                   onDragEnd={(_, info) => {
                     setPanOffset(prev => ({ x: prev.x + info.offset.x, y: prev.y + info.offset.y }));
                   }}
-                  className="relative h-full w-full overflow-hidden rounded-lg shadow-2xl"
+                  className="relative h-full w-full"
                   style={{ touchAction: 'none' }}
                 >
                   <Image
                     src={current}
                     alt={`${title ? title + ' — ' : ''}Photo ${index + 1}`}
                     fill
-                    className="object-contain"
+                    className="object-contain drop-shadow-2xl"
                     unoptimized
                     priority
                   />
@@ -321,13 +353,16 @@ export default function PhotoLightbox({
               </motion.div>
             </AnimatePresence>
 
-            {/* ── Navigation arrows ── */}
+            {/* ── Navigation arrows — centered vertically in image stage ── */}
             {images.length > 1 && (
               <>
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
-                  className="absolute left-3 top-1/2 z-30 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-[#18181b]/90 text-white/80 shadow-xl backdrop-blur-sm transition-all duration-200 hover:border-[#D4AF37]/60 hover:text-[#D4AF37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] sm:h-12 sm:w-12"
+                  className="absolute left-4 top-1/2 z-30 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-xl shadow-lg backdrop-blur-sm transition-all duration-200 focus-visible:outline-none sm:h-12 sm:w-12"
+                  style={{ backgroundColor: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-gold)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-gold)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
                   aria-label="Previous photo"
                 >
                   <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -335,7 +370,10 @@ export default function PhotoLightbox({
                 <button
                   type="button"
                   onClick={() => navigate(1)}
-                  className="absolute right-3 top-1/2 z-30 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-[#18181b]/90 text-white/80 shadow-xl backdrop-blur-sm transition-all duration-200 hover:border-[#D4AF37]/60 hover:text-[#D4AF37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] sm:h-12 sm:w-12"
+                  className="absolute right-4 top-1/2 z-30 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-xl shadow-lg backdrop-blur-sm transition-all duration-200 focus-visible:outline-none sm:h-12 sm:w-12"
+                  style={{ backgroundColor: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-gold)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-gold)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
                   aria-label="Next photo"
                 >
                   <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -343,9 +381,11 @@ export default function PhotoLightbox({
               </>
             )}
 
-            {/* ── Double-tap hint (shown only when not zoomed) ── */}
+            {/* ── Zoom hint ── */}
             {zoom === 1 && (
-              <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[11px] text-white/40 backdrop-blur-sm">
+              <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] text-white/40 backdrop-blur-sm"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.35)' }}
+              >
                 Double-click or scroll to zoom
               </p>
             )}
@@ -355,7 +395,10 @@ export default function PhotoLightbox({
                THUMBNAIL STRIP
           ══════════════════════════════════ */}
           {images.length > 1 && (
-            <div className="z-20 shrink-0 border-t border-white/10 bg-[#18181b] py-3">
+            <div
+              className="z-20 shrink-0 py-3"
+              style={{ borderTop: '1px solid var(--border)', backgroundColor: 'var(--panel)' }}
+            >
               <div className="overflow-x-auto">
                 <div className="flex min-w-max items-center gap-2 px-4 sm:px-5">
                   {images.map((img, i) => (
@@ -368,10 +411,12 @@ export default function PhotoLightbox({
                       }}
                       className={cn(
                         'relative h-[60px] w-[60px] flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-150 sm:h-[68px] sm:w-[68px]',
-                        i === index
-                          ? 'border-[#D4AF37] shadow-[0_0_0_2px_rgba(212,175,55,0.25)]'
-                          : 'border-white/10 opacity-60 hover:border-white/30 hover:opacity-90'
+                        i === index ? 'opacity-100' : 'opacity-60 hover:opacity-100'
                       )}
+                      style={i === index
+                        ? { borderColor: 'var(--accent-gold)', boxShadow: '0 0 0 2px rgba(212,175,55,0.25)' }
+                        : { borderColor: 'var(--border)' }
+                      }
                       aria-label={`Go to photo ${i + 1}`}
                     >
                       <Image
@@ -382,10 +427,13 @@ export default function PhotoLightbox({
                         loading="lazy"
                         unoptimized
                       />
-                      <span className={cn(
-                        'absolute bottom-0.5 right-0.5 rounded px-1 py-0.5 text-[9px] font-bold leading-none',
-                        i === index ? 'bg-[#D4AF37] text-black' : 'bg-black/70 text-white/80'
-                      )}>
+                      <span
+                        className="absolute bottom-0.5 right-0.5 rounded px-1 py-0.5 text-[9px] font-bold leading-none"
+                        style={i === index
+                          ? { backgroundColor: 'var(--accent-gold)', color: '#000' }
+                          : { backgroundColor: 'rgba(0,0,0,0.65)', color: '#fff' }
+                        }
+                      >
                         {i + 1}
                       </span>
                     </button>
