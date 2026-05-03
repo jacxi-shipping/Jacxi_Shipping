@@ -23,7 +23,8 @@ export default function DashboardLayout({
 				<Box
 					className="dashboard-theme-light"
 				sx={{
-					minHeight: '100vh',
+					height: '100vh',
+					overflow: 'hidden',
 					bgcolor: 'var(--background)',
 					display: 'flex',
 					flexDirection: 'column',
