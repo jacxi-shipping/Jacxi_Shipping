@@ -61,6 +61,11 @@ export async function GET(
       where: { transitId: params.id },
       include: {
         shipment: { select: { id: true, vehicleMake: true, vehicleModel: true, vehicleVIN: true } },
+        transitEvent: {
+          include: {
+            company: { select: { id: true, name: true, code: true } },
+          },
+        },
       },
       orderBy: { date: 'desc' },
     });
@@ -96,8 +101,25 @@ export async function POST(
       where: { id: params.id },
       select: {
         id: true,
-        companyId: true,
+        status: true,
         referenceNumber: true,
+        events: {
+          orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+          take: 1,
+          select: {
+            id: true,
+            companyId: true,
+            origin: true,
+            destination: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
         shipments: {
           select: {
             id: true,
@@ -117,13 +139,15 @@ export async function POST(
       return NextResponse.json({ error: 'Transit not found' }, { status: 404 });
     }
 
-    if ((transit as any).status && ['DELIVERED', 'CANCELLED'].includes(String((transit as any).status)) && !isClosedStageOverrideAllowed(session.user?.role)) {
+    if (['DELIVERED', 'CANCELLED'].includes(String(transit.status)) && !isClosedStageOverrideAllowed(session.user?.role)) {
       return NextResponse.json({ error: 'Cannot add expenses to a delivered or cancelled transit' }, { status: 400 });
     }
 
-    if (!transit.companyId) {
+    const currentEvent = transit.events[0] ?? null;
+
+    if (!currentEvent) {
       return NextResponse.json(
-        { error: 'Assign a company to this transit before adding expenses' },
+        { error: 'Add a transit event with route and company before adding expenses' },
         { status: 400 }
       );
     }
@@ -154,6 +178,7 @@ export async function POST(
       const createdExpense = await tx.transitExpense.create({
         data: {
           transitId: params.id,
+          transitEventId: currentEvent.id,
           type: validatedData.type,
           description: `Transit expense - ${validatedData.type}`,
           amount: validatedData.amount,
@@ -172,8 +197,8 @@ export async function POST(
       // 2. CREDIT transit company ledger (company service credit)
       const companyLedgerEntry = await tx.companyLedgerEntry.create({
         data: {
-          companyId: transit.companyId as string,
-          description: `Transit expense recovery - ${validatedData.type} (${transit.referenceNumber})`,
+          companyId: currentEvent.companyId,
+          description: `Transit expense recovery - ${validatedData.type} (${transit.referenceNumber} • ${currentEvent.origin} → ${currentEvent.destination})`,
           type: 'CREDIT',
           amount: validatedData.amount,
           balance: 0,
@@ -187,11 +212,14 @@ export async function POST(
             transitExpenseId: createdExpense.id,
             transitId: params.id,
             transitRef: transit.referenceNumber,
+            transitEventId: currentEvent.id,
+            transitEventOrigin: currentEvent.origin,
+            transitEventDestination: currentEvent.destination,
           },
         },
       });
       console.log(`[CREATE EXPENSE] Created company ledger entry ${companyLedgerEntry.id}`, {
-        companyId: transit.companyId,
+        companyId: currentEvent.companyId,
         amount: validatedData.amount,
         metadata: companyLedgerEntry.metadata,
       });
@@ -230,8 +258,11 @@ export async function POST(
               transitExpenseId: createdExpense.id,
               transitId: params.id,
               transitRef: transit.referenceNumber,
+              transitEventId: currentEvent.id,
+              transitEventOrigin: currentEvent.origin,
+              transitEventDestination: currentEvent.destination,
               expenseType: validatedData.type,
-              linkedCompanyId: transit.companyId,
+              linkedCompanyId: currentEvent.companyId,
             },
           },
         });
@@ -253,7 +284,7 @@ export async function POST(
       for (const userId of affectedUserIds) {
         await recalculateUserLedgerBalances(tx, userId);
       }
-      await recalculateCompanyLedgerBalances(tx, transit.companyId as string);
+      await recalculateCompanyLedgerBalances(tx, currentEvent.companyId);
 
       return createdExpense;
     });
@@ -291,14 +322,13 @@ export async function DELETE(
     const expense = await prisma.transitExpense.findUnique({
       where: { id: expenseId },
       include: {
-        transit: { select: { id: true, companyId: true, status: true } },
+        transit: { select: { id: true, status: true } },
       },
     });
 
     console.log(`[DELETE EXPENSE] Attempting to delete expense: ${expenseId}`, {
       found: !!expense,
       transitId: expense?.transitId,
-      companyId: expense?.transit.companyId,
       amount: expense?.amount,
       type: expense?.type,
     });
@@ -364,9 +394,6 @@ export async function DELETE(
       console.log(`[DELETE EXPENSE] Recalculated balances for ${userIds.length} users`);
 
       const companyIds = new Set(linkedCompanyEntries.map((e) => e.companyId));
-      if (expense.transit.companyId) {
-        companyIds.add(expense.transit.companyId);
-      }
       for (const companyId of companyIds) {
         await recalculateCompanyLedgerBalances(tx, companyId);
       }

@@ -5,7 +5,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'name'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "name" TEXT;
@@ -16,7 +16,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'emailVerified'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "emailVerified" TIMESTAMP(3);
@@ -27,7 +27,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'image'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "image" TEXT;
@@ -38,7 +38,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'passwordHash'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "passwordHash" TEXT;
@@ -49,7 +49,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'role'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "role" TEXT NOT NULL DEFAULT 'user';
@@ -60,7 +60,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'phone'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "phone" TEXT;
@@ -71,7 +71,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'address'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "address" TEXT;
@@ -82,7 +82,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'city'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "city" TEXT;
@@ -93,7 +93,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'User'
+        WHERE table_schema = current_schema() AND table_name = 'User'
         AND column_name = 'country'
     ) THEN
         ALTER TABLE "User" ADD COLUMN "country" TEXT;
@@ -106,7 +106,13 @@ END $$;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'NotificationType') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'NotificationType'
+          AND n.nspname = current_schema()
+    ) THEN
         CREATE TYPE "NotificationType" AS ENUM ('INFO', 'SUCCESS', 'WARNING', 'ERROR');
     END IF;
 END $$;
@@ -146,14 +152,26 @@ END $$;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserInvoiceStatus') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'UserInvoiceStatus'
+          AND n.nspname = current_schema()
+    ) THEN
         CREATE TYPE "UserInvoiceStatus" AS ENUM ('DRAFT', 'PENDING', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED');
     END IF;
 END $$;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'LineItemType') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'LineItemType'
+          AND n.nspname = current_schema()
+    ) THEN
         CREATE TYPE "LineItemType" AS ENUM (
             'VEHICLE_PRICE',
             'PURCHASE_PRICE',

@@ -51,6 +51,10 @@ export async function POST(
     const transit = await routeDeps.prisma.transit.findUnique({
       where: { id: params.id },
       include: {
+        events: {
+          orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+          take: 1,
+        },
         shipments: {
           select: {
             id: true,
@@ -85,6 +89,12 @@ export async function POST(
       return NextResponse.json({ error: 'Transit has no active shipments to confirm as delivered' }, { status: 400 });
     }
 
+    const currentEvent = transit.events[0] ?? null;
+
+    if (!currentEvent) {
+      return NextResponse.json({ error: 'Add at least one transit event before confirming delivery' }, { status: 400 });
+    }
+
     const deliveredAt = new Date(validatedData.deliveredDate);
     const actorId = session.user.id as string;
 
@@ -110,6 +120,9 @@ export async function POST(
       await tx.transitEvent.create({
         data: {
           transitId: params.id,
+          companyId: currentEvent.companyId,
+          origin: currentEvent.origin,
+          destination: currentEvent.destination,
           status: 'DELIVERY_CONFIRMED',
           location: transit.destination,
           description: `Receiver: ${validatedData.receiverName}${validatedData.notes ? ` | Notes: ${validatedData.notes}` : ''}`,

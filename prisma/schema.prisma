@@ -701,6 +701,7 @@ model Company {
   ledgerEntries CompanyLedgerEntry[]
   dispatches    Dispatch[]
   transits      Transit[]
+  transitEvents TransitEvent[]
   shipments     Shipment[]           @relation("ShipmentShippingCompany")
   containers    Container[]
 
@@ -811,7 +812,7 @@ model DispatchExpense {
 model Transit {
   id                String        @id @default(cuid())
   referenceNumber   String        @unique
-  companyId         String // Transit company (from Company model)
+  companyId         String?
   origin            String        @default("Dubai, UAE")
   destination       String        @default("Kabul, Afghanistan")
   status            TransitStatus @default(PENDING)
@@ -829,7 +830,7 @@ model Transit {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  company   Company          @relation(fields: [companyId], references: [id])
+  company   Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
   shipments Shipment[]
   events    TransitEvent[]
   expenses  TransitExpense[]
@@ -841,6 +842,9 @@ model Transit {
 model TransitEvent {
   id          String   @id @default(cuid())
   transitId   String
+  companyId   String
+  origin      String
+  destination String
   status      String
   location    String?
   description String?
@@ -849,14 +853,18 @@ model TransitEvent {
   createdAt   DateTime @default(now())
 
   transit Transit @relation(fields: [transitId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+  expenses TransitExpense[]
 
   @@index([transitId])
+  @@index([companyId])
   @@index([eventDate])
 }
 
 model TransitExpense {
   id            String   @id @default(cuid())
   transitId     String
+  transitEventId String?
   shipmentId    String?
   type          String   @default("OTHER")
   description   String
@@ -872,9 +880,11 @@ model TransitExpense {
   updatedAt     DateTime @updatedAt
 
   transit  Transit   @relation(fields: [transitId], references: [id], onDelete: Cascade)
+  transitEvent TransitEvent? @relation(fields: [transitEventId], references: [id], onDelete: SetNull)
   shipment Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
 
   @@index([transitId])
+  @@index([transitEventId])
   @@index([shipmentId])
   @@index([type])
 }

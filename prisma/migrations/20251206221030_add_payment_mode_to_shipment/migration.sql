@@ -3,7 +3,11 @@
 -- Step 1: Create PaymentMode enum if it doesn't exist
 DO $$ 
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PaymentMode') THEN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'PaymentMode' AND n.nspname = current_schema()
+    ) THEN
         CREATE TYPE "PaymentMode" AS ENUM ('CASH', 'DUE');
         RAISE NOTICE 'Created PaymentMode enum';
     ELSE
@@ -16,7 +20,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'paymentMode'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "paymentMode" "PaymentMode";

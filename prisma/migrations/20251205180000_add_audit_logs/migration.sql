@@ -1,7 +1,11 @@
 -- Create enum safely
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AuditAction') THEN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'AuditAction' AND n.nspname = current_schema()
+    ) THEN
         CREATE TYPE "AuditAction" AS ENUM ('CREATE', 'UPDATE', 'DELETE');
     END IF;
 END $$;

@@ -84,7 +84,14 @@ interface ShipmentTransit {
   origin: string;
   destination: string;
   status: string;
-  company: { id: string; name: string };
+  currentCompany: { id: string; name: string } | null;
+  currentEvent: {
+    id: string;
+    companyId: string;
+    origin: string;
+    destination: string;
+    status: string;
+  } | null;
 }
 
 interface ShipmentDispatch {
@@ -765,9 +772,9 @@ export default function ShipmentDetailPage() {
   const canViewLedgerComparison = hasAnyPermission(session?.user?.role, ['finance:view', 'finance:manage', 'shipments:read_all']);
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
   const canAssignDispatch = canManageWorkflow && !shipment?.dispatchId && !shipment?.containerId && !shipment?.transitId && shipment?.status === 'ON_HAND';
-  const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.transitId || shipment?.dispatchId);
+  const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.dispatchId || (shipment?.transitId && shipment?.transit?.currentCompany));
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
-  const canAddTransitExpense = Boolean(shipment?.transitId);
+  const canAddTransitExpense = Boolean(shipment?.transitId && shipment?.transit?.currentCompany);
   const expenseContextType = shipment?.containerId
     ? 'CONTAINER'
     : shipment?.transitId
@@ -778,15 +785,15 @@ export default function ShipmentDetailPage() {
   const expenseContextId = shipment?.containerId || shipment?.transitId || shipment?.dispatchId || undefined;
   const expenseLedgerHelpText = shipment?.container
     ? `Expenses from this page will recover against the container company ledger for ${shipment.container.containerNumber}.`
-    : shipment?.transit
-    ? `Expenses from this page will recover against the transit company ledger for ${shipment.transit.referenceNumber}.`
+    : shipment?.transit?.currentCompany
+    ? `Expenses from this page will recover against the current transit event company ledger for ${shipment.transit.referenceNumber}.`
     : shipment?.dispatch
     ? `Expenses from this page will recover against the dispatch company ledger for ${shipment.dispatch.referenceNumber}.`
-    : 'Assign this shipment to a dispatch, container, or transit with a company ledger before posting expenses.';
+    : 'Assign this shipment to a dispatch or container company, or add a transit event company, before posting expenses.';
   const expenseActionHelpText = [
     'Shipment Expense uses the shipment\'s primary accounting route.',
     canAddDispatchExpense ? `Dispatch Expense posts to dispatch ${shipment?.dispatch?.referenceNumber}.` : 'Dispatch Expense is available after dispatch assignment.',
-    canAddTransitExpense ? `Transit Expense posts to transit ${shipment?.transit?.referenceNumber}.` : 'Transit Expense is available after transit assignment.',
+    canAddTransitExpense ? `Transit Expense posts to the current transit event for ${shipment?.transit?.referenceNumber}.` : 'Transit Expense is available after transit assignment and event company setup.',
   ].join(' ');
   const classifiedShipmentExpenseData = useMemo(() => {
     const totals: Record<ClassifiedExpenseSource, number> = {
@@ -1262,11 +1269,11 @@ export default function ShipmentDetailPage() {
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company</p>
-                      <p className="font-medium">{shipment.transit.company.name}</p>
+                      <p className="font-medium">{shipment.transit.currentCompany?.name || 'No current event company'}</p>
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Route</p>
-                      <p className="font-medium">{shipment.transit.origin} → {shipment.transit.destination}</p>
+                      <p className="font-medium">{shipment.transit.currentEvent?.origin || shipment.transit.origin} → {shipment.transit.currentEvent?.destination || shipment.transit.destination}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mt-1">

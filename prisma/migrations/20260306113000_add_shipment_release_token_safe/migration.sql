@@ -4,7 +4,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
-        WHERE table_name = 'Shipment'
+        WHERE table_schema = current_schema() AND table_name = 'Shipment'
           AND column_name = 'releaseToken'
     ) THEN
         ALTER TABLE "Shipment"
@@ -17,7 +17,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
-        WHERE table_name = 'Shipment'
+        WHERE table_schema = current_schema() AND table_name = 'Shipment'
           AND column_name = 'releaseTokenCreatedAt'
     ) THEN
         ALTER TABLE "Shipment"

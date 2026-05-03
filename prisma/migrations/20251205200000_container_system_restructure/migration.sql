@@ -8,14 +8,26 @@
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ShipmentSimpleStatus') THEN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'ShipmentSimpleStatus'
+      AND n.nspname = current_schema()
+  ) THEN
     CREATE TYPE "ShipmentSimpleStatus" AS ENUM ('ON_HAND', 'IN_TRANSIT');
   END IF;
 END $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ContainerLifecycleStatus') THEN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'ContainerLifecycleStatus'
+      AND n.nspname = current_schema()
+  ) THEN
     CREATE TYPE "ContainerLifecycleStatus" AS ENUM (
       'CREATED',
       'WAITING_FOR_LOADING',
@@ -181,7 +193,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'Shipment'
+    WHERE table_schema = current_schema() AND table_name = 'Shipment'
     AND column_name = 'status_new'
   ) THEN
     ALTER TABLE "Shipment" ADD COLUMN "status_new" "ShipmentSimpleStatus" DEFAULT 'ON_HAND';
@@ -192,7 +204,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'Shipment'
+    WHERE table_schema = current_schema() AND table_name = 'Shipment'
     AND column_name = 'containerId_new'
   ) THEN
     ALTER TABLE "Shipment" ADD COLUMN "containerId_new" TEXT;
@@ -203,7 +215,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'Shipment'
+    WHERE table_schema = current_schema() AND table_name = 'Shipment'
     AND column_name = 'internalNotes'
   ) THEN
     ALTER TABLE "Shipment" ADD COLUMN "internalNotes" TEXT;
@@ -214,11 +226,11 @@ DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'Shipment'
+    WHERE table_schema = current_schema() AND table_name = 'Shipment'
     AND column_name = 'containerPhotos'
   ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'Shipment'
+    WHERE table_schema = current_schema() AND table_name = 'Shipment'
     AND column_name = 'vehiclePhotos'
   ) THEN
     ALTER TABLE "Shipment" RENAME COLUMN "containerPhotos" TO "vehiclePhotos";

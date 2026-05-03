@@ -5,7 +5,13 @@
 -- Step 1: Create ServiceType enum
 DO $$ 
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ServiceType') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'ServiceType'
+          AND n.nspname = current_schema()
+    ) THEN
         CREATE TYPE "ServiceType" AS ENUM ('PURCHASE_AND_SHIPPING', 'SHIPPING_ONLY');
         RAISE NOTICE 'Created ServiceType enum';
     ELSE
@@ -16,7 +22,13 @@ END $$;
 -- Step 2: Create ExpenseAllocationMethod enum
 DO $$ 
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ExpenseAllocationMethod') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'ExpenseAllocationMethod'
+          AND n.nspname = current_schema()
+    ) THEN
         CREATE TYPE "ExpenseAllocationMethod" AS ENUM ('EQUAL', 'BY_VALUE', 'BY_WEIGHT', 'CUSTOM');
         RAISE NOTICE 'Created ExpenseAllocationMethod enum';
     ELSE
@@ -29,7 +41,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'serviceType'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "serviceType" "ServiceType" DEFAULT 'SHIPPING_ONLY';
@@ -44,7 +56,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'purchasePrice'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "purchasePrice" DOUBLE PRECISION;
@@ -58,7 +70,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'purchaseDate'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "purchaseDate" TIMESTAMP(3);
@@ -72,7 +84,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'purchaseLocation'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "purchaseLocation" TEXT;
@@ -86,7 +98,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'dealerName'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "dealerName" TEXT;
@@ -100,7 +112,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'purchaseNotes'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "purchaseNotes" TEXT;
@@ -115,7 +127,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Container' 
+        WHERE table_schema = current_schema() AND table_name = 'Container' 
         AND column_name = 'expenseAllocationMethod'
     ) THEN
         ALTER TABLE "Container" ADD COLUMN "expenseAllocationMethod" "ExpenseAllocationMethod" DEFAULT 'EQUAL';
@@ -128,17 +140,25 @@ END $$;
 -- Step 6: Add PURCHASE_PRICE to LineItemType enum
 DO $$
 BEGIN
-    -- Check if the enum value already exists
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum 
-        WHERE enumlabel = 'PURCHASE_PRICE' 
-        AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'LineItemType')
-    ) THEN
-        -- Add the new enum value after VEHICLE_PRICE
-        ALTER TYPE "LineItemType" ADD VALUE 'PURCHASE_PRICE' AFTER 'VEHICLE_PRICE';
-        RAISE NOTICE 'Added PURCHASE_PRICE to LineItemType enum';
+        IF EXISTS (
+                SELECT 1
+                FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE t.typname = 'LineItemType'
+                    AND n.nspname = current_schema()
+        ) THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_enum 
+            WHERE enumlabel = 'PURCHASE_PRICE' 
+            AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'LineItemType')
+        ) THEN
+            ALTER TYPE "LineItemType" ADD VALUE 'PURCHASE_PRICE' AFTER 'VEHICLE_PRICE';
+            RAISE NOTICE 'Added PURCHASE_PRICE to LineItemType enum';
+        ELSE
+            RAISE NOTICE 'PURCHASE_PRICE already exists in LineItemType enum';
+        END IF;
     ELSE
-        RAISE NOTICE 'PURCHASE_PRICE already exists in LineItemType enum';
+        RAISE NOTICE 'Skipped PURCHASE_PRICE enum update because LineItemType does not exist yet';
     END IF;
 END $$;
 

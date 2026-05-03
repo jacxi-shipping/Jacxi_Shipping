@@ -1,7 +1,13 @@
 -- Create company type enum only if it does not exist
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'CompanyType') THEN
+        IF NOT EXISTS (
+                SELECT 1
+                FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE t.typname = 'CompanyType'
+                    AND n.nspname = current_schema()
+        ) THEN
         CREATE TYPE "CompanyType" AS ENUM ('SHIPPING', 'TRANSIT');
     END IF;
 END $$;
@@ -12,7 +18,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
-        WHERE table_name = 'Company'
+        WHERE table_schema = current_schema() AND table_name = 'Company'
           AND column_name = 'companyType'
     ) THEN
         ALTER TABLE "Company"

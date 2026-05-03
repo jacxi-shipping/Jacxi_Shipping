@@ -6,7 +6,6 @@ import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 
 const createTransitSchema = z.object({
-  companyId: z.string().min(1),
   origin: z.string().min(1).default('Dubai, UAE'),
   destination: z.string().min(1).default('Kabul, Afghanistan'),
   dispatchDate: z.string().optional(),
@@ -41,12 +40,12 @@ export async function GET(request: NextRequest) {
 
     const where: {
       status?: TransitStatus;
-      companyId?: string;
+      events?: { some: { companyId: string } };
       OR?: Array<{ referenceNumber?: { contains: string; mode: 'insensitive' }; notes?: { contains: string; mode: 'insensitive' } }>;
     } = {};
 
     if (status && Object.values(TransitStatus).includes(status as TransitStatus)) where.status = status as TransitStatus;
-    if (companyId) where.companyId = companyId;
+    if (companyId) where.events = { some: { companyId } };
     if (search) {
       where.OR = [
         { referenceNumber: { contains: search, mode: 'insensitive' } },
@@ -57,13 +56,25 @@ export async function GET(request: NextRequest) {
     const transits = await prisma.transit.findMany({
       where,
       include: {
-        company: { select: { id: true, name: true, code: true } },
+        events: {
+          orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+          take: 1,
+          include: {
+            company: { select: { id: true, name: true, code: true } },
+          },
+        },
         _count: { select: { shipments: true, events: true, expenses: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ transits });
+    return NextResponse.json({
+      transits: transits.map((transit) => ({
+        ...transit,
+        currentEvent: transit.events[0] ?? null,
+        currentCompany: transit.events[0]?.company ?? null,
+      })),
+    });
   } catch (error) {
     console.error('Error fetching transits:', error);
     return NextResponse.json({ error: 'Failed to fetch transits' }, { status: 500 });
@@ -84,16 +95,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = createTransitSchema.parse(body);
-
-    // Verify the company exists
-    const company = await prisma.company.findUnique({
-      where: { id: validatedData.companyId },
-      select: { id: true, isActive: true, companyType: true },
-    });
-
-    if (!company || !company.isActive || company.companyType !== 'TRANSIT') {
-      return NextResponse.json({ error: 'Transit company not found' }, { status: 404 });
-    }
 
     // Verify shipments exist if provided
     if (validatedData.shipmentIds?.length) {
@@ -145,7 +146,6 @@ export async function POST(request: NextRequest) {
       const created = await tx.transit.create({
         data: {
           referenceNumber,
-          companyId: validatedData.companyId,
           origin: validatedData.origin,
           destination: validatedData.destination,
           dispatchDate: validatedData.dispatchDate ? new Date(validatedData.dispatchDate) : null,
@@ -155,7 +155,13 @@ export async function POST(request: NextRequest) {
           createdBy: session.user!.id as string,
         },
         include: {
-          company: { select: { id: true, name: true, code: true } },
+          events: {
+            orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+            take: 1,
+            include: {
+              company: { select: { id: true, name: true, code: true } },
+            },
+          },
         },
       });
 
@@ -170,7 +176,13 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    return NextResponse.json({ transit }, { status: 201 });
+    return NextResponse.json({
+      transit: {
+        ...transit,
+        currentEvent: transit.events[0] ?? null,
+        currentCompany: transit.events[0]?.company ?? null,
+      },
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid data', details: error.issues }, { status: 400 });

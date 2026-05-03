@@ -7,7 +7,7 @@ BEGIN
     -- If containerPhotos exists, rename it to vehiclePhotos
     IF EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'containerPhotos'
     ) THEN
         ALTER TABLE "Shipment" RENAME COLUMN "containerPhotos" TO "vehiclePhotos";
@@ -16,7 +16,7 @@ BEGIN
         -- If vehiclePhotos doesn't exist either, create it
         IF NOT EXISTS (
             SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'Shipment' 
+            WHERE table_schema = current_schema() AND table_name = 'Shipment' 
             AND column_name = 'vehiclePhotos'
         ) THEN
             ALTER TABLE "Shipment" ADD COLUMN "vehiclePhotos" TEXT[] DEFAULT ARRAY[]::TEXT[];
@@ -32,7 +32,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Shipment' 
+        WHERE table_schema = current_schema() AND table_name = 'Shipment' 
         AND column_name = 'arrivalPhotos'
     ) THEN
         ALTER TABLE "Shipment" ADD COLUMN "arrivalPhotos" TEXT[] DEFAULT ARRAY[]::TEXT[];

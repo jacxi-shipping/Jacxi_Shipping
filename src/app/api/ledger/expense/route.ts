@@ -59,8 +59,16 @@ export async function POST(request: NextRequest) {
         },
         transit: {
           select: {
-            companyId: true,
             referenceNumber: true,
+            events: {
+              orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+              take: 1,
+              select: {
+                companyId: true,
+                origin: true,
+                destination: true,
+              },
+            },
           },
         },
       },
@@ -74,28 +82,31 @@ export async function POST(request: NextRequest) {
     let resolvedCompanyId: string | null | undefined;
     let expenseSource: 'DISPATCH' | 'TRANSIT' | 'SHIPMENT';
     let contextLabel = '';
+    const currentTransitEvent = shipment.transit?.events[0];
 
     if (validatedData.contextType === 'DISPATCH') {
       resolvedCompanyId = shipment.dispatch?.companyId;
       expenseSource = 'DISPATCH';
       contextLabel = `(Dispatch ${shipment.dispatch?.referenceNumber || 'N/A'})`;
     } else if (validatedData.contextType === 'TRANSIT') {
-      resolvedCompanyId = shipment.transit?.companyId;
+      resolvedCompanyId = currentTransitEvent?.companyId;
       expenseSource = 'TRANSIT';
-      contextLabel = `(Transit ${shipment.transit?.referenceNumber || 'N/A'})`;
+      contextLabel = currentTransitEvent
+        ? `(Transit ${shipment.transit?.referenceNumber || 'N/A'}: ${currentTransitEvent.origin} -> ${currentTransitEvent.destination})`
+        : `(Transit ${shipment.transit?.referenceNumber || 'N/A'})`;
     } else if (validatedData.contextType === 'CONTAINER') {
       resolvedCompanyId = shipment.container?.companyId;
       expenseSource = 'SHIPMENT';
       contextLabel = shipment.container?.containerNumber ? `(Container ${shipment.container.containerNumber})` : '';
     } else {
-      resolvedCompanyId = shipment.container?.companyId || shipment.transit?.companyId || shipment.dispatch?.companyId;
+      resolvedCompanyId = shipment.container?.companyId || currentTransitEvent?.companyId || shipment.dispatch?.companyId;
 
       if (shipment.container?.companyId) {
         expenseSource = 'SHIPMENT';
         contextLabel = shipment.container.containerNumber ? `(Container ${shipment.container.containerNumber})` : '';
-      } else if (shipment.transit?.companyId) {
+      } else if (currentTransitEvent?.companyId) {
         expenseSource = 'TRANSIT';
-        contextLabel = `(Transit ${shipment.transit.referenceNumber || 'N/A'})`;
+        contextLabel = `(Transit ${shipment.transit?.referenceNumber || 'N/A'}: ${currentTransitEvent.origin} -> ${currentTransitEvent.destination})`;
       } else {
         expenseSource = 'DISPATCH';
         contextLabel = `(Dispatch ${shipment.dispatch?.referenceNumber || 'N/A'})`;

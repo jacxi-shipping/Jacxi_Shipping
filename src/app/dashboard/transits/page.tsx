@@ -23,6 +23,15 @@ interface Company {
   code: string | null;
 }
 
+interface TransitEventSummary {
+  id: string;
+  companyId: string;
+  origin: string;
+  destination: string;
+  status: string;
+  company: Company;
+}
+
 interface Transit {
   id: string;
   referenceNumber: string;
@@ -35,7 +44,8 @@ interface Transit {
   cost: number | null;
   notes: string | null;
   createdAt: string;
-  company: Company;
+  currentEvent: TransitEventSummary | null;
+  currentCompany: Company | null;
   _count: {
     shipments: number;
     events: number;
@@ -69,7 +79,6 @@ const formatCurrency = (amount: number) =>
 export default function TransitsPage() {
   const router = useRouter();
   const [transits, setTransits] = useState<Transit[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [search, setSearch] = useState('');
@@ -81,7 +90,6 @@ export default function TransitsPage() {
   const [editingTransitId, setEditingTransitId] = useState<string | null>(null);
   const [deletingTransitId, setDeletingTransitId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    companyId: '',
     origin: 'Dubai, UAE',
     destination: 'Kabul, Afghanistan',
     dispatchDate: '',
@@ -90,7 +98,6 @@ export default function TransitsPage() {
     notes: '',
   });
   const [editFormData, setEditFormData] = useState({
-    companyId: '',
     origin: '',
     destination: '',
     status: 'PENDING',
@@ -119,23 +126,9 @@ export default function TransitsPage() {
     }
   };
 
-  const fetchCompanies = async () => {
-    try {
-      const response = await fetch('/api/finance/companies?active=true&companyType=TRANSIT');
-      const data = await response.json();
-      if (response.ok) setCompanies(data.companies || []);
-    } catch (error) {
-      console.error('Failed to load companies:', error);
-    }
-  };
-
   useEffect(() => {
     void fetchTransits();
   }, [search, statusFilter]);
-
-  useEffect(() => {
-    void fetchCompanies();
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -156,18 +149,12 @@ export default function TransitsPage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!formData.companyId) {
-      toast.error('Transit company is required');
-      return;
-    }
-
     try {
       setCreating(true);
       const response = await fetch('/api/transits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyId: formData.companyId,
           origin: formData.origin,
           destination: formData.destination,
           dispatchDate: formData.dispatchDate || undefined,
@@ -182,7 +169,7 @@ export default function TransitsPage() {
 
       toast.success(`Transit ${data.transit.referenceNumber} created`);
       setOpenCreate(false);
-      setFormData({ companyId: '', origin: 'Dubai, UAE', destination: 'Kabul, Afghanistan', dispatchDate: '', estimatedDelivery: '', cost: '', notes: '' });
+      setFormData({ origin: 'Dubai, UAE', destination: 'Kabul, Afghanistan', dispatchDate: '', estimatedDelivery: '', cost: '', notes: '' });
       await fetchTransits();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create transit');
@@ -225,7 +212,6 @@ export default function TransitsPage() {
     }
     setEditingTransitId(transit.id);
     setEditFormData({
-      companyId: transit.company.id,
       origin: transit.origin,
       destination: transit.destination,
       status: transit.status,
@@ -240,10 +226,6 @@ export default function TransitsPage() {
 
   const handleUpdateTransit = async () => {
     if (!editingTransitId) return;
-    if (!editFormData.companyId) {
-      toast.error('Transit company is required');
-      return;
-    }
 
     try {
       setEditing(true);
@@ -251,7 +233,6 @@ export default function TransitsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyId: editFormData.companyId,
           origin: editFormData.origin,
           destination: editFormData.destination,
           status: editFormData.status,
@@ -293,7 +274,7 @@ export default function TransitsPage() {
       render: (_, row) => (
         <Box>
           <Box sx={{ fontWeight: 600 }}>{row.referenceNumber}</Box>
-          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.company.name}</Box>
+          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.currentCompany?.name || 'No current event company'}</Box>
         </Box>
       ),
     },
@@ -302,8 +283,8 @@ export default function TransitsPage() {
       header: 'Route',
       render: (_, row) => (
         <Box sx={{ fontSize: '0.8rem' }}>
-          <Box>{row.origin}</Box>
-          <Box sx={{ color: 'var(--text-secondary)' }}>→ {row.destination}</Box>
+          <Box>{row.currentEvent?.origin || row.origin}</Box>
+          <Box sx={{ color: 'var(--text-secondary)' }}>→ {row.currentEvent?.destination || row.destination}</Box>
         </Box>
       ),
     },
@@ -470,20 +451,9 @@ export default function TransitsPage() {
         <Dialog open={openCreate} onClose={() => !creating && setOpenCreate(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Create New Transit</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
-            <TextField
-              select
-              label="Transit Company"
-              value={formData.companyId}
-              onChange={(e) => setFormData(prev => ({ ...prev, companyId: e.target.value }))}
-              required
-            >
-              <MenuItem value="">Select a company...</MenuItem>
-              {companies.map(c => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.code ? ` (${c.code})` : ''}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', p: 1.5, borderRadius: 1.5, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              Transit companies are now assigned per event. Create the transit first, then add one or more route events with their own company and from/to leg.
+            </Box>
             <TextField
               label="Origin"
               value={formData.origin}
@@ -536,20 +506,9 @@ export default function TransitsPage() {
         <Dialog open={openEdit} onClose={() => !editing && setOpenEdit(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Edit Transit</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
-            <TextField
-              select
-              label="Transit Company"
-              value={editFormData.companyId}
-              onChange={(e) => setEditFormData(prev => ({ ...prev, companyId: e.target.value }))}
-              required
-            >
-              <MenuItem value="">Select a company...</MenuItem>
-              {companies.map(c => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.code ? ` (${c.code})` : ''}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', p: 1.5, borderRadius: 1.5, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              Company assignment is managed on transit events. Update the current leg from the transit detail page by adding a new event.
+            </Box>
             <TextField
               label="Origin"
               value={editFormData.origin}

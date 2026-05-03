@@ -1,7 +1,13 @@
 -- Add DamageType enum
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'DamageType') THEN
+        IF NOT EXISTS (
+                SELECT 1
+                FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE t.typname = 'DamageType'
+                    AND n.nspname = current_schema()
+        ) THEN
         CREATE TYPE "DamageType" AS ENUM ('WE_PAY', 'COMPANY_PAYS');
     END IF;
 END $$;

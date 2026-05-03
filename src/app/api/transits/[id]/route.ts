@@ -4,7 +4,6 @@ import { routeDeps } from '@/lib/route-deps';
 import { ensureWorkflowMoveAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
 
 const updateTransitSchema = z.object({
-  companyId: z.string().optional(),
   origin: z.string().optional(),
   destination: z.string().optional(),
   status: z.enum(['PENDING', 'DISPATCHED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'CANCELLED']).optional(),
@@ -35,13 +34,17 @@ export async function GET(
     const transit = await routeDeps.prisma.transit.findUnique({
       where: { id: params.id },
       include: {
-        company: { select: { id: true, name: true, code: true, phone: true, email: true } },
         shipments: {
           include: {
             user: { select: { id: true, name: true, email: true, phone: true } },
           },
         },
-        events: { orderBy: { eventDate: 'desc' } },
+        events: {
+          include: {
+            company: { select: { id: true, name: true, code: true, phone: true, email: true } },
+          },
+          orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+        },
         expenses: { 
           include: {
             shipment: {
@@ -50,6 +53,11 @@ export async function GET(
                 vehicleMake: true,
                 vehicleModel: true,
                 vehicleVIN: true,
+              },
+            },
+            transitEvent: {
+              include: {
+                company: { select: { id: true, name: true, code: true } },
               },
             },
           },
@@ -100,6 +108,7 @@ export async function GET(
         category: e.category,
         notes: e.notes,
         shipment: e.shipment,
+        transitEvent: e.transitEvent,
         source: 'TRANSIT_EXPENSE' as const,
       })),
       ...shipmentExpenses.map(e => ({
@@ -123,6 +132,8 @@ export async function GET(
     return NextResponse.json({ 
       transit: {
         ...transit,
+        currentEvent: transit.events[0] ?? null,
+        currentCompany: transit.events[0]?.company ?? null,
         expenses: allExpenses,
         _count: {
           ...transit._count,
@@ -173,22 +184,10 @@ export async function PATCH(
       );
     }
 
-    if (validatedData.companyId) {
-      const company = await routeDeps.prisma.company.findUnique({
-        where: { id: validatedData.companyId },
-        select: { id: true, isActive: true, companyType: true },
-      });
-
-      if (!company || !company.isActive || company.companyType !== 'TRANSIT') {
-        return NextResponse.json({ error: 'Valid active transit company is required' }, { status: 400 });
-      }
-    }
-
     const transit = await routeDeps.prisma.$transaction(async (tx) => {
       const updated = await tx.transit.update({
         where: { id: params.id },
         data: {
-          ...(validatedData.companyId !== undefined ? { companyId: validatedData.companyId } : {}),
           ...(validatedData.origin !== undefined ? { origin: validatedData.origin } : {}),
           ...(validatedData.destination !== undefined ? { destination: validatedData.destination } : {}),
           ...(validatedData.status !== undefined ? { status: validatedData.status } : {}),
@@ -199,7 +198,13 @@ export async function PATCH(
           ...(validatedData.notes !== undefined ? { notes: validatedData.notes } : {}),
         },
         include: {
-          company: { select: { id: true, name: true, code: true } },
+          events: {
+            orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+            take: 1,
+            include: {
+              company: { select: { id: true, name: true, code: true } },
+            },
+          },
         },
       });
 
@@ -214,7 +219,13 @@ export async function PATCH(
       return updated;
     });
 
-    return NextResponse.json({ transit });
+    return NextResponse.json({
+      transit: {
+        ...transit,
+        currentEvent: transit.events[0] ?? null,
+        currentCompany: transit.events[0]?.company ?? null,
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid data', details: error.issues }, { status: 400 });

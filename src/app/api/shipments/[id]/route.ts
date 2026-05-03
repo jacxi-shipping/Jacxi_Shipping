@@ -144,7 +144,13 @@ export async function GET(
         },
         transit: {
           include: {
-            company: { select: { id: true, name: true } },
+            events: {
+              orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+              take: 1,
+              include: {
+                company: { select: { id: true, name: true } },
+              },
+            },
           },
         },
         documents: true,
@@ -559,6 +565,13 @@ export async function GET(
       {
         shipment: {
           ...shipment,
+          transit: shipment.transit
+            ? {
+                ...shipment.transit,
+                currentEvent: shipment.transit.events[0] ?? null,
+                currentCompany: shipment.transit.events[0]?.company ?? null,
+              }
+            : null,
           companyLedgerEntries,
           auditLogs,
           unifiedTimeline,

@@ -69,11 +69,15 @@ interface AssignableShipment {
 
 interface TransitEvent {
   id: string;
+  companyId: string;
+  origin: string;
+  destination: string;
   status: string;
   location: string | null;
   description: string | null;
   eventDate: string;
   createdAt: string;
+  company: Company;
 }
 
 interface TransitExpense {
@@ -88,6 +92,12 @@ interface TransitExpense {
   category: string | null;
   notes: string | null;
   shipment: { id: string; vehicleMake: string | null; vehicleModel: string | null; vehicleVIN: string | null } | null;
+  transitEvent?: {
+    id: string;
+    origin: string;
+    destination: string;
+    company: { id: string; name: string; code: string | null };
+  } | null;
   source: 'TRANSIT_EXPENSE' | 'SHIPMENT_EXPENSE';
 }
 
@@ -108,7 +118,8 @@ interface Transit {
   cost: number | null;
   notes: string | null;
   createdAt: string;
-  company: Company;
+  currentEvent: TransitEvent | null;
+  currentCompany: Company | null;
   shipments: Shipment[];
   events: TransitEvent[];
   expenses: TransitExpense[];
@@ -145,6 +156,7 @@ export default function TransitDetailPage() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
+  const [transitCompanies, setTransitCompanies] = useState<Company[]>([]);
 
   // Edit transit state
   const [openEdit, setOpenEdit] = useState(false);
@@ -158,7 +170,7 @@ export default function TransitDetailPage() {
 
   // Add event state
   const [openEvent, setOpenEvent] = useState(false);
-  const [eventForm, setEventForm] = useState({ status: '', location: '', description: '', eventDate: new Date().toISOString().slice(0, 10) });
+  const [eventForm, setEventForm] = useState({ companyId: '', origin: '', destination: '', status: '', location: '', description: '', eventDate: new Date().toISOString().slice(0, 16) });
   const [postingEvent, setPostingEvent] = useState(false);
 
   // Add expense state
@@ -226,6 +238,22 @@ export default function TransitDetailPage() {
   useEffect(() => {
     if (transitId) void fetchTransit();
   }, [transitId]);
+
+  useEffect(() => {
+    const fetchTransitCompanies = async () => {
+      try {
+        const response = await fetch('/api/finance/companies?active=true&companyType=TRANSIT');
+        const data = await response.json();
+        if (response.ok) {
+          setTransitCompanies(data.companies || []);
+        }
+      } catch (error) {
+        console.error('Failed to load transit companies:', error);
+      }
+    };
+
+    void fetchTransitCompanies();
+  }, []);
 
   useEffect(() => {
     if (!openAddShipment) return;
@@ -355,12 +383,17 @@ export default function TransitDetailPage() {
 
   const handleAddEvent = async () => {
     if (!eventForm.status.trim()) { toast.error('Status is required'); return; }
+    if (!eventForm.companyId) { toast.error('Transit company is required'); return; }
+    if (!eventForm.origin.trim() || !eventForm.destination.trim()) { toast.error('Transit leg origin and destination are required'); return; }
     try {
       setPostingEvent(true);
       const response = await fetch(`/api/transits/${transitId}/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          companyId: eventForm.companyId,
+          origin: eventForm.origin,
+          destination: eventForm.destination,
           status: eventForm.status,
           location: eventForm.location || undefined,
           description: eventForm.description || undefined,
@@ -371,7 +404,7 @@ export default function TransitDetailPage() {
       if (!response.ok) throw new Error(data.error || 'Failed to add event');
       toast.success('Event added');
       setOpenEvent(false);
-      setEventForm({ status: '', location: '', description: '', eventDate: new Date().toISOString().slice(0, 10) });
+      setEventForm({ companyId: '', origin: '', destination: '', status: '', location: '', description: '', eventDate: new Date().toISOString().slice(0, 16) });
       await fetchTransit();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to add event');
@@ -523,6 +556,21 @@ export default function TransitDetailPage() {
 
   const eventColumns: Column<TransitEvent>[] = [
     { key: 'eventDate', header: 'Date', render: (_, row) => new Date(row.eventDate).toLocaleString() },
+    {
+      key: 'origin',
+      header: 'Leg',
+      render: (_, row) => (
+        <Box>
+          <Box sx={{ fontWeight: 600 }}>{row.origin}</Box>
+          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>→ {row.destination}</Box>
+        </Box>
+      ),
+    },
+    {
+      key: 'company',
+      header: 'Company',
+      render: (_, row) => row.company.name,
+    },
     { key: 'status', header: 'Status', render: (_, row) => <Box sx={{ fontWeight: 600 }}>{row.status}</Box> },
     { key: 'location', header: 'Location', render: (_, row) => row.location || '-' },
     { key: 'description', header: 'Description', render: (_, row) => row.description || '-' },
@@ -538,6 +586,18 @@ export default function TransitDetailPage() {
           <Box sx={{ fontWeight: 500 }}>{row.type.replace(/_/g, ' ')}</Box>
           {row.vendor && <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.vendor}</Box>}
         </Box>
+      ),
+    },
+    {
+      key: 'transitEvent',
+      header: 'Transit Leg',
+      render: (_, row) => row.transitEvent ? (
+        <Box>
+          <Box sx={{ fontWeight: 500, fontSize: '0.875rem' }}>{row.transitEvent.origin} → {row.transitEvent.destination}</Box>
+          <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.transitEvent.company.name}</Box>
+        </Box>
+      ) : (
+        <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>No linked event</Box>
       ),
     },
     {
@@ -599,6 +659,10 @@ export default function TransitDetailPage() {
 
   const statusColor = statusColors[transit.status] || statusColors.PENDING;
   const canConfirmDelivery = canManageWorkflow && transit.status !== 'DELIVERED' && transit.status !== 'CANCELLED' && transit.shipments.length > 0;
+  const currentLegLabel = transit.currentEvent
+    ? `${transit.currentEvent.origin} → ${transit.currentEvent.destination}`
+    : `${transit.origin} → ${transit.destination}`;
+  const currentCompanyLabel = transit.currentCompany?.name || 'No current event company';
 
   return (
     <PermissionRoute anyOf={['transits:manage', 'expenses:post']}>
@@ -609,7 +673,7 @@ export default function TransitDetailPage() {
 
         <DashboardPanel
           title={transit.referenceNumber}
-          description={`${transit.origin} → ${transit.destination} • ${transit.company.name}`}
+          description={`${currentLegLabel} • ${currentCompanyLabel}`}
           actions={
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Link href="/dashboard/transits" style={{ textDecoration: 'none' }}>
@@ -652,8 +716,12 @@ export default function TransitDetailPage() {
               </span>
             </Box>
             <Box>
-              <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>COMPANY</Box>
-              <Box sx={{ fontWeight: 600 }}>{transit.company.name}</Box>
+              <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>CURRENT LEG</Box>
+              <Box sx={{ fontWeight: 600 }}>{currentLegLabel}</Box>
+            </Box>
+            <Box>
+              <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>CURRENT COMPANY</Box>
+              <Box sx={{ fontWeight: 600 }}>{currentCompanyLabel}</Box>
             </Box>
             {transit.dispatchDate && (
               <Box>
@@ -758,7 +826,7 @@ export default function TransitDetailPage() {
           <TabPanel value={activeTab} index={2}>
             <Box sx={{ p: 2, background: 'var(--surface-secondary)', borderRadius: 2, border: '1px solid var(--border)' }}>
               <Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                💡 To add expenses for shipments in this transit, go to the <strong>Shipments</strong> tab and click the <DollarSign className="inline w-3.5 h-3.5" /> icon for each shipment.
+                Transit expenses and shipment transit expenses post against the latest transit event. Add a new event whenever the route or company changes.
               </Box>
             </Box>
             <Box sx={{ mt: 2 }}>
@@ -767,12 +835,18 @@ export default function TransitDetailPage() {
           </TabPanel>
 
           <TabPanel value={activeTab} index={3}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, p: 2, background: 'var(--surface)', borderRadius: 2, border: '1px solid var(--border)' }}>
-              <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>COMPANY NAME</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.company.name}</Box></Box>
-              {transit.company.code && <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>CODE</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.company.code}</Box></Box>}
-              {transit.company.phone && <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>PHONE</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.company.phone}</Box></Box>}
-              {transit.company.email && <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>EMAIL</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.company.email}</Box></Box>}
-            </Box>
+            {transit.currentCompany ? (
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, p: 2, background: 'var(--surface)', borderRadius: 2, border: '1px solid var(--border)' }}>
+                <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>COMPANY NAME</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.currentCompany.name}</Box></Box>
+                {transit.currentCompany.code && <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>CODE</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.currentCompany.code}</Box></Box>}
+                {transit.currentCompany.phone && <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>PHONE</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.currentCompany.phone}</Box></Box>}
+                {transit.currentCompany.email && <Box><Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>EMAIL</Box><Box sx={{ fontWeight: 600, mt: 0.5 }}>{transit.currentCompany.email}</Box></Box>}
+              </Box>
+            ) : (
+              <Box sx={{ p: 2, background: 'var(--surface)', borderRadius: 2, border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                No transit company is assigned yet. Add a transit event to set the active leg company.
+              </Box>
+            )}
             {transit.notes && (
               <Box sx={{ mt: 2, p: 2, background: 'var(--surface)', borderRadius: 2, border: '1px solid var(--border)' }}>
                 <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>NOTES</Box>
@@ -813,6 +887,24 @@ export default function TransitDetailPage() {
         <Dialog open={openEvent} onClose={() => !postingEvent && setOpenEvent(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Add Transit Event</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
+            <TextField
+              select
+              label="Transit Company"
+              value={eventForm.companyId}
+              onChange={(e) => setEventForm(prev => ({ ...prev, companyId: e.target.value }))}
+              required
+            >
+              <MenuItem value="">Select a company...</MenuItem>
+              {transitCompanies.map((company) => (
+                <MenuItem key={company.id} value={company.id}>
+                  {company.name}{company.code ? ` (${company.code})` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <TextField label="From" value={eventForm.origin} onChange={(e) => setEventForm(prev => ({ ...prev, origin: e.target.value }))} required placeholder="e.g. Herat" />
+              <TextField label="To" value={eventForm.destination} onChange={(e) => setEventForm(prev => ({ ...prev, destination: e.target.value }))} required placeholder="e.g. Kabul" />
+            </Box>
             <TextField label="Status / Event" value={eventForm.status} onChange={(e) => setEventForm(prev => ({ ...prev, status: e.target.value }))} required placeholder="e.g. Loaded, Border Crossed, Arrived Kabul" />
             <TextField label="Location" value={eventForm.location} onChange={(e) => setEventForm(prev => ({ ...prev, location: e.target.value }))} placeholder="e.g. Islam Qala Border" />
             <TextField label="Description" multiline rows={2} value={eventForm.description} onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))} />
