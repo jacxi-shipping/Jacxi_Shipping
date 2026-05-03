@@ -1165,7 +1165,7 @@ export default function ShipmentDetailPage() {
                 canAssignDispatch ? (
                   <button
                     onClick={() => setOpenAssignDispatch(true)}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                   >
                     <Truck className="h-3.5 w-3.5" />
                     Assign to Dispatch
@@ -1239,7 +1239,7 @@ export default function ShipmentDetailPage() {
                     <button
                       onClick={() => setOpenAssignTransit(true)}
                       disabled={!isReleasedForTransit}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Truck className="h-3.5 w-3.5" />
                       Assign to Transit
@@ -2193,6 +2193,7 @@ export default function ShipmentDetailPage() {
           onNavigate={(idx) => setLightbox(prev => prev ? { ...prev, index: idx } : prev)}
           onDelete={canUploadArrivalPhotos ? handleLightboxDelete : undefined}
           onDownload={downloadPhoto}
+          onDownloadAll={(urls) => downloadAllPhotos(urls, lightbox.title)}
           downloading={downloading}
         />
       )}
@@ -2224,7 +2225,7 @@ export default function ShipmentDetailPage() {
           </DialogContent>
           <DialogActions>
             <button onClick={() => setOpenAssignDispatch(false)} disabled={assigningDispatch} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)' }}>Cancel</button>
-            <button onClick={() => void handleAssignDispatch()} disabled={assigningDispatch || loadingDispatches || !dispatchIdToAssign} style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#000' }}>
+            <button onClick={() => void handleAssignDispatch()} disabled={assigningDispatch || loadingDispatches || !dispatchIdToAssign} style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#fff' }}>
               {assigningDispatch ? 'Assigning...' : 'Assign'}
             </button>
           </DialogActions>
@@ -2267,7 +2268,7 @@ export default function ShipmentDetailPage() {
           </DialogContent>
           <DialogActions>
             <button onClick={() => setOpenAssignTransit(false)} disabled={assigningTransit} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)' }}>Cancel</button>
-            <button onClick={() => void handleAssignTransit()} disabled={assigningTransit} style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#000' }}>
+            <button onClick={() => void handleAssignTransit()} disabled={assigningTransit} style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#fff' }}>
               {assigningTransit ? 'Assigning...' : 'Assign'}
             </button>
           </DialogActions>

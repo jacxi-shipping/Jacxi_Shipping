@@ -20,7 +20,7 @@ export default function OfflinePage() {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 rounded-md bg-[var(--accent-gold)] px-4 py-2 text-sm font-semibold text-black hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-md bg-[var(--accent-gold)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
             <RefreshCcw className="h-4 w-4" />
             Retry
