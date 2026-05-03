@@ -9,6 +9,7 @@ const addExpenseSchema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
   companyAmount: z.number().positive().optional(),
+  createCompanyCredit: z.boolean().optional().default(true),
   expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
   paymentMode: z.enum(['DUE']).default('DUE'),
   notes: z.string().optional(),
@@ -58,8 +59,16 @@ export async function POST(request: NextRequest) {
         },
         transit: {
           select: {
-            companyId: true,
             referenceNumber: true,
+            events: {
+              orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+              take: 1,
+              select: {
+                companyId: true,
+                origin: true,
+                destination: true,
+              },
+            },
           },
         },
       },
@@ -73,42 +82,48 @@ export async function POST(request: NextRequest) {
     let resolvedCompanyId: string | null | undefined;
     let expenseSource: 'DISPATCH' | 'TRANSIT' | 'SHIPMENT';
     let contextLabel = '';
+    const currentTransitEvent = shipment.transit?.events[0];
 
     if (validatedData.contextType === 'DISPATCH') {
       resolvedCompanyId = shipment.dispatch?.companyId;
       expenseSource = 'DISPATCH';
       contextLabel = `(Dispatch ${shipment.dispatch?.referenceNumber || 'N/A'})`;
     } else if (validatedData.contextType === 'TRANSIT') {
-      resolvedCompanyId = shipment.transit?.companyId;
+      resolvedCompanyId = currentTransitEvent?.companyId;
       expenseSource = 'TRANSIT';
-      contextLabel = `(Transit ${shipment.transit?.referenceNumber || 'N/A'})`;
+      contextLabel = currentTransitEvent
+        ? `(Transit ${shipment.transit?.referenceNumber || 'N/A'}: ${currentTransitEvent.origin} -> ${currentTransitEvent.destination})`
+        : `(Transit ${shipment.transit?.referenceNumber || 'N/A'})`;
     } else if (validatedData.contextType === 'CONTAINER') {
       resolvedCompanyId = shipment.container?.companyId;
       expenseSource = 'SHIPMENT';
       contextLabel = shipment.container?.containerNumber ? `(Container ${shipment.container.containerNumber})` : '';
     } else {
-      resolvedCompanyId = shipment.container?.companyId || shipment.transit?.companyId || shipment.dispatch?.companyId;
+      resolvedCompanyId = shipment.container?.companyId || currentTransitEvent?.companyId || shipment.dispatch?.companyId;
 
       if (shipment.container?.companyId) {
         expenseSource = 'SHIPMENT';
         contextLabel = shipment.container.containerNumber ? `(Container ${shipment.container.containerNumber})` : '';
-      } else if (shipment.transit?.companyId) {
+      } else if (currentTransitEvent?.companyId) {
         expenseSource = 'TRANSIT';
-        contextLabel = `(Transit ${shipment.transit.referenceNumber || 'N/A'})`;
+        contextLabel = `(Transit ${shipment.transit?.referenceNumber || 'N/A'}: ${currentTransitEvent.origin} -> ${currentTransitEvent.destination})`;
       } else {
         expenseSource = 'DISPATCH';
         contextLabel = `(Dispatch ${shipment.dispatch?.referenceNumber || 'N/A'})`;
       }
     }
 
-    if (!resolvedCompanyId) {
+    const shouldCreateCompanyCredit = validatedData.createCompanyCredit;
+
+    if (shouldCreateCompanyCredit && !resolvedCompanyId) {
       return NextResponse.json(
-        { error: 'Shipment must be linked to a dispatch, container, or transit with a company before adding expenses' },
+        { error: 'Shipment must be linked to a dispatch, container, or transit with a company before adding split expenses' },
         { status: 400 }
       );
     }
 
-    // The user (debit) amount is always `amount`. Company (debit/payable) amount defaults to `amount` unless overridden.
+    // The user amount is always debited to the customer ledger.
+    // Company credit remains opt-in for callers that disable it, otherwise it defaults to the user amount.
     const userAmount = validatedData.amount;
     const companyAmount = validatedData.companyAmount ?? validatedData.amount;
 
@@ -146,7 +161,7 @@ export async function POST(request: NextRequest) {
             // Shipment expenses are always staged for invoice payment — they must NOT
             // affect the customer's credit balance until the invoice is actually paid.
             pendingInvoice: true,
-            linkedCompanyId: resolvedCompanyId,
+            ...(resolvedCompanyId ? { linkedCompanyId: resolvedCompanyId } : {}),
             expenseSource,
             ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
             ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
@@ -156,32 +171,33 @@ export async function POST(request: NextRequest) {
       });
 
       const reference = `shipment-expense:${debitEntry.id}`;
-
-      const companyDebitEntry = await tx.companyLedgerEntry.create({
-        data: {
-          companyId: resolvedCompanyId,
-          description: `Expense recovery - ${description}`,
-          type: 'DEBIT',
-          amount: companyAmount,
-          balance: 0,
-          category: companyCategory,
-          reference,
-          notes: validatedData.notes,
-          createdBy: session.user!.id as string,
-          metadata: {
-            isExpenseRecovery: true,
-            expenseSource,
-            linkedUserExpenseEntryId: debitEntry.id,
-            shipmentId: shipment.id,
-            userId: shipment.userId,
-            expenseType: validatedData.expenseType,
-            paymentMode: 'DUE',
-            ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
-            ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
-            ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
-          },
-        },
-      });
+      const companyDebitEntry = shouldCreateCompanyCredit
+        ? await tx.companyLedgerEntry.create({
+            data: {
+              companyId: resolvedCompanyId!,
+              description: `Expense recovery - ${description}`,
+              type: 'CREDIT',
+              amount: companyAmount!,
+              balance: 0,
+              category: companyCategory,
+              reference,
+              notes: validatedData.notes,
+              createdBy: session.user!.id as string,
+              metadata: {
+                isExpenseRecovery: true,
+                expenseSource,
+                linkedUserExpenseEntryId: debitEntry.id,
+                shipmentId: shipment.id,
+                userId: shipment.userId,
+                expenseType: validatedData.expenseType,
+                paymentMode: 'DUE',
+                ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
+                ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
+                ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
+              },
+            },
+          })
+        : null;
 
       // Add this expense as a line item on the shipment's pending invoice
       await addExpenseLineItemToShipmentInvoice(
@@ -197,7 +213,9 @@ export async function POST(request: NextRequest) {
       const createdEntries = [debitEntry];
 
       await routeDeps.recalculateUserLedgerBalances(tx, shipment.userId);
-      await routeDeps.recalculateCompanyLedgerBalances(tx, resolvedCompanyId);
+      if (companyDebitEntry) {
+        await routeDeps.recalculateCompanyLedgerBalances(tx, resolvedCompanyId!);
+      }
 
       return {
         userEntries: createdEntries,

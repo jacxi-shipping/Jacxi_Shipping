@@ -1095,4 +1095,28 @@ describe('workflow route integration', () => {
     assert.equal(state.ledgerEntries.length, 1);
     assert.equal(state.companyLedgerEntries.length, 1);
   });
+
+  it('posts shipment expenses without company credit when explicitly disabled', async () => {
+    state.shipments.s1.status = 'DISPATCHING';
+    state.shipments.s1.dispatchId = 'd1';
+
+    const response = await postLedgerExpense(
+      request('http://localhost/api/ledger/expense', 'POST', {
+        shipmentId: 's1',
+        description: 'Customer-only charge',
+        amount: 80,
+        expenseType: 'FUEL',
+        paymentMode: 'DUE',
+        contextType: 'DISPATCH',
+        contextId: 'd1',
+        createCompanyCredit: false,
+      }),
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 201);
+    assert.equal(body.companyEntry, null);
+    assert.equal(state.ledgerEntries.length, 1);
+    assert.equal(state.companyLedgerEntries.length, 0);
+  });
 });
