@@ -227,11 +227,11 @@ export default function PhotoGallery({
                       type="button"
                       onClick={(e) => void handleDownloadSingleClick(e, photo.url, i)}
                       disabled={downloadingIndex !== null}
-                      className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--accent-gold)]/90 text-black shadow transition-colors hover:bg-[var(--accent-gold)] disabled:opacity-50"
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--accent-gold)]/90 text-white shadow transition-colors hover:bg-[var(--accent-gold)] disabled:opacity-50"
                       aria-label={`Download photo ${i + 1}`}
                     >
                       {downloadingIndex === i ? (
-                        <div className="h-3 w-3 animate-spin rounded-full border border-black border-t-transparent" />
+                        <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
                       ) : (
                         <Download className="h-3 w-3" />
                       )}
@@ -249,10 +249,10 @@ export default function PhotoGallery({
                 type="button"
                 onClick={() => void handleDownloadAllClick()}
                 disabled={downloadingAll}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-bold text-black transition-all hover:brightness-110 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent-gold)] px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-110 disabled:opacity-60"
               >
                 {downloadingAll ? (
-                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 ) : (
                   <Download className="h-3.5 w-3.5" />
                 )}

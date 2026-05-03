@@ -95,7 +95,7 @@ const badgeStyles: Record<StageState, string> = {
 
 const markerStyles: Record<StageState, string> = {
   pending: 'border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)]',
-  current: 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-black',
+  current: 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-white',
   complete: 'border-[rgb(34,197,94)] bg-[rgb(34,197,94)] text-white',
 };
 

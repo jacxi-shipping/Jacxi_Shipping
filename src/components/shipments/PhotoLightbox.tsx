@@ -194,7 +194,7 @@ export default function PhotoLightbox({
               {zoom > 1 && (
                 <span
                   className="hidden shrink-0 rounded px-2 py-0.5 text-[11px] font-bold sm:inline"
-                  style={{ backgroundColor: 'var(--accent-gold)', color: '#000' }}
+                  style={{ backgroundColor: 'var(--accent-gold)', color: '#fff' }}
                 >
                   {zoomPct}%
                 </span>
@@ -260,11 +260,11 @@ export default function PhotoLightbox({
                   onClick={() => void onDownloadAll(images)}
                   disabled={downloading}
                   className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--accent-gold)', color: '#000' }}
+                  style={{ backgroundColor: 'var(--accent-gold)', color: '#fff' }}
                   aria-label="Download all photos"
                 >
                   {downloading ? (
-                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : (
                     <Download className="h-3.5 w-3.5" />
                   )}
@@ -430,7 +430,7 @@ export default function PhotoLightbox({
                       <span
                         className="absolute bottom-0.5 right-0.5 rounded px-1 py-0.5 text-[9px] font-bold leading-none"
                         style={i === index
-                          ? { backgroundColor: 'var(--accent-gold)', color: '#000' }
+                          ? { backgroundColor: 'var(--accent-gold)', color: '#fff' }
                           : { backgroundColor: 'rgba(0,0,0,0.65)', color: '#fff' }
                         }
                       >
