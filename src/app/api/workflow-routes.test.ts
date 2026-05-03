@@ -58,7 +58,7 @@ type ContainerState = {
 
 type TransitState = {
   id: string;
-  companyId: string;
+  companyId: string | null;
   referenceNumber: string;
   status: 'PENDING' | 'DISPATCHED' | 'IN_TRANSIT' | 'ARRIVED' | 'DELIVERED' | 'CANCELLED';
   actualDelivery: Date | null;
@@ -70,6 +70,20 @@ type TransitState = {
   destination: string;
 };
 
+type TransitEventState = {
+  id: string;
+  transitId: string;
+  companyId: string;
+  origin: string;
+  destination: string;
+  status: string;
+  location: string | null;
+  description: string | null;
+  eventDate: Date;
+  createdBy: string;
+  createdAt: Date;
+};
+
 type WorkflowState = {
   users: Record<string, { id: string; name: string; email: string; phone: string | null; role: string }>;
   userSettings: Record<string, { userId: string; notifyShipmentPush: boolean | null }>;
@@ -79,7 +93,7 @@ type WorkflowState = {
   containers: Record<string, ContainerState>;
   transits: Record<string, TransitState>;
   dispatchEvents: Array<Record<string, unknown>>;
-  transitEvents: Array<Record<string, unknown>>;
+  transitEvents: TransitEventState[];
   shipmentAuditLogs: Array<Record<string, unknown>>;
   ledgerEntries: Array<Record<string, unknown>>;
   companyLedgerEntries: Array<Record<string, unknown>>;
@@ -201,7 +215,7 @@ function createState(): WorkflowState {
     transits: {
       t1: {
         id: 't1',
-        companyId: 'transit-co',
+        companyId: null,
         referenceNumber: 'TRN-2026-AAA11',
         status: 'PENDING',
         actualDelivery: null,
@@ -214,7 +228,21 @@ function createState(): WorkflowState {
       },
     },
     dispatchEvents: [],
-    transitEvents: [],
+    transitEvents: [
+      {
+        id: 'te-1',
+        transitId: 't1',
+        companyId: 'transit-co',
+        origin: 'Herat, Afghanistan',
+        destination: 'Kabul, Afghanistan',
+        status: 'DISPATCHED',
+        location: 'Herat, Afghanistan',
+        description: 'Initial transit leg',
+        eventDate: new Date('2026-04-03T08:00:00.000Z'),
+        createdBy: 'admin-1',
+        createdAt: new Date('2026-04-03T08:00:00.000Z'),
+      },
+    ],
     shipmentAuditLogs: [],
     ledgerEntries: [],
     companyLedgerEntries: [],
@@ -222,9 +250,27 @@ function createState(): WorkflowState {
   };
 }
 
+function getTransitEvents(state: WorkflowState, transitId: string) {
+  return state.transitEvents
+    .filter((event) => event.transitId === transitId)
+    .sort((left, right) => {
+      const eventTime = right.eventDate.getTime() - left.eventDate.getTime();
+      if (eventTime !== 0) return eventTime;
+      return right.createdAt.getTime() - left.createdAt.getTime();
+    })
+    .map((event) => ({
+      ...event,
+      company: state.companies[event.companyId],
+    }));
+}
+
 function buildShipment(state: WorkflowState, shipmentId: string) {
   const shipment = state.shipments[shipmentId];
   if (!shipment) return null;
+
+  const currentTransitEvent = shipment.transitId
+    ? getTransitEvents(state, shipment.transitId)[0] ?? null
+    : null;
 
   return {
     ...shipment,
@@ -244,9 +290,18 @@ function buildShipment(state: WorkflowState, shipmentId: string) {
       : null,
     transit: shipment.transitId
       ? {
-          companyId: state.transits[shipment.transitId]?.companyId || null,
+          companyId: currentTransitEvent?.companyId || state.transits[shipment.transitId]?.companyId || null,
           referenceNumber: state.transits[shipment.transitId]?.referenceNumber || null,
           status: state.transits[shipment.transitId]?.status || null,
+          events: currentTransitEvent
+            ? [
+                {
+                  companyId: currentTransitEvent.companyId,
+                  origin: currentTransitEvent.origin,
+                  destination: currentTransitEvent.destination,
+                },
+              ]
+            : [],
         }
       : null,
   };
@@ -391,6 +446,8 @@ function installRouteMocks(state: WorkflowState) {
     const transit = state.transits[where.id];
     if (!transit) return null;
 
+    const transitEvents = getTransitEvents(state, where.id);
+
     return {
       ...transit,
       ...(include?.shipments
@@ -408,14 +465,26 @@ function installRouteMocks(state: WorkflowState) {
               })),
           }
         : {}),
+      ...(include?.events
+        ? {
+            events: transitEvents.slice(0, include.events.take ?? transitEvents.length),
+          }
+        : {}),
     };
   }) as typeof routeDeps.prisma.transit.findUnique;
   routeDeps.prisma.transit.update = (async ({ where, data, include }: any) => {
     Object.assign(state.transits[where.id], data);
     const transit = state.transits[where.id];
-    return include?.company
-      ? { ...transit, company: state.companies[transit.companyId] }
-      : { ...transit };
+
+    if (include?.events) {
+      const transitEvents = getTransitEvents(state, where.id);
+      return {
+        ...transit,
+        events: transitEvents.slice(0, include.events.take ?? transitEvents.length),
+      };
+    }
+
+    return { ...transit };
   }) as typeof routeDeps.prisma.transit.update;
   routeDeps.prisma.transit.delete = (async ({ where }: any) => {
     const transit = state.transits[where.id];
@@ -423,9 +492,18 @@ function installRouteMocks(state: WorkflowState) {
     return transit;
   }) as typeof routeDeps.prisma.transit.delete;
   routeDeps.prisma.transitEvent.create = (async ({ data }: any) => {
-    const event = { id: `te-${state.transitEvents.length + 1}`, createdAt: new Date(), ...data };
+    const event = {
+      id: `te-${state.transitEvents.length + 1}`,
+      location: null,
+      description: null,
+      createdAt: new Date(),
+      ...data,
+    };
     state.transitEvents.push(event);
-    return event;
+    return {
+      ...event,
+      company: state.companies[event.companyId],
+    };
   }) as typeof routeDeps.prisma.transitEvent.create;
   routeDeps.prisma.user.findMany = (async ({ where, select }: any) => {
     return Object.values(state.users)
@@ -576,6 +654,7 @@ describe('workflow route integration', () => {
 
   it('blocks adding a shipment to a closed dispatch', async () => {
     state.dispatches.d1.status = 'COMPLETED';
+    routeDeps.auth = (async () => ({ user: { id: 'manager-1', role: 'manager' } })) as typeof routeDeps.auth;
 
     const response = await postDispatchShipment(
       request('http://localhost/api/dispatches/d1/shipments', 'POST', { shipmentId: 's1' }),
@@ -1034,7 +1113,7 @@ describe('workflow route integration', () => {
     assert.equal(state.transits.t1.deliveryReceiverName, 'Ahmad Khan');
     assert.equal(state.transits.t1.deliveryProofUrl, 'https://blob.example.com/pod.pdf');
     assert.equal(state.shipments.s1.status, 'DELIVERED');
-    assert.equal(state.transitEvents.length, 1);
+    assert.equal(state.transitEvents.length, 2);
     assert.equal(body.deliveryConfirmation.receiverName, 'Ahmad Khan');
   });
 

@@ -89,7 +89,7 @@ export async function POST(
       return NextResponse.json({ error: 'Transit has no active shipments to confirm as delivered' }, { status: 400 });
     }
 
-    const currentEvent = transit.events[0] ?? null;
+    const currentEvent = transit.events?.[0] ?? null;
 
     if (!currentEvent) {
       return NextResponse.json({ error: 'Add at least one transit event before confirming delivery' }, { status: 400 });

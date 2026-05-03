@@ -132,8 +132,8 @@ export async function GET(
     return NextResponse.json({ 
       transit: {
         ...transit,
-        currentEvent: transit.events[0] ?? null,
-        currentCompany: transit.events[0]?.company ?? null,
+        currentEvent: transit.events?.[0] ?? null,
+        currentCompany: transit.events?.[0]?.company ?? null,
         expenses: allExpenses,
         _count: {
           ...transit._count,
@@ -222,8 +222,8 @@ export async function PATCH(
     return NextResponse.json({
       transit: {
         ...transit,
-        currentEvent: transit.events[0] ?? null,
-        currentCompany: transit.events[0]?.company ?? null,
+        currentEvent: transit.events?.[0] ?? null,
+        currentCompany: transit.events?.[0]?.company ?? null,
       },
     });
   } catch (error) {
