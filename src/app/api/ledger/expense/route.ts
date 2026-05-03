@@ -9,6 +9,7 @@ const addExpenseSchema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
   companyAmount: z.number().positive().optional(),
+  createCompanyCredit: z.boolean().optional().default(true),
   expenseType: z.enum(['SHIPPING_FEE', 'FUEL', 'PORT_CHARGES', 'TOWING', 'CUSTOMS', 'STORAGE_FEE', 'HANDLING_FEE', 'INSURANCE', 'OTHER']),
   paymentMode: z.enum(['DUE']).default('DUE'),
   notes: z.string().optional(),
@@ -101,14 +102,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!resolvedCompanyId) {
+    const shouldCreateCompanyCredit = validatedData.createCompanyCredit;
+
+    if (shouldCreateCompanyCredit && !resolvedCompanyId) {
       return NextResponse.json(
-        { error: 'Shipment must be linked to a dispatch, container, or transit with a company before adding expenses' },
+        { error: 'Shipment must be linked to a dispatch, container, or transit with a company before adding split expenses' },
         { status: 400 }
       );
     }
 
-    // The user (debit) amount is always `amount`. Company (debit/payable) amount defaults to `amount` unless overridden.
+    // The user amount is always debited to the customer ledger.
+    // Company credit remains opt-in for callers that disable it, otherwise it defaults to the user amount.
     const userAmount = validatedData.amount;
     const companyAmount = validatedData.companyAmount ?? validatedData.amount;
 
@@ -146,7 +150,7 @@ export async function POST(request: NextRequest) {
             // Shipment expenses are always staged for invoice payment — they must NOT
             // affect the customer's credit balance until the invoice is actually paid.
             pendingInvoice: true,
-            linkedCompanyId: resolvedCompanyId,
+            ...(resolvedCompanyId ? { linkedCompanyId: resolvedCompanyId } : {}),
             expenseSource,
             ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
             ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
@@ -157,31 +161,33 @@ export async function POST(request: NextRequest) {
 
       const reference = `shipment-expense:${debitEntry.id}`;
 
-      const companyDebitEntry = await tx.companyLedgerEntry.create({
-        data: {
-          companyId: resolvedCompanyId,
-          description: `Expense recovery - ${description}`,
-          type: 'CREDIT',
-          amount: companyAmount,
-          balance: 0,
-          category: companyCategory,
-          reference,
-          notes: validatedData.notes,
-          createdBy: session.user!.id as string,
-          metadata: {
-            isExpenseRecovery: true,
-            expenseSource,
-            linkedUserExpenseEntryId: debitEntry.id,
-            shipmentId: shipment.id,
-            userId: shipment.userId,
-            expenseType: validatedData.expenseType,
-            paymentMode: 'DUE',
-            ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
-            ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
-            ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
-          },
-        },
-      });
+      const companyDebitEntry = shouldCreateCompanyCredit
+        ? await tx.companyLedgerEntry.create({
+            data: {
+              companyId: resolvedCompanyId!,
+              description: `Expense recovery - ${description}`,
+              type: 'CREDIT',
+              amount: companyAmount!,
+              balance: 0,
+              category: companyCategory,
+              reference,
+              notes: validatedData.notes,
+              createdBy: session.user!.id as string,
+              metadata: {
+                isExpenseRecovery: true,
+                expenseSource,
+                linkedUserExpenseEntryId: debitEntry.id,
+                shipmentId: shipment.id,
+                userId: shipment.userId,
+                expenseType: validatedData.expenseType,
+                paymentMode: 'DUE',
+                ...(expenseSource === 'DISPATCH' && { dispatchId: shipment.dispatchId }),
+                ...(expenseSource === 'TRANSIT' && { transitId: shipment.transitId }),
+                ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
+              },
+            },
+          })
+        : null;
 
       // Add this expense as a line item on the shipment's pending invoice
       await addExpenseLineItemToShipmentInvoice(
@@ -197,7 +203,9 @@ export async function POST(request: NextRequest) {
       const createdEntries = [debitEntry];
 
       await routeDeps.recalculateUserLedgerBalances(tx, shipment.userId);
-      await routeDeps.recalculateCompanyLedgerBalances(tx, resolvedCompanyId);
+      if (companyDebitEntry) {
+        await routeDeps.recalculateCompanyLedgerBalances(tx, resolvedCompanyId!);
+      }
 
       return {
         userEntries: createdEntries,

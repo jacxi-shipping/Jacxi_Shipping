@@ -67,6 +67,7 @@ export default function AddShipmentExpenseModal({
 	contextType,
 	contextId,
 }: AddShipmentExpenseModalProps) {
+	const shipmentOptions = shipments ?? [];
 	const singleShipmentId = !shipmentIdProp && shipments?.length === 1 ? shipments[0].id : '';
 	const isBulkMode = Boolean(shipments && shipments.length > 1 && !shipmentIdProp);
 	const shouldShowShipmentSelector = Boolean(shipments && shipments.length > 1 && !shipmentIdProp);
@@ -153,6 +154,7 @@ export default function AddShipmentExpenseModal({
 							shipmentId: item.shipmentId,
 							expenseType: item.expenseType,
 							amount: parseFloat(item.amount),
+							createCompanyCredit: item.useSplitAmounts,
 							...(item.useSplitAmounts ? { companyAmount: parseFloat(item.companyAmount) } : {}),
 							description: item.description,
 							notes: item.notes || undefined,
@@ -219,6 +221,7 @@ export default function AddShipmentExpenseModal({
 					shipmentId: resolvedShipmentId,
 					expenseType: formData.expenseType,
 					amount: parseFloat(formData.amount),
+					createCompanyCredit: useSplitAmounts,
 					...(useSplitAmounts ? { companyAmount: parseFloat(formData.companyAmount) } : {}),
 					description: formData.description,
 					notes: formData.notes || undefined,
@@ -369,11 +372,11 @@ export default function AddShipmentExpenseModal({
 									/>
 
 									{!item.useSplitAmounts ? (
-										<TextField size="small" label="Amount (USD)" type="number" value={item.amount} onChange={(e) => updateItem(index, 'amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} />
+										<TextField size="small" label="Amount (USD)" type="number" value={item.amount} onChange={(e) => updateItem(index, 'amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Only the customer ledger will be debited" />
 									) : (
 										<>
-											<TextField size="small" label="User Amount (USD)" type="number" value={item.amount} onChange={(e) => updateItem(index, 'amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} />
-											<TextField size="small" label="Company Amount (USD)" type="number" value={item.companyAmount} onChange={(e) => updateItem(index, 'companyAmount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} />
+											<TextField size="small" label="User Amount (USD)" type="number" value={item.amount} onChange={(e) => updateItem(index, 'amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount debited to the customer ledger" />
+											<TextField size="small" label="Company Amount (USD)" type="number" value={item.companyAmount} onChange={(e) => updateItem(index, 'companyAmount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount credited to the company ledger" />
 										</>
 									)}
 
@@ -392,7 +395,7 @@ export default function AddShipmentExpenseModal({
 									<InputLabel>Shipment</InputLabel>
 									<Select value={selectedShipmentId} onChange={(e) => setSelectedShipmentId(e.target.value)} label="Shipment">
 										<MenuItem value=""><em>Select a shipment...</em></MenuItem>
-										{shipments.map((s) => (
+										{shipmentOptions.map((s) => (
 											<MenuItem key={s.id} value={s.id}>
 												{s.vehicleMake} {s.vehicleModel}{s.vehicleVIN ? ` - ${s.vehicleVIN}` : ''}{s.user ? ` (${s.user.name || s.user.email})` : ''}
 											</MenuItem>
@@ -418,11 +421,11 @@ export default function AddShipmentExpenseModal({
 							/>
 
 							{!useSplitAmounts ? (
-								<TextField size="small" label="Amount (USD)" type="number" value={formData.amount} onChange={(e) => handleChange('amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Same amount debited to customer ledger and company ledger" />
+								<TextField size="small" label="Amount (USD)" type="number" value={formData.amount} onChange={(e) => handleChange('amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Only the customer ledger will be debited" />
 							) : (
 								<>
 									<TextField size="small" label="User Amount (USD)" type="number" value={formData.amount} onChange={(e) => handleChange('amount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount debited to customer ledger" />
-									<TextField size="small" label="Company Amount (USD)" type="number" value={formData.companyAmount} onChange={(e) => handleChange('companyAmount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount debited to company ledger (internal - not visible to customer)" />
+									<TextField size="small" label="Company Amount (USD)" type="number" value={formData.companyAmount} onChange={(e) => handleChange('companyAmount', e.target.value)} required inputProps={{ min: 0, step: 0.01 }} InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} helperText="Amount credited to company ledger (internal - not visible to customer)" />
 								</>
 							)}
 
