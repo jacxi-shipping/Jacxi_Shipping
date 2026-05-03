@@ -164,6 +164,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 						borderRight: '1px solid var(--border)',
 						boxShadow: 'inset -1px 0 0 var(--border)',
 						position: 'relative',
+						height: '100%',
+						overflow: 'hidden',
 					},
 				}}
 			>
@@ -307,13 +309,13 @@ function SidebarContent({
 				overflow: 'hidden',
 			}}
 		>
-			{/* Navigation - Fixed height, no scroll */}
+			{/* Navigation - scrollable */}
 			<Box
 				sx={{
 					flex: 1,
 					px: 0.5,
 					py: 1.5,
-					overflow: 'hidden',
+					overflow: 'auto',
 					display: 'flex',
 					flexDirection: 'column',
 				}}
