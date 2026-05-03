@@ -67,10 +67,12 @@ export default function AddShipmentExpenseModal({
 	contextType,
 	contextId,
 }: AddShipmentExpenseModalProps) {
-	const isBulkMode = Boolean(shipments && !shipmentIdProp);
+	const singleShipmentId = !shipmentIdProp && shipments?.length === 1 ? shipments[0].id : '';
+	const isBulkMode = Boolean(shipments && shipments.length > 1 && !shipmentIdProp);
+	const shouldShowShipmentSelector = Boolean(shipments && shipments.length > 1 && !shipmentIdProp);
 
 	const [loading, setLoading] = useState(false);
-	const [selectedShipmentId, setSelectedShipmentId] = useState(shipmentIdProp || '');
+	const [selectedShipmentId, setSelectedShipmentId] = useState(shipmentIdProp || singleShipmentId || '');
 	const [useSplitAmounts, setUseSplitAmounts] = useState(false);
 	const [formData, setFormData] = useState({
 		expenseType: 'SHIPPING_FEE',
@@ -81,7 +83,7 @@ export default function AddShipmentExpenseModal({
 		paymentMode: 'DUE' as 'DUE',
 	});
 	const createEmptyItem = () => ({
-		shipmentId: '',
+		shipmentId: singleShipmentId || '',
 		expenseType: 'SHIPPING_FEE',
 		amount: '',
 		companyAmount: '',
@@ -94,14 +96,14 @@ export default function AddShipmentExpenseModal({
 
 	// Sync pre-selected shipmentId when a different row is clicked
 	useEffect(() => {
-		setSelectedShipmentId(shipmentIdProp || '');
-	}, [shipmentIdProp]);
+		setSelectedShipmentId(shipmentIdProp || singleShipmentId || '');
+	}, [shipmentIdProp, singleShipmentId]);
 
 	useEffect(() => {
 		if (open && isBulkMode) {
 			setExpenseItems([createEmptyItem()]);
 		}
-	}, [open, isBulkMode]);
+	}, [open, isBulkMode, singleShipmentId]);
 
 	const handleChange = (field: string, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -255,7 +257,7 @@ export default function AddShipmentExpenseModal({
 			});
 			setUseSplitAmounts(false);
 			setExpenseItems([createEmptyItem()]);
-			if (!shipmentIdProp) setSelectedShipmentId('');
+			if (!shipmentIdProp) setSelectedShipmentId(singleShipmentId || '');
 			onClose();
 		}
 	};
@@ -385,7 +387,7 @@ export default function AddShipmentExpenseModal({
 						</>
 					) : (
 						<>
-							{shipments && !shipmentIdProp && (
+							{shouldShowShipmentSelector && (
 								<FormControl fullWidth size="small" required>
 									<InputLabel>Shipment</InputLabel>
 									<Select value={selectedShipmentId} onChange={(e) => setSelectedShipmentId(e.target.value)} label="Shipment">

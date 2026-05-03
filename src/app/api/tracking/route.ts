@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { buildCustomerTrackingView, type CustomerTrackingView } from '@/lib/customer-tracking';
+import { trackingAPI, type ContainerTrackingSnapshot } from '@/lib/services/tracking-api';
 
 const TIMETOCARGO_ENDPOINT = 'https://tracking.timetocargo.com/webapi/track';
 const DEFAULT_HEADERS = {
@@ -263,14 +264,52 @@ function sortIsoStrings(values: Array<string | undefined>) {
 	return values.filter((value): value is string => Boolean(value)).sort((left, right) => left.localeCompare(right));
 }
 
+function normalizeTrackingFromSnapshot(snapshot: ContainerTrackingSnapshot): NormalizedTracking {
+	const events = snapshot.trackingEvents.map((event, index) => ({
+		id: `${snapshot.containerNumber}-${index}`,
+		status: event.status,
+		statusCode: undefined,
+		location: event.location,
+		terminal: undefined,
+		timestamp: event.eventDate,
+		actual: event.completed,
+		vessel: event.vesselName,
+		voyage: snapshot.voyageNumber,
+		description: event.description,
+	}));
+
+	return {
+		containerNumber: snapshot.containerNumber,
+		containerType: snapshot.containerType,
+		shipmentStatus: snapshot.status,
+		origin: snapshot.loadingPort,
+		originDate: snapshot.loadingDate,
+		pol: snapshot.loadingPort,
+		polDate: snapshot.departureDate || snapshot.loadingDate,
+		destination: snapshot.destinationPort,
+		destinationDate: snapshot.estimatedArrival,
+		pod: snapshot.destinationPort,
+		podDate: snapshot.estimatedArrival,
+		estimatedDeparture: snapshot.departureDate,
+		estimatedArrival: snapshot.estimatedArrival,
+		company: snapshot.shippingLine
+			? {
+				name: snapshot.shippingLine,
+				url: null,
+				scacs: undefined,
+			}
+			: undefined,
+		currentLocation: snapshot.currentLocation || snapshot.loadingPort,
+		lastUpdated: events[0]?.timestamp,
+		progress: snapshot.progress,
+		events,
+	};
+}
+
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
 		const trackNumber = (body.trackNumber || body.trackingNumber || '').trim();
-		const type = (body.type || 'container') as string;
-		const company = (body.company || 'AUTO') as string;
-		const needRoute = body.needRoute !== undefined ? Boolean(body.needRoute) : true;
-		const lang = body.lang || 'en';
 
 		if (!trackNumber) {
 			return NextResponse.json(
@@ -279,49 +318,15 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const payload = {
-			track_number: {
-				value: trackNumber,
-				type,
-			},
-			company,
-			need_route: needRoute,
-			lang,
-		};
-
-		const response = await fetch(TIMETOCARGO_ENDPOINT, {
-			method: 'POST',
-			headers: DEFAULT_HEADERS,
-			body: JSON.stringify(payload),
-			cache: 'no-store',
-		});
-
-		if (!response.ok) {
+		const snapshot = await trackingAPI.fetchContainerTrackingData(trackNumber);
+		if (!snapshot) {
 			return NextResponse.json(
-				{ message: 'Unable to fetch tracking information from carrier.', status: response.status },
-				{ status: response.status }
-			);
-		}
-
-		const data = (await response.json()) as TimetoCargoResponse;
-
-		if (!data?.success || !Array.isArray(data.data) || data.data.length === 0) {
-			return NextResponse.json(
-				{
-					message: data?.status_description || 'No tracking information found for this number.',
-					status: data?.status,
-				},
+				{ message: 'No tracking information found for this number.' },
 				{ status: 404 }
 			);
 		}
 
-		const normalized = normalizeTracking(data.data[0]);
-		if (!normalized) {
-			return NextResponse.json(
-				{ message: 'Invalid tracking data received from carrier.' },
-				{ status: 500 }
-			);
-		}
+		const normalized = normalizeTrackingFromSnapshot(snapshot);
 
 		const internalSnapshot = await getInternalTrackingSnapshot(trackNumber);
 		const customerTracking = buildCustomerTrackingView({
