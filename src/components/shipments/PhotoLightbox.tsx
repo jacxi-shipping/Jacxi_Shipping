@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Download, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PhotoLightboxProps {
@@ -18,8 +18,10 @@ interface PhotoLightboxProps {
   onNavigate: (index: number) => void;
   /** Called when user taps Delete — passes index */
   onDelete?: (index: number) => Promise<void>;
-  /** Called when user taps Download */
+  /** Called when user taps Download (single photo) */
   onDownload?: (url: string, index: number) => Promise<void>;
+  /** Called when user taps Download All */
+  onDownloadAll?: (urls: string[]) => Promise<void>;
   downloading?: boolean;
 }
 
@@ -36,6 +38,7 @@ export default function PhotoLightbox({
   onNavigate,
   onDelete,
   onDownload,
+  onDownloadAll,
   downloading = false,
 }: PhotoLightboxProps) {
   const [zoom, setZoom] = useState(1);
@@ -143,79 +146,141 @@ export default function PhotoLightbox({
     exit: (dir: number) => ({ x: dir > 0 ? '-60%' : '60%', opacity: 0 }),
   };
 
+  const zoomPct = Math.round(zoom * 100);
+
   return (
     <AnimatePresence>
       <motion.div
         key="lightbox-backdrop"
-        className="fixed inset-0 z-[9999] flex flex-col"
-        style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+        className="fixed inset-0 z-[9999] flex flex-col bg-black/80"
+        style={{ backdropFilter: 'blur(8px)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
         onClick={onClose}
       >
-        {/* ── Inner container — stops click-to-close propagating from header/strip ── */}
+        {/* ── Inner shell — prevents backdrop-click from firing on chrome ── */}
         <div className="flex h-full flex-col" onClick={e => e.stopPropagation()}>
 
-          {/* ── Header bar — system design ── */}
-          <div className="z-40 flex items-center justify-between border-b border-[var(--border)] bg-[var(--panel)] px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-3">
+          {/* ══════════════════════════════════
+               TOP BAR — cinema header
+          ══════════════════════════════════ */}
+          <div className="z-40 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#18181b] px-4 py-2.5 sm:px-5">
+
+            {/* Left: title + counter */}
+            <div className="flex min-w-0 items-center gap-2.5">
               {title && (
-                <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
+                <span className="truncate text-sm font-semibold text-white/90">{title}</span>
               )}
-              <span className="rounded-full bg-[var(--background)] border border-[var(--border)] px-2.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
+              <span className="shrink-0 rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-xs font-semibold text-white/70">
                 {index + 1} / {images.length}
               </span>
+              {zoom > 1 && (
+                <span className="hidden shrink-0 rounded border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-2 py-0.5 text-[11px] font-bold text-[#D4AF37] sm:inline">
+                  {zoomPct}%
+                </span>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Right: action buttons */}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {/* Zoom out */}
+              <button
+                type="button"
+                onClick={() => setZoom(z => Math.max(z - ZOOM_STEP, ZOOM_MIN))}
+                disabled={zoom <= ZOOM_MIN}
+                className="hidden h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white/70 transition-all hover:border-white/30 hover:text-white disabled:opacity-30 sm:flex"
+                aria-label="Zoom out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              {/* Zoom in */}
+              <button
+                type="button"
+                onClick={() => setZoom(z => Math.min(z + ZOOM_STEP, ZOOM_MAX))}
+                disabled={zoom >= ZOOM_MAX}
+                className="hidden h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white/70 transition-all hover:border-white/30 hover:text-white disabled:opacity-30 sm:flex"
+                aria-label="Zoom in"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+
+              <div className="hidden h-5 w-px bg-white/10 sm:block" />
+
+              {/* Download current */}
               {onDownload && (
                 <button
                   type="button"
                   onClick={() => void onDownload(current, index)}
                   disabled={downloading}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-semibold text-[var(--text-primary)] transition-all hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] disabled:opacity-50"
-                  aria-label="Download photo"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 text-xs font-semibold text-white/80 transition-all hover:border-[#D4AF37]/60 hover:text-[#D4AF37] disabled:opacity-40"
+                  aria-label="Download this photo"
                 >
                   {downloading ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : (
-                    <Download className="h-4 w-4" />
+                    <Download className="h-3.5 w-3.5" />
                   )}
                   <span className="hidden sm:inline">Download</span>
                 </button>
               )}
+
+              {/* Download all */}
+              {onDownloadAll && images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => void onDownloadAll(images)}
+                  disabled={downloading}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#D4AF37] px-2.5 text-xs font-bold text-black transition-all hover:brightness-110 disabled:opacity-40"
+                  aria-label="Download all photos"
+                >
+                  {downloading ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">All ({images.length})</span>
+                </button>
+              )}
+
+              {/* Delete */}
               {canDelete && onDelete && (
                 <button
                   type="button"
                   onClick={() => void handleDelete()}
                   disabled={deleting}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 disabled:opacity-50"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 text-xs font-semibold text-red-400 transition-all hover:bg-red-500/20 disabled:opacity-40"
                   aria-label="Delete photo"
                 >
                   {deleting ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : (
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   )}
                   <span className="hidden sm:inline">Delete</span>
                 </button>
               )}
+
+              <div className="hidden h-5 w-px bg-white/10 sm:block" />
+
+              {/* Close */}
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)] transition-all hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white/70 transition-all hover:border-white/35 hover:text-white"
                 aria-label="Close viewer"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* ── Main image area ── */}
+          {/* ══════════════════════════════════
+               MAIN IMAGE STAGE
+          ══════════════════════════════════ */}
           <div
-            className="relative flex-1 overflow-hidden bg-[#111]"
+            className="relative flex-1 overflow-hidden bg-[#09090b]"
             onWheel={handleWheel}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
@@ -230,7 +295,7 @@ export default function PhotoLightbox({
                 animate="center"
                 exit="exit"
                 transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                className="absolute inset-0 flex items-center justify-center p-4 sm:p-8"
+                className="absolute inset-0 flex items-center justify-center p-6 sm:p-10"
                 style={{ cursor: zoom > 1 ? 'grab' : 'default' }}
               >
                 <motion.div
@@ -241,7 +306,7 @@ export default function PhotoLightbox({
                   onDragEnd={(_, info) => {
                     setPanOffset(prev => ({ x: prev.x + info.offset.x, y: prev.y + info.offset.y }));
                   }}
-                  className="relative h-full w-full overflow-hidden rounded-xl"
+                  className="relative h-full w-full overflow-hidden rounded-lg shadow-2xl"
                   style={{ touchAction: 'none' }}
                 >
                   <Image
@@ -256,34 +321,43 @@ export default function PhotoLightbox({
               </motion.div>
             </AnimatePresence>
 
-            {/* Navigation arrows */}
+            {/* ── Navigation arrows ── */}
             {images.length > 1 && (
               <>
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
-                  className="absolute left-3 top-1/2 z-30 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-black/50 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-12 sm:w-12"
+                  className="absolute left-3 top-1/2 z-30 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-[#18181b]/90 text-white/80 shadow-xl backdrop-blur-sm transition-all duration-200 hover:border-[#D4AF37]/60 hover:text-[#D4AF37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] sm:h-12 sm:w-12"
                   aria-label="Previous photo"
                 >
-                  <ChevronLeft className="h-5 w-5 sm:h-7 sm:w-7" />
+                  <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate(1)}
-                  className="absolute right-3 top-1/2 z-30 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-black/50 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-12 sm:w-12"
+                  className="absolute right-3 top-1/2 z-30 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-[#18181b]/90 text-white/80 shadow-xl backdrop-blur-sm transition-all duration-200 hover:border-[#D4AF37]/60 hover:text-[#D4AF37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] sm:h-12 sm:w-12"
                   aria-label="Next photo"
                 >
-                  <ChevronRight className="h-5 w-5 sm:h-7 sm:w-7" />
+                  <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
                 </button>
               </>
             )}
+
+            {/* ── Double-tap hint (shown only when not zoomed) ── */}
+            {zoom === 1 && (
+              <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[11px] text-white/40 backdrop-blur-sm">
+                Double-click or scroll to zoom
+              </p>
+            )}
           </div>
 
-          {/* ── Thumbnail strip — system design ── */}
+          {/* ══════════════════════════════════
+               THUMBNAIL STRIP
+          ══════════════════════════════════ */}
           {images.length > 1 && (
-            <div className="z-20 border-t border-[var(--border)] bg-[var(--panel)] py-3">
+            <div className="z-20 shrink-0 border-t border-white/10 bg-[#18181b] py-3">
               <div className="overflow-x-auto">
-                <div className="flex min-w-max items-center gap-2 px-4 sm:px-6">
+                <div className="flex min-w-max items-center gap-2 px-4 sm:px-5">
                   {images.map((img, i) => (
                     <button
                       key={i}
@@ -293,10 +367,10 @@ export default function PhotoLightbox({
                         onNavigate(i);
                       }}
                       className={cn(
-                        'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-150 sm:h-[72px] sm:w-[72px]',
+                        'relative h-[60px] w-[60px] flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-150 sm:h-[68px] sm:w-[68px]',
                         i === index
-                          ? 'border-[var(--accent-gold)] ring-2 ring-[var(--accent-gold)]/30'
-                          : 'border-[var(--border)] opacity-75 hover:opacity-100 hover:border-[var(--accent-gold)]/50'
+                          ? 'border-[#D4AF37] shadow-[0_0_0_2px_rgba(212,175,55,0.25)]'
+                          : 'border-white/10 opacity-60 hover:border-white/30 hover:opacity-90'
                       )}
                       aria-label={`Go to photo ${i + 1}`}
                     >
@@ -309,8 +383,8 @@ export default function PhotoLightbox({
                         unoptimized
                       />
                       <span className={cn(
-                        'absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none',
-                        i === index ? 'bg-[var(--accent-gold)] text-black' : 'bg-black/60 text-white'
+                        'absolute bottom-0.5 right-0.5 rounded px-1 py-0.5 text-[9px] font-bold leading-none',
+                        i === index ? 'bg-[#D4AF37] text-black' : 'bg-black/70 text-white/80'
                       )}>
                         {i + 1}
                       </span>

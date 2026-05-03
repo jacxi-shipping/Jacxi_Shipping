@@ -2193,6 +2193,7 @@ export default function ShipmentDetailPage() {
           onNavigate={(idx) => setLightbox(prev => prev ? { ...prev, index: idx } : prev)}
           onDelete={canUploadArrivalPhotos ? handleLightboxDelete : undefined}
           onDownload={downloadPhoto}
+          onDownloadAll={(urls) => downloadAllPhotos(urls, lightbox.title)}
           downloading={downloading}
         />
       )}
