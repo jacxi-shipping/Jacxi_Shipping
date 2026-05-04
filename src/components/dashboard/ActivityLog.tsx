@@ -65,6 +65,8 @@ export function ActivityLog({ logs }: ActivityLogProps) {
         return 'payment';
       case 'INVOICE_CREATED':
       case 'INVOICE_REFRESHED':
+      case 'SUPPLEMENTAL_INVOICE_CREATED':
+      case 'CREDIT_NOTE_CREATED':
       case 'INVOICE_UPDATED':
         return 'invoice';
       default:
@@ -103,6 +105,18 @@ export function ActivityLog({ logs }: ActivityLogProps) {
           label: 'Invoice Created',
           color: 'rgba(34, 197, 94, 0.12)',
           textColor: 'rgb(34, 197, 94)',
+        };
+      case 'SUPPLEMENTAL_INVOICE_CREATED':
+        return {
+          label: 'Supplemental Invoice',
+          color: 'rgba(59, 130, 246, 0.12)',
+          textColor: 'rgb(29, 78, 216)',
+        };
+      case 'CREDIT_NOTE_CREATED':
+        return {
+          label: 'Credit Note',
+          color: 'rgba(245, 158, 11, 0.12)',
+          textColor: 'rgb(180, 83, 9)',
         };
       case 'INVOICE_UPDATED':
         return {
@@ -163,6 +177,8 @@ export function ActivityLog({ logs }: ActivityLogProps) {
         return <Container className="w-4 h-4 text-green-500" />;
       case 'CREATE':
       case 'INVOICE_CREATED':
+      case 'SUPPLEMENTAL_INVOICE_CREATED':
+      case 'CREDIT_NOTE_CREATED':
       case 'USER_REASSIGNED':
         return <Plus className="w-4 h-4 text-green-500" />;
       case 'INVOICE_UPDATED':

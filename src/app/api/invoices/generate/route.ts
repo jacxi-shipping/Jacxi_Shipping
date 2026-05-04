@@ -15,6 +15,22 @@ import {
   releaseInvoiceShipmentCharges,
 } from '@/lib/billing/shipment-charges';
 
+const mutableInvoiceStatuses = new Set(['DRAFT', 'PENDING']);
+
+function buildInvoiceNumber(year: number, sequence: number, kind: 'invoice' | 'supplemental' | 'credit_note') {
+  const paddedSequence = String(sequence).padStart(4, '0');
+
+  if (kind === 'credit_note') {
+    return `CRN-${year}-${paddedSequence}`;
+  }
+
+  if (kind === 'supplemental') {
+    return `SUP-${year}-${paddedSequence}`;
+  }
+
+  return `INV-${year}-${paddedSequence}`;
+}
+
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
   containerId: z.string(),
@@ -191,8 +207,7 @@ export async function POST(req: NextRequest) {
     let invoiceCount = await prisma.userInvoice.count();
 
     for (const [userId, { user, shipments }] of Object.entries(shipmentsByUser)) {
-      // Check if invoice already exists for this user and container
-      const existingInvoice = await prisma.userInvoice.findFirst({
+      const existingInvoices = await prisma.userInvoice.findMany({
         where: {
           userId,
           containerId,
@@ -204,19 +219,15 @@ export async function POST(req: NextRequest) {
           id: true,
           invoiceNumber: true,
           status: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
         },
       });
 
-      if (existingInvoice?.status === 'PAID') {
-        generatedInvoices.push({ 
-          userId, 
-          userName: user.name, 
-          invoiceId: existingInvoice.id,
-          invoiceNumber: existingInvoice.invoiceNumber,
-          status: 'existing_paid' 
-        });
-        continue;
-      }
+      const mutableInvoice = existingInvoices.find((invoice) => mutableInvoiceStatuses.has(invoice.status));
+      const latestIssuedInvoice = existingInvoices.find((invoice) => !mutableInvoiceStatuses.has(invoice.status));
 
       // Set due date (30 days from now if not provided)
       const invoiceDueDate = dueDate 
@@ -224,8 +235,8 @@ export async function POST(req: NextRequest) {
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       const invoice = await prisma.$transaction(async (tx) => {
-        if (existingInvoice) {
-          await releaseInvoiceShipmentCharges(tx, existingInvoice.id);
+        if (mutableInvoice) {
+          await releaseInvoiceShipmentCharges(tx, mutableInvoice.id);
         }
 
         const invoiceCharges = await tx.shipmentCharge.findMany({
@@ -258,12 +269,20 @@ export async function POST(req: NextRequest) {
         const discountAmount = subtotal > 0 ? (subtotal * discountPercent) / 100 : 0;
         const total = subtotal - discountAmount;
         const lineItems = invoiceCharges.map((charge) => buildInvoiceLineItemFromCharge(charge));
+        const isIssuedDelta = !mutableInvoice && Boolean(latestIssuedInvoice);
+        const documentKind: 'created' | 'updated' | 'supplemental' | 'credit_note' = mutableInvoice
+          ? 'updated'
+          : isIssuedDelta
+          ? total < 0
+            ? 'credit_note'
+            : 'supplemental'
+          : 'created';
 
         let nextInvoice: { id: string; invoiceNumber: string; total: number };
 
-        if (existingInvoice) {
+        if (mutableInvoice) {
           nextInvoice = await tx.userInvoice.update({
-            where: { id: existingInvoice.id },
+            where: { id: mutableInvoice.id },
             data: {
               dueDate: invoiceDueDate,
               subtotal,
@@ -282,7 +301,18 @@ export async function POST(req: NextRequest) {
           });
         } else {
           invoiceCount += 1;
-          const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount).padStart(4, '0')}`;
+          const invoiceNumber = buildInvoiceNumber(
+            new Date().getFullYear(),
+            invoiceCount,
+            documentKind === 'credit_note' ? 'credit_note' : documentKind === 'supplemental' ? 'supplemental' : 'invoice',
+          );
+
+          const deltaNote = latestIssuedInvoice
+            ? documentKind === 'credit_note'
+              ? `Credit note issued for post-issue shipment adjustments after ${latestIssuedInvoice.invoiceNumber}.`
+              : `Supplemental invoice issued for shipment charges approved after ${latestIssuedInvoice.invoiceNumber}.`
+            : null;
+
           nextInvoice = await tx.userInvoice.create({
             data: {
               invoiceNumber,
@@ -294,6 +324,8 @@ export async function POST(req: NextRequest) {
               subtotal,
               discount: discountAmount,
               total,
+              notes: deltaNote,
+              internalNotes: deltaNote,
               lineItems: {
                 create: lineItems,
               },
@@ -312,7 +344,11 @@ export async function POST(req: NextRequest) {
           invoiceCharges.map((charge) => charge.id),
         );
 
-        return nextInvoice;
+        return {
+          ...nextInvoice,
+          generationKind: documentKind,
+          relatedInvoiceNumber: latestIssuedInvoice?.invoiceNumber || null,
+        };
       });
 
       if (!invoice) {
@@ -321,15 +357,29 @@ export async function POST(req: NextRequest) {
 
       invoiceAuditLogs.push({
         invoiceId: invoice.id,
-        action: existingInvoice ? 'INVOICE_REFRESHED' : 'INVOICE_CREATED',
-        description: existingInvoice
-          ? `Invoice ${invoice.invoiceNumber} refreshed from approved shipment charges`
-          : `Invoice ${invoice.invoiceNumber} created from approved shipment charges`,
+        action:
+          invoice.generationKind === 'updated'
+            ? 'INVOICE_REFRESHED'
+            : invoice.generationKind === 'supplemental'
+            ? 'SUPPLEMENTAL_INVOICE_CREATED'
+            : invoice.generationKind === 'credit_note'
+            ? 'CREDIT_NOTE_CREATED'
+            : 'INVOICE_CREATED',
+        description:
+          invoice.generationKind === 'updated'
+            ? `Invoice ${invoice.invoiceNumber} refreshed from approved shipment charges`
+            : invoice.generationKind === 'supplemental'
+            ? `Supplemental invoice ${invoice.invoiceNumber} created for post-issue shipment charges after ${invoice.relatedInvoiceNumber}`
+            : invoice.generationKind === 'credit_note'
+            ? `Credit note ${invoice.invoiceNumber} created for post-issue shipment adjustments after ${invoice.relatedInvoiceNumber}`
+            : `Invoice ${invoice.invoiceNumber} created from approved shipment charges`,
         performedBy: actorId,
         metadata: {
           containerId,
           userId,
           shipmentIds: shipments.map((shipment) => shipment.id),
+          generationKind: invoice.generationKind,
+          relatedInvoiceNumber: invoice.relatedInvoiceNumber,
         },
       });
 
@@ -339,15 +389,25 @@ export async function POST(req: NextRequest) {
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         total: invoice.total,
-        status: existingInvoice ? 'updated' : 'created',
+        status: invoice.generationKind,
       });
 
       try {
         await createNotification({
           userId,
           senderId: actorId,
-          title: 'Invoice created',
-          description: `Invoice ${invoice.invoiceNumber} is ready for review.`,
+          title:
+            invoice.generationKind === 'credit_note'
+              ? 'Credit note created'
+              : invoice.generationKind === 'supplemental'
+              ? 'Supplemental invoice created'
+              : 'Invoice created',
+          description:
+            invoice.generationKind === 'credit_note'
+              ? `Credit note ${invoice.invoiceNumber} is ready for review.`
+              : invoice.generationKind === 'supplemental'
+              ? `Supplemental invoice ${invoice.invoiceNumber} is ready for review.`
+              : `Invoice ${invoice.invoiceNumber} is ready for review.`,
           type: NotificationType.INFO,
           link: `/dashboard/invoices/${invoice.id}`,
         });
@@ -390,7 +450,9 @@ export async function POST(req: NextRequest) {
         totalInvoices: generatedInvoices.length,
         newInvoices: generatedInvoices.filter(i => i.status === 'created').length,
         updatedInvoices: generatedInvoices.filter(i => i.status === 'updated').length,
-        existingPaidInvoices: generatedInvoices.filter(i => i.status === 'existing_paid').length,
+        supplementalInvoices: generatedInvoices.filter(i => i.status === 'supplemental').length,
+        creditNotes: generatedInvoices.filter(i => i.status === 'credit_note').length,
+        existingPaidInvoices: 0,
       },
     });
 

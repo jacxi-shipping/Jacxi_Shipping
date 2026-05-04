@@ -106,6 +106,7 @@ export default function InvoicesPage() {
 	const [searchTerm, setSearchTerm] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [showBulkTable, setShowBulkTable] = useState(false);
+	const [backfillingCharges, setBackfillingCharges] = useState(false);
 	const [itemsPerPage, setItemsPerPage] = useState(25);
 	const [currentPage, setCurrentPage] = useState(1);
 	const [pagination, setPagination] = useState({ total: 0, totalAll: 0, limit: 25, offset: 0, hasMore: false });
@@ -187,6 +188,35 @@ export default function InvoicesPage() {
 			toast.error('Failed to generate PDF', {
 				description: 'Please try again'
 			});
+		}
+	};
+
+	const handleBackfillShipmentCharges = async () => {
+		try {
+			setBackfillingCharges(true);
+			const response = await fetch('/api/admin/billing/backfill-shipment-charges', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({}),
+			});
+			const payload = (await response.json().catch(() => ({}))) as {
+				error?: string;
+				processedEntries?: number;
+				shipmentsTouched?: number;
+				totalLedgerEntries?: number;
+			};
+
+			if (!response.ok) {
+				throw new Error(payload.error || 'Failed to backfill shipment charges');
+			}
+
+			toast.success('Shipment charge backfill completed', {
+				description: `${payload.processedEntries || 0} ledger-backed charges synced across ${payload.shipmentsTouched || 0} shipment${payload.shipmentsTouched === 1 ? '' : 's'}.`,
+			});
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Failed to backfill shipment charges');
+		} finally {
+			setBackfillingCharges(false);
 		}
 	};
 
@@ -428,9 +458,14 @@ export default function InvoicesPage() {
 				description={isAdmin ? 'Manage customer invoices' : 'View and download your invoices'}
 				actions={
 					isAdmin ? (
-						<Button variant="outline" onClick={() => setShowBulkTable((prev) => !prev)}>
-							{showBulkTable ? 'Table view' : 'Bulk mode'}
-						</Button>
+						<Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+							<Button variant="outline" onClick={handleBackfillShipmentCharges} disabled={backfillingCharges}>
+								{backfillingCharges ? 'Backfilling...' : 'Backfill Shipment Charges'}
+							</Button>
+							<Button variant="outline" onClick={() => setShowBulkTable((prev) => !prev)}>
+								{showBulkTable ? 'Table view' : 'Bulk mode'}
+							</Button>
+						</Box>
 					) : null
 				}
 			/>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { AlertCircle, Download, FileText, Wallet } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Download, FileText, Wallet } from 'lucide-react';
 import { DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Button, FormField, toast } from '@/components/design-system';
 import { hasAnyPermission } from '@/lib/rbac';
@@ -49,6 +49,24 @@ type ShipmentBillingResponse = {
     paid: number;
     open: number;
     counts: Record<string, number>;
+  };
+  readiness: {
+    status: 'NOT_BILLABLE' | 'PARTIALLY_BILLABLE' | 'READY_TO_INVOICE' | 'INVOICED' | 'PAID';
+    label: string;
+    description: string;
+    approvedUninvoicedCount: number;
+    blockedCount: number;
+    settledCount: number;
+    totalCharges: number;
+  };
+  postIssueDelta: {
+    active: boolean;
+    kind: 'SUPPLEMENTAL_INVOICE' | 'CREDIT_NOTE' | 'ADJUSTMENT';
+    approvedUninvoicedCount: number;
+    deltaAmount: number;
+    latestIssuedInvoiceNumber: string | null;
+    latestIssuedInvoiceStatus: string | null;
+    description: string | null;
   };
 };
 
@@ -118,6 +136,14 @@ const statusStyles: Record<string, string> = {
   PAID: 'border-[rgba(34,197,94,0.34)] bg-[rgba(34,197,94,0.12)] text-[rgb(21,128,61)]',
   DISPUTED: 'border-[rgba(239,68,68,0.34)] bg-[rgba(239,68,68,0.12)] text-[rgb(185,28,28)]',
   VOID: 'border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)]',
+};
+
+const readinessStyles: Record<ShipmentBillingResponse['readiness']['status'], string> = {
+  NOT_BILLABLE: 'border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)]',
+  PARTIALLY_BILLABLE: 'border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] text-[rgb(180,83,9)]',
+  READY_TO_INVOICE: 'border-[rgba(59,130,246,0.32)] bg-[rgba(59,130,246,0.12)] text-[rgb(29,78,216)]',
+  INVOICED: 'border-[rgba(var(--accent-gold-rgb),0.32)] bg-[rgba(var(--accent-gold-rgb),0.14)] text-[var(--accent-gold)]',
+  PAID: 'border-[rgba(34,197,94,0.34)] bg-[rgba(34,197,94,0.12)] text-[rgb(21,128,61)]',
 };
 
 function formatMoney(amount: number, currency: string) {
@@ -323,6 +349,28 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
   }
 
   const summary = data?.summary || { total: 0, invoiced: 0, paid: 0, open: 0, counts: {} };
+  const readiness =
+    data?.readiness ||
+    {
+      status: 'NOT_BILLABLE' as const,
+      label: 'Not Billable',
+      description: 'No shipment charges are available yet.',
+      approvedUninvoicedCount: 0,
+      blockedCount: 0,
+      settledCount: 0,
+      totalCharges: 0,
+    };
+  const postIssueDelta =
+    data?.postIssueDelta ||
+    {
+      active: false,
+      kind: 'ADJUSTMENT' as const,
+      approvedUninvoicedCount: 0,
+      deltaAmount: 0,
+      latestIssuedInvoiceNumber: null,
+      latestIssuedInvoiceStatus: null,
+      description: null,
+    };
 
   return (
     <DashboardPanel
@@ -380,6 +428,53 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
                 {formatLabel(status)}: {count}
               </span>
             ))}
+          </div>
+        </div>
+
+        {postIssueDelta.active && (
+          <div className="rounded-lg border border-[rgba(245,158,11,0.28)] bg-[rgba(245,158,11,0.10)] p-4">
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(180,83,9)]" />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[rgb(180,83,9)]">Post-Issue Delta Detected</p>
+                <p className="mt-1 text-sm text-[rgb(120,53,15)]">
+                  {postIssueDelta.description}
+                  {postIssueDelta.latestIssuedInvoiceNumber ? ` Latest issued invoice: ${postIssueDelta.latestIssuedInvoiceNumber}.` : ''}
+                </p>
+                <p className="mt-2 text-xs text-[rgb(120,53,15)]">
+                  Current approved delta: {formatMoney(postIssueDelta.deltaAmount, 'USD')} across {postIssueDelta.approvedUninvoicedCount} charge{postIssueDelta.approvedUninvoicedCount === 1 ? '' : 's'}.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Invoice Readiness</p>
+              <div className="mt-2 flex items-center gap-3">
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${readinessStyles[readiness.status]}`}>
+                  {readiness.label}
+                </span>
+                <span className="text-xs text-[var(--text-secondary)]">{readiness.totalCharges} total charge{readiness.totalCharges === 1 ? '' : 's'}</span>
+              </div>
+              <p className="mt-2 max-w-2xl text-sm text-[var(--text-secondary)]">{readiness.description}</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Ready</p>
+                <p className="mt-1 text-base font-semibold text-[rgb(29,78,216)]">{readiness.approvedUninvoicedCount}</p>
+              </div>
+              <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Review</p>
+                <p className="mt-1 text-base font-semibold text-[rgb(180,83,9)]">{readiness.blockedCount}</p>
+              </div>
+              <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Settled</p>
+                <p className="mt-1 text-base font-semibold text-[var(--accent-gold)]">{readiness.settledCount}</p>
+              </div>
+            </div>
           </div>
         </div>
 

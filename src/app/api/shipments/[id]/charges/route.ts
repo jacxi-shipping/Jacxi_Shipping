@@ -2,10 +2,120 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ShipmentChargeStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { syncShipmentChargeFromLedgerEntry } from '@/lib/billing/shipment-charges';
+import { materializeShipmentLedgerCharges } from '@/lib/billing/shipment-charge-backfill';
 import { hasAnyPermission, hasPermission } from '@/lib/rbac';
 
 const mutableStatuses = new Set<ShipmentChargeStatus>(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'DISPUTED']);
+const mutableInvoiceStatuses = new Set(['DRAFT', 'PENDING']);
+
+function buildPostIssueDelta(
+  charges: Array<{
+    totalAmount: number;
+    status: string;
+    invoice: { id: string; invoiceNumber: string; status: string } | null;
+  }>,
+) {
+  const approvedUninvoicedCharges = charges.filter((charge) => charge.status === 'APPROVED' && !charge.invoice);
+  const issuedInvoices = Array.from(
+    new Map(
+      charges
+        .filter(
+          (charge) =>
+            charge.invoice &&
+            !mutableInvoiceStatuses.has(charge.invoice.status) &&
+            charge.invoice.status !== 'CANCELLED',
+        )
+        .map((charge) => [charge.invoice!.id, charge.invoice]),
+    ).values(),
+  );
+
+  const deltaAmount = approvedUninvoicedCharges.reduce((sum, charge) => sum + charge.totalAmount, 0);
+  const latestIssuedInvoice = issuedInvoices[issuedInvoices.length - 1] || null;
+  const kind = deltaAmount < 0 ? 'CREDIT_NOTE' : deltaAmount > 0 ? 'SUPPLEMENTAL_INVOICE' : 'ADJUSTMENT';
+
+  return {
+    active: issuedInvoices.length > 0 && approvedUninvoicedCharges.length > 0,
+    kind,
+    approvedUninvoicedCount: approvedUninvoicedCharges.length,
+    deltaAmount,
+    latestIssuedInvoiceNumber: latestIssuedInvoice?.invoiceNumber || null,
+    latestIssuedInvoiceStatus: latestIssuedInvoice?.status || null,
+    description:
+      issuedInvoices.length > 0 && approvedUninvoicedCharges.length > 0
+        ? deltaAmount < 0
+          ? `${approvedUninvoicedCharges.length} approved post-issue charge${approvedUninvoicedCharges.length === 1 ? '' : 's'} would generate a credit note instead of changing the issued invoice.`
+          : `${approvedUninvoicedCharges.length} approved post-issue charge${approvedUninvoicedCharges.length === 1 ? '' : 's'} would generate a supplemental invoice instead of changing the issued invoice.`
+        : null,
+  };
+}
+
+function buildBillingReadiness(charges: Array<{ status: string; invoice: { id: string } | null }>) {
+  const approvedUninvoicedCount = charges.filter((charge) => charge.status === 'APPROVED' && !charge.invoice).length;
+  const blockedCount = charges.filter((charge) => ['DRAFT', 'PENDING_APPROVAL', 'DISPUTED'].includes(charge.status)).length;
+  const settledCount = charges.filter((charge) => ['INVOICED', 'PAID'].includes(charge.status) || Boolean(charge.invoice)).length;
+  const paidCount = charges.filter((charge) => charge.status === 'PAID').length;
+
+  if (!charges.length) {
+    return {
+      status: 'NOT_BILLABLE',
+      label: 'Not Billable',
+      description: 'No shipment charges are available yet. Add or sync billable activity before invoicing.',
+      approvedUninvoicedCount,
+      blockedCount,
+      settledCount,
+      totalCharges: 0,
+    };
+  }
+
+  if (paidCount === charges.length) {
+    return {
+      status: 'PAID',
+      label: 'Paid',
+      description: 'All shipment charges linked to this shipment have been settled.',
+      approvedUninvoicedCount,
+      blockedCount,
+      settledCount,
+      totalCharges: charges.length,
+    };
+  }
+
+  if (settledCount === charges.length && approvedUninvoicedCount === 0 && blockedCount === 0) {
+    return {
+      status: 'INVOICED',
+      label: 'Invoiced',
+      description: 'All shipment charges are already tied to invoices or completed payment.',
+      approvedUninvoicedCount,
+      blockedCount,
+      settledCount,
+      totalCharges: charges.length,
+    };
+  }
+
+  if (approvedUninvoicedCount > 0 && blockedCount === 0) {
+    return {
+      status: 'READY_TO_INVOICE',
+      label: 'Ready To Invoice',
+      description: `${approvedUninvoicedCount} approved charge${approvedUninvoicedCount === 1 ? '' : 's'} can be picked up by invoice generation now.`,
+      approvedUninvoicedCount,
+      blockedCount,
+      settledCount,
+      totalCharges: charges.length,
+    };
+  }
+
+  return {
+    status: 'PARTIALLY_BILLABLE',
+    label: 'Partially Billable',
+    description:
+      approvedUninvoicedCount > 0
+        ? `${approvedUninvoicedCount} approved charge${approvedUninvoicedCount === 1 ? '' : 's'} are invoiceable, but ${blockedCount} still need review.`
+        : `${blockedCount} charge${blockedCount === 1 ? '' : 's'} still need review before this shipment becomes invoice-ready.`,
+    approvedUninvoicedCount,
+    blockedCount,
+    settledCount,
+    totalCharges: charges.length,
+  };
+}
 
 async function assertShipmentAccess(shipmentId: string, sessionUserId: string, role: string | undefined) {
   const shipment = await prisma.shipment.findUnique({
@@ -67,21 +177,7 @@ export async function GET(
         },
       });
 
-      for (const entry of ledgerEntries) {
-        await syncShipmentChargeFromLedgerEntry(tx, {
-          entryId: entry.id,
-          userId: entry.userId,
-          shipmentId: entry.shipmentId,
-          description: entry.description,
-          type: entry.type,
-          amount: entry.amount,
-          transactionDate: entry.transactionDate,
-          transactionInfoType: entry.transactionInfoType,
-          notes: entry.notes,
-          metadata: entry.metadata,
-          actorId: entry.createdBy || fallbackActorId,
-        });
-      }
+      await materializeShipmentLedgerCharges(tx, ledgerEntries, fallbackActorId);
     });
 
     const charges = await prisma.shipmentCharge.findMany({
@@ -178,6 +274,8 @@ export async function GET(
     return NextResponse.json({
       charges: chargesWithActors,
       summary,
+      readiness: buildBillingReadiness(chargesWithActors),
+      postIssueDelta: buildPostIssueDelta(chargesWithActors),
     });
   } catch (error) {
     console.error('Error fetching shipment charges:', error);

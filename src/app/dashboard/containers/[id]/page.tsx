@@ -671,8 +671,15 @@ export default function ContainerDetailPage() {
 			const data = await response.json();
 
 			if (response.ok) {
+				const detailParts = [
+					data.summary.newInvoices ? `Created ${data.summary.newInvoices} new invoice(s)` : null,
+					data.summary.updatedInvoices ? `updated ${data.summary.updatedInvoices} draft invoice(s)` : null,
+					data.summary.supplementalInvoices ? `issued ${data.summary.supplementalInvoices} supplemental invoice(s)` : null,
+					data.summary.creditNotes ? `issued ${data.summary.creditNotes} credit note(s)` : null,
+				].filter(Boolean);
+
 				toast.success('Invoices generated successfully!', {
-					description: `Created ${data.summary.newInvoices} new invoice(s)`
+					description: detailParts.join(', ') || 'No invoice changes were required.'
 				});
 				await refreshContainerPage();
 				setInvoiceGenerationModalOpen(false);
