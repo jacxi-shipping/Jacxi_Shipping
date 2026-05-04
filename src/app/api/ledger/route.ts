@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { createAuditLog } from '@/lib/audit';
 import { hasPermission } from '@/lib/rbac';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
+import { syncShipmentChargeFromLedgerEntry } from '@/lib/billing/shipment-charges';
 
 const transactionInfoTypeSchema = z.enum(['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT']);
 const transactionInfoTypes = ['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT'] as const;
@@ -314,37 +316,54 @@ export async function POST(request: NextRequest) {
       newBalance -= validatedData.amount;
     }
 
-    // Create ledger entry
-    const entry = await prisma.ledgerEntry.create({
-      data: {
-        userId: validatedData.userId,
-        shipmentId: validatedData.shipmentId,
-        description: validatedData.description,
-        type: validatedData.type,
-        transactionInfoType: validatedData.transactionInfoType,
-        amount: validatedData.amount,
-        balance: newBalance,
-        createdBy: session.user.id as string,
-        notes: validatedData.notes,
-        metadata: validatedData.metadata as never,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const entry = await prisma.$transaction(async (tx) => {
+      const createdEntry = await tx.ledgerEntry.create({
+        data: {
+          userId: validatedData.userId,
+          shipmentId: validatedData.shipmentId,
+          description: validatedData.description,
+          type: validatedData.type,
+          transactionInfoType: validatedData.transactionInfoType,
+          amount: validatedData.amount,
+          balance: newBalance,
+          createdBy: session.user.id as string,
+          notes: validatedData.notes,
+          metadata: validatedData.metadata as never,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          shipment: {
+            select: {
+              id: true,
+              vehicleVIN: true,
+              vehicleMake: true,
+              vehicleModel: true,
+            },
           },
         },
-        shipment: {
-          select: {
-            id: true,
-            vehicleVIN: true,
-            vehicleMake: true,
-            vehicleModel: true,
-          },
-        },
-      },
+      });
+
+      await syncShipmentChargeFromLedgerEntry(tx, {
+        entryId: createdEntry.id,
+        userId: createdEntry.userId,
+        shipmentId: createdEntry.shipmentId,
+        description: createdEntry.description,
+        type: createdEntry.type,
+        amount: createdEntry.amount,
+        transactionDate: createdEntry.transactionDate,
+        transactionInfoType: createdEntry.transactionInfoType,
+        notes: createdEntry.notes,
+        metadata: createdEntry.metadata as Prisma.JsonValue | undefined,
+        actorId: session.user.id as string,
+      });
+
+      return createdEntry;
     });
 
     // Create audit log

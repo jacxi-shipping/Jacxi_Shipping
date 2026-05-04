@@ -66,6 +66,7 @@ model User {
   settings      UserSettings?
   ledgerEntries LedgerEntry[]
   invoices      UserInvoice[]
+  shipmentCharges ShipmentCharge[]
   receivedNotifications Notification[] @relation("NotificationRecipient")
   sentNotifications     Notification[] @relation("NotificationSender")
 
@@ -182,6 +183,7 @@ model Shipment {
   transitExpenses  TransitExpense[]
   containerDamages ContainerDamage[]
   auditLogs        ShipmentAuditLog[]
+  charges          ShipmentCharge[]
 
   @@index([userId])
   @@index([dispatchId])
@@ -597,6 +599,7 @@ model UserInvoice {
   shipment  Shipment?         @relation("ShipmentInvoice", fields: [shipmentId], references: [id], onDelete: SetNull)
   lineItems InvoiceLineItem[]
   auditLogs InvoiceAuditLog[]
+  shipmentCharges ShipmentCharge[]
 
   @@index([userId])
   @@index([containerId])
@@ -606,6 +609,67 @@ model UserInvoice {
   @@index([issueDate])
   @@index([dueDate])
   @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
+}
+
+model ShipmentCharge {
+  id               String                   @id @default(cuid())
+  shipmentId       String
+  userId           String
+  invoiceId        String?
+  chargeCode       String
+  category         ShipmentChargeCategory
+  billingMilestone ShipmentBillingMilestone
+  sourceType       ShipmentChargeSourceType
+  sourceId         String?
+  description      String
+  quantity         Float                    @default(1)
+  unitAmount       Float
+  totalAmount      Float
+  currency         String                   @default("USD")
+  status           ShipmentChargeStatus     @default(DRAFT)
+  billableAt       DateTime?
+  approvedBy       String?
+  approvedAt       DateTime?
+  invoicedAt       DateTime?
+  paidAt           DateTime?
+  voidedAt         DateTime?
+  notes            String?
+  metadata         Json?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  shipment  Shipment               @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoice   UserInvoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  auditLogs ShipmentChargeAuditLog[]
+
+  @@index([shipmentId])
+  @@index([userId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([category])
+  @@index([billingMilestone])
+  @@index([sourceType, sourceId])
+  @@index([billableAt])
+  @@index([createdAt])
+}
+
+model ShipmentChargeAuditLog {
+  id          String   @id @default(cuid())
+  chargeId     String
+  action      String
+  description String
+  performedBy String
+  oldValue    String?
+  newValue    String?
+  metadata    Json?
+  timestamp   DateTime @default(now())
+
+  charge ShipmentCharge @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+
+  @@index([chargeId])
+  @@index([timestamp])
+  @@index([action])
 }
 
 model InvoiceAuditLog {
@@ -1098,6 +1162,51 @@ enum LineItemType {
   HANDLING_FEE
   OTHER_FEE
   DISCOUNT
+}
+
+enum ShipmentChargeStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  INVOICED
+  PAID
+  DISPUTED
+  VOID
+}
+
+enum ShipmentChargeCategory {
+  PURCHASE
+  SHIPPING
+  INSURANCE
+  CUSTOMS
+  STORAGE
+  HANDLING
+  ADJUSTMENT
+  DAMAGE
+  CREDIT
+  OTHER
+}
+
+enum ShipmentBillingMilestone {
+  INTAKE
+  PURCHASE
+  ORIGIN_HANDOFF
+  OCEAN_FREIGHT
+  DESTINATION_PORT
+  RELEASE
+  DELIVERY
+  FINAL_SETTLEMENT
+  MANUAL
+}
+
+enum ShipmentChargeSourceType {
+  MANUAL
+  LEDGER_ENTRY
+  CONTAINER_ALLOCATION
+  SHIPMENT
+  DAMAGE
+  PAYMENT_ADJUSTMENT
+  SYSTEM
 }
 
 enum PaymentMode {

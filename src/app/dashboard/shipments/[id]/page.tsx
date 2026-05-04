@@ -36,6 +36,7 @@ import ShipmentActivityTab from '@/components/shipments/ShipmentActivityTab';
 import ShipmentCustomerTab from '@/components/shipments/ShipmentCustomerTab';
 import ShipmentDamagesTab from '@/components/shipments/ShipmentDamagesTab';
 import ShipmentDetailsTab from '@/components/shipments/ShipmentDetailsTab';
+import ShipmentBillingTab from '@/components/shipments/ShipmentBillingTab';
 import ShipmentDocumentsTab from '@/components/shipments/ShipmentDocumentsTab';
 import ShipmentFinancialsTab from '@/components/shipments/ShipmentFinancialsTab';
 import ShipmentOverviewTab from '@/components/shipments/ShipmentOverviewTab';
@@ -929,6 +930,7 @@ export default function ShipmentDetailPage() {
             <Tab icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label="Photos" />
             <Tab icon={<FileText className="h-4 w-4" />} iconPosition="start" label={`Documents (${shipment.documents?.length || 0})`} />
             <Tab icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label="Financials" />
+            <Tab icon={<Wallet className="h-4 w-4" />} iconPosition="start" label="Billing" />
             <Tab icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={`Damages (${shipment.containerDamages?.length || 0})`} />
             <Tab icon={<PackageCheck className="h-4 w-4" />} iconPosition="start" label="Details" />
             {isAdmin && <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
@@ -1053,25 +1055,32 @@ export default function ShipmentDetailPage() {
           />
         </TabPanel>
 
-        {/* Damages Tab */}
         <TabPanel value={activeTab} index={5}>
+          <ShipmentBillingTab
+            shipmentId={shipment.id}
+            refreshKey={`${shipment.updatedAt}-${shipment.ledgerEntries.length}-${shipment.containerDamages.length}`}
+          />
+        </TabPanel>
+
+        {/* Damages Tab */}
+        <TabPanel value={activeTab} index={6}>
           <ShipmentDamagesTab damages={shipment.containerDamages || []} />
         </TabPanel>
 
         {/* Details Tab */}
-        <TabPanel value={activeTab} index={6}>
+        <TabPanel value={activeTab} index={7}>
           <ShipmentDetailsTab shipment={shipment} formatStatus={formatStatus} />
         </TabPanel>
 
         {isAdmin && (
-          <TabPanel value={activeTab} index={7}>
+          <TabPanel value={activeTab} index={8}>
             <ShipmentActivityTab logs={shipment.auditLogs || []} />
           </TabPanel>
         )}
 
         {/* Customer Tab (Admin Only) */}
         {isAdmin && (
-          <TabPanel value={activeTab} index={8}>
+          <TabPanel value={activeTab} index={9}>
             <ShipmentCustomerTab user={shipment.user} shipmentId={shipment.id} />
           </TabPanel>
         )}

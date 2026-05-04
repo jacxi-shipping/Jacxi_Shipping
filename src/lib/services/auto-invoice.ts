@@ -3,11 +3,21 @@
  * Automatically creates invoices when containers are completed
  */
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { allocateExpenses } from '@/lib/expense-allocation';
+import {
+  buildInvoiceLineItemFromCharge,
+  markInvoiceShipmentChargesInvoiced,
+  markInvoiceShipmentChargesPaid,
+} from '@/lib/billing/shipment-charges';
+import { materializeContainerShipmentCharges } from '@/lib/billing/container-shipment-charge-materialization';
+import { createInvoiceAuditLogs } from '@/lib/entity-audit-history';
 
 interface InvoiceGenerationResult {
 	success: boolean;
 	invoiceId?: string;
+	invoiceIds?: string[];
 	amount?: number;
 	message: string;
 }
@@ -24,8 +34,12 @@ export class AutoInvoiceService {
 			const container = await prisma.container.findUnique({
 				where: { id: containerId },
 				include: {
-					shipments: true,
-					invoices: true,
+					shipments: {
+						include: {
+							user: true,
+						},
+					},
+					expenses: true,
 				},
 			});
 
@@ -41,16 +55,6 @@ export class AutoInvoiceService {
 				(s) => s.paymentMode === 'CASH' && s.paymentStatus === 'COMPLETED'
 			);
 
-			// Update container reference with filtered shipments
-			container.shipments = cashShipments;
-
-			if (!container) {
-				return {
-					success: false,
-					message: 'Container not found',
-				};
-			}
-
 			// Check if container is in completed status
 			if (container.status !== 'RELEASED' && container.status !== 'CLOSED') {
 				return {
@@ -59,75 +63,197 @@ export class AutoInvoiceService {
 				};
 			}
 
-			// Check if invoice already exists for this container
-			const existingInvoice = container.invoices.find(
-				(inv) => inv.notes?.includes('Auto-generated') || inv.invoiceNumber.includes('AUTO')
-			);
-
-			if (existingInvoice) {
-				return {
-					success: false,
-					message: 'Invoice already generated for this container',
-					invoiceId: existingInvoice.id,
-				};
-			}
-
 			// Check if there are any CASH paid shipments
-			if (container.shipments.length === 0) {
+			if (cashShipments.length === 0) {
 				return {
 					success: false,
 					message: 'No cash-paid shipments found in this container',
 				};
 			}
 
-			// Calculate total amount from cash shipments
-			const totalPrice = container.shipments.reduce(
-				(sum, s) => sum + (s.price || 0),
-				0
-			);
-			const totalInsurance = container.shipments.reduce(
-				(sum, s) => sum + (s.insuranceValue || 0),
-				0
-			);
-			const totalAmount = totalPrice + totalInsurance;
+			const allocationMethod = container.expenseAllocationMethod || 'EQUAL';
+			const expenseAllocations = allocateExpenses(cashShipments, container.expenses, allocationMethod);
+			const shipmentIds = cashShipments.map((shipment) => shipment.id);
 
-			if (totalAmount <= 0) {
+			const [shipmentLedgerEntries, shipmentDamageRecords] = await Promise.all([
+				shipmentIds.length
+					? prisma.ledgerEntry.findMany({
+							where: {
+								shipmentId: { in: shipmentIds },
+								type: 'DEBIT',
+							},
+							select: {
+								id: true,
+								userId: true,
+								shipmentId: true,
+								description: true,
+								type: true,
+								amount: true,
+								transactionDate: true,
+								transactionInfoType: true,
+								notes: true,
+								metadata: true,
+							},
+						})
+					: [],
+				shipmentIds.length
+					? prisma.containerDamage.findMany({
+							where: {
+								shipmentId: { in: shipmentIds },
+								damageType: 'WE_PAY',
+							},
+							select: {
+								shipmentId: true,
+								amount: true,
+							},
+						})
+					: [],
+			]);
+
+			let invoiceCount = await prisma.userInvoice.count();
+			const auditLogs: Array<{
+				invoiceId: string;
+				action: string;
+				description: string;
+				performedBy: string;
+				metadata?: Prisma.InputJsonValue;
+			}> = [];
+
+			const invoices = await prisma.$transaction(async (tx) => {
+				await materializeContainerShipmentCharges(tx, {
+					actorId: 'system',
+					allocationMethod,
+					containerId,
+					expenseAllocations,
+					shipmentDamageRecords,
+					shipmentLedgerEntries: shipmentLedgerEntries.map((entry) => ({
+						...entry,
+						type: entry.type as 'DEBIT' | 'CREDIT',
+						transactionInfoType: entry.transactionInfoType as 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT' | null,
+						metadata: (entry.metadata ?? {}) as Prisma.JsonValue,
+					})),
+					shipments: cashShipments.map((shipment) => ({
+						id: shipment.id,
+						userId: shipment.userId,
+						serviceType: shipment.serviceType,
+						purchasePrice: shipment.purchasePrice,
+						price: shipment.price,
+						insuranceValue: shipment.insuranceValue,
+						damageCredit: shipment.damageCredit,
+						vehicleYear: shipment.vehicleYear,
+						vehicleMake: shipment.vehicleMake,
+						vehicleModel: shipment.vehicleModel,
+						vehicleVIN: shipment.vehicleVIN,
+					})),
+				});
+
+				const chargesByUser = cashShipments.reduce<Record<string, typeof cashShipments>>((accumulator, shipment) => {
+					const shipmentsForUser = accumulator[shipment.userId] || [];
+					shipmentsForUser.push(shipment);
+					accumulator[shipment.userId] = shipmentsForUser;
+					return accumulator;
+				}, {});
+
+				const generatedInvoices: Array<{ id: string; invoiceNumber: string; total: number; userId: string }> = [];
+
+				for (const [userId, shipments] of Object.entries(chargesByUser)) {
+					const charges = await tx.shipmentCharge.findMany({
+						where: {
+							userId,
+							shipmentId: { in: shipments.map((shipment) => shipment.id) },
+							status: 'APPROVED',
+							invoiceId: null,
+						},
+						orderBy: [{ billableAt: 'asc' }, { createdAt: 'asc' }],
+						select: {
+							id: true,
+							chargeCode: true,
+							category: true,
+							description: true,
+							quantity: true,
+							unitAmount: true,
+							totalAmount: true,
+							shipmentId: true,
+						},
+					});
+
+					if (!charges.length) {
+						continue;
+					}
+
+					invoiceCount += 1;
+					const invoiceNumber = `AUTO-INV-${new Date().getFullYear()}-${String(invoiceCount).padStart(6, '0')}`;
+					const subtotal = charges.reduce((sum, charge) => sum + charge.totalAmount, 0);
+					const lineItems = charges.map((charge) => buildInvoiceLineItemFromCharge(charge));
+
+					const invoice = await tx.userInvoice.create({
+						data: {
+							invoiceNumber,
+							userId,
+							containerId: container.id,
+							status: 'PAID',
+							issueDate: new Date(),
+							dueDate: new Date(),
+							paidDate: new Date(),
+							subtotal,
+							discount: 0,
+							tax: 0,
+							total: subtotal,
+							paymentMethod: 'CASH',
+							internalNotes: 'Auto-generated from completed cash shipment charges',
+							lineItems: {
+								create: lineItems,
+							},
+						},
+						select: {
+							id: true,
+							invoiceNumber: true,
+							total: true,
+						},
+					});
+
+					await markInvoiceShipmentChargesInvoiced(tx, invoice.id, charges.map((charge) => charge.id));
+					await markInvoiceShipmentChargesPaid(tx, invoice.id);
+
+					auditLogs.push({
+						invoiceId: invoice.id,
+						action: 'AUTO_INVOICE_CREATED',
+						description: `Auto-paid invoice ${invoice.invoiceNumber} created from shipment charges`,
+						performedBy: 'system',
+						metadata: {
+							containerId: container.id,
+							shipmentIds: shipments.map((shipment) => shipment.id),
+						},
+					});
+
+					generatedInvoices.push({
+						id: invoice.id,
+						invoiceNumber: invoice.invoiceNumber,
+						total: invoice.total,
+						userId,
+					});
+				}
+
+				return generatedInvoices;
+			});
+
+			if (!invoices.length) {
 				return {
 					success: false,
-					message: 'No revenue to invoice (total amount is zero)',
+					message: 'No approved uninvoiced shipment charges found for completed cash shipments',
 				};
 			}
 
-			// Generate invoice number
-			const invoiceCount = await prisma.containerInvoice.count();
-			const invoiceNumber = `AUTO-INV-${String(invoiceCount + 1).padStart(6, '0')}`;
+			await createInvoiceAuditLogs(auditLogs);
 
-			// Create invoice
-			const invoice = await prisma.containerInvoice.create({
-				data: {
-					containerId: container.id,
-					invoiceNumber,
-					amount: totalAmount,
-					currency: 'USD',
-					date: new Date(),
-					status: 'PAID', // Already paid (CASH)
-					notes: `Auto-generated invoice for container ${container.trackingNumber || container.id}
-					
-Revenue Breakdown:
-- Shipment Fees: $${totalPrice.toFixed(2)} (${container.shipments.length} vehicles)
-- Insurance: $${totalInsurance.toFixed(2)}
-- Total: $${totalAmount.toFixed(2)}
-
-Payment Method: CASH (Collected)
-Generated: ${new Date().toLocaleString()}`,
-				},
-			});
+			const totalAmount = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
 
 			return {
 				success: true,
-				invoiceId: invoice.id,
+				invoiceId: invoices[0]?.id,
+				invoiceIds: invoices.map((invoice) => invoice.id),
 				amount: totalAmount,
-				message: `Invoice ${invoiceNumber} generated successfully for $${totalAmount.toFixed(2)}`,
+				message: `Generated ${invoices.length} auto-paid invoice(s) for $${totalAmount.toFixed(2)}`,
 			};
 		} catch (error) {
 			console.error('Error generating invoice:', error);
@@ -157,7 +283,6 @@ Generated: ${new Date().toLocaleString()}`,
 				},
 				include: {
 					shipments: true,
-					invoices: true,
 				},
 			});
 
@@ -174,15 +299,6 @@ Generated: ${new Date().toLocaleString()}`,
 			let failed = 0;
 
 			for (const container of containersWithCash) {
-				// Skip if already has auto-generated invoice
-				const hasAutoInvoice = container.invoices.some(
-					(inv) => inv.notes?.includes('Auto-generated') || inv.invoiceNumber.includes('AUTO')
-				);
-
-				if (hasAutoInvoice) {
-					continue;
-				}
-
 				// Skip if no cash shipments
 				if (container.shipments.length === 0) {
 					continue;

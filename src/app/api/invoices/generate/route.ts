@@ -8,31 +8,12 @@ import { NotificationType, Prisma } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
 import { createInvoiceAuditLogs } from '@/lib/entity-audit-history';
 import { hasPermission } from '@/lib/rbac';
-
-function isTruthyMetadataFlag(value: unknown): boolean {
-  return value === true || value === 'true' || value === 1 || value === '1';
-}
-
-function isShipmentExpenseEntry(metadata: unknown): boolean {
-  if (!metadata || typeof metadata !== 'object') return false;
-
-  const record = metadata as Record<string, unknown>;
-  return isTruthyMetadataFlag(record.isExpense) && isTruthyMetadataFlag(record.pendingInvoice);
-}
-
-function normalizeShipmentLabelInDescription(
-  description: string,
-  shipmentId: string,
-  vehicleVIN?: string | null
-): string {
-  if (!description) return description;
-  if (!vehicleVIN) return description;
-
-  return description
-    .replace(new RegExp(`\\(Shipment\\s+${shipmentId}\\)`, 'gi'), `(VIN ${vehicleVIN})`)
-    .replace(new RegExp(`Shipment\\s+${shipmentId}`, 'gi'), `VIN ${vehicleVIN}`)
-    .replace(new RegExp(`shipment\\s+${shipmentId}`, 'g'), `VIN ${vehicleVIN}`);
-}
+import { materializeContainerShipmentCharges } from '@/lib/billing/container-shipment-charge-materialization';
+import {
+  buildInvoiceLineItemFromCharge,
+  markInvoiceShipmentChargesInvoiced,
+  releaseInvoiceShipmentCharges,
+} from '@/lib/billing/shipment-charges';
 
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
@@ -41,6 +22,7 @@ const generateInvoicesSchema = z.object({
   sendEmail: z.boolean().default(true), // Changed default to true
   discountPercent: z.number().min(0).max(100).default(0),
 });
+
 
 /**
  * POST /api/invoices/generate
@@ -116,6 +98,70 @@ export async function POST(req: NextRequest) {
       allocationMethod
     );
 
+    const shipmentIds = container.shipments.map((shipment) => shipment.id);
+    const shipmentLedgerEntries = shipmentIds.length
+      ? await prisma.ledgerEntry.findMany({
+          where: {
+            shipmentId: { in: shipmentIds },
+            type: 'DEBIT',
+          },
+          select: {
+            id: true,
+            userId: true,
+            shipmentId: true,
+            description: true,
+            type: true,
+            amount: true,
+            transactionDate: true,
+            transactionInfoType: true,
+            notes: true,
+            metadata: true,
+          },
+        })
+      : [];
+
+    const shipmentDamageRecords = shipmentIds.length
+      ? await prisma.containerDamage.findMany({
+          where: {
+            shipmentId: { in: shipmentIds },
+            damageType: 'WE_PAY',
+          },
+          select: {
+            shipmentId: true,
+            amount: true,
+          },
+        })
+      : [];
+
+    await prisma.$transaction(async (tx) => {
+      await materializeContainerShipmentCharges(tx, {
+        actorId,
+        allocationMethod,
+        containerId,
+        expenseAllocations,
+        shipmentDamageRecords,
+        shipmentLedgerEntries: shipmentLedgerEntries.map((entry) => ({
+          ...entry,
+          type: entry.type as 'DEBIT' | 'CREDIT',
+          transactionInfoType: entry.transactionInfoType as 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT' | null,
+          metadata: (entry.metadata ?? {}) as Prisma.JsonValue,
+        })),
+        shipments: container.shipments.map((shipment) => ({
+          id: shipment.id,
+          userId: shipment.userId,
+          serviceType: shipment.serviceType,
+          purchasePrice: shipment.purchasePrice,
+          price: shipment.price,
+          insuranceValue: shipment.insuranceValue,
+          damageCredit: shipment.damageCredit,
+          vehicleYear: shipment.vehicleYear,
+          vehicleMake: shipment.vehicleMake,
+          vehicleModel: shipment.vehicleModel,
+          vehicleVIN: shipment.vehicleVIN,
+        })),
+      });
+    });
+
     // Group shipments by user
     const shipmentsByUser = container.shipments.reduce((acc, shipment) => {
       const userId = shipment.userId;
@@ -140,25 +186,6 @@ export async function POST(req: NextRequest) {
       newValue?: string | null;
       metadata?: Prisma.InputJsonValue;
     }> = [];
-    
-    // Fetch all relevant ledger entries for these shipments, then filter expense flags in code.
-    // Prisma JSON-path filters against metadata are unreliable in this dataset.
-    const shipmentIds = container.shipments.map((s) => s.id);
-    const shipmentLedgerEntries = await prisma.ledgerEntry.findMany({
-      where: {
-        shipmentId: { in: shipmentIds },
-        type: 'DEBIT', // Customer owes money
-      },
-    });
-    const shipmentExpenseEntries = shipmentLedgerEntries.filter((entry) => isShipmentExpenseEntry(entry.metadata));
-
-    // Fetch damage records for the shipments to process WE_PAY damages as discounts
-    const shipmentDamageRecords = await prisma.containerDamage.findMany({
-      where: {
-        shipmentId: { in: shipmentIds },
-        damageType: 'WE_PAY',
-      },
-    });
 
     // ⚡ Bolt: Removed N+1 query inside loop by pre-fetching the count once and incrementing.
     let invoiceCount = await prisma.userInvoice.count();
@@ -191,219 +218,120 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Generate invoice number
-      invoiceCount++;
-      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount).padStart(4, '0')}`;
-
-      // Calculate line items for this user
-      const lineItems = [];
-      let subtotal = 0;
-
-      for (const shipment of shipments) {
-        // Vehicle price
-        if (shipment.price) {
-          lineItems.push({
-            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Vehicle Price`.trim(),
-            shipmentId: shipment.id,
-            type: 'VEHICLE_PRICE' as const,
-            quantity: 1,
-            unitPrice: shipment.price,
-            amount: shipment.price,
-          });
-          subtotal += shipment.price;
-        }
-
-        // Insurance
-        if (shipment.insuranceValue) {
-          lineItems.push({
-            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Insurance`.trim(),
-            shipmentId: shipment.id,
-            type: 'INSURANCE' as const,
-            quantity: 1,
-            unitPrice: shipment.insuranceValue,
-            amount: shipment.insuranceValue,
-          });
-          subtotal += shipment.insuranceValue;
-        }
-
-        // Allocated container expenses for this shipment
-        const allocatedExpense = expenseAllocations[shipment.id] || 0;
-        
-        if (allocatedExpense > 0) {
-          const expenseDescription = allocationMethod === 'EQUAL' 
-            ? `Shared Container Expenses (Equal Split)`
-            : allocationMethod === 'BY_VALUE'
-            ? `Shared Container Expenses (By Value)`
-            : allocationMethod === 'BY_WEIGHT'
-            ? `Shared Container Expenses (By Weight)`
-            : `Shared Container Expenses`;
-            
-          lineItems.push({
-            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - ${expenseDescription}`.trim(),
-            shipmentId: shipment.id,
-            type: 'SHIPPING_FEE' as const,
-            quantity: 1,
-            unitPrice: allocatedExpense,
-            amount: allocatedExpense,
-          });
-          subtotal += allocatedExpense;
-        }
-
-        // Shipment expenses posted via shipment expense flow (ledger DEBITs)
-        const shipmentSpecificExpenses = shipmentExpenseEntries.filter(
-          (entry) => entry.shipmentId === shipment.id
-        );
-
-        for (const expenseEntry of shipmentSpecificExpenses) {
-          const metadata = (expenseEntry.metadata ?? {}) as Record<string, unknown>;
-          const expenseType = typeof metadata.expenseType === 'string' ? metadata.expenseType : 'OTHER';
-          const normalizedDescription = normalizeShipmentLabelInDescription(
-            expenseEntry.description || '',
-            shipment.id,
-            shipment.vehicleVIN
-          );
-
-          lineItems.push({
-            description: normalizedDescription || `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Shipment Expense`.trim(),
-            shipmentId: shipment.id,
-            type: mapExpenseTypeToLineItemType(expenseType) as
-              | 'VEHICLE_PRICE'
-              | 'PURCHASE_PRICE'
-              | 'INSURANCE'
-              | 'SHIPPING_FEE'
-              | 'CUSTOMS_FEE'
-              | 'STORAGE_FEE'
-              | 'HANDLING_FEE'
-              | 'OTHER_FEE'
-              | 'DISCOUNT',
-            quantity: 1,
-            unitPrice: expenseEntry.amount,
-            amount: expenseEntry.amount,
-          });
-          subtotal += expenseEntry.amount;
-        }
-
-        const shipmentDamages = shipmentDamageRecords.filter((damage) => damage.shipmentId === shipment.id);
-        for (const damage of shipmentDamages) {
-          const vehicleLabel = `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim();
-
-          if (damage.damageType === 'WE_PAY') {
-            lineItems.push({
-              description: `${vehicleLabel || 'Vehicle'} - Damage Compensation (${damage.description})`.trim(),
-              shipmentId: shipment.id,
-              type: 'DISCOUNT' as const,
-              quantity: 1,
-              unitPrice: -damage.amount,
-              amount: -damage.amount,
-            });
-            subtotal -= damage.amount;
-          } else {
-            // COMPANY_PAYS damages are shown for transparency but do not affect customer total.
-            lineItems.push({
-              description: `${vehicleLabel || 'Vehicle'} - Damage Note (Company Pays $${damage.amount.toFixed(2)}): ${damage.description}`.trim(),
-              shipmentId: shipment.id,
-              type: 'OTHER_FEE' as const,
-              quantity: 1,
-              // Show assessed damage amount for visibility, but keep line amount at 0 to avoid billing customer.
-              unitPrice: damage.amount,
-              amount: 0,
-            });
-          }
-        }
-
-        // Damage credit (deduction from invoice if company absorbed damage)
-        if (shipment.damageCredit && shipment.damageCredit > 0) {
-          lineItems.push({
-            description: `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''} - Damage Credit (Company Absorbed)`.trim(),
-            shipmentId: shipment.id,
-            type: 'DISCOUNT' as const,
-            quantity: 1,
-            unitPrice: -shipment.damageCredit,
-            amount: -shipment.damageCredit,
-          });
-          subtotal -= shipment.damageCredit;
-        }
-      }
-
-      // Apply discount if any
-      const discountAmount = (subtotal * discountPercent) / 100;
-      const total = subtotal - discountAmount;
-
       // Set due date (30 days from now if not provided)
       const invoiceDueDate = dueDate 
         ? new Date(dueDate) 
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // Create or refresh invoice (refresh existing non-paid invoice so new shipment expenses are included)
-      let invoice: { id: string; invoiceNumber: string; total: number };
+      const invoice = await prisma.$transaction(async (tx) => {
+        if (existingInvoice) {
+          await releaseInvoiceShipmentCharges(tx, existingInvoice.id);
+        }
 
-      if (existingInvoice) {
-        invoice = await prisma.userInvoice.update({
-          where: { id: existingInvoice.id },
-          data: {
-            dueDate: invoiceDueDate,
-            subtotal,
-            discount: discountAmount,
-            total,
-            lineItems: {
-              deleteMany: {},
-              create: lineItems,
+        const invoiceCharges = await tx.shipmentCharge.findMany({
+          where: {
+            userId,
+            shipmentId: {
+              in: shipments.map((shipment) => shipment.id),
             },
+            status: 'APPROVED',
+            invoiceId: null,
           },
+          orderBy: [{ billableAt: 'asc' }, { createdAt: 'asc' }],
           select: {
             id: true,
-            invoiceNumber: true,
-            total: true,
+            chargeCode: true,
+            category: true,
+            description: true,
+            quantity: true,
+            unitAmount: true,
+            totalAmount: true,
+            shipmentId: true,
           },
         });
 
-        invoiceAuditLogs.push({
-          invoiceId: invoice.id,
-          action: 'INVOICE_REFRESHED',
-          description: `Invoice ${invoice.invoiceNumber} refreshed during container invoice generation`,
-          performedBy: actorId,
-          metadata: {
-            containerId,
-            userId,
-          },
-        });
-      } else {
-        const invoiceCount = await prisma.userInvoice.count();
-        const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
+        if (!invoiceCharges.length) {
+          return null;
+        }
 
-        invoice = await prisma.userInvoice.create({
-          data: {
-            invoiceNumber,
-            userId,
-            containerId,
-            status: 'DRAFT',
-            issueDate: new Date(),
-            dueDate: invoiceDueDate,
-            subtotal,
-            discount: discountAmount,
-            total,
-            lineItems: {
-              create: lineItems,
+        const subtotal = invoiceCharges.reduce((sum, charge) => sum + charge.totalAmount, 0);
+        const discountAmount = subtotal > 0 ? (subtotal * discountPercent) / 100 : 0;
+        const total = subtotal - discountAmount;
+        const lineItems = invoiceCharges.map((charge) => buildInvoiceLineItemFromCharge(charge));
+
+        let nextInvoice: { id: string; invoiceNumber: string; total: number };
+
+        if (existingInvoice) {
+          nextInvoice = await tx.userInvoice.update({
+            where: { id: existingInvoice.id },
+            data: {
+              dueDate: invoiceDueDate,
+              subtotal,
+              discount: discountAmount,
+              total,
+              lineItems: {
+                deleteMany: {},
+                create: lineItems,
+              },
             },
-          },
-          select: {
-            id: true,
-            invoiceNumber: true,
-            total: true,
-          },
-        });
+            select: {
+              id: true,
+              invoiceNumber: true,
+              total: true,
+            },
+          });
+        } else {
+          invoiceCount += 1;
+          const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount).padStart(4, '0')}`;
+          nextInvoice = await tx.userInvoice.create({
+            data: {
+              invoiceNumber,
+              userId,
+              containerId,
+              status: 'DRAFT',
+              issueDate: new Date(),
+              dueDate: invoiceDueDate,
+              subtotal,
+              discount: discountAmount,
+              total,
+              lineItems: {
+                create: lineItems,
+              },
+            },
+            select: {
+              id: true,
+              invoiceNumber: true,
+              total: true,
+            },
+          });
+        }
 
-        invoiceAuditLogs.push({
-          invoiceId: invoice.id,
-          action: 'INVOICE_CREATED',
-          description: `Invoice ${invoice.invoiceNumber} created during container invoice generation`,
-          performedBy: actorId,
-          metadata: {
-            containerId,
-            userId,
-          },
-        });
+        await markInvoiceShipmentChargesInvoiced(
+          tx,
+          nextInvoice.id,
+          invoiceCharges.map((charge) => charge.id),
+        );
+
+        return nextInvoice;
+      });
+
+      if (!invoice) {
+        continue;
       }
+
+      invoiceAuditLogs.push({
+        invoiceId: invoice.id,
+        action: existingInvoice ? 'INVOICE_REFRESHED' : 'INVOICE_CREATED',
+        description: existingInvoice
+          ? `Invoice ${invoice.invoiceNumber} refreshed from approved shipment charges`
+          : `Invoice ${invoice.invoiceNumber} created from approved shipment charges`,
+        performedBy: actorId,
+        metadata: {
+          containerId,
+          userId,
+          shipmentIds: shipments.map((shipment) => shipment.id),
+        },
+      });
 
       generatedInvoices.push({
         userId,
@@ -481,28 +409,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Helper function to map expense types to line item types
-function mapExpenseTypeToLineItemType(expenseType: string): string {
-  const typeMap: Record<string, string> = {
-    'SHIPPING_FEE': 'SHIPPING_FEE',
-    'PORT_CHARGES': 'CUSTOMS_FEE',
-    'CUSTOMS_DUTY': 'CUSTOMS_FEE',
-    'CUSTOMS': 'CUSTOMS_FEE',
-    'STORAGE_FEE': 'STORAGE_FEE',
-    'HANDLING_FEE': 'HANDLING_FEE',
-    'INSURANCE': 'INSURANCE',
-    'INLAND_TRANSPORT': 'SHIPPING_FEE',
-    'DOCUMENTATION': 'OTHER_FEE',
-    'INSPECTION': 'OTHER_FEE',
-    'OTHER': 'OTHER_FEE',
-    // Legacy/Title Case mappings just in case
-    'Shipping': 'SHIPPING_FEE',
-    'Customs': 'CUSTOMS_FEE',
-    'Storage': 'STORAGE_FEE',
-    'Handling': 'HANDLING_FEE',
-  };
-
-  return typeMap[expenseType] || 'OTHER_FEE';
 }

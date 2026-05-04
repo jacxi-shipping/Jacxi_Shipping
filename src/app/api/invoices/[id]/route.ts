@@ -8,6 +8,11 @@ import { z } from 'zod';
 import { hasPermission } from '@/lib/rbac';
 import { buildLinkedCompanyLedgerEntryMap } from '@/lib/company-ledger-links';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
+import {
+  markInvoiceShipmentChargesPaid,
+  releaseInvoiceShipmentCharges,
+  resetInvoiceShipmentCharges,
+} from '@/lib/billing/shipment-charges';
 
 function normalizeShipmentRefInDescription(
   description: string,
@@ -563,29 +568,39 @@ export async function PATCH(
           });
         }
 
+        await markInvoiceShipmentChargesPaid(tx, currentInvoice.id);
+
         paymentLedgerEntryId = nonExpenseEntry?.id ?? pendingExpenseEntries[0]?.id;
       });
     }
 
-    // Update invoice
-    const invoice = await prisma.userInvoice.update({
-      where: { id: params.id },
-      data: {
-        ...validatedData,
-        total,
-        paymentReference: paymentLedgerEntryId ?? validatedData.paymentReference,
-        dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
-        paidDate: validatedData.paidDate ? new Date(validatedData.paidDate) : undefined,
-      },
-      include: {
-        user: true,
-        container: true,
-        lineItems: {
-          include: {
-            shipment: true,
+    // Update invoice and synchronize linked shipment charge states.
+    const invoice = await prisma.$transaction(async (tx) => {
+      const updatedInvoice = await tx.userInvoice.update({
+        where: { id: params.id },
+        data: {
+          ...validatedData,
+          total,
+          paymentReference: paymentLedgerEntryId ?? validatedData.paymentReference,
+          dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
+          paidDate: validatedData.paidDate ? new Date(validatedData.paidDate) : undefined,
+        },
+        include: {
+          user: true,
+          container: true,
+          lineItems: {
+            include: {
+              shipment: true,
+            },
           },
         },
-      },
+      });
+
+      if (validatedData.status === 'CANCELLED' && previousStatus !== 'PAID') {
+        await releaseInvoiceShipmentCharges(tx, updatedInvoice.id);
+      }
+
+      return updatedInvoice;
     });
 
     const invoiceAuditLogs: Array<{
@@ -769,6 +784,8 @@ export async function DELETE(
           },
         });
       }
+
+      await resetInvoiceShipmentCharges(tx, invoice.id);
 
       // Delete invoice (cascade will delete line items)
       await tx.userInvoice.delete({
