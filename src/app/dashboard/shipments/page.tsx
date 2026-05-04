@@ -3,79 +3,16 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Add, ChevronLeft, ChevronRight, Inventory2 } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
-import ShipmentRow from '@/components/dashboard/ShipmentRow';
-import SmartSearch, { SearchFilters } from '@/components/dashboard/SmartSearch';
-import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
-import { Button, EmptyState, Breadcrumbs, SkeletonTable, toast, StatusBadge } from '@/components/design-system';
-import { DataTable, Column } from '@/components/ui/DataTable';
+import { Box } from '@mui/material';
+import { SearchFilters } from '@/components/dashboard/SmartSearch';
+import { DashboardSurface } from '@/components/dashboard/DashboardSurface';
+import { Breadcrumbs, toast, StatusBadge } from '@/components/design-system';
+import ShipmentsResultsPanel from '@/components/shipments/ShipmentsResultsPanel';
+import ShipmentsSearchPanel from '@/components/shipments/ShipmentsSearchPanel';
+import type { Shipment, ShipmentTableRow } from '@/components/shipments/shipment-list-types';
+import { Column } from '@/components/ui/DataTable';
 import { exportToCSVWithHeaders } from '@/lib/export';
 import { hasPermission } from '@/lib/rbac';
-
-interface Shipment {
-	id: string;
-	trackingNumber?: string;
-	vehicleType: string;
-	vehicleMake: string | null;
-	vehicleModel: string | null;
-	vehicleYear?: number | null;
-	vehicleVIN?: string | null;
-	purchasePrice?: number | null;
-	purchasePricePaid?: number | null;
-	origin?: string;
-	destination?: string;
-	status: string;
-	progress?: number;
-	estimatedDelivery?: string | null;
-	createdAt: string;
-	paymentStatus?: string;
-	dispatchId?: string | null;
-	containerId?: string | null;
-	transitId?: string | null;
-	dispatch?: {
-		id: string;
-		referenceNumber: string;
-		status?: string;
-		origin?: string | null;
-		destination?: string | null;
-	} | null;
-	container?: {
-		id: string;
-		containerNumber: string;
-		trackingNumber?: string | null;
-		status?: string;
-		currentLocation?: string | null;
-		progress?: number;
-	} | null;
-	transit?: {
-		id: string;
-		referenceNumber: string;
-		status?: string;
-		destination?: string | null;
-	} | null;
-	yardReceived?: boolean;
-	yardReceivedAt?: string | null;
-	user?: {
-		name: string | null;
-		email: string;
-	};
-}
-
-interface ShipmentTableRow {
-	id: string;
-	vehicle: string;
-	vin: string;
-	purchasePrice: number | null;
-	purchasePricePaid: number | null;
-	status: string;
-	yardReceived: boolean;
-	paymentStatus: string;
-	container: string;
-	createdAt: string;
-	customer: string;
-}
 
 export default function ShipmentsListPage() {
 	const router = useRouter();
@@ -334,167 +271,38 @@ export default function ShipmentsListPage() {
 
 	return (
 		<DashboardSurface className="overflow-hidden">
-			{/* Breadcrumbs */}
 			<Box sx={{ px: 2, pt: 2 }}>
 				<Breadcrumbs />
 			</Box>
-			
-			<DashboardPanel
-				title="Search"
-				description="Filter shipments instantly"
-				noBodyPadding
-				className="overflow-hidden"
-				actions={
-					canManageShipments ? (
-						<Link href="/dashboard/shipments/new" style={{ textDecoration: 'none' }}>
-							<Button
-								variant="primary"
-								size="sm"
-								icon={<Add fontSize="small" />}
-								iconPosition="start"
-							>
-								New shipment
-							</Button>
-						</Link>
-					) : null
-				}
-			>
-				<Box sx={{ px: { xs: 1, sm: 1.25, md: 1.5 }, py: { xs: 1, sm: 1.25, md: 1.5 } }}>
-					<SmartSearch
-						onSearch={handleSearch}
-						placeholder="Search shipments by tracking number, VIN, origin, destination..."
-						showTypeFilter={false}
-						showStatusFilter
-						showWorkflowStageFilter
-						showYardFilter
-						showDateFilter
-						showPriceFilter
-						showUserFilter={isAdmin}
-						defaultType="shipments"
-					/>
-				</Box>
-			</DashboardPanel>
 
-			<DashboardPanel
-				title="Results"
-				description={
-					shipments.length
-						? `Showing ${shipments.length} shipment${shipments.length !== 1 ? 's' : ''}`
-						: 'No shipments found'
-				}
-				fullHeight
-				className="overflow-hidden"
-				bodyClassName="overflow-hidden"
-				actions={
-					canUseBulkMode ? (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setShowBulkTable((prev) => !prev)}
-						>
-							{showBulkTable ? 'Card view' : 'Bulk mode'}
-						</Button>
-					) : null
-				}
-			>
-				{loading ? (
-					<SkeletonTable rows={5} columns={6} />
-				) : shipments.length === 0 ? (
-					<EmptyState
-						icon={<Inventory2 />}
-						title="No shipments found"
-						description={searchFilters.query ? "Try adjusting your search filters" : "Get started by creating your first shipment"}
-						action={
-							canManageShipments ? (
-								<Link href="/dashboard/shipments/new" style={{ textDecoration: 'none' }}>
-									<Button variant="primary" icon={<Add />} iconPosition="start">
-										Create shipment
-									</Button>
-								</Link>
-							) : undefined
-						}
-					/>
-				) : (
-					<>
-						{showBulkTable ? (
-              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                <DataTable
-                  data={shipmentTableRows}
-                  columns={shipmentColumns}
-                  keyField="id"
-									selectable={canUseBulkMode}
-                  onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
-									onDelete={canManageShipments ? handleBulkDelete : undefined}
-									onExport={canUseBulkMode ? handleBulkExport : undefined}
-                  bulkStatusOptions={shipmentStatusOptions}
-									onBulkStatusChange={canMoveWorkflow ? handleBulkStatusUpdate : undefined}
-                />
-              </Box>
-					) : null}
+			<ShipmentsSearchPanel
+				onSearch={handleSearch}
+				canManageShipments={canManageShipments}
+				isAdmin={isAdmin}
+			/>
 
-          {/* Mobile/Tablet Card View - Always shown if not bulk table, or if bulk table is active but screen is small */}
-          <Box sx={{
-            display: showBulkTable ? { xs: 'flex', md: 'none' } : 'flex',
-            flexDirection: 'column',
-            gap: { xs: 1, sm: 1.15, md: 1.25 },
-            minWidth: 0,
-            width: '100%',
-            overflow: 'hidden',
-          }}>
-            {shipments.map((shipment, index) => (
-              <ShipmentRow
-                key={shipment.id}
-                {...shipment}
-                purchasePrice={canViewFinance ? (shipment.purchasePrice ?? null) : null}
-                purchasePricePaid={canViewFinance ? (shipment.purchasePricePaid ?? null) : null}
-                showCustomer={isAdmin}
-                delay={index * 0.05}
-              />
-            ))}
-          </Box>
-					
-					{totalPages > 1 && (
-						<Box
-							sx={{
-								mt: 2,
-								display: 'flex',
-								flexDirection: { xs: 'column', sm: 'row' },
-								alignItems: 'center',
-								justifyContent: 'space-between',
-								gap: 1,
-								width: '100%',
-							}}
-						>
-							<Button
-								variant="outline"
-								size="sm"
-								icon={<ChevronLeft sx={{ fontSize: { xs: 12, sm: 14 } }} />}
-								iconPosition="start"
-								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-								disabled={currentPage === 1}
-								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }} // Touch target size
-							>
-								Previous
-							</Button>
-							<Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.72rem', md: '0.75rem' }, color: 'var(--text-secondary)' }}>
-								Page {currentPage} of {totalPages}
-							</Typography>
-							<Button
-								variant="outline"
-								size="sm"
-								icon={<ChevronRight sx={{ fontSize: { xs: 12, sm: 14 } }} />}
-								iconPosition="end"
-								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-								disabled={currentPage === totalPages}
-								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }} // Touch target size
-							>
-								Next
-							</Button>
-						</Box>
-					)}
-				</>
-			)}
-			</DashboardPanel>
+			<ShipmentsResultsPanel
+				loading={loading}
+				shipments={shipments}
+				searchQuery={searchFilters.query}
+				canManageShipments={canManageShipments}
+				canUseBulkMode={canUseBulkMode}
+				showBulkTable={showBulkTable}
+				onToggleBulkMode={() => setShowBulkTable((prev) => !prev)}
+				shipmentTableRows={shipmentTableRows}
+				shipmentColumns={shipmentColumns}
+				onRowClick={(row) => router.push(`/dashboard/shipments/${row.id}`)}
+				onBulkDelete={canManageShipments ? handleBulkDelete : undefined}
+				onBulkExport={canUseBulkMode ? handleBulkExport : undefined}
+				bulkStatusOptions={shipmentStatusOptions}
+				onBulkStatusChange={canMoveWorkflow ? handleBulkStatusUpdate : undefined}
+				isAdmin={isAdmin}
+				canViewFinance={canViewFinance}
+				currentPage={currentPage}
+				totalPages={totalPages}
+				onPreviousPage={() => setCurrentPage((page) => Math.max(1, page - 1))}
+				onNextPage={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+			/>
 		</DashboardSurface>
 	);
 }

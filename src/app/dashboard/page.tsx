@@ -1,34 +1,14 @@
-import { Suspense } from 'react';
-import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 import { 
-    StatsCard, 
-    Button, 
-    EmptyState
-} from '@/components/design-system';
-import { ShipmentTrendsChart } from '@/components/charts/ShipmentTrendsChart';
-import { ContainerUtilizationChart } from '@/components/charts/ContainerUtilizationChart';
-import { 
     DashboardSurface, 
-    DashboardGrid, 
-    DashboardPanel, 
     DashboardHeader 
 } from '@/components/dashboard/DashboardSurface';
-import { 
-    Ship, 
-    Package, 
-    DollarSign, 
-    Activity, 
-    Truck,
-    AlertTriangle,
-    Clock3,
-    Anchor,
-    Route,
-} from 'lucide-react';
-
-import ShipmentCalculator from '@/components/dashboard/ShipmentCalculator';
+import DashboardAgingExceptionsPanel from '@/components/dashboard/DashboardAgingExceptionsPanel';
+import DashboardChartsSection from '@/components/dashboard/DashboardChartsSection';
+import DashboardKpiGrid from '@/components/dashboard/DashboardKpiGrid';
+import DashboardOperationsSection from '@/components/dashboard/DashboardOperationsSection';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
 
 // Force dynamic rendering (requires database connection)
@@ -487,331 +467,37 @@ export default async function DashboardPage() {
                 />
             </div>
 
-            {/* KPI Cards */}
-            <div id="stats-grid">
-                <DashboardGrid className={data.canManageDispatches ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'}>
-                    <StatsCard
-                        title="Active Shipments"
-                        value={data.activeShipmentsCount}
-                        icon={<Package className="w-5 h-5" />}
-                        variant="default"
-                        subtitle="On hand or moving"
-                        trend={{ value: 0, isPositive: true }}
-                    />
-                    <StatsCard
-                        title="Active Containers"
-                        value={data.activeContainersCount}
-                        icon={<Ship className="w-5 h-5" />}
-                        variant="info"
-                    />
-                    <StatsCard
-                        title="Pending Revenue"
-                        value={formatMoney(data.pendingRevenue)}
-                        icon={<DollarSign className="w-5 h-5" />}
-                        variant="warning"
-                    />
-                    {data.canManageDispatches && (
-                        <StatsCard
-                            title="Active Dispatches"
-                            value={data.activeDispatchesCount}
-                            icon={<Truck className="w-5 h-5" />}
-                            variant="success"
-                            subtitle="Pending, dispatched, or at port"
-                        />
-                    )}
-                </DashboardGrid>
-            </div>
+            <DashboardKpiGrid
+                activeShipmentsCount={data.activeShipmentsCount}
+                activeContainersCount={data.activeContainersCount}
+                pendingRevenue={formatMoney(data.pendingRevenue)}
+                canManageDispatches={data.canManageDispatches}
+                activeDispatchesCount={data.activeDispatchesCount}
+            />
 
-            <DashboardPanel
-                title="Stage Aging Exceptions"
-                description="Operational exceptions by workflow age and missed SLAs"
-                actions={(
-                    <Button href="/dashboard/shipments" variant="ghost" size="sm">
-                        Open shipments
-                    </Button>
-                )}
-            >
-                <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-                    <StatsCard
-                        title="Dispatch Aging"
-                        value={data.agingMetrics.dispatchStuckCount}
-                        icon={<Clock3 className="w-5 h-5" />}
-                        variant="warning"
-                        subtitle={`More than ${data.agingMetrics.dispatchThresholdDays} days in dispatch stage`}
-                    />
-                    <StatsCard
-                        title="Past Container ETA"
-                        value={data.agingMetrics.containerPastEtaCount}
-                        icon={<Anchor className="w-5 h-5" />}
-                        variant="error"
-                        subtitle="Shipping-stage shipments past container ETA"
-                    />
-                    <StatsCard
-                        title="Released Awaiting Transit"
-                        value={data.agingMetrics.releasedAwaitingTransitCount}
-                        icon={<Truck className="w-5 h-5" />}
-                        variant="warning"
-                        subtitle={`Released more than ${data.agingMetrics.releasedAwaitingTransitThresholdDays} days ago`}
-                    />
-                    <StatsCard
-                        title="Transits Overdue"
-                        value={data.agingMetrics.transitsOverdueCount}
-                        icon={<Route className="w-5 h-5" />}
-                        variant="error"
-                        subtitle="Transit records beyond estimated delivery"
-                    />
-                </DashboardGrid>
+            <DashboardAgingExceptionsPanel
+                dispatchStuckCount={data.agingMetrics.dispatchStuckCount}
+                dispatchThresholdDays={data.agingMetrics.dispatchThresholdDays}
+                containerPastEtaCount={data.agingMetrics.containerPastEtaCount}
+                releasedAwaitingTransitCount={data.agingMetrics.releasedAwaitingTransitCount}
+                releasedAwaitingTransitThresholdDays={data.agingMetrics.releasedAwaitingTransitThresholdDays}
+                transitsOverdueCount={data.agingMetrics.transitsOverdueCount}
+                totalExceptions={data.agingMetrics.totalExceptions}
+                exceptions={data.agingMetrics.exceptions}
+            />
 
-                <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Exception queue</p>
-                        <p className="text-xs text-muted-foreground">Top {data.agingMetrics.totalExceptions} active exceptions</p>
-                    </div>
+            <DashboardChartsSection
+                shipmentTrends={data.shipmentTrends}
+                containerUtilization={data.containerUtilization}
+            />
 
-                    {data.agingMetrics.exceptions.length === 0 ? (
-                        <EmptyState
-                            icon={<AlertTriangle className="w-8 h-8" />}
-                            title="No aging exceptions"
-                            description="Dispatch, container, release, and transit SLA exceptions will appear here as they age."
-                        />
-                    ) : (
-                        <div className="space-y-2">
-                            {data.agingMetrics.exceptions.map((item) => (
-                                <Link
-                                    key={item.id}
-                                    href={item.href}
-                                    className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background px-3 py-3 transition-colors hover:bg-background/70"
-                                >
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-medium text-primary truncate">{item.title}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
-                                        <p className="mt-1 text-xs text-primary">{item.detail}</p>
-                                    </div>
-                                    <div className="shrink-0 text-right">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warning)]">{item.severityLabel}</p>
-                                        <p className="text-sm font-semibold text-primary">{item.ageDays}d</p>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </DashboardPanel>
-
-            <DashboardGrid className="grid-cols-1 xl:grid-cols-2">
-                <div id="shipment-trends">
-                    <DashboardPanel
-                        title="Shipment Trends"
-                        description="Last 14 days"
-                    >
-                        {data.shipmentTrends.every((item) => item.shipments === 0) ? (
-                            <EmptyState
-                                icon={<Activity className="w-8 h-8" />}
-                                title="No shipment activity yet"
-                                description="Create your first shipment to see trend data here."
-                                action={(
-                                    <Button href="/dashboard/shipments/new" variant="primary" size="sm">
-                                        Add Shipment
-                                    </Button>
-                                )}
-                            />
-                        ) : (
-                            <ShipmentTrendsChart data={data.shipmentTrends} />
-                        )}
-                    </DashboardPanel>
-                </div>
-
-                <div id="container-utilization">
-                    <DashboardPanel
-                        title="Container Utilization"
-                        description="Most recent containers"
-                    >
-                        {data.containerUtilization.length === 0 ? (
-                            <EmptyState
-                                icon={<Ship className="w-8 h-8" />}
-                                title="No containers yet"
-                                description="Create a container to track utilization and capacity."
-                                action={(
-                                    <Button href="/dashboard/containers/new" variant="primary" size="sm">
-                                        New Container
-                                    </Button>
-                                )}
-                            />
-                        ) : (
-                            <ContainerUtilizationChart data={data.containerUtilization} />
-                        )}
-                    </DashboardPanel>
-                </div>
-            </DashboardGrid>
-
-            {/* Main Content Grid */}
-            <DashboardGrid className="grid-cols-1 lg:grid-cols-3">
-                
-                {/* Left Column: Calculator (2/3 width) */}
-                <div className="lg:col-span-2" id="shipment-calculator">
-                    <ShipmentCalculator />
-                </div>
-
-                {/* Right Column: Quick Actions & Status (1/3 width) */}
-                <div className="space-y-6">
-                    
-                    {/* Quick Actions */}
-                    <div id="quick-actions">
-                        <DashboardPanel
-                            title="Quick Actions"
-                            noBodyPadding
-                        >
-                            <div className="divide-y divide-border">
-                                {hasPermission(role, 'shipments:manage') && (
-                                    <Link href="/dashboard/shipments/new" className="block p-4 hover:bg-background/50 transition-colors group">
-                                        <div className="flex gap-3 items-center">
-                                            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                                <Package className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-primary">New Shipment</p>
-                                                <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {hasPermission(role, 'containers:manage') && (
-                                    <Link href="/dashboard/containers/new" className="block p-4 hover:bg-background/50 transition-colors group">
-                                        <div className="flex gap-3 items-center">
-                                            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                                                <Ship className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-primary">New Container</p>
-                                                <p className="text-xs text-muted-foreground">Create shipping container</p>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {data.canManageDispatches && (
-                                    <Link href="/dashboard/dispatches" className="block p-4 hover:bg-background/50 transition-colors group">
-                                        <div className="flex gap-3 items-center">
-                                            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                                <Truck className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-primary">Manage Dispatches</p>
-                                                <p className="text-xs text-muted-foreground">Track yard-to-port movement</p>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                <Link href="/dashboard/finance" className="block p-4 hover:bg-background/50 transition-colors group">
-                                    <div className="flex gap-3 items-center">
-                                        <div className="p-2 rounded-lg bg-green-500/10 text-green-500 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                                            <DollarSign className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-primary">Finance</p>
-                                            <p className="text-xs text-muted-foreground">View ledgers & invoices</p>
-                                        </div>
-                                    </div>
-                                </Link>
-
-                                <Link href="/dashboard/shipments" className="block p-4 hover:bg-background/50 transition-colors group">
-                                    <div className="flex gap-3 items-center">
-                                        <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                                            <Activity className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-primary">Track Shipments</p>
-                                            <p className="text-xs text-muted-foreground">View all shipment statuses</p>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </div>
-                        </DashboardPanel>
-                    </div>
-
-                    {/* Shipment Status Distribution */}
-                    <DashboardPanel
-                        title="Shipment Status"
-                    >
-                         <div className="grid grid-cols-2 gap-3">
-                            {data.shipmentStats.map((stat) => (
-                                <div key={stat.status} className="p-3 bg-background rounded-lg border border-border flex flex-col">
-                                    <span className="text-xs text-gray-500 mb-1 capitalize truncate">{stat.status.replace('_', ' ').toLowerCase()}</span>
-                                    <span className="text-lg font-bold text-primary">{stat._count}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </DashboardPanel>
-
-                    {data.canManageDispatches && (
-                        <DashboardPanel
-                            title="Dispatch Pipeline"
-                            description="Current origin-to-port workload"
-                        >
-                            {data.dispatchStats.length === 0 ? (
-                                <EmptyState
-                                    icon={<Truck className="w-8 h-8" />}
-                                    title="No dispatch activity yet"
-                                    description="Create a dispatch to track yard-to-port movements and handoff readiness."
-                                    action={(
-                                        <Button href="/dashboard/dispatches" variant="primary" size="sm">
-                                            Open Dispatches
-                                        </Button>
-                                    )}
-                                />
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {data.dispatchStats.map((stat) => (
-                                            <div key={stat.status} className="p-3 bg-background rounded-lg border border-border flex flex-col">
-                                                <span className="text-xs text-gray-500 mb-1 truncate">{stat.label}</span>
-                                                <span className="text-lg font-bold text-primary">{stat.count}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Active dispatches</p>
-                                            <Button href="/dashboard/dispatches" variant="ghost" size="sm">
-                                                View all
-                                            </Button>
-                                        </div>
-
-                                        {data.recentDispatches.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground">No active dispatches right now.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {data.recentDispatches.map((dispatch) => (
-                                                    <Link
-                                                        key={dispatch.id}
-                                                        href={`/dashboard/dispatches/${dispatch.id}`}
-                                                        className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 transition-colors hover:bg-background/70"
-                                                    >
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-sm font-medium text-primary">{dispatch.referenceNumber}</p>
-                                                            <p className="truncate text-xs text-muted-foreground">
-                                                                {dispatch.company.name} • {dispatch.origin} to {dispatch.destination}
-                                                            </p>
-                                                        </div>
-                                                        <div className="ml-3 text-right">
-                                                            <p className="text-xs font-semibold text-primary">{dispatch._count.shipments} shipments</p>
-                                                            <p className="text-xs text-muted-foreground">{dispatch.statusLabel}</p>
-                                                        </div>
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </DashboardPanel>
-                    )}
-
-                </div>
-            </DashboardGrid>
+            <DashboardOperationsSection
+                role={role}
+                canManageDispatches={data.canManageDispatches}
+                shipmentStats={data.shipmentStats}
+                dispatchStats={data.dispatchStats}
+                recentDispatches={data.recentDispatches}
+            />
         </DashboardSurface>
     );
 }

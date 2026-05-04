@@ -2,18 +2,14 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 
 export default function SignUpPage() {
 	const router = useRouter();
-	const { status } = useSession();
 
 	useEffect(() => {
-		if (status !== 'loading') {
-			// Redirect to customer creation flow
-			router.replace('/dashboard/customers/new');
-		}
-	}, [status, router]);
+		// Let the dashboard protection enforce authentication after redirect.
+		router.replace('/dashboard/customers/new');
+	}, [router]);
 
 	// Show loading while redirecting
 	return (

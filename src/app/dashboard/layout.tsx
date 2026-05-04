@@ -6,6 +6,7 @@ import Sidebar from '@/components/dashboard/Sidebar';
 import Header from '@/components/dashboard/Header';
 import { BottomNavigation } from '@/components/mobile/BottomNavigation';
 import { KeyboardShortcutHelp } from '@/components/design-system';
+import { SessionProvider } from '@/components/providers/SessionProvider';
 import { Box } from '@mui/material';
 
 import { CommandPaletteProvider } from '@/components/providers/CommandPaletteProvider';
@@ -18,64 +19,66 @@ export default function DashboardLayout({
 	const [mobileOpen, setMobileOpen] = useState(false);
 
 	return (
-		<ProtectedRoute>
-			<CommandPaletteProvider>
-				<Box
-					className="dashboard-theme-light"
-				sx={{
-					height: '100vh',
-					overflow: 'hidden',
-					bgcolor: 'var(--background)',
-					display: 'flex',
-					flexDirection: 'column',
-					color: 'var(--text-primary)',
-				}}
-			>
-				{/* Header */}
-				<Header onMenuClick={() => setMobileOpen(!mobileOpen)} />
+		<SessionProvider>
+			<ProtectedRoute>
+				<CommandPaletteProvider>
+					<Box
+						className="dashboard-theme-light"
+						sx={{
+							height: '100vh',
+							overflow: 'hidden',
+							bgcolor: 'var(--background)',
+							display: 'flex',
+							flexDirection: 'column',
+							color: 'var(--text-primary)',
+						}}
+					>
+						{/* Header */}
+						<Header onMenuClick={() => setMobileOpen(!mobileOpen)} />
 
-				{/* Content Area with Sidebar */}
-				<Box
-					sx={{
-						display: 'flex',
-						flexGrow: 1,
-						overflow: 'hidden',
-					}}
-				>
-					{/* Sidebar */}
-					<Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+						{/* Content Area with Sidebar */}
+						<Box
+							sx={{
+								display: 'flex',
+								flexGrow: 1,
+								overflow: 'hidden',
+							}}
+						>
+							{/* Sidebar */}
+							<Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
 
-				{/* Main Content */}
-				<Box
-					component="main"
-					sx={{
-						flexGrow: 1,
-						minWidth: 0,
-						height: { xs: 'calc(100vh - 64px - 64px)', lg: 'calc(100vh - 64px)' },
-						bgcolor: 'var(--background)',
-						backgroundImage: 'none',
-						overflow: 'auto',
-						/* Hide scrollbar completely */
-						'&::-webkit-scrollbar': {
-							width: 0,
-							height: 0,
-						},
-						scrollbarWidth: 'none',
-						msOverflowStyle: 'none',
-						pb: { xs: 2, lg: 0 },
-					}}
-				>
-					{children}
-				</Box>
-				</Box>
+							{/* Main Content */}
+							<Box
+								component="main"
+								sx={{
+									flexGrow: 1,
+									minWidth: 0,
+									height: { xs: 'calc(100vh - 64px - 64px)', lg: 'calc(100vh - 64px)' },
+									bgcolor: 'var(--background)',
+									backgroundImage: 'none',
+									overflow: 'auto',
+									/* Hide scrollbar completely */
+									'&::-webkit-scrollbar': {
+										width: 0,
+										height: 0,
+									},
+									scrollbarWidth: 'none',
+									msOverflowStyle: 'none',
+									pb: { xs: 2, lg: 0 },
+								}}
+							>
+								{children}
+							</Box>
+						</Box>
 
-				{/* Mobile Bottom Navigation */}
-				<BottomNavigation />
+						{/* Mobile Bottom Navigation */}
+						<BottomNavigation />
 
-				{/* Keyboard Shortcuts Help - Press ? key */}
-				<KeyboardShortcutHelp />
-			</Box>
-			</CommandPaletteProvider>
-		</ProtectedRoute>
+						{/* Keyboard Shortcuts Help - Press ? key */}
+						<KeyboardShortcutHelp />
+					</Box>
+				</CommandPaletteProvider>
+			</ProtectedRoute>
+		</SessionProvider>
 	);
 }

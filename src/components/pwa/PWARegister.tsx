@@ -8,6 +8,15 @@ export default function PWARegister() {
       return;
     }
 
+    if (process.env.NODE_ENV !== 'production') {
+      void navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          void registration.unregister();
+        });
+      });
+      return;
+    }
+
     const registerServiceWorker = async () => {
       try {
         await navigator.serviceWorker.register('/sw.js', { scope: '/' });
