@@ -6,6 +6,7 @@ import {
     DashboardHeader 
 } from '@/components/dashboard/DashboardSurface';
 import DashboardAgingExceptionsPanel from '@/components/dashboard/DashboardAgingExceptionsPanel';
+import DashboardAiBrief from '@/components/dashboard/DashboardAiBrief';
 import DashboardChartsSection from '@/components/dashboard/DashboardChartsSection';
 import DashboardKpiGrid from '@/components/dashboard/DashboardKpiGrid';
 import DashboardOperationsSection from '@/components/dashboard/DashboardOperationsSection';
@@ -454,6 +455,36 @@ export default async function DashboardPage() {
         canReadAllInvoices,
         canManageDispatches,
     });
+    const aiEnabled = Boolean(process.env.DO_AI_API_KEY);
+    const aiBriefPayload = {
+        activeShipmentsCount: data.activeShipmentsCount,
+        activeContainersCount: data.activeContainersCount,
+        pendingRevenue: data.pendingRevenue,
+        activeDispatchesCount: data.activeDispatchesCount,
+        shipmentStats: data.shipmentStats.map((item) => ({
+            status: item.status,
+            count: item._count,
+        })),
+        dispatchStats: data.dispatchStats,
+        agingMetrics: {
+            ...data.agingMetrics,
+            exceptions: data.agingMetrics.exceptions.map((item) => ({
+                title: item.title,
+                subtitle: item.subtitle,
+                detail: item.detail,
+                severityLabel: item.severityLabel,
+                ageDays: item.ageDays,
+            })),
+        },
+        recentDispatches: data.recentDispatches.map((dispatch) => ({
+            referenceNumber: dispatch.referenceNumber,
+            statusLabel: dispatch.statusLabel,
+            origin: dispatch.origin,
+            destination: dispatch.destination,
+            shipmentCount: dispatch._count.shipments,
+            companyName: dispatch.company.name,
+        })),
+    };
 
     return (
         <DashboardSurface>
@@ -485,6 +516,8 @@ export default async function DashboardPage() {
                 totalExceptions={data.agingMetrics.totalExceptions}
                 exceptions={data.agingMetrics.exceptions}
             />
+
+            <DashboardAiBrief aiEnabled={aiEnabled} payload={aiBriefPayload} />
 
             <DashboardChartsSection
                 shipmentTrends={data.shipmentTrends}

@@ -1072,7 +1072,7 @@ export default function ShipmentDetailPage() {
         {/* Customer Tab (Admin Only) */}
         {isAdmin && (
           <TabPanel value={activeTab} index={8}>
-            <ShipmentCustomerTab user={shipment.user} />
+            <ShipmentCustomerTab user={shipment.user} shipmentId={shipment.id} />
           </TabPanel>
         )}
       </DashboardSurface>

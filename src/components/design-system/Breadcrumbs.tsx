@@ -128,9 +128,10 @@ export default function Breadcrumbs({
       {/* Breadcrumb items */}
       {breadcrumbs.map((item, index) => {
         const isLast = index === breadcrumbs.length - 1;
+        const itemKey = item.href ?? `${item.label}-${index}`;
 
         return (
-          <Box key={item.href} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box key={itemKey} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             {isLast ? (
               // Last item - not clickable
               <Typography

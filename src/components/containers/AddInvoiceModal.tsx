@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
 	Dialog,
 	DialogTitle,
@@ -13,8 +13,9 @@ import {
 	MenuItem,
 	Box,
 	InputAdornment,
+	Typography,
 } from '@mui/material';
-import { FileText, X } from 'lucide-react';
+import { FileText, Upload, X } from 'lucide-react';
 import { Button, toast } from '@/components/design-system';
 
 interface AddInvoiceModalProps {
@@ -38,7 +39,9 @@ export default function AddInvoiceModal({
 	containerId,
 	onSuccess,
 }: AddInvoiceModalProps) {
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [loading, setLoading] = useState(false);
+	const [extracting, setExtracting] = useState(false);
 	const [formData, setFormData] = useState({
 		invoiceNumber: '',
 		amount: '',
@@ -49,6 +52,15 @@ export default function AddInvoiceModal({
 		status: 'DRAFT',
 		notes: '',
 	});
+	const [invoiceSource, setInvoiceSource] = useState<{
+		fileUrl: string;
+		fileType: string;
+		fileSize: number;
+		fileName: string;
+		confidenceNotes: string;
+		extractedTextPreview: string;
+		aiInteractionLogId?: string;
+	} | null>(null);
 
 	const handleChange = (field: string, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -87,6 +99,22 @@ export default function AddInvoiceModal({
 			});
 
 			if (response.ok) {
+				if (invoiceSource) {
+					await fetch(`/api/containers/${containerId}/documents`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							type: 'INVOICE',
+							name: invoiceSource.fileName,
+							fileUrl: invoiceSource.fileUrl,
+							fileType: invoiceSource.fileType,
+							fileSize: invoiceSource.fileSize,
+							notes: `AI extraction source${invoiceSource.aiInteractionLogId ? ` (${invoiceSource.aiInteractionLogId})` : ''}: ${invoiceSource.confidenceNotes}`,
+						}),
+					}).catch((error) => {
+						console.error('Failed to save invoice source document:', error);
+					});
+				}
 				toast.success('Invoice created successfully');
 				onSuccess();
 				handleClose();
@@ -103,7 +131,7 @@ export default function AddInvoiceModal({
 	};
 
 	const handleClose = () => {
-		if (!loading) {
+		if (!loading && !extracting) {
 			setFormData({
 				invoiceNumber: '',
 				amount: '',
@@ -114,7 +142,79 @@ export default function AddInvoiceModal({
 				status: 'DRAFT',
 				notes: '',
 			});
+			setInvoiceSource(null);
 			onClose();
+		}
+	};
+
+	const handleInvoiceImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		try {
+			setExtracting(true);
+			const uploadForm = new FormData();
+			uploadForm.append('file', file);
+
+			const uploadResponse = await fetch('/api/upload', {
+				method: 'POST',
+				body: uploadForm,
+			});
+
+			const uploadPayload = await uploadResponse.json().catch(() => ({}));
+			if (!uploadResponse.ok) {
+				throw new Error(uploadPayload.message || 'Failed to upload invoice source');
+			}
+
+			const extractResponse = await fetch('/api/ai/document-extract', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					mode: 'invoice-draft',
+					fileUrl: uploadPayload.url,
+					fileName: file.name,
+					fileType: file.type,
+					entityType: 'CONTAINER',
+					entityId: containerId,
+				}),
+			});
+
+			const extracted = await extractResponse.json().catch(() => ({}));
+			if (!extractResponse.ok) {
+				throw new Error(extracted.error || 'Failed to extract invoice details');
+			}
+
+			setFormData((prev) => ({
+				...prev,
+				invoiceNumber: extracted.invoiceNumber || prev.invoiceNumber,
+				amount:
+					typeof extracted.amount === 'number' && !Number.isNaN(extracted.amount)
+						? String(extracted.amount)
+						: prev.amount,
+				currency: extracted.currency || prev.currency,
+				vendor: extracted.vendor || prev.vendor,
+				date: extracted.date || prev.date,
+				dueDate: extracted.dueDate || prev.dueDate,
+				notes: extracted.notes || prev.notes,
+			}));
+
+			setInvoiceSource({
+				fileUrl: uploadPayload.url,
+				fileType: file.type,
+				fileSize: file.size,
+				fileName: file.name,
+				confidenceNotes: extracted.confidenceNotes || 'Please verify the extracted invoice fields before saving.',
+				extractedTextPreview: extracted.extractedTextPreview || 'No extracted text available.',
+				aiInteractionLogId: extracted.aiInteractionLogId,
+			});
+
+			toast.success(extracted.source === 'digitalocean-ai' ? 'Invoice fields extracted' : 'Fallback invoice extraction applied');
+		} catch (error) {
+			console.error('Invoice import error:', error);
+			toast.error(error instanceof Error ? error.message : 'Failed to import invoice source');
+		} finally {
+			setExtracting(false);
+			event.target.value = '';
 		}
 	};
 
@@ -157,6 +257,44 @@ export default function AddInvoiceModal({
 
 			<Box component="form" onSubmit={handleSubmit}>
 				<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+					<Box sx={{ border: '1px dashed var(--border)', borderRadius: 2, p: 2, bgcolor: 'var(--background)' }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+							<Box>
+								<Typography sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>Import From Invoice File</Typography>
+								<Typography sx={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+									Upload a PDF, CSV, or text invoice source to prefill the form before saving.
+								</Typography>
+							</Box>
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={() => fileInputRef.current?.click()}
+								disabled={extracting || loading}
+								icon={<Upload className="w-4 h-4" />}
+							>
+								{extracting ? 'Extracting...' : 'Upload Invoice Source'}
+							</Button>
+							<input
+								ref={fileInputRef}
+								type="file"
+								accept=".pdf,.csv,.txt,.xls,.xlsx"
+								onChange={handleInvoiceImport}
+								hidden
+							/>
+						</Box>
+
+						{invoiceSource && (
+							<Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+								<Typography sx={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+									{invoiceSource.confidenceNotes}
+								</Typography>
+								<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+									{invoiceSource.extractedTextPreview}
+								</Typography>
+							</Box>
+						)}
+					</Box>
+
 					<TextField
 						size="small"
 						label="Invoice Number"

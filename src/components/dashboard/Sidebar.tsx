@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
@@ -90,6 +90,12 @@ const adminNavigation: NavigationItem[] = [
 		href: '/dashboard/invoices',
 		icon: Receipt,
 		requiredPermission: 'invoices:view',
+	},
+	{
+		name: 'AI Logs',
+		href: '/dashboard/ai-logs',
+		icon: SmartToy,
+		requiredPermission: 'shipments:read_all',
 	},
 ];
 

@@ -15,6 +15,7 @@ import {
   IconButton,
   Divider,
   Chip,
+  TextField,
 } from '@mui/material';
 import { 
   FileText, 
@@ -48,6 +49,19 @@ interface DocumentManagerProps {
   onDocumentsChange?: () => void;
 }
 
+type ExtractionReview = {
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  name: string;
+  category: string;
+  description: string;
+  tags: string[];
+  summary: string;
+  extractedTextPreview: string;
+  aiInteractionLogId?: string;
+};
+
 export function DocumentManager({
   documents: initialDocs,
   entityId,
@@ -60,6 +74,9 @@ export function DocumentManager({
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [category, setCategory] = useState('OTHER');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [review, setReview] = useState<ExtractionReview | null>(null);
+  const [savingReview, setSavingReview] = useState(false);
+  const [reviewTags, setReviewTags] = useState('');
 
   useEffect(() => {
     setDocuments(initialDocs);
@@ -83,60 +100,112 @@ export function DocumentManager({
 
       const { url } = await uploadRes.json();
 
-      // 2. Create document record
-      const payload = {
-        name: file.name,
+      const extractRes = await fetch('/api/ai/document-extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'document-review',
+          fileUrl: url,
+          fileName: file.name,
+          fileType: file.type,
+          entityType: entityType.toUpperCase(),
+          entityId,
+          categoryHint: category,
+        }),
+      });
+
+      const extracted = await extractRes.json().catch(() => ({}));
+      if (!extractRes.ok) {
+        throw new Error(extracted.error || 'Failed to extract document metadata');
+      }
+
+      setReview({
         fileUrl: url,
         fileType: file.type,
         fileSize: file.size,
-        ...(entityType === 'container' 
-          ? { type: category, notes: '' } // Container API expects 'type'
-          : { category: category, shipmentId: entityId } // Shipment API expects 'category'
-        )
+        name: extracted.suggestedName || file.name,
+        category: extracted.suggestedCategory || category,
+        description: extracted.description || '',
+        tags: Array.isArray(extracted.tags) ? extracted.tags : [],
+        summary: extracted.summary || 'No summary available.',
+        extractedTextPreview: extracted.extractedTextPreview || 'No extracted text available.',
+        aiInteractionLogId: extracted.aiInteractionLogId,
+      });
+      setReviewTags(Array.isArray(extracted.tags) ? extracted.tags.join(', ') : '');
+      setIsUploadOpen(false);
+
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      throw error; // Re-throw so FileUpload shows error state
+    }
+  };
+
+  const saveReviewedDocument = async () => {
+    if (!review) return;
+
+    try {
+      setSavingReview(true);
+      const payload = {
+        name: review.name,
+        description: review.description,
+        fileUrl: review.fileUrl,
+        fileType: review.fileType,
+        fileSize: review.fileSize,
+        ...(entityType === 'container'
+          ? {
+              type: review.category,
+              notes: `AI extraction review${review.aiInteractionLogId ? ` (${review.aiInteractionLogId})` : ''}: ${review.summary}`,
+            }
+          : {
+              category: review.category,
+              shipmentId: entityId,
+              tags: reviewTags
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter(Boolean),
+            }),
       };
 
-      const endpoint = entityType === 'container' 
-        ? `/api/containers/${entityId}/documents`
-        : '/api/documents';
-
+      const endpoint = entityType === 'container' ? `/api/containers/${entityId}/documents` : '/api/documents';
       const createRes = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      const createdData = await createRes.json().catch(() => ({}));
       if (!createRes.ok) {
-        const error = await createRes.json();
-        throw new Error(error.error || error.message || 'Failed to save document metadata');
+        throw new Error(createdData.error || createdData.message || 'Failed to save document metadata');
       }
 
-      const createdData = await createRes.json();
       const createdDoc = createdData.document;
-
       if (createdDoc) {
-        const normalizedDoc: Document = {
-          id: createdDoc.id,
-          name: createdDoc.name,
-          fileUrl: createdDoc.fileUrl,
-          fileType: createdDoc.fileType,
-          fileSize: createdDoc.fileSize,
-          category: createdDoc.category || createdDoc.type || category,
-          uploadedBy: createdDoc.uploadedBy,
-          createdAt: (createdDoc.createdAt || createdDoc.uploadedAt || new Date().toISOString()).toString(),
-          type: createdDoc.fileType || createdDoc.type || file.type,
-          size: createdDoc.fileSize || file.size,
-        };
-
-        setDocuments((prev) => [normalizedDoc, ...prev]);
+        setDocuments((prev) => [
+          {
+            id: createdDoc.id,
+            name: createdDoc.name,
+            fileUrl: createdDoc.fileUrl,
+            fileType: createdDoc.fileType,
+            fileSize: createdDoc.fileSize,
+            category: createdDoc.category || createdDoc.type || review.category,
+            uploadedBy: createdDoc.uploadedBy,
+            createdAt: (createdDoc.createdAt || createdDoc.uploadedAt || new Date().toISOString()).toString(),
+            type: createdDoc.fileType || createdDoc.type || review.fileType,
+            size: createdDoc.fileSize || review.fileSize,
+          },
+          ...prev,
+        ]);
       }
 
+      setReview(null);
+      setReviewTags('');
       onDocumentsChange?.();
-      
       router.refresh();
-
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      throw error; // Re-throw so FileUpload shows error state
+      toast.success('Document saved');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save document');
+    } finally {
+      setSavingReview(false);
     }
   };
 
@@ -295,8 +364,8 @@ export function DocumentManager({
             </FormField>
 
             <FileUpload 
-                multiple={true}
-                maxFiles={5}
+              multiple={false}
+              maxFiles={1}
                 uploadHandler={handleFileUpload}
                 onProcessingChange={setIsProcessing}
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
@@ -312,6 +381,86 @@ export function DocumentManager({
                 </Button>
             </Box>
         </Box>
+      </Modal>
+
+      <Modal
+        open={Boolean(review)}
+        onClose={() => !savingReview && setReview(null)}
+        title="Review Extracted Document Details"
+        disableBackdropClick={true}
+        showCloseButton={!savingReview}
+      >
+        {review && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'var(--background)' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                AI Summary
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'var(--text-secondary)', mb: 1.5 }}>
+                {review.summary}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
+                {review.extractedTextPreview}
+              </Typography>
+            </Paper>
+
+            <TextField
+              size="small"
+              label="Document Name"
+              value={review.name}
+              onChange={(event) => setReview((prev) => (prev ? { ...prev, name: event.target.value } : prev))}
+            />
+
+            <FormField label="Document Category">
+              <Select
+                label="Category"
+                value={review.category}
+                onChange={(value) => setReview((prev) => (prev ? { ...prev, category: String(value) } : prev))}
+                options={[
+                  { value: 'INVOICE', label: 'Invoice' },
+                  { value: 'BILL_OF_LADING', label: 'Bill of Lading' },
+                  { value: 'CUSTOMS', label: 'Customs' },
+                  { value: 'INSURANCE', label: 'Insurance' },
+                  { value: 'TITLE', label: 'Title' },
+                  { value: 'INSPECTION_REPORT', label: 'Inspection Report' },
+                  { value: 'EXPORT_DOCUMENT', label: 'Export Document' },
+                  { value: 'PACKING_LIST', label: 'Packing List' },
+                  { value: 'CONTRACT', label: 'Contract' },
+                  { value: 'PHOTO', label: 'Photo' },
+                  { value: 'OTHER', label: 'Other' },
+                ]}
+              />
+            </FormField>
+
+            <TextField
+              size="small"
+              label="Description"
+              value={review.description}
+              onChange={(event) => setReview((prev) => (prev ? { ...prev, description: event.target.value } : prev))}
+              multiline
+              minRows={3}
+            />
+
+            {entityType === 'shipment' && (
+              <TextField
+                size="small"
+                label="Tags"
+                value={reviewTags}
+                onChange={(event) => setReviewTags(event.target.value)}
+                helperText="Comma-separated tags"
+              />
+            )}
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Button variant="outline" onClick={() => setReview(null)} disabled={savingReview}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={saveReviewedDocument} disabled={savingReview}>
+                {savingReview ? 'Saving...' : 'Save Document'}
+              </Button>
+            </Box>
+          </Box>
+        )}
       </Modal>
     </Box>
   );

@@ -626,6 +626,27 @@ model InvoiceAuditLog {
   @@index([action])
 }
 
+model AiInteractionLog {
+  id             String   @id @default(cuid())
+  feature        String
+  entityType     String?
+  entityId       String?
+  actorUserId    String?
+  provider       String
+  model          String?
+  prompt         String
+  response       String?
+  requestPayload Json?
+  responsePayload Json?
+  status         String   @default("SUCCESS")
+  createdAt      DateTime @default(now())
+
+  @@index([feature])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([createdAt])
+}
+
 model InvoiceLineItem {
   id        String @id @default(cuid())
   invoiceId String
