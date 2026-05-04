@@ -27,6 +27,7 @@ import { shipmentSchema, type ShipmentFormData } from '@/lib/validations/shipmen
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { compressImage, isValidImageFile, formatFileSize } from '@/lib/utils/image-compression';
 import { decodeVIN as decodeVINService, getBestWeightEstimate } from '@/lib/services/vin-decoder';
+import { buildCopartLotSummary, fetchCopartLotDataForShipment } from '@/lib/copart/lot-client';
 import { hasPermission } from '@/lib/rbac';
 interface UserOption {
   id: string;
@@ -96,6 +97,7 @@ export default function EditShipmentPage() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [decodingVin, setDecodingVin] = useState(false);
+  const [fetchingLotData, setFetchingLotData] = useState(false);
   const [transitWorkflowContext, setTransitWorkflowContext] = useState<TransitWorkflowContext | null>(null);
   const [dispatchWorkflowContext, setDispatchWorkflowContext] = useState<DispatchWorkflowContext | null>(null);
 
@@ -140,6 +142,7 @@ export default function EditShipmentPage() {
   const statusValue = watch('status');
   const serviceTypeValue = watch('serviceType');
   const vinValue = watch('vehicleVIN');
+  const lotNumberValue = watch('lotNumber');
   const isTransitManaged = Boolean(transitWorkflowContext?.transitId);
   const isDispatchManaged = Boolean(dispatchWorkflowContext?.dispatchId);
 
@@ -308,6 +311,39 @@ export default function EditShipmentPage() {
       toast.error('Failed to decode VIN');
     } finally {
       setDecodingVin(false);
+    }
+  };
+
+  const fetchCopartLotData = async (lotNumber: string) => {
+    if (!lotNumber?.trim()) return;
+
+    setFetchingLotData(true);
+    try {
+      const lotData = await fetchCopartLotDataForShipment(lotNumber.trim());
+
+      setValue('lotNumber', lotData.lotNumber);
+      setValue('auctionName', lotData.auctionName);
+      if (lotData.vehicleMake) setValue('vehicleMake', lotData.vehicleMake);
+      if (lotData.vehicleModel) setValue('vehicleModel', lotData.vehicleModel);
+      if (lotData.vehicleYear) setValue('vehicleYear', lotData.vehicleYear);
+      if (lotData.vehicleColor) setValue('vehicleColor', lotData.vehicleColor);
+      if (lotData.vehicleType) setValue('vehicleType', lotData.vehicleType);
+      if (lotData.vehicleVIN) setValue('vehicleVIN', lotData.vehicleVIN);
+      if (typeof lotData.hasKey === 'boolean') setValue('hasKey', lotData.hasKey);
+      if (typeof lotData.hasTitle === 'boolean') setValue('hasTitle', lotData.hasTitle);
+      if (lotData.purchaseLocation && !watch('purchaseLocation')) setValue('purchaseLocation', lotData.purchaseLocation);
+      if (lotData.internalNotes && !watch('internalNotes')) setValue('internalNotes', lotData.internalNotes);
+
+      toast.success('Copart lot data fetched', {
+        description: buildCopartLotSummary(lotData),
+      });
+    } catch (error) {
+      console.error('Error fetching Copart lot data:', error);
+      toast.error('Failed to fetch Copart lot data', {
+        description: error instanceof Error ? error.message : 'Please verify the lot number and try again',
+      });
+    } finally {
+      setFetchingLotData(false);
     }
   };
 
@@ -665,7 +701,26 @@ export default function EditShipmentPage() {
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
                   <FormField id="vehicleColor" label="Color" {...register('vehicleColor')} />
-                  <FormField id="lotNumber" label="Lot Number" {...register('lotNumber')} />
+                  <Box>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <FormField id="lotNumber" label="Lot Number" placeholder="Copart lot #" {...register('lotNumber')} />
+                      </Box>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => lotNumberValue && fetchCopartLotData(lotNumberValue)}
+                        disabled={!lotNumberValue || fetchingLotData}
+                        loading={fetchingLotData}
+                      >
+                        {fetchingLotData ? 'Fetching...' : 'Fetch Data'}
+                      </Button>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.75 }}>
+                      Enter a Copart lot number and use Fetch Data to auto-fill the vehicle details from the public lot page.
+                    </Typography>
+                  </Box>
                   <FormField id="auctionName" label="Auction Name" {...register('auctionName')} />
                 </Box>
                 

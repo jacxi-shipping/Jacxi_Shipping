@@ -14,7 +14,7 @@ import { ChevronRight, Home } from '@mui/icons-material';
 
 export interface BreadcrumbItem {
   label: string;
-  href: string;
+  href?: string;
 }
 
 interface BreadcrumbsProps {
@@ -132,7 +132,7 @@ export default function Breadcrumbs({
 
         return (
           <Box key={itemKey} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {isLast ? (
+            {isLast || !item.href ? (
               // Last item - not clickable
               <Typography
                 sx={{
@@ -201,20 +201,32 @@ export function BreadcrumbsCompact({ className }: { className?: string }) {
     >
       {parentPage && (
         <>
-          <Link href={parentPage.href} style={{ textDecoration: 'none' }}>
+          {parentPage.href ? (
+            <Link href={parentPage.href} style={{ textDecoration: 'none' }}>
+              <Typography
+                sx={{
+                  fontSize: '0.8125rem',
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                  '&:hover': {
+                    color: 'var(--accent-gold)',
+                  },
+                }}
+              >
+                {parentPage.label}
+              </Typography>
+            </Link>
+          ) : (
             <Typography
               sx={{
                 fontSize: '0.8125rem',
                 fontWeight: 500,
                 color: 'var(--text-secondary)',
-                '&:hover': {
-                  color: 'var(--accent-gold)',
-                },
               }}
             >
               {parentPage.label}
             </Typography>
-          </Link>
+          )}
           <ChevronRight sx={{ fontSize: 14, color: 'var(--text-secondary)' }} />
         </>
       )}

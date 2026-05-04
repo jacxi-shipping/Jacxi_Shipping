@@ -25,7 +25,9 @@ export async function POST(request: NextRequest) {
     const parsed = documentExtractionRequestSchema.parse(await request.json());
     const extractedText = await extractDocumentText(parsed.fileUrl, parsed.fileType).catch(() => '');
 
-    let result: Record<string, unknown>;
+    let result:
+      | z.infer<typeof invoiceDraftResponseSchema>
+      | z.infer<typeof documentReviewResponseSchema>;
     let model = parsed.mode === 'invoice-draft' ? 'deterministic-invoice-extraction' : 'deterministic-document-review';
     let source: 'digitalocean-ai' | 'rules' = 'rules';
     let prompt = parsed.mode === 'invoice-draft'

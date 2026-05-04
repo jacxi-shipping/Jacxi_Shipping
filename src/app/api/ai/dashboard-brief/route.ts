@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createDigitalOceanChatCompletion } from '@/lib/ai/digitalocean';
+import { createAiInteractionLog } from '@/lib/ai/audit';
 import {
   buildDashboardAssistantPrompt,
   buildHeuristicDashboardAssistantBrief,
@@ -38,14 +39,37 @@ export async function POST(request: NextRequest) {
 
     const parsedRequest = dashboardAssistantRequestSchema.parse(await request.json());
     const prompt = buildDashboardAssistantPrompt(parsedRequest);
+    let brief = buildHeuristicDashboardAssistantBrief(parsedRequest);
+    let source: 'digitalocean-ai' | 'rules' = 'rules';
+    let model = 'deterministic-ops-fallback';
+    let status = 'FALLBACK';
 
     if (!process.env.DO_AI_API_KEY) {
+      const aiLog = await createAiInteractionLog({
+        feature: 'dashboard-ops-brief',
+        entityType: 'DASHBOARD',
+        actorUserId: session.user.id,
+        provider: 'rules',
+        model,
+        prompt,
+        response: brief,
+        requestPayload: parsedRequest,
+        responsePayload: {
+          brief,
+          mode: parsedRequest.mode,
+          source,
+          model,
+        },
+        status,
+      });
+
       return NextResponse.json({
-        brief: buildHeuristicDashboardAssistantBrief(parsedRequest),
+        brief,
         mode: parsedRequest.mode,
-        source: 'rules',
-        model: 'deterministic-ops-fallback',
+        source,
+        model,
         generatedAt: new Date().toISOString(),
+        aiInteractionLogId: aiLog.id,
       });
     }
 
@@ -67,25 +91,42 @@ export async function POST(request: NextRequest) {
           temperature: 0.2,
         },
       );
-
-      return NextResponse.json({
-        brief: completion.content,
-        mode: parsedRequest.mode,
-        source: 'digitalocean-ai',
-        model: completion.model,
-        generatedAt: new Date().toISOString(),
-        remainingRequests: rateLimit.remaining,
-      });
+      brief = completion.content;
+      source = 'digitalocean-ai';
+      model = completion.model;
+      status = 'SUCCESS';
     } catch {
-      return NextResponse.json({
-        brief: buildHeuristicDashboardAssistantBrief(parsedRequest),
-        mode: parsedRequest.mode,
-        source: 'rules',
-        model: 'deterministic-ops-fallback',
-        generatedAt: new Date().toISOString(),
-        remainingRequests: rateLimit.remaining,
-      });
+      // Fallback already prepared.
     }
+
+    const aiLog = await createAiInteractionLog({
+      feature: 'dashboard-ops-brief',
+      entityType: 'DASHBOARD',
+      actorUserId: session.user.id,
+      provider: source === 'digitalocean-ai' ? 'digitalocean-ai' : 'rules',
+      model,
+      prompt,
+      response: brief,
+      requestPayload: parsedRequest,
+      responsePayload: {
+        brief,
+        mode: parsedRequest.mode,
+        source,
+        model,
+        remainingRequests: rateLimit.remaining,
+      },
+      status,
+    });
+
+    return NextResponse.json({
+      brief,
+      mode: parsedRequest.mode,
+      source,
+      model,
+      generatedAt: new Date().toISOString(),
+      remainingRequests: rateLimit.remaining,
+      aiInteractionLogId: aiLog.id,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

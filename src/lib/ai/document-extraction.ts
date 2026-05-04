@@ -1,4 +1,4 @@
-import pdfParse from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 import { z } from 'zod';
 
 export const documentExtractionRequestSchema = z.object({
@@ -44,8 +44,14 @@ export async function extractDocumentText(fileUrl: string, fileType: string) {
 
   if (fileType.includes('pdf')) {
     const buffer = Buffer.from(await response.arrayBuffer());
-    const parsed = await pdfParse(buffer);
-    return truncateText(parsed.text.replace(/\s+/g, ' ').trim(), 12000);
+    const parser = new PDFParse({ data: buffer });
+
+    try {
+      const parsed = await parser.getText();
+      return truncateText(parsed.text.replace(/\s+/g, ' ').trim(), 12000);
+    } finally {
+      await parser.destroy();
+    }
   }
 
   if (fileType.includes('csv') || fileType.includes('text')) {

@@ -452,10 +452,10 @@ export function DocumentManager({
             )}
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-              <Button variant="outline" onClick={() => setReview(null)} disabled={savingReview}>
+              <Button variant="outlined" onClick={() => setReview(null)} disabled={savingReview}>
                 Cancel
               </Button>
-              <Button variant="primary" onClick={saveReviewedDocument} disabled={savingReview}>
+              <Button variant="contained" onClick={saveReviewedDocument} disabled={savingReview}>
                 {savingReview ? 'Saving...' : 'Save Document'}
               </Button>
             </Box>
