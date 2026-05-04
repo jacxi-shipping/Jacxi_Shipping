@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { AlertCircle, FileText, Wallet } from 'lucide-react';
+import { AlertCircle, Download, FileText, Wallet } from 'lucide-react';
 import { DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Button, FormField, toast } from '@/components/design-system';
 import { hasAnyPermission } from '@/lib/rbac';
@@ -50,6 +50,59 @@ type ShipmentBillingResponse = {
     open: number;
     counts: Record<string, number>;
   };
+};
+
+type InvoicePdfPayload = {
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate: string | null;
+  paidDate: string | null;
+  status: string;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  paymentMethod: string | null;
+  paymentReference: string | null;
+  notes: string | null;
+  user: {
+    name: string | null;
+    email: string;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+    country: string | null;
+  };
+  container: {
+    containerNumber: string;
+    trackingNumber: string | null;
+    vesselName: string | null;
+    loadingPort: string | null;
+    destinationPort: string | null;
+  } | null;
+  shipment: {
+    id: string;
+    vehicleType: string;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    vehicleYear: number | null;
+    vehicleVIN: string | null;
+    vehicleColor: string | null;
+    paymentStatus: string | null;
+  } | null;
+  lineItems: Array<{
+    description: string;
+    type: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+    shipment?: {
+      vehicleYear: number | null;
+      vehicleMake: string | null;
+      vehicleModel: string | null;
+      vehicleVIN: string | null;
+    };
+  }>;
 };
 
 type ShipmentBillingTabProps = {
@@ -107,6 +160,7 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
   const [selectedChargeIds, setSelectedChargeIds] = useState<string[]>([]);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkNote, setBulkNote] = useState('');
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
 
   const canManageChargeStatus = hasAnyPermission(session?.user?.role, ['shipments:manage', 'invoices:manage', 'finance:manage']);
 
@@ -225,6 +279,25 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
       toast.error(bulkError instanceof Error ? bulkError.message : 'Failed to bulk update shipment charges');
     } finally {
       setBulkUpdating(false);
+    }
+  };
+
+  const downloadInvoice = async (invoiceId: string) => {
+    try {
+      setDownloadingInvoiceId(invoiceId);
+      const response = await fetch(`/api/invoices/${invoiceId}`, { cache: 'no-store' });
+      const payload = (await response.json().catch(() => ({}))) as InvoicePdfPayload & { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load invoice for download');
+      }
+
+      const { downloadInvoicePDF } = await import('@/lib/utils/generateInvoicePDF');
+      downloadInvoicePDF(payload);
+    } catch (downloadError) {
+      toast.error(downloadError instanceof Error ? downloadError.message : 'Failed to download invoice');
+    } finally {
+      setDownloadingInvoiceId(null);
     }
   };
 
@@ -425,10 +498,21 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
                   </div>
                   <div className="col-span-2 text-xs">
                     {charge.invoice ? (
-                      <Link href={`/dashboard/invoices/${charge.invoice.id}`} className="inline-flex items-center gap-1 font-semibold text-[var(--accent-gold)] hover:underline">
-                        <FileText className="h-3.5 w-3.5" />
-                        {charge.invoice.invoiceNumber}
-                      </Link>
+                      <div className="flex flex-col items-start gap-2">
+                        <Link href={`/dashboard/invoices/${charge.invoice.id}`} className="inline-flex items-center gap-1 font-semibold text-[var(--accent-gold)] hover:underline">
+                          <FileText className="h-3.5 w-3.5" />
+                          {charge.invoice.invoiceNumber}
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<Download className="h-3.5 w-3.5" />}
+                          onClick={() => void downloadInvoice(charge.invoice!.id)}
+                          disabled={downloadingInvoiceId === charge.invoice.id}
+                        >
+                          {downloadingInvoiceId === charge.invoice.id ? 'Downloading...' : 'Download'}
+                        </Button>
+                      </div>
                     ) : (
                       <span className="text-[var(--text-secondary)]">Not invoiced</span>
                     )}
