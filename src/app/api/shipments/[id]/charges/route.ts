@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ShipmentChargeStatus } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { syncShipmentChargeFromLedgerEntry } from '@/lib/billing/shipment-charges';
 import { hasAnyPermission, hasPermission } from '@/lib/rbac';
 
 const mutableStatuses = new Set<ShipmentChargeStatus>(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'DISPUTED']);
@@ -42,6 +43,46 @@ export async function GET(
     if ('error' in access) {
       return access.error;
     }
+
+    const fallbackActorId = session.user.id as string;
+
+    await prisma.$transaction(async (tx) => {
+      const ledgerEntries = await tx.ledgerEntry.findMany({
+        where: {
+          shipmentId: id,
+          type: 'DEBIT',
+        },
+        select: {
+          id: true,
+          userId: true,
+          shipmentId: true,
+          description: true,
+          type: true,
+          amount: true,
+          transactionDate: true,
+          transactionInfoType: true,
+          notes: true,
+          metadata: true,
+          createdBy: true,
+        },
+      });
+
+      for (const entry of ledgerEntries) {
+        await syncShipmentChargeFromLedgerEntry(tx, {
+          entryId: entry.id,
+          userId: entry.userId,
+          shipmentId: entry.shipmentId,
+          description: entry.description,
+          type: entry.type,
+          amount: entry.amount,
+          transactionDate: entry.transactionDate,
+          transactionInfoType: entry.transactionInfoType,
+          notes: entry.notes,
+          metadata: entry.metadata,
+          actorId: entry.createdBy || fallbackActorId,
+        });
+      }
+    });
 
     const charges = await prisma.shipmentCharge.findMany({
       where: {

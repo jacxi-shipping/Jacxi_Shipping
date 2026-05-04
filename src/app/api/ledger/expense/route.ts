@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { routeDeps } from '@/lib/route-deps';
 import { z } from 'zod';
 import { addExpenseLineItemToShipmentInvoice, mapExpenseTypeToLineItemType } from '@/lib/shipment-invoice';
+import { syncShipmentChargeFromLedgerEntry } from '@/lib/billing/shipment-charges';
 
 // Schema for adding an expense
 const addExpenseSchema = z.object({
@@ -168,6 +169,20 @@ export async function POST(request: NextRequest) {
             ...(expenseSource === 'SHIPMENT' && { containerId: shipment.containerId }),
           },
         },
+      });
+
+      await syncShipmentChargeFromLedgerEntry(tx, {
+        entryId: debitEntry.id,
+        userId: debitEntry.userId,
+        shipmentId: debitEntry.shipmentId,
+        description: debitEntry.description,
+        type: debitEntry.type,
+        amount: debitEntry.amount,
+        transactionDate: debitEntry.transactionDate,
+        transactionInfoType: debitEntry.transactionInfoType,
+        notes: debitEntry.notes,
+        metadata: debitEntry.metadata,
+        actorId: session.user!.id as string,
       });
 
       const reference = `shipment-expense:${debitEntry.id}`;
