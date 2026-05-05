@@ -132,6 +132,10 @@ function shouldSyncFromLedgerEntry(input: LedgerChargeSyncInput) {
 
   const metadata = asRecord(input.metadata);
 
+  if (metadata.isShipmentPurchasePrice === true || input.transactionInfoType === 'CAR_PAYMENT') {
+    return false;
+  }
+
   if (metadata.isPaymentAllocation === true) {
     return false;
   }
@@ -144,6 +148,15 @@ function shouldSyncFromLedgerEntry(input: LedgerChargeSyncInput) {
     return false;
   }
 
+  const isInvoiceableExpense =
+    metadata.isExpense === true ||
+    metadata.pendingInvoice === true ||
+    typeof metadata.expenseType === 'string';
+
+  if (!isInvoiceableExpense) {
+    return false;
+  }
+
   return true;
 }
 
@@ -151,12 +164,48 @@ export async function syncShipmentChargeFromLedgerEntry(
   db: ShipmentChargeDbClient,
   input: LedgerChargeSyncInput,
 ) {
-  if (!shouldSyncFromLedgerEntry(input)) {
+  const shipmentId = input.shipmentId;
+  if (!shipmentId) {
     return null;
   }
 
-  const shipmentId = input.shipmentId;
-  if (!shipmentId) {
+  const existingCharge = await db.shipmentCharge.findFirst({
+    where: {
+      sourceType: 'LEDGER_ENTRY',
+      sourceId: input.entryId,
+    },
+    select: {
+      id: true,
+      status: true,
+      invoiceId: true,
+    },
+  });
+
+  if (!shouldSyncFromLedgerEntry(input)) {
+    if (existingCharge && existingCharge.status !== ShipmentChargeStatus.PAID) {
+      await db.shipmentCharge.update({
+        where: { id: existingCharge.id },
+        data: {
+          invoiceId: null,
+          status: ShipmentChargeStatus.VOID,
+          invoicedAt: null,
+          voidedAt: new Date(),
+        },
+      });
+
+      await db.shipmentChargeAuditLog.create({
+        data: {
+          chargeId: existingCharge.id,
+          action: 'LEDGER_SYNC_SKIPPED',
+          description: `Shipment charge detached from non-invoiceable ledger entry ${input.entryId}`,
+          performedBy: input.actorId,
+          metadata: {
+            ledgerEntryId: input.entryId,
+          },
+        },
+      });
+    }
+
     return null;
   }
 
@@ -195,17 +244,6 @@ export async function syncShipmentChargeFromLedgerEntry(
       origin: 'ledger-sync',
     } satisfies Prisma.InputJsonValue,
   };
-
-  const existingCharge = await db.shipmentCharge.findFirst({
-    where: {
-      sourceType: 'LEDGER_ENTRY',
-      sourceId: input.entryId,
-    },
-    select: {
-      id: true,
-      status: true,
-    },
-  });
 
   const nextStatus =
     existingCharge?.status === 'PAID'

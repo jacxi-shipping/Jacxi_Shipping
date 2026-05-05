@@ -321,14 +321,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      const mutableInvoice = isShipmentScopedGeneration
-        ? existingInvoices.find(
-            (invoice) =>
-              mutableInvoiceStatuses.has(invoice.status) &&
-              invoice.shipmentId &&
-              shipmentScopeIds.includes(invoice.shipmentId),
-          )
-        : existingInvoices.find((invoice) => mutableInvoiceStatuses.has(invoice.status));
+      const mutableInvoice = existingInvoices.find((invoice) => mutableInvoiceStatuses.has(invoice.status));
       const latestIssuedInvoice = existingInvoices.find((invoice) => !mutableInvoiceStatuses.has(invoice.status));
 
       // Set due date (30 days from now if not provided)
