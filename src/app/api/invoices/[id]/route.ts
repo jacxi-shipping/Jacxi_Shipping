@@ -327,7 +327,7 @@ export async function GET(
 
     const lineItemsWithLinks = invoice.lineItems.map((lineItem) => {
       if (!lineItem.shipmentId) {
-        return { ...lineItem, linkedCompanyLedgerEntry: null };
+        return { ...lineItem, linkedCompanyLedgerEntry: null, matchedUserExpenseEntryId: null };
       }
 
       const key = buildExpenseLineItemKey(lineItem.shipmentId, lineItem.description, lineItem.amount);
@@ -336,6 +336,7 @@ export async function GET(
 
       return {
         ...lineItem,
+        matchedUserExpenseEntryId: matchedUserExpenseEntry?.id || null,
         linkedCompanyLedgerEntry: matchedUserExpenseEntry
           ? linkedCompanyEntriesByUserExpenseId.get(matchedUserExpenseEntry.id) || null
           : null,
@@ -349,7 +350,7 @@ export async function GET(
             return true;
           }
 
-          return Boolean(lineItem.linkedCompanyLedgerEntry);
+          return Boolean(lineItem.matchedUserExpenseEntryId || lineItem.linkedCompanyLedgerEntry);
         })
       : lineItemsWithLinks;
 
