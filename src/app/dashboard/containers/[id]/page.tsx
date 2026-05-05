@@ -1771,17 +1771,17 @@ export default function ContainerDetailPage() {
 									<FileText className="w-5 h-5" style={{ color: 'var(--info)', marginTop: '2px', flexShrink: 0 }} />
 									<Box sx={{ flex: 1 }}>
 										<Typography sx={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem', mb: 0.5 }}>
-											Generate Official Customer Invoices
+											Batch Invoice Shortcut
 										</Typography>
 										<Typography sx={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-											Click "Generate Invoices" to create official invoices for all customers with shipments in this container. 
-											The system will consolidate each customer's shipments, allocate container expenses, and send email notifications with PDF links.
+											The primary workflow is now shipment-first billing from each shipment&apos;s Billing tab. 
+											Use the batch action here only when you want to process all approved shipment charges across this container in one run.
 											{container.expenses && container.expenses.length > 0 && (
 												<> Container expenses will be allocated using the <strong>{container.expenseAllocationMethod || 'EQUAL'}</strong> method.</>
 											)}
 										</Typography>
 										<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 1, fontStyle: 'italic' }}>
-											💡 Tip: For quick reference PDFs of individual shipments, use the "Download Receipt" button on each shipment page.
+											Shipment-level invoice generation remains the recommended path when reviewing one shipment at a time.
 										</Typography>
 									</Box>
 								</Box>
@@ -1796,13 +1796,13 @@ export default function ContainerDetailPage() {
 								</Box>
 								{isAdmin && (
 									<Button
-										variant="primary"
+										variant="outline"
 										size="sm"
 										icon={<Plus className="w-4 h-4" />}
 										onClick={() => setInvoiceGenerationModalOpen(true)}
 										disabled={container.shipments.length === 0}
 									>
-										Generate Invoices
+										Batch Generate Invoices
 									</Button>
 								)}
 							</Box>
@@ -1813,7 +1813,7 @@ export default function ContainerDetailPage() {
 									title="No User Invoices"
 									description={
 										container.shipments.length > 0
-											? 'Click "Generate Invoices" to create invoices for all customers'
+											? 'Generate from each shipment Billing tab, or use the batch shortcut here for the whole container'
 											: 'Add shipments to this container before generating invoices'
 									}
 								/>
@@ -2366,12 +2366,12 @@ export default function ContainerDetailPage() {
 							borderBottom: '1px solid var(--border)',
 						}}
 					>
-						Generate User Invoices
+						Batch Generate User Invoices
 					</DialogTitle>
 					<DialogContent sx={{ py: 3 }}>
 						<Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 							<Box sx={{ color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.6 }}>
-								Generate invoices for all customers with shipments in container <strong>{container.containerNumber}</strong>.
+								This is a container-wide batch shortcut for container <strong>{container.containerNumber}</strong>. Shipment Billing tabs remain the primary place to review and generate invoices one shipment at a time.
 							</Box>
 
 							{/* Summary */}
@@ -2438,13 +2438,12 @@ export default function ContainerDetailPage() {
 									lineHeight: 1.6,
 								}}
 							>
-								<strong>How it works:</strong>
+								<strong>What this batch action does:</strong>
 								<ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-									<li>One invoice per customer</li>
-									<li>Each invoice includes all their vehicles in this container</li>
-									<li>Vehicle prices and insurance are per-vehicle</li>
-									<li>Container expenses are divided equally among all vehicles</li>
-									<li>Invoices will be created as DRAFT status</li>
+									<li>Processes approved uninvoiced shipment charges across this container</li>
+									<li>Refreshes only draft or pending invoices</li>
+									<li>Creates supplemental invoices or credit notes when prior invoices are already issued</li>
+									<li>Still respects shipment-level charge approval and dispute states</li>
 								</ul>
 							</Box>
 						</Box>
@@ -2458,12 +2457,12 @@ export default function ContainerDetailPage() {
 							Cancel
 						</Button>
 						<Button
-							variant="primary"
+							variant="outline"
 							onClick={handleGenerateInvoices}
 							disabled={generatingInvoices}
 							icon={<FileText className="w-4 h-4" />}
 						>
-							{generatingInvoices ? 'Generating...' : 'Generate Invoices'}
+							{generatingInvoices ? 'Generating...' : 'Run Batch Generation'}
 						</Button>
 					</DialogActions>
 				</Dialog>

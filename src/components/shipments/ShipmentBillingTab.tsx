@@ -187,8 +187,10 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkNote, setBulkNote] = useState('');
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
 
   const canManageChargeStatus = hasAnyPermission(session?.user?.role, ['shipments:manage', 'invoices:manage', 'finance:manage']);
+  const canGenerateInvoices = hasAnyPermission(session?.user?.role, ['invoices:manage']);
 
   const fetchCharges = useCallback(async () => {
     try {
@@ -327,6 +329,52 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
     }
   };
 
+  const generateInvoice = async () => {
+    try {
+      setGeneratingInvoice(true);
+      const response = await fetch('/api/invoices/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shipmentId,
+          sendEmail: false,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        summary?: {
+          newInvoices?: number;
+          updatedInvoices?: number;
+          supplementalInvoices?: number;
+          creditNotes?: number;
+        };
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to generate shipment invoice');
+      }
+
+      const detailParts = [
+        payload.summary?.newInvoices ? `Created ${payload.summary.newInvoices} new invoice(s)` : null,
+        payload.summary?.updatedInvoices ? `updated ${payload.summary.updatedInvoices} draft invoice(s)` : null,
+        payload.summary?.supplementalInvoices ? `issued ${payload.summary.supplementalInvoices} supplemental invoice(s)` : null,
+        payload.summary?.creditNotes ? `issued ${payload.summary.creditNotes} credit note(s)` : null,
+      ].filter(Boolean);
+
+      toast.success('Shipment invoice generated', {
+        description: detailParts.join(', ') || 'No invoice changes were required.',
+      });
+      await fetchCharges();
+    } catch (generationError) {
+      toast.error(generationError instanceof Error ? generationError.message : 'Failed to generate shipment invoice');
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardPanel title="Shipment Billing" description="Charge lifecycle for this shipment.">
@@ -378,6 +426,21 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
       description="Approved shipment charges are the source of truth for invoice generation and settlement."
       actions={
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {canGenerateInvoices && (
+            <Button
+              size="sm"
+              onClick={() => void generateInvoice()}
+              disabled={generatingInvoice || readiness.approvedUninvoicedCount === 0}
+            >
+              {generatingInvoice
+                ? 'Generating...'
+                : postIssueDelta.active
+                ? postIssueDelta.kind === 'CREDIT_NOTE'
+                  ? 'Generate Credit Note'
+                  : 'Generate Supplemental Invoice'
+                : 'Generate Invoice'}
+            </Button>
+          )}
           {canManageChargeStatus && actionableCharges.length > 0 && (
             <>
               <Button

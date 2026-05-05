@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
-import { allocateExpenses } from '@/lib/expense-allocation';
+import { allocateExpenses, type AllocationMethod } from '@/lib/expense-allocation';
 import { sendInvoiceEmail } from '@/lib/email';
 import { NotificationType, Prisma } from '@prisma/client';
 import { createNotification } from '@/lib/notifications';
@@ -33,17 +33,21 @@ function buildInvoiceNumber(year: number, sequence: number, kind: 'invoice' | 's
 
 // Schema for generating invoices
 const generateInvoicesSchema = z.object({
-  containerId: z.string(),
+  containerId: z.string().optional(),
+  shipmentId: z.string().optional(),
   dueDate: z.string().optional(),
   sendEmail: z.boolean().default(true), // Changed default to true
   discountPercent: z.number().min(0).max(100).default(0),
+}).refine((value) => Boolean(value.containerId) !== Boolean(value.shipmentId), {
+  message: 'Provide either a containerId or a shipmentId',
+  path: ['containerId'],
 });
 
 
 /**
  * POST /api/invoices/generate
  * 
- * Generate official UserInvoices for all customers with shipments in a container.
+ * Generate official UserInvoices for either a container scope or a single shipment.
  * 
  * This is the PRIMARY method for creating customer invoices. It:
  * 1. Groups all shipments in the container by customer
@@ -58,6 +62,7 @@ const generateInvoicesSchema = z.object({
  * 
  * @requires Admin role
  * @param containerId - ID of the container
+ * @param shipmentId - ID of the shipment
  * @param dueDate - Optional due date for payment
  * @param sendEmail - Whether to send email notifications (default: true)
  * @param discountPercent - Percentage discount to apply (0-100)
@@ -83,38 +88,95 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { containerId, dueDate, sendEmail, discountPercent } = generateInvoicesSchema.parse(body);
+    const { containerId, shipmentId, dueDate, sendEmail, discountPercent } = generateInvoicesSchema.parse(body);
 
-    // Get container with all shipments and expenses
-    const container = await prisma.container.findUnique({
-      where: { id: containerId },
-      include: {
-        shipments: {
-          include: {
-            user: true,
+    type InvoiceScopeShipment = {
+      id: string;
+      userId: string;
+      user: {
+        id: string;
+        name: string | null;
+        email: string;
+      };
+      serviceType: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
+      purchasePrice: number | null;
+      price: number | null;
+      insuranceValue: number | null;
+      damageCredit: number | null;
+      vehicleYear: number | null;
+      vehicleMake: string | null;
+      vehicleModel: string | null;
+      vehicleVIN: string | null;
+      containerId: string | null;
+    };
+
+    let scopeContainerId: string | null = null;
+    let allocationMethod: AllocationMethod = 'EQUAL';
+    let expenseAllocations: Record<string, number> = {};
+    let materializationShipments: InvoiceScopeShipment[] = [];
+    let invoiceTargetShipments: InvoiceScopeShipment[] = [];
+
+    if (containerId) {
+      const container = await prisma.container.findUnique({
+        where: { id: containerId },
+        include: {
+          shipments: {
+            include: {
+              user: true,
+            },
+          },
+          expenses: true,
+        },
+      });
+
+      if (!container) {
+        return NextResponse.json({ error: 'Container not found' }, { status: 404 });
+      }
+
+      if (container.shipments.length === 0) {
+        return NextResponse.json({ error: 'No shipments in container' }, { status: 400 });
+      }
+
+      scopeContainerId = container.id;
+      allocationMethod = (container.expenseAllocationMethod as AllocationMethod | null) || 'EQUAL';
+      expenseAllocations = allocateExpenses(container.shipments, container.expenses, allocationMethod);
+      materializationShipments = container.shipments as InvoiceScopeShipment[];
+      invoiceTargetShipments = container.shipments as InvoiceScopeShipment[];
+    } else {
+      const shipment = await prisma.shipment.findUnique({
+        where: { id: shipmentId! },
+        include: {
+          user: true,
+          container: {
+            include: {
+              shipments: {
+                include: {
+                  user: true,
+                },
+              },
+              expenses: true,
+            },
           },
         },
-        expenses: true,
-      },
-    });
+      });
 
-    if (!container) {
-      return NextResponse.json({ error: 'Container not found' }, { status: 404 });
+      if (!shipment) {
+        return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
+      }
+
+      invoiceTargetShipments = [shipment as InvoiceScopeShipment];
+
+      if (shipment.container) {
+        scopeContainerId = shipment.container.id;
+        allocationMethod = (shipment.container.expenseAllocationMethod as AllocationMethod | null) || 'EQUAL';
+        expenseAllocations = allocateExpenses(shipment.container.shipments, shipment.container.expenses, allocationMethod);
+        materializationShipments = shipment.container.shipments as InvoiceScopeShipment[];
+      } else {
+        materializationShipments = [shipment as InvoiceScopeShipment];
+      }
     }
 
-    if (container.shipments.length === 0) {
-      return NextResponse.json({ error: 'No shipments in container' }, { status: 400 });
-    }
-
-    // Calculate expense allocation based on container's allocation method
-    const allocationMethod = container.expenseAllocationMethod || 'EQUAL';
-    const expenseAllocations = allocateExpenses(
-      container.shipments,
-      container.expenses,
-      allocationMethod
-    );
-
-    const shipmentIds = container.shipments.map((shipment) => shipment.id);
+    const shipmentIds = materializationShipments.map((shipment) => shipment.id);
     const shipmentLedgerEntries = shipmentIds.length
       ? await prisma.ledgerEntry.findMany({
           where: {
@@ -153,7 +215,7 @@ export async function POST(req: NextRequest) {
       await materializeContainerShipmentCharges(tx, {
         actorId,
         allocationMethod,
-        containerId,
+        containerId: scopeContainerId || `shipment:${shipmentId}`,
         expenseAllocations,
         shipmentDamageRecords,
         shipmentLedgerEntries: shipmentLedgerEntries.map((entry) => ({
@@ -162,7 +224,7 @@ export async function POST(req: NextRequest) {
           transactionInfoType: entry.transactionInfoType as 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT' | null,
           metadata: (entry.metadata ?? {}) as Prisma.JsonValue,
         })),
-        shipments: container.shipments.map((shipment) => ({
+        shipments: materializationShipments.map((shipment) => ({
           id: shipment.id,
           userId: shipment.userId,
           serviceType: shipment.serviceType,
@@ -178,8 +240,8 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // Group shipments by user
-    const shipmentsByUser = container.shipments.reduce((acc, shipment) => {
+    // Group shipment targets by user
+    const shipmentsByUser = invoiceTargetShipments.reduce((acc, shipment) => {
       const userId = shipment.userId;
       if (!acc[userId]) {
         acc[userId] = {
@@ -192,7 +254,14 @@ export async function POST(req: NextRequest) {
     }, {} as Record<string, { user: any; shipments: any[] }>);
 
     // Generate invoices for each user
-    const generatedInvoices = [];
+    const generatedInvoices: Array<{
+      userId: string;
+      userName: string | null;
+      invoiceId: string;
+      invoiceNumber: string;
+      total: number;
+      status: 'created' | 'updated' | 'supplemental' | 'credit_note';
+    }> = [];
     const invoiceAuditLogs: Array<{
       invoiceId: string;
       action: string;
@@ -205,28 +274,61 @@ export async function POST(req: NextRequest) {
 
     // ⚡ Bolt: Removed N+1 query inside loop by pre-fetching the count once and incrementing.
     let invoiceCount = await prisma.userInvoice.count();
+    const isShipmentScopedGeneration = Boolean(shipmentId);
 
     for (const [userId, { user, shipments }] of Object.entries(shipmentsByUser)) {
+      const shipmentScopeIds = shipments.map((shipment) => shipment.id);
       const existingInvoices = await prisma.userInvoice.findMany({
-        where: {
-          userId,
-          containerId,
-          status: {
-            not: 'CANCELLED',
-          },
-        },
+        where: isShipmentScopedGeneration
+          ? {
+              userId,
+              status: {
+                not: 'CANCELLED',
+              },
+              OR: [
+                {
+                  shipmentId: {
+                    in: shipmentScopeIds,
+                  },
+                },
+                {
+                  shipmentCharges: {
+                    some: {
+                      shipmentId: {
+                        in: shipmentScopeIds,
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {
+              userId,
+              containerId,
+              status: {
+                not: 'CANCELLED',
+              },
+            },
         select: {
           id: true,
           invoiceNumber: true,
           status: true,
           createdAt: true,
+          shipmentId: true,
         },
         orderBy: {
           createdAt: 'desc',
         },
       });
 
-      const mutableInvoice = existingInvoices.find((invoice) => mutableInvoiceStatuses.has(invoice.status));
+      const mutableInvoice = isShipmentScopedGeneration
+        ? existingInvoices.find(
+            (invoice) =>
+              mutableInvoiceStatuses.has(invoice.status) &&
+              invoice.shipmentId &&
+              shipmentScopeIds.includes(invoice.shipmentId),
+          )
+        : existingInvoices.find((invoice) => mutableInvoiceStatuses.has(invoice.status));
       const latestIssuedInvoice = existingInvoices.find((invoice) => !mutableInvoiceStatuses.has(invoice.status));
 
       // Set due date (30 days from now if not provided)
@@ -243,7 +345,7 @@ export async function POST(req: NextRequest) {
           where: {
             userId,
             shipmentId: {
-              in: shipments.map((shipment) => shipment.id),
+              in: shipmentScopeIds,
             },
             status: 'APPROVED',
             invoiceId: null,
@@ -317,7 +419,8 @@ export async function POST(req: NextRequest) {
             data: {
               invoiceNumber,
               userId,
-              containerId,
+              containerId: scopeContainerId,
+              shipmentId: isShipmentScopedGeneration ? shipments[0]?.id : null,
               status: 'DRAFT',
               issueDate: new Date(),
               dueDate: invoiceDueDate,
@@ -375,11 +478,12 @@ export async function POST(req: NextRequest) {
             : `Invoice ${invoice.invoiceNumber} created from approved shipment charges`,
         performedBy: actorId,
         metadata: {
-          containerId,
+          containerId: scopeContainerId,
           userId,
           shipmentIds: shipments.map((shipment) => shipment.id),
           generationKind: invoice.generationKind,
           relatedInvoiceNumber: invoice.relatedInvoiceNumber,
+          scope: isShipmentScopedGeneration ? 'shipment' : 'container',
         },
       });
 
@@ -454,6 +558,7 @@ export async function POST(req: NextRequest) {
         creditNotes: generatedInvoices.filter(i => i.status === 'credit_note').length,
         existingPaidInvoices: 0,
       },
+      scope: isShipmentScopedGeneration ? 'shipment' : 'container',
     });
 
   } catch (error) {

@@ -836,7 +836,7 @@ export default function ShipmentDetailPage() {
             </div>
 
             <div className="flex items-center gap-2">
-                <Tooltip title="Download a PDF receipt for this shipment. For official invoices, go to the container page and generate invoices.">
+                <Tooltip title="Download a PDF receipt for this shipment. For official invoices, use the Billing tab on this shipment.">
                   <Button variant="outline" size="sm" onClick={handleDownloadReceipt}>
                       <FileText className="mr-2 h-4 w-4" />
                       Download Receipt
