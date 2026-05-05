@@ -55,6 +55,10 @@ model User {
   address       String?
   city          String?
   country       String?
+  collectionStatus CollectionStatus @default(CURRENT)
+  promiseToPayDate DateTime?
+  collectionFollowUpDate DateTime?
+  collectionNotes String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   accounts      Account[]
@@ -1062,6 +1066,15 @@ enum PaymentStatus {
   FAILED
   REFUNDED
   CANCELLED
+}
+
+enum CollectionStatus {
+  CURRENT
+  FOLLOW_UP
+  PROMISED_TO_PAY
+  IN_COLLECTIONS
+  ESCALATED
+  ON_HOLD
 }
 
 enum TitleStatus {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { hasPermission } from '@/lib/rbac';
 import Link from 'next/link';
@@ -100,6 +100,7 @@ const statusConfig: Record<string, { label: string; color: 'success' | 'warning'
 
 export default function InvoicesPage() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const { data: session } = useSession();
 	const [invoices, setInvoices] = useState<Invoice[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -112,6 +113,8 @@ export default function InvoicesPage() {
 	const [pagination, setPagination] = useState({ total: 0, totalAll: 0, limit: 25, offset: 0, hasMore: false });
 
 	const isAdmin = hasPermission(session?.user?.role, 'invoices:manage');
+	const customerFilterUserId = searchParams.get('userId');
+	const customerFilterLabel = searchParams.get('customer') || 'Selected Customer';
 
 	useEffect(() => {
 		setCurrentPage(1);
@@ -120,7 +123,7 @@ export default function InvoicesPage() {
 		}, 250);
 
 		return () => clearTimeout(timeout);
-	}, [statusFilter, itemsPerPage, searchTerm]);
+	}, [statusFilter, itemsPerPage, searchTerm, customerFilterUserId]);
 
 	const fetchInvoices = async (offset = 0, limit = itemsPerPage) => {
 		try {
@@ -131,6 +134,9 @@ export default function InvoicesPage() {
 			}
 			if (searchTerm.trim()) {
 				params.append('search', searchTerm.trim());
+			}
+			if (customerFilterUserId) {
+				params.append('userId', customerFilterUserId);
 			}
 			params.append('limit', limit.toString());
 			params.append('offset', offset.toString());
@@ -511,8 +517,23 @@ export default function InvoicesPage() {
 			<DashboardSurface>
 				<DashboardPanel 
 					title="Invoices"
-					description={`${pagination.total} invoice(s)`}
+					description={customerFilterUserId ? `${pagination.total} invoice(s) for ${customerFilterLabel}` : `${pagination.total} invoice(s)`}
 				>
+					{customerFilterUserId ? (
+						<Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', mb: 3, p: 2, border: '1px solid var(--border)', borderRadius: 2, background: 'var(--panel)' }}>
+							<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+								<User className="w-4 h-4" />
+								<Box>
+									<Box sx={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Customer Filter</Box>
+									<Box sx={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{customerFilterLabel}</Box>
+								</Box>
+							</Box>
+							<Button variant="outline" size="sm" onClick={() => router.push('/dashboard/invoices')}>
+								Clear Filter
+							</Button>
+						</Box>
+					) : null}
+
 					{/* Filters */}
 					<Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
 						<TextField

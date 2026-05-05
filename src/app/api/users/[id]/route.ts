@@ -3,6 +3,43 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 
+const outstandingInvoiceStatuses = new Set(['PENDING', 'SENT', 'OVERDUE']);
+const collectionStatuses = new Set(['CURRENT', 'FOLLOW_UP', 'PROMISED_TO_PAY', 'IN_COLLECTIONS', 'ESCALATED', 'ON_HOLD']);
+
+function getInvoiceKind(invoiceNumber: string) {
+  if (invoiceNumber.startsWith('CRN-')) {
+    return 'CREDIT_NOTE';
+  }
+
+  if (invoiceNumber.startsWith('SUP-')) {
+    return 'SUPPLEMENTAL';
+  }
+
+  return 'INVOICE';
+}
+
+function buildShipmentReference(shipment: {
+  vehicleYear: number | null;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleVIN: string | null;
+} | null) {
+  if (!shipment) {
+    return null;
+  }
+
+  const label = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  if (shipment.vehicleVIN && label) {
+    return `${label} (${shipment.vehicleVIN})`;
+  }
+
+  return shipment.vehicleVIN || label || null;
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
@@ -33,6 +70,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         address: true,
         city: true,
         country: true,
+        collectionStatus: true,
+        promiseToPayDate: true,
+        collectionFollowUpDate: true,
+        collectionNotes: true,
         loginCode: true,
         createdAt: true,
         updatedAt: true,
@@ -70,7 +111,144 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ user });
+    let statement = null;
+
+    if (user.role === 'user') {
+      const [latestLedgerEntry, invoices] = await Promise.all([
+        prisma.ledgerEntry.findFirst({
+          where: { userId },
+          orderBy: { transactionDate: 'desc' },
+          select: { balance: true },
+        }),
+        prisma.userInvoice.findMany({
+          where: {
+            userId,
+            status: {
+              not: 'CANCELLED',
+            },
+          },
+          orderBy: [{ issueDate: 'desc' }, { createdAt: 'desc' }],
+          take: 50,
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            issueDate: true,
+            dueDate: true,
+            paidDate: true,
+            total: true,
+            paymentMethod: true,
+            paymentReference: true,
+            shipment: {
+              select: {
+                vehicleYear: true,
+                vehicleMake: true,
+                vehicleModel: true,
+                vehicleVIN: true,
+              },
+            },
+            container: {
+              select: {
+                containerNumber: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      const today = new Date();
+      const aging = {
+        current: { count: 0, amount: 0 },
+        days1to30: { count: 0, amount: 0 },
+        days31to60: { count: 0, amount: 0 },
+        days61to90: { count: 0, amount: 0 },
+        days90plus: { count: 0, amount: 0 },
+      };
+
+      const timeline = invoices.map((invoice) => {
+        const kind = getInvoiceKind(invoice.invoiceNumber);
+        const isOutstanding = outstandingInvoiceStatuses.has(invoice.status);
+        const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
+        const rawDaysOverdue = dueDate
+          ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+        const daysOverdue = rawDaysOverdue !== null ? Math.max(0, rawDaysOverdue) : null;
+        const reference = buildShipmentReference(invoice.shipment) || (invoice.container?.containerNumber ? `Container ${invoice.container.containerNumber}` : null);
+
+        if (isOutstanding) {
+          if (rawDaysOverdue === null || rawDaysOverdue < 0) {
+            aging.current.count += 1;
+            aging.current.amount += invoice.total;
+          } else if (rawDaysOverdue <= 30) {
+            aging.days1to30.count += 1;
+            aging.days1to30.amount += invoice.total;
+          } else if (rawDaysOverdue <= 60) {
+            aging.days31to60.count += 1;
+            aging.days31to60.amount += invoice.total;
+          } else if (rawDaysOverdue <= 90) {
+            aging.days61to90.count += 1;
+            aging.days61to90.amount += invoice.total;
+          } else {
+            aging.days90plus.count += 1;
+            aging.days90plus.amount += invoice.total;
+          }
+        }
+
+        return {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          kind,
+          status: invoice.status,
+          issueDate: invoice.issueDate,
+          dueDate: invoice.dueDate,
+          paidDate: invoice.paidDate,
+          total: invoice.total,
+          reference,
+          daysOverdue,
+          paymentMethod: invoice.paymentMethod,
+          paymentReference: invoice.paymentReference,
+        };
+      });
+
+      const outstandingAmount = timeline
+        .filter((invoice) => outstandingInvoiceStatuses.has(invoice.status))
+        .reduce((sum, invoice) => sum + invoice.total, 0);
+      const overdueAmount = timeline
+        .filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0)
+        .reduce((sum, invoice) => sum + invoice.total, 0);
+      const paidAmount = timeline
+        .filter((invoice) => invoice.status === 'PAID')
+        .reduce((sum, invoice) => sum + invoice.total, 0);
+      const creditAmount = timeline
+        .filter((invoice) => invoice.kind === 'CREDIT_NOTE')
+        .reduce((sum, invoice) => sum + Math.abs(invoice.total), 0);
+      const latestBalance = latestLedgerEntry?.balance ?? 0;
+
+      statement = {
+        summary: {
+          outstandingAmount,
+          overdueAmount,
+          paidAmount,
+          creditAmount,
+          openInvoiceCount: timeline.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).length,
+          overdueInvoiceCount: timeline.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).length,
+          paidInvoiceCount: timeline.filter((invoice) => invoice.status === 'PAID').length,
+          availableCredit: latestBalance < 0 ? Math.abs(latestBalance) : 0,
+          accountBalance: latestBalance,
+        },
+        collections: {
+          status: user.collectionStatus,
+          promiseToPayDate: user.promiseToPayDate,
+          followUpDate: user.collectionFollowUpDate,
+          notes: user.collectionNotes,
+        },
+        aging,
+        timeline,
+        generatedAt: today.toISOString(),
+      };
+    }
+
+    return NextResponse.json({ user: { ...user, statement } });
   } catch (error) {
     console.error('Error fetching user:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
@@ -97,7 +275,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const body = await request.json();
-    const { name, email, role, phone, address, city, country } = body;
+    const { name, email, role, phone, address, city, country, collectionStatus, promiseToPayDate, followUpDate, collectionNotes } = body;
 
     // Validate email if changed (check uniqueness)
     if (email) {
@@ -111,6 +289,51 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ message: 'Forbidden: Cannot change role' }, { status: 403 });
     }
 
+    const wantsCollectionUpdate =
+      collectionStatus !== undefined ||
+      promiseToPayDate !== undefined ||
+      followUpDate !== undefined ||
+      collectionNotes !== undefined;
+
+    if (wantsCollectionUpdate && !hasPermission(session.user?.role, 'customers:manage') && !hasPermission(session.user?.role, 'finance:manage')) {
+      return NextResponse.json({ message: 'Forbidden: Cannot update collections workflow' }, { status: 403 });
+    }
+
+    if (collectionStatus !== undefined && (typeof collectionStatus !== 'string' || !collectionStatuses.has(collectionStatus))) {
+      return NextResponse.json({ message: 'Invalid collection status' }, { status: 400 });
+    }
+
+    const parseOptionalDate = (value: unknown) => {
+      if (value === undefined) {
+        return undefined;
+      }
+
+      if (value === null || value === '') {
+        return null;
+      }
+
+      if (typeof value !== 'string') {
+        throw new Error('Invalid date value');
+      }
+
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new Error('Invalid date value');
+      }
+
+      return parsed;
+    };
+
+    let promiseToPayDateValue: Date | null | undefined;
+    let followUpDateValue: Date | null | undefined;
+
+    try {
+      promiseToPayDateValue = parseOptionalDate(promiseToPayDate);
+      followUpDateValue = parseOptionalDate(followUpDate);
+    } catch {
+      return NextResponse.json({ message: 'Invalid collection date' }, { status: 400 });
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -121,6 +344,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         address,
         city,
         country,
+        ...(collectionStatus !== undefined ? { collectionStatus } : {}),
+        ...(promiseToPayDateValue !== undefined ? { promiseToPayDate: promiseToPayDateValue } : {}),
+        ...(followUpDateValue !== undefined ? { collectionFollowUpDate: followUpDateValue } : {}),
+        ...(collectionNotes !== undefined ? { collectionNotes: collectionNotes || null } : {}),
       },
     });
 

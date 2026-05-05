@@ -532,6 +532,10 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey, purchasePri
                   {postIssueDelta.description}
                   {postIssueDelta.latestIssuedInvoiceNumber ? ` Latest issued invoice: ${postIssueDelta.latestIssuedInvoiceNumber}.` : ''}
                 </p>
+                <p className="mt-2 text-sm text-[rgb(120,53,15)]">
+                  The issued invoice stays unchanged. Any newly approved expenses will generate a
+                  {postIssueDelta.kind === 'CREDIT_NOTE' ? ' credit note' : ' supplemental invoice'} instead of modifying the original document.
+                </p>
                 <p className="mt-2 text-xs text-[rgb(120,53,15)]">
                   Current approved delta: {formatMoney(postIssueDelta.deltaAmount, 'USD')} across {postIssueDelta.approvedUninvoicedCount} charge{postIssueDelta.approvedUninvoicedCount === 1 ? '' : 's'}.
                 </p>
