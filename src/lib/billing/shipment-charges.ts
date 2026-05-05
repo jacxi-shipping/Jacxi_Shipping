@@ -160,6 +160,26 @@ function shouldSyncFromLedgerEntry(input: LedgerChargeSyncInput) {
   return true;
 }
 
+async function reopenShipmentPaymentStatusIfNeeded(
+  db: ShipmentChargeDbClient,
+  shipmentId: string,
+  chargeStatus: ShipmentChargeStatus,
+) {
+  if (chargeStatus === ShipmentChargeStatus.PAID || chargeStatus === ShipmentChargeStatus.VOID) {
+    return;
+  }
+
+  await db.shipment.updateMany({
+    where: {
+      id: shipmentId,
+      paymentStatus: 'COMPLETED',
+    },
+    data: {
+      paymentStatus: 'PENDING',
+    },
+  });
+}
+
 export async function syncShipmentChargeFromLedgerEntry(
   db: ShipmentChargeDbClient,
   input: LedgerChargeSyncInput,
@@ -273,6 +293,8 @@ export async function syncShipmentChargeFromLedgerEntry(
       },
     });
 
+    await reopenShipmentPaymentStatusIfNeeded(db, shipmentId, nextStatus);
+
     return charge;
   }
 
@@ -294,6 +316,8 @@ export async function syncShipmentChargeFromLedgerEntry(
       },
     },
   });
+
+  await reopenShipmentPaymentStatusIfNeeded(db, shipmentId, ShipmentChargeStatus.APPROVED);
 
   return charge;
 }
@@ -360,15 +384,23 @@ export async function upsertShipmentSystemCharge(
   };
 
   if (existingCharge) {
-    return db.shipmentCharge.update({
+    const charge = await db.shipmentCharge.update({
       where: { id: existingCharge.id },
       data: chargeData,
     });
+
+    await reopenShipmentPaymentStatusIfNeeded(db, input.shipmentId, preservedStatus);
+
+    return charge;
   }
 
-  return db.shipmentCharge.create({
+  const charge = await db.shipmentCharge.create({
     data: chargeData,
   });
+
+  await reopenShipmentPaymentStatusIfNeeded(db, input.shipmentId, preservedStatus);
+
+  return charge;
 }
 
 export async function voidShipmentChargeSource(
