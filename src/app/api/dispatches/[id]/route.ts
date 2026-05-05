@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { companySupportsRole } from '@/lib/company-roles';
 import { routeDeps } from '@/lib/route-deps';
 import { shouldReleaseDispatchShipments } from '@/lib/dispatch-workflow';
 import { ensureWorkflowMoveAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
@@ -154,10 +155,10 @@ export async function PATCH(
     if (validatedData.companyId) {
       const company = await routeDeps.prisma.company.findUnique({
         where: { id: validatedData.companyId },
-        select: { id: true, isActive: true, companyType: true },
+        select: { id: true, isActive: true, companyType: true, isDispatch: true },
       });
 
-      if (!company || !company.isActive || company.companyType !== 'DISPATCH') {
+      if (!company || !company.isActive || !companySupportsRole(company, 'DISPATCH')) {
         return NextResponse.json({ error: 'Valid active dispatch company is required' }, { status: 400 });
       }
     }

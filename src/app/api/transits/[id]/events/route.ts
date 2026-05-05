@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { companySupportsRole } from '@/lib/company-roles';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 
@@ -78,10 +79,10 @@ export async function POST(
 
     const company = await prisma.company.findUnique({
       where: { id: validatedData.companyId },
-      select: { id: true, isActive: true, companyType: true },
+      select: { id: true, isActive: true, companyType: true, isTransit: true },
     });
 
-    if (!company || !company.isActive || company.companyType !== 'TRANSIT') {
+    if (!company || !company.isActive || !companySupportsRole(company, 'TRANSIT')) {
       return NextResponse.json({ error: 'Transit company not found' }, { status: 404 });
     }
 

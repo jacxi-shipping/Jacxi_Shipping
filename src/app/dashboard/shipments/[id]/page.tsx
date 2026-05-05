@@ -764,6 +764,37 @@ export default function ShipmentDetailPage() {
     [companyLedgerEntries, linkedCompanyLedgerEntriesByUserEntryId, shipment?.ledgerEntries]
   );
 
+  const purchasePriceRecord = useMemo(() => {
+    const ledgerEntry = (shipment?.ledgerEntries || []).find((entry) => {
+      const metadata = (entry.metadata ?? {}) as Record<string, unknown>;
+      return metadata.isShipmentPurchasePrice === true;
+    });
+
+    if (ledgerEntry) {
+      return {
+        description: ledgerEntry.description,
+        amount: ledgerEntry.amount,
+        transactionDate: ledgerEntry.transactionDate,
+      };
+    }
+
+    if (shipment?.serviceType === 'PURCHASE_AND_SHIPPING' && typeof shipment.purchasePrice === 'number' && shipment.purchasePrice > 0) {
+      const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      const vinSuffix = shipment.vehicleVIN ? ` (VIN: ${shipment.vehicleVIN})` : '';
+
+      return {
+        description: `Car purchase price for ${vehicleLabel || 'shipment'}${vinSuffix}`,
+        amount: shipment.purchasePrice,
+        transactionDate: shipment.updatedAt,
+      };
+    }
+
+    return null;
+  }, [shipment]);
+
   const openCompanyLedgerEntry = useCallback((entry: LinkedCompanyLedgerEntry) => {
     router.push(`/dashboard/finance/companies/${entry.companyId}?entryId=${entry.id}`);
   }, [router]);
@@ -1059,6 +1090,7 @@ export default function ShipmentDetailPage() {
           <ShipmentBillingTab
             shipmentId={shipment.id}
             refreshKey={`${shipment.updatedAt}-${shipment.ledgerEntries.length}-${shipment.containerDamages.length}`}
+            purchasePriceRecord={purchasePriceRecord}
           />
         </TabPanel>
 

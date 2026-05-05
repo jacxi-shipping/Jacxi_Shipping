@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NotificationType } from '@prisma/client';
+import { companySupportsRole } from '@/lib/company-roles';
 import { routeDeps } from '@/lib/route-deps';
 import { z } from 'zod';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
@@ -366,10 +367,10 @@ export async function PATCH(
     if (validatedData.companyId !== undefined) {
       const company = await routeDeps.prisma.company.findUnique({
         where: { id: validatedData.companyId },
-        select: { id: true, isActive: true, companyType: true },
+        select: { id: true, isActive: true, companyType: true, isShipping: true },
       });
 
-      if (!company || !company.isActive || company.companyType !== 'SHIPPING') {
+      if (!company || !company.isActive || !companySupportsRole(company, 'SHIPPING')) {
         return NextResponse.json(
           { error: 'Valid active shipping company is required for container assignment' },
           { status: 400 }

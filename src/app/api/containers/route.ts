@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { companySupportsRole } from '@/lib/company-roles';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { hasPermission } from '@/lib/rbac';
@@ -194,10 +195,10 @@ export async function POST(request: NextRequest) {
 
     const company = await prisma.company.findUnique({
       where: { id: validatedData.companyId },
-      select: { id: true, isActive: true, companyType: true },
+      select: { id: true, isActive: true, companyType: true, isShipping: true },
     });
 
-    if (!company || !company.isActive || company.companyType !== 'SHIPPING') {
+    if (!company || !company.isActive || !companySupportsRole(company, 'SHIPPING')) {
       return NextResponse.json(
         { error: 'Valid active shipping company is required for container assignment' },
         { status: 400 }

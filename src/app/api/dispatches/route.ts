@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DispatchStatus } from '@prisma/client';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { companySupportsRole } from '@/lib/company-roles';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 
@@ -98,10 +99,10 @@ export async function POST(request: NextRequest) {
 
     const company = await prisma.company.findUnique({
       where: { id: validatedData.companyId },
-      select: { id: true, isActive: true, companyType: true },
+      select: { id: true, isActive: true, companyType: true, isDispatch: true },
     });
 
-    if (!company || !company.isActive || company.companyType !== 'DISPATCH') {
+    if (!company || !company.isActive || !companySupportsRole(company, 'DISPATCH')) {
       return NextResponse.json({ error: 'Dispatch company not found' }, { status: 404 });
     }
 

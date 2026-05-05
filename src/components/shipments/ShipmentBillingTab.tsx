@@ -126,6 +126,11 @@ type InvoicePdfPayload = {
 type ShipmentBillingTabProps = {
   shipmentId: string;
   refreshKey?: string;
+  purchasePriceRecord?: {
+    description: string;
+    amount: number;
+    transactionDate: string;
+  } | null;
 };
 
 const statusStyles: Record<string, string> = {
@@ -177,7 +182,7 @@ function extractAuditNote(metadata?: Record<string, unknown> | null) {
   return note || null;
 }
 
-export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentBillingTabProps) {
+export default function ShipmentBillingTab({ shipmentId, refreshKey, purchasePriceRecord }: ShipmentBillingTabProps) {
   const { data: session } = useSession();
   const [data, setData] = useState<ShipmentBillingResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -493,6 +498,29 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey }: ShipmentB
             ))}
           </div>
         </div>
+
+        {purchasePriceRecord ? (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Car Price Record</p>
+                <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">{purchasePriceRecord.description}</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                  Customer ledger reference from {new Date(purchasePriceRecord.transactionDate).toLocaleDateString()}.
+                </p>
+              </div>
+              <div className="text-left sm:text-right">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Amount</p>
+                <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+                  {formatMoney(purchasePriceRecord.amount, 'USD')}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-[var(--text-secondary)]">
+              This matches the purchase-price entry shown in Ledger Comparison and stays outside the invoiceable shipment-charge workflow.
+            </p>
+          </div>
+        ) : null}
 
         {postIssueDelta.active && (
           <div className="rounded-lg border border-[rgba(245,158,11,0.28)] bg-[rgba(245,158,11,0.10)] p-4">
