@@ -662,16 +662,17 @@ export default function RecordPaymentPage() {
                             <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
                               {formatCurrency(getShipmentDueForCategory(shipment))}
                             </Box>
-                            {paymentCategory === 'EXPENSES' && (shipment.amountDue || 0) > (shipment.expenseAmountDue || 0) && (
+                            <Box sx={{ mt: 0.75, display: 'flex', flexDirection: 'column', gap: 0.35 }}>
+                              <Box sx={{ fontSize: '0.72rem', color: paymentCategory === 'PURCHASE_PRICE' ? 'var(--accent-gold)' : 'var(--text-secondary)', fontWeight: paymentCategory === 'PURCHASE_PRICE' ? 700 : 500 }}>
+                                Purchase due: {formatCurrency(shipment.purchaseAmountDue || 0)}
+                              </Box>
+                              <Box sx={{ fontSize: '0.72rem', color: paymentCategory === 'EXPENSES' ? 'var(--accent-gold)' : 'var(--text-secondary)', fontWeight: paymentCategory === 'EXPENSES' ? 700 : 500 }}>
+                                Expense due: {formatCurrency(shipment.expenseAmountDue || 0)}
+                              </Box>
                               <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                                 Total shipment due: {formatCurrency(shipment.amountDue || 0)}
                               </Box>
-                            )}
-                            {paymentCategory === 'PURCHASE_PRICE' && shipment.serviceType === 'PURCHASE_AND_SHIPPING' && shipment.purchasePrice != null && (
-                              <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                                Purchase price: {formatCurrency(shipment.purchasePrice)}
-                              </Box>
-                            )}
+                            </Box>
                           </>
                         </Box>
                       </Box>
@@ -762,6 +763,23 @@ export default function RecordPaymentPage() {
                       {formatCurrency(totalSelectedAmount)}
                     </Box>
                   </Box>
+                  {selectedShipmentIds.length === 1 && (() => {
+                    const selectedShipment = shipments.find((shipment) => shipment.id === selectedShipmentIds[0]);
+                    if (!selectedShipment) {
+                      return null;
+                    }
+
+                    return (
+                      <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Box sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          Purchase due: {formatCurrency(selectedShipment.purchaseAmountDue || 0)}
+                        </Box>
+                        <Box sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          Expense due: {formatCurrency(selectedShipment.expenseAmountDue || 0)}
+                        </Box>
+                      </Box>
+                    );
+                  })()}
                 </Box>
 
                 {/* Amount Input */}
