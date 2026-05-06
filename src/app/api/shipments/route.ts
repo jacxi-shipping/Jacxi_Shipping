@@ -19,6 +19,14 @@ function isShipmentStatus(value: string): value is ShipmentSimpleStatus {
   return SUPPORTED_SHIPMENT_STATUSES.has(value as ShipmentSimpleStatus);
 }
 
+function asRecord(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -149,6 +157,8 @@ export async function GET(request: NextRequest) {
                 select: {
                   type: true,
                   amount: true,
+                  transactionInfoType: true,
+                  metadata: true,
                 },
               },
             }
@@ -164,22 +174,48 @@ export async function GET(request: NextRequest) {
 
     const normalizedShipments = includeFinancial
       ? (shipments as Array<any>).map((shipment) => {
-          // ⚡ Bolt: Removed array iterations .filter().reduce() chaining
-          // replacing it with an O(N) loop to compute debits and credits efficiently.
           let totalDebit = 0;
           let totalCredit = 0;
+          let purchaseDebit = 0;
+          let purchaseCredit = 0;
+          let expenseDebit = 0;
+          let expenseCredit = 0;
+
           for (const entry of shipment.ledgerEntries) {
+            const metadata = asRecord(entry.metadata);
+            const isPurchaseEntry = metadata.isShipmentPurchasePrice === true || entry.transactionInfoType === 'CAR_PAYMENT';
+            const isExpenseEntry =
+              metadata.isExpense === true ||
+              metadata.pendingInvoice === true ||
+              typeof metadata.expenseType === 'string';
+            const paymentCategory = typeof metadata.paymentCategory === 'string' ? metadata.paymentCategory : null;
+
             if (entry.type === 'DEBIT') {
               totalDebit += entry.amount;
+              if (isPurchaseEntry) {
+                purchaseDebit += entry.amount;
+              } else if (isExpenseEntry) {
+                expenseDebit += entry.amount;
+              }
             } else if (entry.type === 'CREDIT') {
               totalCredit += entry.amount;
+              if (paymentCategory === 'PURCHASE_PRICE' || entry.transactionInfoType === 'CAR_PAYMENT') {
+                purchaseCredit += entry.amount;
+              } else if (paymentCategory === 'EXPENSES' || entry.transactionInfoType === 'SHIPPING_PAYMENT' || entry.transactionInfoType === 'STORAGE_PAYMENT') {
+                expenseCredit += entry.amount;
+              }
             }
           }
+
           const amountDue = Math.max(0, totalDebit - totalCredit);
+          const purchaseAmountDue = Math.max(0, purchaseDebit - purchaseCredit);
+          const expenseAmountDue = Math.max(0, expenseDebit - expenseCredit);
 
           return {
             ...shipment,
             amountDue,
+            purchaseAmountDue,
+            expenseAmountDue,
             ledgerEntries: undefined,
           };
         })

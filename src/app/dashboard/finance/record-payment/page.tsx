@@ -64,6 +64,8 @@ interface Shipment {
   purchasePrice?: number | null;
   serviceType?: string;
   amountDue?: number;
+  purchaseAmountDue?: number;
+  expenseAmountDue?: number;
   paymentStatus: string;
 }
 
@@ -75,12 +77,11 @@ interface PaymentAllocation {
   amountToPay: number;
 }
 
-type TransactionInfoType = 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT';
+type PaymentCategory = 'PURCHASE_PRICE' | 'EXPENSES';
 
-const transactionInfoTypeLabels: Record<TransactionInfoType, string> = {
-  CAR_PAYMENT: 'Car Payment',
-  SHIPPING_PAYMENT: 'Shipping Payment',
-  STORAGE_PAYMENT: 'Storage Payment',
+const paymentCategoryLabels: Record<PaymentCategory, string> = {
+  PURCHASE_PRICE: 'Car Purchase Price',
+  EXPENSES: 'Expenses',
 };
 
 const steps = ['Select Customer', 'Choose Shipments', 'Payment Details', 'Review & Submit'];
@@ -100,7 +101,7 @@ export default function RecordPaymentPage() {
   // Form state
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const [transactionInfoType, setTransactionInfoType] = useState<TransactionInfoType>('SHIPPING_PAYMENT');
+  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('PURCHASE_PRICE');
   const [notes, setNotes] = useState('');
   
   // UI state
@@ -136,13 +137,23 @@ export default function RecordPaymentPage() {
     }
   }, [selectedUserId]);
 
+  useEffect(() => {
+    setSelectedShipmentIds([]);
+    setAmount('');
+  }, [paymentCategory]);
+
   // Auto-fill amount when shipments are selected
   useEffect(() => {
     if (selectedShipmentIds.length > 0 && !amount) {
       const total = calculateTotalSelected();
       setAmount(total.toFixed(2));
     }
-  }, [selectedShipmentIds]);
+  }, [selectedShipmentIds, paymentCategory]);
+
+  const getShipmentDueForCategory = (shipment: Shipment) =>
+    paymentCategory === 'PURCHASE_PRICE'
+      ? shipment.purchaseAmountDue || 0
+      : shipment.expenseAmountDue || 0;
 
   const fetchUsers = async () => {
     try {
@@ -209,10 +220,10 @@ export default function RecordPaymentPage() {
         ? prev.filter((id) => id !== shipmentId)
         : [shipmentId]; // only one shipment at a time
       
-      // Auto-fill amount with purchase price
+      // Auto-fill amount with the outstanding balance for the selected payment category
       if (newSelection.length === 1) {
         const selected = shipments.find(s => s.id === newSelection[0]);
-        const outstandingAmount = selected?.amountDue || 0;
+        const outstandingAmount = selected ? getShipmentDueForCategory(selected) : 0;
         if (outstandingAmount > 0) {
           setAmount(outstandingAmount.toFixed(2));
         } else {
@@ -231,7 +242,7 @@ export default function RecordPaymentPage() {
     let total = 0;
     for (const s of shipments) {
       if (selectedSet.has(s.id)) {
-        total += (s.amountDue || 0);
+        total += getShipmentDueForCategory(s);
       }
     }
     return total;
@@ -245,7 +256,7 @@ export default function RecordPaymentPage() {
     const selectedShips = shipments.filter(s => selectedShipmentIds.includes(s.id));
 
     for (const shipment of selectedShips) {
-      const amountDue = shipment.amountDue || 0;
+      const amountDue = getShipmentDueForCategory(shipment);
       const amountToPay = Math.min(remainingAmount, amountDue);
       remainingAmount -= amountToPay;
       allocations.push({
@@ -299,8 +310,8 @@ export default function RecordPaymentPage() {
           userId: selectedUserId,
           shipmentIds: selectedShipmentIds,
           amount: parseFloat(amount),
+          paymentCategory,
           paymentMethod,
-          transactionInfoType,
           notes,
         }),
       });
@@ -354,7 +365,7 @@ export default function RecordPaymentPage() {
 
         <PageHeader
           title="Record Shipment Payment"
-          description="Record a payment against the shipment's full outstanding balance, including expenses"
+          description="Record either a car purchase payment or an expense payment for a shipment"
           actions={
             <Link href="/dashboard/finance" style={{ textDecoration: 'none' }}>
               <Button variant="outline" size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
@@ -526,7 +537,7 @@ export default function RecordPaymentPage() {
           {activeStep === 1 && (
             <DashboardPanel
               title="Step 2: Select Vehicle Shipment"
-              description={`Choose the shipment to record payment for — ${selectedUser?.name || selectedUser?.email}`}
+              description={`Choose the shipment and payment category — ${selectedUser?.name || selectedUser?.email}`}
             >
               {loadingShipments ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -540,6 +551,19 @@ export default function RecordPaymentPage() {
                 />
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Payment Category *</InputLabel>
+                    <Select
+                      value={paymentCategory}
+                      onChange={(e) => setPaymentCategory(e.target.value as PaymentCategory)}
+                      label="Payment Category *"
+                    >
+                      {Object.entries(paymentCategoryLabels).map(([value, label]) => (
+                        <MenuItem key={value} value={value}>{label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
                   {(() => {
                     const q = shipmentSearch.trim().toLowerCase();
                     const filtered = q
@@ -547,14 +571,14 @@ export default function RecordPaymentPage() {
                           (s) => {
                             const vin = (s.vehicleVIN || '').toLowerCase();
                             const lot = (s.lotNumber || '').toLowerCase();
-                            return vin.includes(q) || lot.includes(q);
+                            return (vin.includes(q) || lot.includes(q)) && getShipmentDueForCategory(s) > 0;
                           }
                         )
-                      : [];
+                      : shipments.filter((shipment) => getShipmentDueForCategory(shipment) > 0);
                     return (
                       <>
                         <Alert severity="info" icon={<Info className="w-5 h-5" />}>
-                          Enter VIN or Lot Number to find the vehicle. All shipments with an outstanding balance are shown — payment will be recorded against the shipment.
+                          Enter VIN or Lot Number to find the vehicle. The list shows shipments with outstanding {paymentCategoryLabels[paymentCategory].toLowerCase()} balances.
                         </Alert>
 
                         <TextField
@@ -569,13 +593,9 @@ export default function RecordPaymentPage() {
                           autoComplete="off"
                         />
 
-                        {!q ? (
+                        {filtered.length === 0 ? (
                           <Box sx={{ py: 3, textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                            Type VIN or Lot Number to see matching shipments
-                          </Box>
-                        ) : filtered.length === 0 ? (
-                          <Box sx={{ py: 3, textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                            No shipment matches this VIN or Lot Number
+                            {q ? 'No shipment matches this VIN or Lot Number for this payment category' : `No shipments have outstanding ${paymentCategoryLabels[paymentCategory].toLowerCase()} balances`}
                           </Box>
                         ) : filtered.map((shipment) => (
                     <Box
@@ -637,12 +657,17 @@ export default function RecordPaymentPage() {
                         <Box sx={{ textAlign: 'right' }}>
                           <>
                             <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                              Outstanding Due
+                              {paymentCategoryLabels[paymentCategory]} Due
                             </Box>
                             <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                              {formatCurrency(shipment.amountDue || 0)}
+                              {formatCurrency(getShipmentDueForCategory(shipment))}
                             </Box>
-                            {shipment.serviceType === 'PURCHASE_AND_SHIPPING' && shipment.purchasePrice != null && (
+                            {paymentCategory === 'EXPENSES' && (shipment.amountDue || 0) > (shipment.expenseAmountDue || 0) && (
+                              <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                Total shipment due: {formatCurrency(shipment.amountDue || 0)}
+                              </Box>
+                            )}
+                            {paymentCategory === 'PURCHASE_PRICE' && shipment.serviceType === 'PURCHASE_AND_SHIPPING' && shipment.purchasePrice != null && (
                               <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                                 Purchase price: {formatCurrency(shipment.purchasePrice)}
                               </Box>
@@ -670,7 +695,7 @@ export default function RecordPaymentPage() {
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Box>
                             <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                              Remaining Due
+                              {paymentCategoryLabels[paymentCategory]} Remaining Due
                             </Box>
                             <Box sx={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                               {selectedShipmentIds.length} shipment{selectedShipmentIds.length !== 1 ? 's' : ''} selected
@@ -709,7 +734,7 @@ export default function RecordPaymentPage() {
           {activeStep === 2 && (
             <DashboardPanel
               title="Step 3: Enter Payment Details"
-              description="Enter the payment amount to apply against the shipment balance and expenses"
+              description={`Enter the amount to apply against the shipment's ${paymentCategoryLabels[paymentCategory].toLowerCase()} balance`}
             >
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {/* Payment Summary */}
@@ -723,7 +748,7 @@ export default function RecordPaymentPage() {
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Box sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Shipment Payment Summary
+                      {paymentCategoryLabels[paymentCategory]} Payment Summary
                     </Box>
                     <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       {selectedShipmentIds.length} shipment{selectedShipmentIds.length !== 1 ? 's' : ''}
@@ -731,7 +756,7 @@ export default function RecordPaymentPage() {
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box sx={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                      Outstanding Balance:
+                      {paymentCategoryLabels[paymentCategory]} Outstanding:
                     </Box>
                     <Box sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
                       {formatCurrency(totalSelectedAmount)}
@@ -757,17 +782,17 @@ export default function RecordPaymentPage() {
                       </InputAdornment>
                     ),
                   }}
-                  helperText="Enter the amount to apply against the shipment's outstanding balance, including expenses"
+                  helperText={`Enter the amount to apply against the shipment's ${paymentCategoryLabels[paymentCategory].toLowerCase()} balance`}
                 />
 
                 <FormControl fullWidth size="medium">
                   <InputLabel>Payment Category *</InputLabel>
                   <Select
-                    value={transactionInfoType}
-                    onChange={(e) => setTransactionInfoType(e.target.value as TransactionInfoType)}
+                    value={paymentCategory}
+                    onChange={(e) => setPaymentCategory(e.target.value as PaymentCategory)}
                     label="Payment Category *"
                   >
-                    {Object.entries(transactionInfoTypeLabels).map(([value, label]) => (
+                    {Object.entries(paymentCategoryLabels).map(([value, label]) => (
                       <MenuItem key={value} value={value}>{label}</MenuItem>
                     ))}
                   </Select>
@@ -890,10 +915,10 @@ export default function RecordPaymentPage() {
                     </Box>
                     <Box>
                       <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                        Transaction Type
+                        Payment Category
                       </Box>
                       <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
-                        {transactionInfoTypeLabels[transactionInfoType]}
+                        {paymentCategoryLabels[paymentCategory]}
                       </Box>
                     </Box>
                   </Box>
@@ -1012,9 +1037,9 @@ export default function RecordPaymentPage() {
             <Box sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
               This action will:
               <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-                <li>Create a shipment payment ledger entry</li>
+                <li>Create a {paymentCategoryLabels[paymentCategory].toLowerCase()} payment ledger entry</li>
                 <li>Update the customer's balance</li>
-                <li>Apply payment to the shipment's outstanding balance, including expenses</li>
+                <li>Apply payment to the shipment's {paymentCategoryLabels[paymentCategory].toLowerCase()} balance</li>
               </ul>
             </Box>
           </DialogContent>

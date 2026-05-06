@@ -4,21 +4,65 @@ import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { hasPermission } from '@/lib/rbac';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
+import { TransactionInfoType } from '@prisma/client';
+
+type PaymentCategory = 'PURCHASE_PRICE' | 'EXPENSES';
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function resolveTransactionInfoType(paymentCategory: PaymentCategory): TransactionInfoType {
+  return paymentCategory === 'PURCHASE_PRICE' ? 'CAR_PAYMENT' : 'SHIPPING_PAYMENT';
+}
+
+function matchesPaymentCategory(
+  entry: {
+    type: 'DEBIT' | 'CREDIT';
+    transactionInfoType: 'CAR_PAYMENT' | 'SHIPPING_PAYMENT' | 'STORAGE_PAYMENT' | null;
+    metadata: unknown;
+  },
+  paymentCategory: PaymentCategory,
+) {
+  const metadata = asRecord(entry.metadata);
+  const isPaymentAllocation = metadata.isPaymentAllocation === true;
+
+  if (paymentCategory === 'PURCHASE_PRICE') {
+    if (isPaymentAllocation) {
+      return metadata.paymentCategory === 'PURCHASE_PRICE' || entry.transactionInfoType === 'CAR_PAYMENT';
+    }
+
+    return metadata.isShipmentPurchasePrice === true || entry.transactionInfoType === 'CAR_PAYMENT';
+  }
+
+  if (isPaymentAllocation) {
+    return metadata.paymentCategory === 'EXPENSES' || entry.transactionInfoType === 'SHIPPING_PAYMENT' || entry.transactionInfoType === 'STORAGE_PAYMENT';
+  }
+
+  return (
+    metadata.isExpense === true ||
+    metadata.pendingInvoice === true ||
+    typeof metadata.expenseType === 'string'
+  );
+}
 
 // Schema for recording a payment
 const recordPaymentSchema = z.object({
   userId: z.string(),
   shipmentIds: z.array(z.string()).min(1),
   amount: z.number().positive(),
+  paymentCategory: z.enum(['PURCHASE_PRICE', 'EXPENSES']).default('PURCHASE_PRICE'),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHECK', 'CREDIT_CARD', 'WIRE']).optional().default('CASH'),
-  transactionInfoType: z.enum(['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT']).optional().default('SHIPPING_PAYMENT'),
   notes: z.string().optional(),
 });
 
-const transactionInfoTypeLabels = {
-  CAR_PAYMENT: 'Car Payment',
-  SHIPPING_PAYMENT: 'Shipping Payment',
-  STORAGE_PAYMENT: 'Storage Payment',
+const paymentCategoryLabels: Record<PaymentCategory, string> = {
+  PURCHASE_PRICE: 'Car Purchase Price',
+  EXPENSES: 'Expenses',
 } as const;
 
 // POST - Record a payment from a user
@@ -37,6 +81,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = recordPaymentSchema.parse(body);
+    const transactionInfoType = resolveTransactionInfoType(validatedData.paymentCategory);
 
     // Validate that shipments exist and belong to the user
     const shipments = await prisma.shipment.findMany({
@@ -70,10 +115,13 @@ export async function POST(request: NextRequest) {
         shipmentId: true,
         type: true,
         amount: true,
+        transactionInfoType: true,
+        metadata: true,
       },
     });
 
     const shipmentDueMap = new Map<string, number>();
+    const shipmentOverallDueMap = new Map<string, number>();
     for (const shipment of shipments) {
       const totals = shipmentLedgerEntries.reduce(
         (accumulator, entry) => {
@@ -92,8 +140,25 @@ export async function POST(request: NextRequest) {
         { debit: 0, credit: 0 },
       );
 
-      const shipmentDue = Math.max(0, totals.debit - totals.credit);
-      shipmentDueMap.set(shipment.id, shipmentDue);
+      const categoryTotals = shipmentLedgerEntries.reduce(
+        (accumulator, entry) => {
+          if (entry.shipmentId !== shipment.id || !matchesPaymentCategory(entry, validatedData.paymentCategory)) {
+            return accumulator;
+          }
+
+          if (entry.type === 'DEBIT') {
+            accumulator.debit += entry.amount;
+          } else if (entry.type === 'CREDIT') {
+            accumulator.credit += entry.amount;
+          }
+
+          return accumulator;
+        },
+        { debit: 0, credit: 0 },
+      );
+
+      shipmentDueMap.set(shipment.id, Math.max(0, categoryTotals.debit - categoryTotals.credit));
+      shipmentOverallDueMap.set(shipment.id, Math.max(0, totals.debit - totals.credit));
     }
 
     const totalRemainingDue = Array.from(shipmentDueMap.values()).reduce((sum, value) => sum + value, 0);
@@ -122,8 +187,8 @@ export async function POST(request: NextRequest) {
     const shipmentInfo = shipments
       .map((s) => s.vehicleVIN || `${s.vehicleMake || ''} ${s.vehicleModel || ''}`.trim() || s.id)
       .join(', ');
-    const transactionInfoLabel = transactionInfoTypeLabels[validatedData.transactionInfoType];
-    const description = `${transactionInfoLabel} received for shipment(s): ${shipmentInfo}`;
+    const paymentCategoryLabel = paymentCategoryLabels[validatedData.paymentCategory];
+    const description = `${paymentCategoryLabel} payment received for shipment(s): ${shipmentInfo}`;
 
     const result = await prisma.$transaction(async (tx) => {
       const entry = await tx.ledgerEntry.create({
@@ -131,7 +196,7 @@ export async function POST(request: NextRequest) {
           userId: validatedData.userId,
           description,
           type: 'CREDIT',
-          transactionInfoType: validatedData.transactionInfoType,
+          transactionInfoType,
           amount: validatedData.amount,
           balance: newBalance,
           createdBy: session.user.id as string,
@@ -139,6 +204,7 @@ export async function POST(request: NextRequest) {
           metadata: {
             shipmentIds: validatedData.shipmentIds,
             paymentType: 'payment_received',
+            paymentCategory: validatedData.paymentCategory,
             paymentMethod: validatedData.paymentMethod,
           },
         },
@@ -157,6 +223,7 @@ export async function POST(request: NextRequest) {
       const updatedShipments = [];
       const ledgerEntryCreations = [];
       const completedShipmentIds: string[] = [];
+      const settledExpenseShipmentIds: string[] = [];
       const pendingShipmentIds: string[] = [];
 
       for (const shipment of shipments) {
@@ -173,7 +240,7 @@ export async function POST(request: NextRequest) {
             shipmentId: shipment.id,
             description: `Payment applied to ${shipment.vehicleVIN ? `VIN ${shipment.vehicleVIN}` : `shipment ${shipment.id || ''}`}`,
             type: 'CREDIT' as const,
-            transactionInfoType: validatedData.transactionInfoType,
+            transactionInfoType,
             amount: paymentForShipment,
             balance: newBalance,
             createdBy: session.user.id as string,
@@ -181,12 +248,22 @@ export async function POST(request: NextRequest) {
             metadata: {
               parentEntryId: entry.id,
               paymentType: 'applied',
+              paymentCategory: validatedData.paymentCategory,
               isPaymentAllocation: true,
             },
           });
 
-          const remainingAfterPayment = Math.max(0, shipmentDue - paymentForShipment);
-          if (remainingAfterPayment <= 0.001) {
+          const remainingAfterCategoryPayment = Math.max(0, shipmentDue - paymentForShipment);
+          const overallRemainingAfterPayment = Math.max(
+            0,
+            (shipmentOverallDueMap.get(shipment.id) || 0) - paymentForShipment,
+          );
+
+          if (validatedData.paymentCategory === 'EXPENSES' && remainingAfterCategoryPayment <= 0.001) {
+            settledExpenseShipmentIds.push(shipment.id);
+          }
+
+          if (overallRemainingAfterPayment <= 0.001) {
             completedShipmentIds.push(shipment.id);
           } else {
             pendingShipmentIds.push(shipment.id);
@@ -194,9 +271,9 @@ export async function POST(request: NextRequest) {
 
           updatedShipments.push({
             id: shipment.id,
-            paymentStatus: remainingAfterPayment <= 0.001 ? 'COMPLETED' : 'PENDING',
+            paymentStatus: overallRemainingAfterPayment <= 0.001 ? 'COMPLETED' : 'PENDING',
             amountPaid: paymentForShipment,
-            remainingDue: remainingAfterPayment,
+            remainingDue: overallRemainingAfterPayment,
           });
         }
       }
@@ -205,6 +282,55 @@ export async function POST(request: NextRequest) {
         await tx.ledgerEntry.createMany({
           data: ledgerEntryCreations,
         });
+      }
+
+      if (settledExpenseShipmentIds.length > 0) {
+        await tx.shipmentCharge.updateMany({
+          where: {
+            shipmentId: { in: settledExpenseShipmentIds },
+            category: {
+              not: 'PURCHASE',
+            },
+            status: {
+              not: 'VOID',
+            },
+          },
+          data: {
+            status: 'PAID',
+            paidAt: new Date(),
+          },
+        });
+
+        const pendingExpenseEntries = await tx.ledgerEntry.findMany({
+          where: {
+            userId: validatedData.userId,
+            shipmentId: { in: settledExpenseShipmentIds },
+            type: 'DEBIT',
+            metadata: {
+              path: ['pendingInvoice'],
+              equals: true,
+            },
+          },
+          select: {
+            id: true,
+            metadata: true,
+          },
+        });
+
+        for (const pendingExpenseEntry of pendingExpenseEntries) {
+          const metadata = asRecord(pendingExpenseEntry.metadata);
+          await tx.ledgerEntry.update({
+            where: { id: pendingExpenseEntry.id },
+            data: {
+              metadata: {
+                ...metadata,
+                pendingInvoice: false,
+                paymentMethod: validatedData.paymentMethod,
+                paymentReference: entry.id,
+              },
+            },
+          });
+        }
       }
 
       if (completedShipmentIds.length > 0) {
@@ -225,37 +351,6 @@ export async function POST(request: NextRequest) {
             paidAt: new Date(),
           },
         });
-
-        const pendingExpenseEntries = await tx.ledgerEntry.findMany({
-          where: {
-            userId: validatedData.userId,
-            shipmentId: { in: completedShipmentIds },
-            type: 'DEBIT',
-            metadata: {
-              path: ['pendingInvoice'],
-              equals: true,
-            },
-          },
-          select: {
-            id: true,
-            metadata: true,
-          },
-        });
-
-        for (const pendingExpenseEntry of pendingExpenseEntries) {
-          const metadata = (pendingExpenseEntry.metadata ?? {}) as Record<string, unknown>;
-          await tx.ledgerEntry.update({
-            where: { id: pendingExpenseEntry.id },
-            data: {
-              metadata: {
-                ...metadata,
-                pendingInvoice: false,
-                paymentMethod: validatedData.paymentMethod,
-                paymentReference: entry.id,
-              },
-            },
-          });
-        }
 
         await tx.userInvoice.updateMany({
           where: {
