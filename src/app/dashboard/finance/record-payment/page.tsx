@@ -100,7 +100,7 @@ export default function RecordPaymentPage() {
   // Form state
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const transactionInfoType = 'CAR_PAYMENT' as const;
+  const [transactionInfoType, setTransactionInfoType] = useState<TransactionInfoType>('SHIPPING_PAYMENT');
   const [notes, setNotes] = useState('');
   
   // UI state
@@ -191,7 +191,7 @@ export default function RecordPaymentPage() {
             (s) =>
               s.paymentStatus !== 'CANCELLED' &&
               s.paymentStatus !== 'REFUNDED' &&
-              (s.purchasePrice || s.price || 0) > 0
+              (s.amountDue || 0) > 0
           );
         setShipments(dueShipments);
       }
@@ -212,9 +212,9 @@ export default function RecordPaymentPage() {
       // Auto-fill amount with purchase price
       if (newSelection.length === 1) {
         const selected = shipments.find(s => s.id === newSelection[0]);
-        const purchaseAmount = selected?.purchasePrice || selected?.price || 0;
-        if (purchaseAmount > 0) {
-          setAmount(purchaseAmount.toFixed(2));
+        const outstandingAmount = selected?.amountDue || 0;
+        if (outstandingAmount > 0) {
+          setAmount(outstandingAmount.toFixed(2));
         } else {
           setAmount('');
         }
@@ -231,7 +231,7 @@ export default function RecordPaymentPage() {
     let total = 0;
     for (const s of shipments) {
       if (selectedSet.has(s.id)) {
-        total += (s.purchasePrice || s.price || 0);
+        total += (s.amountDue || 0);
       }
     }
     return total;
@@ -240,17 +240,20 @@ export default function RecordPaymentPage() {
   const calculatePaymentAllocation = (): PaymentAllocation[] => {
     const paymentAmount = parseFloat(amount) || 0;
     const allocations: PaymentAllocation[] = [];
+    let remainingAmount = paymentAmount;
 
     const selectedShips = shipments.filter(s => selectedShipmentIds.includes(s.id));
 
     for (const shipment of selectedShips) {
-      const amountDue = shipment.purchasePrice || shipment.price || 0;
+      const amountDue = shipment.amountDue || 0;
+      const amountToPay = Math.min(remainingAmount, amountDue);
+      remainingAmount -= amountToPay;
       allocations.push({
         shipmentId: shipment.id,
         trackingNumber: shipment.trackingNumber,
         vehicleInfo: `${shipment.vehicleMake} ${shipment.vehicleModel}`,
         amountDue,
-        amountToPay: paymentAmount,
+        amountToPay,
       });
     }
 
@@ -350,8 +353,8 @@ export default function RecordPaymentPage() {
         </Box>
 
         <PageHeader
-          title="Record Purchase Payment"
-          description="Record a vehicle purchase price payment received from a customer"
+          title="Record Shipment Payment"
+          description="Record a payment against the shipment's full outstanding balance, including expenses"
           actions={
             <Link href="/dashboard/finance" style={{ textDecoration: 'none' }}>
               <Button variant="outline" size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
@@ -523,7 +526,7 @@ export default function RecordPaymentPage() {
           {activeStep === 1 && (
             <DashboardPanel
               title="Step 2: Select Vehicle Shipment"
-              description={`Choose the vehicle shipment to record purchase price payment for — ${selectedUser?.name || selectedUser?.email}`}
+              description={`Choose the shipment to record payment for — ${selectedUser?.name || selectedUser?.email}`}
             >
               {loadingShipments ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -632,28 +635,19 @@ export default function RecordPaymentPage() {
                           )}
                         </Box>
                         <Box sx={{ textAlign: 'right' }}>
-                          {shipment.serviceType === 'PURCHASE_AND_SHIPPING' && shipment.purchasePrice != null ? (
-                            <>
-                              <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                                Purchase Price
-                              </Box>
-                              <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                                {formatCurrency(shipment.purchasePrice)}
-                              </Box>
+                          <>
+                            <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
+                              Outstanding Due
+                            </Box>
+                            <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+                              {formatCurrency(shipment.amountDue || 0)}
+                            </Box>
+                            {shipment.serviceType === 'PURCHASE_AND_SHIPPING' && shipment.purchasePrice != null && (
                               <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                                Remaining: {formatCurrency(shipment.amountDue || 0)}
+                                Purchase price: {formatCurrency(shipment.purchasePrice)}
                               </Box>
-                            </>
-                          ) : (
-                            <>
-                              <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mb: 0.5 }}>
-                                Amount Due
-                              </Box>
-                              <Box sx={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                                {formatCurrency(shipment.amountDue || 0)}
-                              </Box>
-                            </>
-                          )}
+                            )}
+                          </>
                         </Box>
                       </Box>
                     </Box>
@@ -715,7 +709,7 @@ export default function RecordPaymentPage() {
           {activeStep === 2 && (
             <DashboardPanel
               title="Step 3: Enter Payment Details"
-              description="Enter the purchase price payment amount received and payment method"
+              description="Enter the payment amount to apply against the shipment balance and expenses"
             >
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {/* Payment Summary */}
@@ -729,7 +723,7 @@ export default function RecordPaymentPage() {
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Box sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Purchase Price Payment Summary
+                      Shipment Payment Summary
                     </Box>
                     <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       {selectedShipmentIds.length} shipment{selectedShipmentIds.length !== 1 ? 's' : ''}
@@ -737,7 +731,7 @@ export default function RecordPaymentPage() {
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box sx={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                      Purchase Price:
+                      Outstanding Balance:
                     </Box>
                     <Box sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
                       {formatCurrency(totalSelectedAmount)}
@@ -748,7 +742,7 @@ export default function RecordPaymentPage() {
                 {/* Amount Input */}
                 <TextField
                   fullWidth
-                  label="Purchase Payment Amount (USD) *"
+                  label="Payment Amount (USD) *"
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -763,8 +757,21 @@ export default function RecordPaymentPage() {
                       </InputAdornment>
                     ),
                   }}
-                  helperText="Enter the shipment purchase price to charge to the customer's account"
+                  helperText="Enter the amount to apply against the shipment's outstanding balance, including expenses"
                 />
+
+                <FormControl fullWidth size="medium">
+                  <InputLabel>Payment Category *</InputLabel>
+                  <Select
+                    value={transactionInfoType}
+                    onChange={(e) => setTransactionInfoType(e.target.value as TransactionInfoType)}
+                    label="Payment Category *"
+                  >
+                    {Object.entries(transactionInfoTypeLabels).map(([value, label]) => (
+                      <MenuItem key={value} value={value}>{label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
                 {/* Payment Method */}
                 <FormControl fullWidth size="medium">
@@ -886,7 +893,7 @@ export default function RecordPaymentPage() {
                         Transaction Type
                       </Box>
                       <Box sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
-                        Car Purchase Price Payment
+                        {transactionInfoTypeLabels[transactionInfoType]}
                       </Box>
                     </Box>
                   </Box>
@@ -906,8 +913,8 @@ export default function RecordPaymentPage() {
                         <TableRow sx={{ bgcolor: 'var(--surface)' }}>
                           <TableCell sx={{ fontWeight: 600 }}>Tracking #</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Vehicle</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600 }}>Purchase Price</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600 }}>Amount Paid</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>Outstanding Due</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>Amount Applied</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 600 }}>Status</TableCell>
                         </TableRow>
                       </TableHead>
@@ -1005,9 +1012,9 @@ export default function RecordPaymentPage() {
             <Box sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
               This action will:
               <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-                <li>Create a Car Purchase Price ledger entry</li>
+                <li>Create a shipment payment ledger entry</li>
                 <li>Update the customer's balance</li>
-                <li>Record the purchase payment for the selected vehicle</li>
+                <li>Apply payment to the shipment's outstanding balance, including expenses</li>
               </ul>
             </Box>
           </DialogContent>
