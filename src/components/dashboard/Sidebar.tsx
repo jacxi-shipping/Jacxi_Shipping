@@ -62,6 +62,12 @@ const adminNavigation: NavigationItem[] = [
 		requiredPermission: 'customers:view',
 	},
 	{
+		name: 'Partner Portals',
+		href: '/dashboard/partner-portals',
+		icon: Group,
+		requiredPermission: 'customers:manage',
+	},
+	{
 		name: 'Users',
 		href: '/dashboard/users',
 		icon: Group,

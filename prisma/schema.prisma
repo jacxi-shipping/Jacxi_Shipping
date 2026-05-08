@@ -73,6 +73,7 @@ model User {
   shipmentCharges ShipmentCharge[]
   receivedNotifications Notification[] @relation("NotificationRecipient")
   sentNotifications     Notification[] @relation("NotificationSender")
+  partnerPortalMemberships PartnerPortalMembership[]
 
   @@index([loginCode])
 }
@@ -188,6 +189,7 @@ model Shipment {
   containerDamages ContainerDamage[]
   auditLogs        ShipmentAuditLog[]
   charges          ShipmentCharge[]
+  partnerPortalAssignment PartnerShipmentAssignment?
 
   @@index([userId])
   @@index([dispatchId])
@@ -821,6 +823,79 @@ model CompanyLedgerEntry {
   @@index([type])
 }
 
+model PartnerPortal {
+  id                String                    @id @default(cuid())
+  name              String
+  code              String?                   @unique
+  notes             String?
+  isActive          Boolean                   @default(true)
+  createdBy         String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  memberships       PartnerPortalMembership[]
+  customers         PartnerCustomer[]
+  shipmentAssignments PartnerShipmentAssignment[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model PartnerPortalMembership {
+  id         String                      @id @default(cuid())
+  portalId   String
+  userId     String
+  role       PartnerPortalMembershipRole @default(STAFF)
+  createdBy  String?
+  createdAt  DateTime                    @default(now())
+  updatedAt  DateTime                    @updatedAt
+  portal      PartnerPortal              @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  user        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([portalId, userId])
+  @@index([userId])
+  @@index([role])
+}
+
+model PartnerCustomer {
+  id          String                    @id @default(cuid())
+  portalId    String
+  name        String
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  country     String?
+  notes       String?
+  createdBy   String?
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  portal      PartnerPortal             @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  shipmentAssignments PartnerShipmentAssignment[]
+
+  @@index([portalId])
+  @@index([name])
+}
+
+model PartnerShipmentAssignment {
+  id                String           @id @default(cuid())
+  portalId          String
+  shipmentId        String           @unique
+  partnerCustomerId String?
+  assignedBy        String
+  linkedBy          String?
+  notes             String?
+  assignedAt        DateTime         @default(now())
+  linkedAt          DateTime?
+  updatedAt         DateTime         @updatedAt
+  portal            PartnerPortal    @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  shipment          Shipment         @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  partnerCustomer   PartnerCustomer? @relation(fields: [partnerCustomerId], references: [id], onDelete: SetNull)
+
+  @@index([portalId])
+  @@index([partnerCustomerId])
+  @@index([assignedAt])
+}
+
 // ============================================
 // DISPATCH MODELS (Origin yard → port handoff)
 // ============================================
@@ -1075,6 +1150,11 @@ enum CollectionStatus {
   IN_COLLECTIONS
   ESCALATED
   ON_HOLD
+}
+
+enum PartnerPortalMembershipRole {
+  ADMIN
+  STAFF
 }
 
 enum TitleStatus {

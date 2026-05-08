@@ -1,0 +1,297 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import { Box, Typography } from '@mui/material';
+import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
+import { Button, EmptyState, toast } from '@/components/design-system';
+
+type ShipmentDetailResponse = {
+  portal: { id: string; name: string; code: string | null };
+  assignment: {
+    id: string;
+    notes: string | null;
+    assignedAt: string;
+    linkedAt: string | null;
+    partnerCustomer: {
+      id: string;
+      name: string;
+      email: string | null;
+      phone: string | null;
+      city: string | null;
+      country: string | null;
+    } | null;
+    shipment: {
+      id: string;
+      serviceType: string;
+      vehicleType: string;
+      vehicleMake: string | null;
+      vehicleModel: string | null;
+      vehicleYear: number | null;
+      vehicleVIN: string | null;
+      vehicleColor: string | null;
+      lotNumber: string | null;
+      auctionName: string | null;
+      hasKey: boolean | null;
+      hasTitle: boolean | null;
+      status: string;
+      paymentStatus: string;
+      createdAt: string;
+      updatedAt: string;
+      vehiclePhotos: string[];
+      arrivalPhotos: string[];
+      documents: Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        fileUrl: string;
+        category: string;
+      }>;
+      dispatch: {
+        referenceNumber: string;
+        origin: string;
+        destination: string;
+        status: string;
+        dispatchDate: string | null;
+      } | null;
+      transit: {
+        referenceNumber: string;
+        origin: string;
+        destination: string;
+        status: string;
+        estimatedDelivery: string | null;
+        actualDelivery: string | null;
+      } | null;
+      container: {
+        containerNumber: string;
+        trackingNumber: string | null;
+        vesselName: string | null;
+        voyageNumber: string | null;
+        loadingPort: string | null;
+        destinationPort: string | null;
+        estimatedArrival: string | null;
+        actualArrival: string | null;
+        currentLocation: string | null;
+        progress: number | null;
+        status: string;
+      } | null;
+    };
+  };
+  customerTracking: {
+    currentStageLabel: string;
+    summary: string;
+    progressPercent: number;
+    milestones: Array<{
+      key: string;
+      label: string;
+      description: string;
+      state: 'pending' | 'current' | 'complete';
+      timestamp?: string;
+    }>;
+  };
+  history: Array<{
+    id: string;
+    source: string;
+    title: string;
+    location: string | null;
+    description: string | null;
+    occurredAt: string;
+  }>;
+};
+
+export default function PortalShipmentDetailPage() {
+  const params = useParams();
+  const portalId = String(params.portalId || '');
+  const shipmentId = String(params.shipmentId || '');
+  const [data, setData] = useState<ShipmentDetailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDetail = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/partner-portals/${portalId}/shipments/${shipmentId}`, { cache: 'no-store' });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Failed to load shipment detail');
+        }
+
+        setData(payload);
+      } catch (error) {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : 'Failed to load shipment detail');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchDetail();
+  }, [portalId, shipmentId]);
+
+  if (loading) {
+    return (
+      <DashboardSurface>
+        <DashboardPanel title="Shipment Detail">
+          <Box sx={{ color: 'var(--text-secondary)' }}>Loading shipment detail...</Box>
+        </DashboardPanel>
+      </DashboardSurface>
+    );
+  }
+
+  if (!data) {
+    return (
+      <DashboardSurface>
+        <DashboardPanel title="Shipment Detail">
+          <EmptyState icon={<Inventory2OutlinedIcon />} title="Shipment unavailable" description="This assigned shipment could not be loaded." />
+        </DashboardPanel>
+      </DashboardSurface>
+    );
+  }
+
+  const shipment = data.assignment.shipment;
+  const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleType;
+
+  return (
+    <DashboardSurface>
+      <DashboardPanel
+        title={vehicleLabel}
+        description={`${data.portal.name} shipment workspace`}
+        actions={
+          <Link href={`/portal/${portalId}/shipments`} style={{ textDecoration: 'none' }}>
+            <Button variant="outline" size="sm">Back to Shipments</Button>
+          </Link>
+        }
+      >
+        <DashboardGrid className="grid-cols-1 gap-4 lg:grid-cols-3">
+          <Box className="lg:col-span-2" sx={{ display: 'grid', gap: 2 }}>
+            <DashboardPanel title="Shipment Overview" description={data.customerTracking.summary}>
+              <Box sx={{ display: 'grid', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+                  <Typography sx={{ fontWeight: 700 }}>{data.customerTracking.currentStageLabel}</Typography>
+                  <Typography sx={{ color: 'var(--text-secondary)' }}>Status: {shipment.status}</Typography>
+                </Box>
+                <Box sx={{ height: 8, borderRadius: 999, bgcolor: 'var(--border)', overflow: 'hidden' }}>
+                  <Box sx={{ height: '100%', width: `${data.customerTracking.progressPercent}%`, bgcolor: 'var(--accent-gold)' }} />
+                </Box>
+                <Box sx={{ display: 'grid', gap: 1.5 }}>
+                  {data.customerTracking.milestones.map((milestone) => (
+                    <Box key={milestone.key} sx={{ border: '1px solid var(--border)', borderRadius: 2, p: 2, bgcolor: 'var(--panel)' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                        <Typography sx={{ fontWeight: 600 }}>{milestone.label}</Typography>
+                        <Typography sx={{ color: milestone.state === 'complete' ? 'var(--success)' : milestone.state === 'current' ? 'var(--accent-gold)' : 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                          {milestone.state}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ color: 'var(--text-secondary)', mt: 0.5 }}>{milestone.description}</Typography>
+                      {milestone.timestamp ? (
+                        <Typography sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem', mt: 1 }}>
+                          {new Date(milestone.timestamp).toLocaleString()}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </DashboardPanel>
+
+            <DashboardPanel title="Status History" description="Customer-facing movement updates">
+              {data.history.length === 0 ? (
+                <EmptyState icon={<Inventory2OutlinedIcon />} title="No status history" description="No movement updates are available yet." />
+              ) : (
+                <Box sx={{ display: 'grid', gap: 1.5 }}>
+                  {data.history.map((item) => (
+                    <Box key={item.id} sx={{ border: '1px solid var(--border)', borderRadius: 2, p: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                        <Typography sx={{ fontWeight: 600 }}>{item.title}</Typography>
+                        <Typography sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{new Date(item.occurredAt).toLocaleString()}</Typography>
+                      </Box>
+                      <Typography sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem', mt: 0.5 }}>{item.source}</Typography>
+                      {item.location ? <Typography sx={{ mt: 1 }}>Location: {item.location}</Typography> : null}
+                      {item.description ? <Typography sx={{ color: 'var(--text-secondary)', mt: 0.5 }}>{item.description}</Typography> : null}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </DashboardPanel>
+
+            <DashboardPanel title="Documents" description="Public shipment documents shared to the portal">
+              {shipment.documents.length === 0 ? (
+                <EmptyState icon={<DescriptionOutlinedIcon />} title="No public documents" description="No public documents have been shared for this shipment yet." />
+              ) : (
+                <Box sx={{ display: 'grid', gap: 1.5 }}>
+                  {shipment.documents.map((document) => (
+                    <Box key={document.id} sx={{ border: '1px solid var(--border)', borderRadius: 2, p: 2, display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center' }}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 600 }}>{document.name}</Typography>
+                        <Typography sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                          {document.category} • {document.description || 'Shared file'}
+                        </Typography>
+                      </Box>
+                      <a href={document.fileUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                        <Button variant="outline" size="sm">Open</Button>
+                      </a>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </DashboardPanel>
+          </Box>
+
+          <Box sx={{ display: 'grid', gap: 2 }}>
+            <DashboardPanel title="Vehicle Info">
+              <Box sx={{ display: 'grid', gap: 1 }}>
+                <Typography><strong>VIN:</strong> {shipment.vehicleVIN || '—'}</Typography>
+                <Typography><strong>Color:</strong> {shipment.vehicleColor || '—'}</Typography>
+                <Typography><strong>Lot:</strong> {shipment.lotNumber || '—'}</Typography>
+                <Typography><strong>Auction:</strong> {shipment.auctionName || '—'}</Typography>
+                <Typography><strong>Has Key:</strong> {shipment.hasKey == null ? '—' : shipment.hasKey ? 'Yes' : 'No'}</Typography>
+                <Typography><strong>Has Title:</strong> {shipment.hasTitle == null ? '—' : shipment.hasTitle ? 'Yes' : 'No'}</Typography>
+              </Box>
+            </DashboardPanel>
+
+            <DashboardPanel title="Portal Customer">
+              {data.assignment.partnerCustomer ? (
+                <Box sx={{ display: 'grid', gap: 1 }}>
+                  <Typography sx={{ fontWeight: 700 }}>{data.assignment.partnerCustomer.name}</Typography>
+                  <Typography>{data.assignment.partnerCustomer.email || 'No email'}</Typography>
+                  <Typography>{data.assignment.partnerCustomer.phone || 'No phone'}</Typography>
+                  <Typography sx={{ color: 'var(--text-secondary)' }}>{[data.assignment.partnerCustomer.city, data.assignment.partnerCustomer.country].filter(Boolean).join(', ') || 'No location'}</Typography>
+                </Box>
+              ) : (
+                <EmptyState icon={<PersonOutlineIcon />} title="No linked portal customer" description="This shipment has not been linked to one of your portal customers yet." />
+              )}
+            </DashboardPanel>
+
+            <DashboardPanel title="Route Snapshot">
+              <Box sx={{ display: 'grid', gap: 1 }}>
+                {shipment.dispatch ? <Typography><strong>Dispatch:</strong> {shipment.dispatch.origin} to {shipment.dispatch.destination}</Typography> : null}
+                {shipment.container ? <Typography><strong>Container:</strong> {shipment.container.containerNumber}</Typography> : null}
+                {shipment.container?.currentLocation ? <Typography><strong>Current Location:</strong> {shipment.container.currentLocation}</Typography> : null}
+                {shipment.container?.estimatedArrival ? <Typography><strong>ETA:</strong> {new Date(shipment.container.estimatedArrival).toLocaleDateString()}</Typography> : null}
+                {shipment.transit ? <Typography><strong>Destination Transit:</strong> {shipment.transit.origin} to {shipment.transit.destination}</Typography> : null}
+                {shipment.transit?.actualDelivery ? <Typography><strong>Delivered:</strong> {new Date(shipment.transit.actualDelivery).toLocaleDateString()}</Typography> : null}
+              </Box>
+            </DashboardPanel>
+
+            {(shipment.vehiclePhotos.length > 0 || shipment.arrivalPhotos.length > 0) ? (
+              <DashboardPanel title="Photos">
+                <Box sx={{ display: 'grid', gap: 1.5 }}>
+                  {[...shipment.vehiclePhotos, ...shipment.arrivalPhotos].slice(0, 6).map((photoUrl, index) => (
+                    <a key={`${photoUrl}-${index}`} href={photoUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                      <Box component="img" src={photoUrl} alt={`Shipment photo ${index + 1}`} sx={{ width: '100%', borderRadius: 2, border: '1px solid var(--border)', objectFit: 'cover' }} />
+                    </a>
+                  ))}
+                </Box>
+              </DashboardPanel>
+            ) : null}
+          </Box>
+        </DashboardGrid>
+      </DashboardPanel>
+    </DashboardSurface>
+  );
+}

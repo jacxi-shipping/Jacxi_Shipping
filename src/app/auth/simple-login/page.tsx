@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Visibility, VisibilityOff, VpnKey, ArrowForward } from '@mui/icons-material';
 import { 
@@ -19,6 +19,7 @@ import {
 
 export default function SimpleLoginPage() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [loginCode, setLoginCode] = useState('');
 	const [showCode, setShowCode] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
@@ -50,7 +51,8 @@ export default function SimpleLoginPage() {
 			if (result?.error || !result?.ok) {
 				setError('Invalid login code. Please check your code and try again.');
 			} else {
-				router.replace('/dashboard');
+				const callbackUrl = searchParams.get('callbackUrl');
+				router.replace(callbackUrl || '/dashboard');
 				router.refresh();
 			}
 		} catch {

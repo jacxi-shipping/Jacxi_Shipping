@@ -9,9 +9,10 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
+      const isOnPortal = nextUrl.pathname.startsWith('/portal');
       const isOnProtected = nextUrl.pathname.startsWith('/api/protected');
 
-      if (isOnDashboard || isOnProtected) {
+      if (isOnDashboard || isOnPortal || isOnProtected) {
         if (isLoggedIn) return true;
         return false; // Redirect unauthenticated users to login page
       }
