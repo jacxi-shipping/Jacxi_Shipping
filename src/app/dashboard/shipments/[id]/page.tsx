@@ -603,6 +603,7 @@ export default function ShipmentDetailPage() {
   const isAdmin = session?.user?.role === 'admin';
   const canManageShipmentExpenses = canPostExpenses;
   const canViewLedgerComparison = hasAnyPermission(session?.user?.role, ['finance:view', 'finance:manage', 'shipments:read_all']);
+  const canViewWorkflowCompanyDetails = hasPermission(session?.user?.role, 'shipments:read_all');
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
   const canAssignDispatch = canManageWorkflow && !shipment?.dispatchId && !shipment?.containerId && !shipment?.transitId && shipment?.status === 'ON_HAND';
   const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.dispatchId || (shipment?.transitId && shipment?.transit?.currentCompany));
@@ -976,6 +977,7 @@ export default function ShipmentDetailPage() {
             statusStyle={statusStyle}
             containerStatusColors={containerStatusColors}
             isAdmin={isAdmin}
+            canViewWorkflowCompanyDetails={canViewWorkflowCompanyDetails}
             canAssignDispatch={canAssignDispatch}
             canManageWorkflow={canManageWorkflow}
             canViewPurchasePrice={canViewPurchasePrice}

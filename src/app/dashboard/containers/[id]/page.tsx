@@ -59,7 +59,7 @@ import {
 	DetailPageSkeleton, 
 	FormPageSkeleton
 } from '@/components/design-system';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import PermissionRoute from '@/components/auth/PermissionRoute';
 import AddExpenseModal from '@/components/containers/AddExpenseModal';
 import AddDamageModal from '@/components/containers/AddDamageModal';
 import AddInvoiceModal from '@/components/containers/AddInvoiceModal';
@@ -716,15 +716,15 @@ export default function ContainerDetailPage() {
 
 	if (loading) {
 		return (
-			<ProtectedRoute>
+			<PermissionRoute anyOf={['containers:read_all', 'containers:manage', 'finance:view', 'finance:manage']}>
 				<DetailPageSkeleton />
-			</ProtectedRoute>
+			</PermissionRoute>
 		);
 	}
 
 	if (!container) {
 		return (
-			<ProtectedRoute>
+			<PermissionRoute anyOf={['containers:read_all', 'containers:manage', 'finance:view', 'finance:manage']}>
 				<DashboardSurface>
 					<EmptyState
 						icon={<Package className="w-12 h-12" />}
@@ -740,7 +740,7 @@ export default function ContainerDetailPage() {
 						}
 					/>
 				</DashboardSurface>
-			</ProtectedRoute>
+			</PermissionRoute>
 		);
 	}
 
@@ -819,7 +819,7 @@ export default function ContainerDetailPage() {
 	});
 
 	return (
-		<ProtectedRoute>
+		<PermissionRoute anyOf={['containers:read_all', 'containers:manage', 'finance:view', 'finance:manage']}>
 			<DashboardSurface>
 				{/* Breadcrumbs */}
 				<Box sx={{ px: 2, pt: 2 }}>
@@ -2945,6 +2945,6 @@ export default function ContainerDetailPage() {
 					</DialogActions>
 				</Dialog>
 			</DashboardSurface>
-		</ProtectedRoute>
+		</PermissionRoute>
 	);
 }

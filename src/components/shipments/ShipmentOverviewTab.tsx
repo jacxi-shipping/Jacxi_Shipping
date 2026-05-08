@@ -11,6 +11,7 @@ type ShipmentOverviewTabProps = {
   statusStyle: StatusColors;
   containerStatusColors: Record<string, StatusColors>;
   isAdmin: boolean;
+  canViewWorkflowCompanyDetails: boolean;
   canAssignDispatch: boolean;
   canManageWorkflow: boolean;
   canViewPurchasePrice: boolean;
@@ -29,6 +30,7 @@ export default function ShipmentOverviewTab({
   statusStyle,
   containerStatusColors,
   isAdmin,
+  canViewWorkflowCompanyDetails,
   canAssignDispatch,
   canManageWorkflow,
   canViewPurchasePrice,
@@ -128,20 +130,24 @@ export default function ShipmentOverviewTab({
                 {shipment.dispatch.status.replace(/_/g, ' ')}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company</p>
-                <p className="font-medium">{shipment.dispatch.company.name}</p>
-              </div>
+            <div className={`grid gap-2 text-sm ${canViewWorkflowCompanyDetails && shipment.dispatch.company?.name ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {canViewWorkflowCompanyDetails && shipment.dispatch.company?.name ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company</p>
+                  <p className="font-medium">{shipment.dispatch.company.name}</p>
+                </div>
+              ) : null}
               <div>
                 <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Route</p>
                 <p className="font-medium">{shipment.dispatch.origin} → {shipment.dispatch.destination}</p>
               </div>
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <Link href={`/dashboard/dispatches/${shipment.dispatch.id}`} className="text-xs font-medium text-[var(--accent-gold)] hover:underline">
-                View Dispatch Details →
-              </Link>
+              {canViewWorkflowCompanyDetails ? (
+                <Link href={`/dashboard/dispatches/${shipment.dispatch.id}`} className="text-xs font-medium text-[var(--accent-gold)] hover:underline">
+                  View Dispatch Details →
+                </Link>
+              ) : null}
               {canManageWorkflow && shipment.status === 'DISPATCHING' && (
                 <button onClick={onRemoveFromDispatch} className="ml-auto text-xs text-[var(--error)] hover:underline">
                   Remove from dispatch
@@ -202,11 +208,13 @@ export default function ShipmentOverviewTab({
                 {shipment.transit.status.replace(/_/g, ' ')}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company</p>
-                <p className="font-medium">{shipment.transit.currentCompany?.name || 'No current event company'}</p>
-              </div>
+            <div className={`grid gap-2 text-sm ${canViewWorkflowCompanyDetails ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {canViewWorkflowCompanyDetails ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Company</p>
+                  <p className="font-medium">{shipment.transit.currentCompany?.name || 'No current event company'}</p>
+                </div>
+              ) : null}
               <div>
                 <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Route</p>
                 <p className="font-medium">
@@ -215,9 +223,11 @@ export default function ShipmentOverviewTab({
               </div>
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <Link href={`/dashboard/transits/${shipment.transit.id}`} className="text-xs font-medium text-[var(--accent-gold)] hover:underline">
-                View Transit Details →
-              </Link>
+              {canViewWorkflowCompanyDetails ? (
+                <Link href={`/dashboard/transits/${shipment.transit.id}`} className="text-xs font-medium text-[var(--accent-gold)] hover:underline">
+                  View Transit Details →
+                </Link>
+              ) : null}
               {canManageWorkflow && (
                 <button onClick={onRemoveFromTransit} className="ml-auto text-xs text-[var(--error)] hover:underline">
                   Remove from transit
@@ -287,11 +297,13 @@ export default function ShipmentOverviewTab({
         <DashboardPanel
           title="Container Shipping Info"
           actions={
-            <Link href={`/dashboard/containers/${shipment.containerId}`}>
-              <Button variant="outline" size="sm">
-                View Container
-              </Button>
-            </Link>
+            canViewWorkflowCompanyDetails ? (
+              <Link href={`/dashboard/containers/${shipment.containerId}`}>
+                <Button variant="outline" size="sm">
+                  View Container
+                </Button>
+              </Link>
+            ) : undefined
           }
         >
           <div className="space-y-4">
@@ -340,7 +352,7 @@ export default function ShipmentOverviewTab({
                   <dd className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{shipment.container.vesselName}</dd>
                 </div>
               )}
-              {shipment.container.shippingLine && (
+              {canViewWorkflowCompanyDetails && shipment.container.shippingLine && (
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
                   <dt className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Shipping Line</dt>
                   <dd className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{shipment.container.shippingLine}</dd>

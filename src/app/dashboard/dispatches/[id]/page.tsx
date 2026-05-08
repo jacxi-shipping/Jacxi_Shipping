@@ -617,12 +617,12 @@ export default function DispatchDetailPage() {
   ], [canManageExpenses, deletingExpenseId, isDispatchWorkflowLocked]);
 
   if (loading) {
-    return <PermissionRoute anyOf={['dispatches:manage', 'expenses:post']}><DashboardSurface><TableSkeleton rows={6} columns={5} /></DashboardSurface></PermissionRoute>;
+    return <PermissionRoute permission="dispatches:manage"><DashboardSurface><TableSkeleton rows={6} columns={5} /></DashboardSurface></PermissionRoute>;
   }
 
   if (!dispatch) {
     return (
-      <PermissionRoute anyOf={['dispatches:manage', 'expenses:post']}>
+      <PermissionRoute permission="dispatches:manage">
         <DashboardSurface>
           <Box sx={{ px: 2, pt: 2 }}>
             <Breadcrumbs />
@@ -646,7 +646,7 @@ export default function DispatchDetailPage() {
   }
 
   return (
-    <PermissionRoute anyOf={['dispatches:manage', 'expenses:post']}>
+    <PermissionRoute permission="dispatches:manage">
       <DashboardSurface>
         <Box sx={{ px: 2, pt: 2 }}>
           <Breadcrumbs />

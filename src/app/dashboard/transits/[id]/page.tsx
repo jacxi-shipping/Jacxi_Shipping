@@ -638,7 +638,7 @@ export default function TransitDetailPage() {
 
   if (loading) {
     return (
-      <PermissionRoute anyOf={['transits:manage', 'expenses:post']}>
+      <PermissionRoute anyOf={['transits:manage', 'finance:manage']}>
         <DashboardSurface><TableSkeleton rows={8} /></DashboardSurface>
       </PermissionRoute>
     );
@@ -646,7 +646,7 @@ export default function TransitDetailPage() {
 
   if (!transit) {
     return (
-      <PermissionRoute anyOf={['transits:manage', 'expenses:post']}>
+      <PermissionRoute anyOf={['transits:manage', 'finance:manage']}>
         <DashboardSurface>
           <DashboardPanel title="Transit not found">
             <Box sx={{ color: 'var(--text-secondary)' }}>The requested transit could not be found.</Box>
@@ -665,7 +665,7 @@ export default function TransitDetailPage() {
   const currentCompanyLabel = transit.currentCompany?.name || 'No current event company';
 
   return (
-    <PermissionRoute anyOf={['transits:manage', 'expenses:post']}>
+    <PermissionRoute anyOf={['transits:manage', 'finance:manage']}>
       <DashboardSurface>
         <Box sx={{ px: 2, pt: 2 }}>
           <Breadcrumbs />

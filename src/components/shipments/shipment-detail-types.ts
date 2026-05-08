@@ -44,7 +44,7 @@ export interface ShipmentTransit {
   currentCompany: { id: string; name: string } | null;
   currentEvent: {
     id: string;
-    companyId: string;
+    companyId: string | null;
     origin: string;
     destination: string;
     status: string;
@@ -57,7 +57,7 @@ export interface ShipmentDispatch {
   origin: string;
   destination: string;
   status: string;
-  company: { id: string; name: string };
+  company: { id: string; name: string } | null;
 }
 
 export interface Shipment {

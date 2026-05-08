@@ -81,6 +81,7 @@ export async function GET(
       hasPermission(session.user?.role, 'finance:manage') ||
       canReadAllShipments;
     const canViewAuditHistory = canReadAllShipments;
+    const canViewWorkflowCompanyDetails = canReadAllShipments;
 
     const shipment = await prisma.shipment.findUnique({
       where: { id },
@@ -561,15 +562,42 @@ export async function GET(
       containerDamages: shipment.containerDamages,
     });
 
+    const currentTransitEvent = shipment.transit?.events[0] ?? null;
+
     return NextResponse.json(
       {
         shipment: {
           ...shipment,
+          internalNotes: canReadAllShipments ? shipment.internalNotes : null,
+          container: shipment.container
+            ? {
+                ...shipment.container,
+                shippingLine: canViewWorkflowCompanyDetails ? shipment.container.shippingLine : null,
+              }
+            : null,
+          dispatch: shipment.dispatch
+            ? {
+                ...shipment.dispatch,
+                company: canViewWorkflowCompanyDetails ? shipment.dispatch.company : null,
+              }
+            : null,
           transit: shipment.transit
             ? {
-                ...shipment.transit,
-                currentEvent: shipment.transit.events[0] ?? null,
-                currentCompany: shipment.transit.events[0]?.company ?? null,
+                id: shipment.transit.id,
+                referenceNumber: shipment.transit.referenceNumber,
+                origin: shipment.transit.origin,
+                destination: shipment.transit.destination,
+                status: shipment.transit.status,
+                currentEvent: currentTransitEvent
+                  ? {
+                      id: currentTransitEvent.id,
+                      companyId: canViewWorkflowCompanyDetails ? currentTransitEvent.companyId : null,
+                      origin: currentTransitEvent.origin,
+                      destination: currentTransitEvent.destination,
+                      status: currentTransitEvent.status,
+                    }
+                  : null,
+                currentCompany: canViewWorkflowCompanyDetails ? currentTransitEvent?.company ?? null : null,
               }
             : null,
           companyLedgerEntries,
