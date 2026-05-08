@@ -51,10 +51,64 @@ export async function getPartnerPortalOrThrow(portalId: string) {
       id: true,
       name: true,
       code: true,
+      companyLabel: true,
+      accentColor: true,
+      logoUrl: true,
+      notifyOnShipmentAssigned: true,
+      autoAssignToSingleCustomer: true,
+      defaultShipmentNotes: true,
+      requireCustomerLinkForReady: true,
       isActive: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
     },
   });
+}
+
+export async function syncPortalShipmentsForUser(portalId: string, userId: string, actorId: string) {
+  const shipments = await prisma.shipment.findMany({
+    where: {
+      userId,
+      partnerPortalAssignment: null,
+    },
+    select: { id: true },
+  });
+
+  if (shipments.length === 0) {
+    return { count: 0 };
+  }
+
+  const result = await prisma.partnerShipmentAssignment.createMany({
+    data: shipments.map((shipment) => ({
+      portalId,
+      shipmentId: shipment.id,
+      assignedBy: actorId,
+    })),
+    skipDuplicates: true,
+  });
+
+  return { count: result.count };
+}
+
+export async function syncPortalShipmentsFromPrimaryMember(portalId: string, actorId: string) {
+  const primaryMembership = await prisma.partnerPortalMembership.findFirst({
+    where: {
+      portalId,
+      role: PARTNER_PORTAL_ADMIN_ROLE,
+      user: {
+        role: 'user',
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      userId: true,
+    },
+  });
+
+  if (!primaryMembership?.userId) {
+    return { count: 0 };
+  }
+
+  return syncPortalShipmentsForUser(portalId, primaryMembership.userId, actorId);
 }

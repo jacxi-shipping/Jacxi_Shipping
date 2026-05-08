@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import { Box, TextField } from '@mui/material';
-import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined';
+import { Box, TextField, Typography } from '@mui/material';
+import { DashboardSurface, DashboardPanel, DashboardGrid, DashboardHeader } from '@/components/dashboard/DashboardSurface';
 import { Button, EmptyState, toast } from '@/components/design-system';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 
@@ -27,6 +30,9 @@ type PortalInfo = {
   id: string;
   name: string;
   code: string | null;
+  companyLabel?: string | null;
+  accentColor?: string | null;
+  logoUrl?: string | null;
 };
 
 export default function PortalCustomersPage() {
@@ -38,6 +44,7 @@ export default function PortalCustomersPage() {
   const [creating, setCreating] = useState(false);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', city: '', country: '', notes: '' });
 
   const fetchCustomers = async () => {
@@ -63,6 +70,24 @@ export default function PortalCustomersPage() {
   useEffect(() => {
     void fetchCustomers();
   }, [portalId]);
+
+  const filteredCustomers = useMemo(() => {
+    const value = query.trim().toLowerCase();
+    if (!value) {
+      return customers;
+    }
+
+    return customers.filter((customer) => {
+      const location = [customer.city, customer.country].filter(Boolean).join(' ').toLowerCase();
+      return customer.name.toLowerCase().includes(value)
+        || (customer.email || '').toLowerCase().includes(value)
+        || (customer.phone || '').toLowerCase().includes(value)
+        || location.includes(value);
+    });
+  }, [customers, query]);
+
+  const totalAssignedShipments = customers.reduce((sum, customer) => sum + (customer._count?.shipmentAssignments || 0), 0);
+  const locationsTracked = new Set(customers.map((customer) => [customer.city, customer.country].filter(Boolean).join(', ')).filter(Boolean)).size;
 
   const columns = useMemo<Column<PortalCustomer>[]>(() => [
     { key: 'name', header: 'Customer', sortable: true },
@@ -183,40 +208,89 @@ export default function PortalCustomersPage() {
 
   return (
     <DashboardSurface>
-      <DashboardPanel
-        title={portal ? `${portal.name} Customers` : 'My Customers'}
-        description="Create and manage customers inside your portal workspace"
-      >
-        <Box sx={{ display: 'grid', gap: 1.5, mb: 3, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
-          <TextField label="Customer Name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-          <TextField label="Email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
-          <TextField label="Phone" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
-          <TextField label="City" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
-          <TextField label="Country" value={form.country} onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))} />
-          <TextField label="Notes" value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
-        </Box>
+      <DashboardHeader
+        title={portal ? `${portal.companyLabel || portal.name} Customers` : 'My Customers'}
+        description="Create and maintain the downstream customer records your portal uses to own the shipment handoff layer."
+        meta={[
+          { label: 'Customers', value: customers.length, helper: 'Accounts created in this portal' },
+          { label: 'Assigned Shipments', value: totalAssignedShipments, helper: 'Total load mapped to portal customers' },
+          { label: 'Locations', value: locationsTracked, helper: 'Cities or countries currently represented' },
+        ]}
+      />
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {editingCustomerId ? (
-              <Button variant="outline" onClick={resetForm} disabled={creating}>
-                Cancel
-              </Button>
-            ) : null}
-            <Button variant="primary" onClick={() => void handleSaveCustomer()} disabled={creating}>
-              {creating ? 'Saving...' : editingCustomerId ? 'Save Changes' : 'Create Customer'}
-            </Button>
-          </Box>
-        </Box>
-
-        {loading ? (
+      {loading ? (
+        <DashboardPanel title="Loading customers" description="Fetching portal-owned customers.">
           <Box sx={{ color: 'var(--text-secondary)' }}>Loading customers...</Box>
-        ) : customers.length === 0 ? (
-          <EmptyState icon={<PersonOutlineIcon />} title="No customers yet" description="Create your first portal customer above, then assign shipments to them from the Assigned Shipments page." />
-        ) : (
-          <DataTable data={customers} columns={columns} keyField="id" />
-        )}
-      </DashboardPanel>
+        </DashboardPanel>
+      ) : (
+        <>
+          <DashboardGrid className="grid-cols-1 gap-3 lg:grid-cols-[0.95fr_1.35fr]">
+            <DashboardPanel
+              title={editingCustomerId ? 'Edit Customer' : 'Create Customer'}
+              description="Capture the downstream customer identity that shipments in this portal should roll up under."
+            >
+              <Box sx={{ display: 'grid', gap: 1.5 }}>
+                <TextField label="Customer Name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+                <TextField label="Email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
+                <TextField label="Phone" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+                  <TextField label="City" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
+                  <TextField label="Country" value={form.country} onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))} />
+                </Box>
+                <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
+
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
+                  {editingCustomerId ? (
+                    <Button variant="outline" onClick={resetForm} disabled={creating}>
+                      Cancel
+                    </Button>
+                  ) : null}
+                  <Button variant="primary" onClick={() => void handleSaveCustomer()} disabled={creating}>
+                    {creating ? 'Saving...' : editingCustomerId ? 'Save Changes' : 'Create Customer'}
+                  </Button>
+                </Box>
+              </Box>
+            </DashboardPanel>
+
+            <DashboardPanel title="Customer Directory" description="Search, review, and refine the customer roster tied to this portal workspace.">
+              <Box sx={{ display: 'grid', gap: 2.5 }}>
+                <DashboardGrid className="grid-cols-1 gap-3 md:grid-cols-3">
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.8, bgcolor: 'rgba(var(--brand-primary-rgb),0.08)', display: 'grid', gap: 0.65 }}>
+                    <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Directory Size</Typography>
+                    <Typography sx={{ fontSize: '1.4rem', fontWeight: 800 }}>{customers.length}</Typography>
+                    <GroupsOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+                  </Box>
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.8, bgcolor: 'rgba(var(--accent-rgb),0.08)', display: 'grid', gap: 0.65 }}>
+                    <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Shipment Load</Typography>
+                    <Typography sx={{ fontSize: '1.4rem', fontWeight: 800 }}>{totalAssignedShipments}</Typography>
+                    <Inventory2OutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+                  </Box>
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.8, bgcolor: 'rgba(15,23,42,0.05)', display: 'grid', gap: 0.65 }}>
+                    <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Geographies</Typography>
+                    <Typography sx={{ fontSize: '1.4rem', fontWeight: 800 }}>{locationsTracked}</Typography>
+                    <FmdGoodOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+                  </Box>
+                </DashboardGrid>
+
+                <TextField
+                  label="Search customers"
+                  placeholder="Search by name, email, phone, city, or country"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+
+                {customers.length === 0 ? (
+                  <EmptyState icon={<PersonOutlineIcon />} title="No customers yet" description="Create your first portal customer, then assign shipments to them from the Assigned Shipments page." />
+                ) : filteredCustomers.length === 0 ? (
+                  <Box sx={{ color: 'var(--text-secondary)' }}>No customers matched your current search.</Box>
+                ) : (
+                  <DataTable data={filteredCustomers} columns={columns} keyField="id" />
+                )}
+              </Box>
+            </DashboardPanel>
+          </DashboardGrid>
+        </>
+      )}
     </DashboardSurface>
   );
 }

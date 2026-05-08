@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { routeDeps } from '@/lib/route-deps';
-import { canManagePartnerPortals } from '@/lib/partner-portals';
+import { canManagePartnerPortals, syncPortalShipmentsForUser } from '@/lib/partner-portals';
 
 const createPortalSchema = z.object({
   name: z.string().trim().min(1),
   code: z.string().trim().min(2).max(50).optional(),
+  companyLabel: z.string().trim().max(120).optional(),
+  accentColor: z.string().trim().regex(/^#([0-9a-fA-F]{6})$/, 'Accent color must be a 6-digit hex code').optional(),
+  logoUrl: z.string().trim().url().optional().or(z.literal('')),
   notes: z.string().trim().max(1000).optional(),
   ownerUserId: z.string().trim().min(1),
 });
@@ -89,6 +92,9 @@ export async function POST(request: NextRequest) {
       data: {
         name: payload.name,
         ...(payload.code ? { code: payload.code } : {}),
+        ...(payload.companyLabel ? { companyLabel: payload.companyLabel } : {}),
+        ...(payload.accentColor ? { accentColor: payload.accentColor } : {}),
+        ...(payload.logoUrl ? { logoUrl: payload.logoUrl } : {}),
         ...(payload.notes ? { notes: payload.notes } : {}),
         createdBy: session.user.id,
         memberships: {
@@ -109,6 +115,8 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    await syncPortalShipmentsForUser(portal.id, payload.ownerUserId, session.user.id);
 
     return NextResponse.json({ portal }, { status: 201 });
   } catch (error) {

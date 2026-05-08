@@ -10,6 +10,7 @@ import { Autocomplete, Box, MenuItem, TextField, Typography } from '@mui/materia
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, EmptyState, toast } from '@/components/design-system';
 import { PortalActivityList } from '@/components/partner-portals/PortalActivityList';
+import PortalBrandingSettingsPanel from '@/components/partner-portals/PortalBrandingSettingsPanel';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { useSession } from 'next-auth/react';
 import { hasPermission } from '@/lib/rbac';
@@ -18,6 +19,9 @@ type PortalInfo = {
   id: string;
   name: string;
   code: string | null;
+  companyLabel?: string | null;
+  accentColor?: string | null;
+  logoUrl?: string | null;
   isActive: boolean;
   notes: string | null;
 };
@@ -697,6 +701,22 @@ export default function PartnerPortalDetailPage() {
                 </Link>
               </Box>
             </DashboardPanel>
+
+            <PortalBrandingSettingsPanel
+              portalId={portalId}
+              portal={portal}
+              canEdit={true}
+              onSaved={(nextPortal) => setPortal((prev) => prev ? ({ ...prev, ...nextPortal }) : ({
+                id: nextPortal.id,
+                name: nextPortal.name,
+                code: nextPortal.code,
+                companyLabel: nextPortal.companyLabel || null,
+                accentColor: nextPortal.accentColor || null,
+                logoUrl: nextPortal.logoUrl || null,
+                isActive: nextPortal.isActive ?? true,
+                notes: nextPortal.notes || null,
+              }))}
+            />
 
             <DashboardPanel title="Portal Customers" description="Customers created inside this partner workspace">
               {customers.length === 0 ? (

@@ -827,6 +827,13 @@ model PartnerPortal {
   id                String                    @id @default(cuid())
   name              String
   code              String?                   @unique
+  companyLabel      String?
+  accentColor       String?
+  logoUrl           String?
+  notifyOnShipmentAssigned Boolean            @default(true)
+  autoAssignToSingleCustomer Boolean          @default(false)
+  defaultShipmentNotes String?
+  requireCustomerLinkForReady Boolean         @default(true)
   notes             String?
   isActive          Boolean                   @default(true)
   createdBy         String?
@@ -884,6 +891,7 @@ model PartnerShipmentAssignment {
   assignedBy        String
   linkedBy          String?
   notes             String?
+  noteSource        PartnerShipmentAssignmentNoteSource?
   assignedAt        DateTime         @default(now())
   linkedAt          DateTime?
   updatedAt         DateTime         @updatedAt
@@ -1155,6 +1163,11 @@ enum CollectionStatus {
 enum PartnerPortalMembershipRole {
   ADMIN
   STAFF
+}
+
+enum PartnerShipmentAssignmentNoteSource {
+  MANUAL
+  PORTAL_DEFAULT
 }
 
 enum TitleStatus {

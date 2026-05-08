@@ -4,8 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import { Box, MenuItem, TextField } from '@mui/material';
-import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
+import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
+import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
+import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import { Box, MenuItem, TextField, Typography } from '@mui/material';
+import { DashboardSurface, DashboardPanel, DashboardGrid, DashboardHeader } from '@/components/dashboard/DashboardSurface';
 import { Button, EmptyState, toast } from '@/components/design-system';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 
@@ -17,6 +22,7 @@ type PortalCustomer = {
 type ShipmentAssignment = {
   id: string;
   notes: string | null;
+  noteSource?: 'MANUAL' | 'PORTAL_DEFAULT' | null;
   partnerCustomer: { id: string; name: string; email: string | null; phone: string | null } | null;
   shipment: {
     id: string;
@@ -35,7 +41,41 @@ type PortalInfo = {
   id: string;
   name: string;
   code: string | null;
+  companyLabel?: string | null;
+  accentColor?: string | null;
+  logoUrl?: string | null;
+  requireCustomerLinkForReady?: boolean;
 };
+
+function formatShipmentLabel(shipment: ShipmentAssignment['shipment']) {
+  return [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleType;
+}
+
+function formatStatusLabel(status: string) {
+  return status.toLowerCase().split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}
+
+function getPortalReadiness(portal: PortalInfo | null, assignment: ShipmentAssignment) {
+  const requiresCustomerLink = portal?.requireCustomerLinkForReady !== false;
+
+  if (requiresCustomerLink && !assignment.partnerCustomer) {
+    return { label: 'Waiting for customer link', tone: 'warning' as const };
+  }
+
+  return { label: 'Ready for partner handling', tone: 'ready' as const };
+}
+
+function getAssignmentNoteSource(assignment: ShipmentAssignment) {
+  if (assignment.noteSource === 'PORTAL_DEFAULT') {
+    return { label: 'Portal default', tone: 'default' as const };
+  }
+
+  if (assignment.noteSource === 'MANUAL') {
+    return { label: 'Manual note', tone: 'manual' as const };
+  }
+
+  return { label: 'No notes', tone: 'none' as const };
+}
 
 export default function PortalShipmentsPage() {
   const params = useParams();
@@ -44,6 +84,8 @@ export default function PortalShipmentsPage() {
   const [assignments, setAssignments] = useState<ShipmentAssignment[]>([]);
   const [customers, setCustomers] = useState<PortalCustomer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [readinessFilter, setReadinessFilter] = useState<'all' | 'ready' | 'not-ready'>('all');
   const [selectedCustomers, setSelectedCustomers] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -85,6 +127,44 @@ export default function PortalShipmentsPage() {
   useEffect(() => {
     void fetchData();
   }, [portalId]);
+
+  const filteredAssignments = useMemo(() => {
+    const value = query.trim().toLowerCase();
+    if (!value) {
+      return assignments;
+    }
+
+    return assignments.filter((assignment) => {
+      const readiness = getPortalReadiness(portal, assignment).tone;
+      if (readinessFilter === 'ready' && readiness !== 'ready') {
+        return false;
+      }
+
+      if (readinessFilter === 'not-ready' && readiness === 'ready') {
+        return false;
+      }
+
+      const vehicle = formatShipmentLabel(assignment.shipment).toLowerCase();
+      const vin = assignment.shipment.vehicleVIN?.toLowerCase() || '';
+      const status = assignment.shipment.status.toLowerCase();
+      const customer = assignment.partnerCustomer?.name?.toLowerCase() || '';
+      return vehicle.includes(value) || vin.includes(value) || status.includes(value) || customer.includes(value);
+    });
+  }, [assignments, portal, query, readinessFilter]);
+
+  const linkedCount = filteredAssignments.filter((assignment) => assignment.partnerCustomer).length;
+  const unlinkedCount = filteredAssignments.length - linkedCount;
+  const uniqueStatuses = new Set(filteredAssignments.map((assignment) => assignment.shipment.status)).size;
+  const readyCount = filteredAssignments.filter((assignment) => getPortalReadiness(portal, assignment).tone === 'ready').length;
+  const topCustomers = useMemo(() => {
+    const counts = new Map<string, number>();
+    assignments.forEach((assignment) => {
+      if (assignment.partnerCustomer?.name) {
+        counts.set(assignment.partnerCustomer.name, (counts.get(assignment.partnerCustomer.name) || 0) + 1);
+      }
+    });
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  }, [assignments]);
 
   const handleLinkCustomer = async (shipmentId: string) => {
     try {
@@ -133,6 +213,30 @@ export default function PortalShipmentsPage() {
       render: (_, row) => row.partnerCustomer?.name || 'Unassigned',
     },
     {
+      key: 'readiness',
+      header: 'Ready State',
+      render: (_, row) => {
+        const readiness = getPortalReadiness(portal, row);
+        return (
+          <Box sx={{ px: 1.2, py: 0.45, borderRadius: 999, display: 'inline-flex', alignItems: 'center', bgcolor: readiness.tone === 'ready' ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.14)', color: readiness.tone === 'ready' ? 'var(--success)' : '#b45309', fontSize: '0.75rem', fontWeight: 700 }}>
+            {readiness.label}
+          </Box>
+        );
+      },
+    },
+    {
+      key: 'noteSource',
+      header: 'Notes Source',
+      render: (_, row) => {
+        const noteSource = getAssignmentNoteSource(row);
+        return (
+          <Box sx={{ px: 1.2, py: 0.45, borderRadius: 999, display: 'inline-flex', alignItems: 'center', bgcolor: noteSource.tone === 'manual' ? 'rgba(var(--brand-primary-rgb),0.12)' : noteSource.tone === 'default' ? 'rgba(59,130,246,0.12)' : 'rgba(148,163,184,0.12)', color: noteSource.tone === 'manual' ? 'var(--brand-primary)' : noteSource.tone === 'default' ? '#1d4ed8' : 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700 }}>
+            {noteSource.label}
+          </Box>
+        );
+      },
+    },
+    {
       key: 'assign',
       header: 'Link To Customer',
       render: (_, row) => (
@@ -160,26 +264,144 @@ export default function PortalShipmentsPage() {
       header: 'Details',
       render: (_, row) => (
         <Link href={`/portal/${portalId}/shipments/${row.shipment.id}`} style={{ textDecoration: 'none' }}>
-          <Button variant="outline" size="sm">View</Button>
+          <Button variant="outline" size="sm">
+            <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
+            View
+          </Button>
         </Link>
       ),
     },
-  ], [customers, portalId, savingId, selectedCustomers]);
+  ], [customers, portal, portalId, savingId, selectedCustomers]);
 
   return (
     <DashboardSurface>
-      <DashboardPanel
-        title={portal ? `${portal.name} Assigned Shipments` : 'Assigned Shipments'}
-        description="These shipments come from the main system. You can only link them to your own portal customers."
-      >
-        {loading ? (
+      <DashboardHeader
+        title={portal ? `${portal.companyLabel || portal.name} Shipments` : 'Assigned Shipments'}
+        description="Work through the shipment layer your team received from the main system, then map each unit to your own portal customers."
+        meta={[
+          { label: 'Assigned', value: assignments.length, helper: 'Shared from the main workspace' },
+          { label: 'Linked', value: assignments.filter((assignment) => assignment.partnerCustomer).length, helper: 'Already mapped to portal customers' },
+          { label: 'Customers', value: customers.length, helper: 'Available for assignment handoff' },
+        ]}
+        actions={
+          <Link href={`/portal/${portalId}/customers`} style={{ textDecoration: 'none' }}>
+            <Button variant="outline" size="sm">Open Customers</Button>
+          </Link>
+        }
+      />
+
+      {loading ? (
+        <DashboardPanel title="Loading shipments" description="Fetching portal shipment assignments.">
           <Box sx={{ color: 'var(--text-secondary)' }}>Loading assigned shipments...</Box>
-        ) : assignments.length === 0 ? (
-          <EmptyState icon={<Inventory2OutlinedIcon />} title="No assigned shipments" description="Your portal does not have any shipments assigned yet. Ask the internal team to assign shipments to this portal first." />
-        ) : (
-          <DataTable data={assignments} columns={columns} keyField="id" />
-        )}
-      </DashboardPanel>
+        </DashboardPanel>
+      ) : (
+        <>
+          <DashboardGrid className="grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(var(--brand-primary-rgb),0.08)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Assigned Units</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{filteredAssignments.length}</Typography>
+              <LocalShippingOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(var(--accent-rgb),0.08)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Customer Linked</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{linkedCount}</Typography>
+              <AssignmentTurnedInOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(15,23,42,0.05)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Needs Handoff</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{unlinkedCount}</Typography>
+              <PersonOutlineOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(245,158,11,0.08)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Active Statuses</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{uniqueStatuses}</Typography>
+              <Inventory2OutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(34,197,94,0.08)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Ready Now</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{readyCount}</Typography>
+              <CheckCircleOutlineOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
+          </DashboardGrid>
+
+          <DashboardGrid className="grid-cols-1 gap-3 xl:grid-cols-[1.35fr_0.9fr]">
+            <DashboardPanel title="Shipment Workspace" description="Search, review, and link assigned shipments to portal customers.">
+              <Box sx={{ display: 'grid', gap: 2 }}>
+                <TextField
+                  label="Search shipments"
+                  placeholder="Search by vehicle, VIN, status, or customer"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                <TextField
+                  select
+                  label="Ready filter"
+                  value={readinessFilter}
+                  onChange={(event) => setReadinessFilter(event.target.value as 'all' | 'ready' | 'not-ready')}
+                  sx={{ maxWidth: 240 }}
+                >
+                  <MenuItem value="all">All shipments</MenuItem>
+                  <MenuItem value="ready">Ready only</MenuItem>
+                  <MenuItem value="not-ready">Not ready only</MenuItem>
+                </TextField>
+
+                {assignments.length === 0 ? (
+                  <EmptyState icon={<Inventory2OutlinedIcon />} title="No assigned shipments" description="Your portal does not have any shipments assigned yet. Ask the internal team to assign shipments to this portal first." />
+                ) : filteredAssignments.length === 0 ? (
+                  <Box sx={{ color: 'var(--text-secondary)' }}>No shipments matched the current search and ready-state filters.</Box>
+                ) : (
+                  <DataTable data={filteredAssignments} columns={columns} keyField="id" />
+                )}
+              </Box>
+            </DashboardPanel>
+
+            <DashboardPanel title="Assignment Board" description="Use customer mapping to turn shared logistics into partner-owned workload.">
+              <Box sx={{ display: 'grid', gap: 2 }}>
+                <Box sx={{ p: 1.75, borderRadius: 2.5, bgcolor: 'rgba(var(--brand-primary-rgb),0.07)' }}>
+                  <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Coverage</Typography>
+                  <Typography sx={{ fontSize: '1.45rem', fontWeight: 800 }}>{assignments.length === 0 ? '0%' : `${Math.round((assignments.filter((assignment) => assignment.partnerCustomer).length / assignments.length) * 100)}%`}</Typography>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {assignments.filter((assignment) => assignment.partnerCustomer).length} of {assignments.length} shipments are already linked to portal customers.
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'grid', gap: 1.25 }}>
+                  <Typography sx={{ fontSize: '0.8rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Top customer destinations</Typography>
+                  {topCustomers.length === 0 ? (
+                    <Box sx={{ color: 'var(--text-secondary)' }}>No shipment links have been created yet.</Box>
+                  ) : (
+                    topCustomers.map(([name, count]) => (
+                      <Box key={name} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, p: 1.25, borderRadius: 2, bgcolor: 'rgba(15,23,42,0.04)' }}>
+                        <Typography sx={{ fontSize: '0.92rem', fontWeight: 600 }}>{name}</Typography>
+                        <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{count} linked</Typography>
+                      </Box>
+                    ))
+                  )}
+                </Box>
+
+                <Box sx={{ display: 'grid', gap: 1.25 }}>
+                  <Typography sx={{ fontSize: '0.8rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Recent portal-visible units</Typography>
+                  {assignments.slice(0, 4).map((assignment) => (
+                    <Box key={assignment.id} sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.5, display: 'grid', gap: 0.4 }}>
+                      <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>{formatShipmentLabel(assignment.shipment)}</Typography>
+                      <Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{formatStatusLabel(assignment.shipment.status)}</Typography>
+                      <Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {assignment.partnerCustomer?.name || 'Awaiting portal customer link'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.8rem', color: getAssignmentNoteSource(assignment).tone === 'manual' ? 'var(--brand-primary)' : getAssignmentNoteSource(assignment).tone === 'default' ? '#1d4ed8' : 'var(--text-secondary)', fontWeight: 700 }}>
+                        {getAssignmentNoteSource(assignment).label}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.8rem', color: getPortalReadiness(portal, assignment).tone === 'ready' ? 'var(--success)' : '#b45309', fontWeight: 700 }}>
+                        {getPortalReadiness(portal, assignment).label}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </DashboardPanel>
+          </DashboardGrid>
+        </>
+      )}
     </DashboardSurface>
   );
 }

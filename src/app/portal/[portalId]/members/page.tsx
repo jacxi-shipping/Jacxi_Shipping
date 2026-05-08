@@ -5,9 +5,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import BrandingWatermarkOutlinedIcon from '@mui/icons-material/BrandingWatermarkOutlined';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
 import { Box, MenuItem, TextField, Typography } from '@mui/material';
 import { useSession } from 'next-auth/react';
-import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
+import { DashboardSurface, DashboardPanel, DashboardGrid, DashboardHeader } from '@/components/dashboard/DashboardSurface';
 import { Button, EmptyState, toast } from '@/components/design-system';
 import { PortalActivityList } from '@/components/partner-portals/PortalActivityList';
 import { DataTable, type Column } from '@/components/ui/DataTable';
@@ -16,6 +19,9 @@ type PortalInfo = {
   id: string;
   name: string;
   code: string | null;
+  companyLabel?: string | null;
+  accentColor?: string | null;
+  logoUrl?: string | null;
 };
 
 type PortalMembership = {
@@ -61,6 +67,8 @@ export default function PortalMembersPage() {
     [memberships, session?.user?.id],
   );
   const canManageMembers = currentMembership?.role === 'ADMIN';
+  const adminCount = memberships.filter((membership) => membership.role === 'ADMIN').length;
+  const customerAppUsers = memberships.filter((membership) => membership.user.role === 'user').length;
 
   const fetchMemberships = async () => {
     try {
@@ -294,26 +302,71 @@ export default function PortalMembersPage() {
 
   return (
     <DashboardSurface>
-      <DashboardPanel
-        title={portal ? `${portal.name} Members` : 'Portal Members'}
-        description={canManageMembers ? 'Manage portal members, roles, and access codes.' : 'Portal member list'}
-      >
-        {loading ? (
+      <DashboardHeader
+        title={portal ? `${portal.companyLabel || portal.name} Members` : 'Portal Members'}
+        description={canManageMembers ? 'Manage partner access, portal roles, branding, and invitation workflows from one workspace.' : 'View the member roster for this portal workspace.'}
+        meta={[
+          { label: 'Members', value: memberships.length, helper: 'Users assigned to this portal' },
+          { label: 'Admins', value: adminCount, helper: 'Members who can manage access' },
+          { label: 'Portal Users', value: customerAppUsers, helper: 'Customer-style accounts using login codes' },
+        ]}
+        actions={canManageMembers ? (
+          <Link href={`/portal/${portalId}/settings`} style={{ textDecoration: 'none' }}>
+            <Button variant="outline" size="sm">Open Settings</Button>
+          </Link>
+        ) : undefined}
+      />
+
+      {loading ? (
+        <DashboardPanel title="Loading members" description="Fetching the latest portal member data.">
           <Box sx={{ color: 'var(--text-secondary)' }}>Loading portal members...</Box>
-        ) : memberships.length === 0 ? (
+        </DashboardPanel>
+      ) : memberships.length === 0 ? (
+        <DashboardPanel>
           <EmptyState icon={<PeopleOutlineIcon />} title="No members" description="This portal does not have any members yet." />
-        ) : (
-          <Box sx={{ display: 'grid', gap: 3 }}>
-            {!canManageMembers ? (
-              <EmptyState icon={<Inventory2OutlinedIcon />} title="Portal admin access required" description="Only portal admins can invite members, change roles, remove members, or regenerate access codes." />
-            ) : null}
+        </DashboardPanel>
+      ) : (
+        <Box sx={{ display: 'grid', gap: 3 }}>
+          {!canManageMembers ? (
+            <DashboardPanel>
+              <EmptyState icon={<Inventory2OutlinedIcon />} title="Portal admin access required" description="Only portal admins can invite members, change roles, remove members, regenerate access codes, or update branding." />
+            </DashboardPanel>
+          ) : null}
 
-            <DataTable data={memberships} columns={columns} keyField="id" />
+          <DashboardGrid className="grid-cols-1 gap-3 xl:grid-cols-[1.35fr_0.9fr]">
+            <DashboardPanel title="Member Directory" description="Control who can enter the workspace and what role boundary they hold inside the portal.">
+              <DataTable data={memberships} columns={columns} keyField="id" />
+            </DashboardPanel>
 
-            {canManageMembers ? (
-              <DashboardPanel title="Create Portal User" description="Create a portal member account and get a login code immediately.">
+            <DashboardPanel title="Access Snapshot" description="Keep an operational view of account ownership and recent portal changes.">
+              <Box sx={{ display: 'grid', gap: 1.5 }}>
+                <Box sx={{ p: 1.75, borderRadius: 2.5, bgcolor: 'rgba(var(--brand-primary-rgb),0.07)' }}>
+                  <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Admin Coverage</Typography>
+                  <Typography sx={{ fontSize: '1.45rem', fontWeight: 800 }}>{adminCount}</Typography>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>At least one portal admin is always preserved for access continuity.</Typography>
+                </Box>
+                <Box sx={{ display: 'grid', gap: 1.2 }}>
+                  {memberships.slice(0, 4).map((membership) => (
+                    <Box key={membership.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, p: 1.2, borderRadius: 2, bgcolor: 'rgba(15,23,42,0.04)' }}>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 700 }}>{membership.user.name || membership.user.email}</Typography>
+                        <Typography sx={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{membership.user.email}</Typography>
+                      </Box>
+                      <Box sx={{ px: 1.1, py: 0.45, borderRadius: 999, bgcolor: membership.role === 'ADMIN' ? 'rgba(var(--brand-primary-rgb),0.12)' : 'rgba(15,23,42,0.06)', color: membership.role === 'ADMIN' ? 'var(--brand-primary)' : 'var(--text-secondary)', fontSize: '0.74rem', fontWeight: 700 }}>
+                        {membership.role}
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </DashboardPanel>
+          </DashboardGrid>
+
+          {canManageMembers ? (
+            <DashboardGrid className="grid-cols-1 gap-3 xl:grid-cols-[1fr]">
+              <DashboardPanel title="Invite Portal User" description="Create a portal-ready account and issue an immediate login code for the partner team.">
                 <Box sx={{ display: 'grid', gap: 2 }}>
-                  <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
+                  <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
                     <TextField label="Name" value={inviteForm.name} onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))} />
                     <TextField label="Email" value={inviteForm.email} onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))} />
                     <TextField label="Phone" value={inviteForm.phone} onChange={(event) => setInviteForm((prev) => ({ ...prev, phone: event.target.value }))} />
@@ -329,6 +382,7 @@ export default function PortalMembersPage() {
                       {inviting ? 'Preparing...' : 'Create User And Access Code'}
                     </Button>
                   </Box>
+
                   {inviteResult ? (
                     <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
                       <Typography sx={{ fontWeight: 700 }}>Portal user created</Typography>
@@ -370,8 +424,11 @@ export default function PortalMembersPage() {
                   ) : null}
                 </Box>
               </DashboardPanel>
-            ) : null}
 
+            </DashboardGrid>
+          ) : null}
+
+          <DashboardGrid className="grid-cols-1 gap-3 xl:grid-cols-[1fr_0.95fr]">
             {canManageMembers ? (
               <DashboardPanel title="Portal Activity" description="Recent membership and access-code changes for this portal">
                 <PortalActivityList
@@ -386,9 +443,35 @@ export default function PortalMembersPage() {
                 </Box>
               </DashboardPanel>
             ) : null}
-          </Box>
-        )}
-      </DashboardPanel>
+
+            <DashboardPanel title="Access Guidance" description="What this page controls inside the partner workspace.">
+              <Box sx={{ display: 'grid', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
+                  <BadgeOutlinedIcon sx={{ color: 'var(--text-secondary)', mt: 0.3 }} />
+                  <Box>
+                    <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>Roles stay local to the portal</Typography>
+                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Portal ADMIN and STAFF only affect this workspace, not the broader app.</Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
+                  <AdminPanelSettingsOutlinedIcon sx={{ color: 'var(--text-secondary)', mt: 0.3 }} />
+                  <Box>
+                    <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>Access codes are customer-friendly</Typography>
+                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Portal admins can regenerate login codes for customer-style accounts without changing your main auth model.</Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
+                  <BrandingWatermarkOutlinedIcon sx={{ color: 'var(--text-secondary)', mt: 0.3 }} />
+                  <Box>
+                    <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>Branding moved into settings</Typography>
+                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Logo upload, accent color, and company label now live on the dedicated Settings page so member management stays focused.</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </DashboardPanel>
+          </DashboardGrid>
+        </Box>
+      )}
     </DashboardSurface>
   );
 }

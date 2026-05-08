@@ -11,10 +11,11 @@ import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/da
 import { Button, EmptyState, toast } from '@/components/design-system';
 
 type ShipmentDetailResponse = {
-  portal: { id: string; name: string; code: string | null };
+  portal: { id: string; name: string; code: string | null; requireCustomerLinkForReady?: boolean; defaultShipmentNotes?: string | null };
   assignment: {
     id: string;
     notes: string | null;
+    noteSource?: 'MANUAL' | 'PORTAL_DEFAULT' | null;
     assignedAt: string;
     linkedAt: string | null;
     partnerCustomer: {
@@ -155,6 +156,12 @@ export default function PortalShipmentDetailPage() {
 
   const shipment = data.assignment.shipment;
   const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleType;
+  const isReadyForPartnerHandling = data.portal.requireCustomerLinkForReady === false || Boolean(data.assignment.partnerCustomer);
+  const noteSourceLabel = data.assignment.noteSource === 'PORTAL_DEFAULT'
+    ? 'Inherited from portal default'
+    : data.assignment.noteSource === 'MANUAL'
+      ? 'Manual assignment note'
+      : 'No assignment note';
 
   return (
     <DashboardSurface>
@@ -265,6 +272,30 @@ export default function PortalShipmentDetailPage() {
               ) : (
                 <EmptyState icon={<PersonOutlineIcon />} title="No linked portal customer" description="This shipment has not been linked to one of your portal customers yet." />
               )}
+            </DashboardPanel>
+
+            <DashboardPanel title="Portal Readiness">
+              <Box sx={{ display: 'grid', gap: 1 }}>
+                <Typography sx={{ fontWeight: 700, color: isReadyForPartnerHandling ? 'var(--success)' : '#b45309' }}>
+                  {isReadyForPartnerHandling ? 'Ready for partner handling' : 'Waiting for customer link'}
+                </Typography>
+                <Typography sx={{ color: 'var(--text-secondary)' }}>
+                  {data.portal.requireCustomerLinkForReady === false
+                    ? 'This portal allows shipments to be treated as ready even before a portal customer is linked.'
+                    : 'This portal requires a linked portal customer before staff should treat the shipment as ready.'}
+                </Typography>
+                {data.assignment.notes ? (
+                  <Box sx={{ display: 'grid', gap: 0.5 }}>
+                    <Typography sx={{ fontWeight: 700 }}>{noteSourceLabel}</Typography>
+                    <Typography><strong>Assignment Notes:</strong> {data.assignment.notes}</Typography>
+                  </Box>
+                ) : data.portal.defaultShipmentNotes ? (
+                  <Box sx={{ display: 'grid', gap: 0.5 }}>
+                    <Typography sx={{ fontWeight: 700, color: '#1d4ed8' }}>Portal default is available</Typography>
+                    <Typography><strong>Default Portal Notes:</strong> {data.portal.defaultShipmentNotes}</Typography>
+                  </Box>
+                ) : null}
+              </Box>
             </DashboardPanel>
 
             <DashboardPanel title="Route Snapshot">

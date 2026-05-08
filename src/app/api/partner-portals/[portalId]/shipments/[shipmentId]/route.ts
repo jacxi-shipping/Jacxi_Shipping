@@ -276,6 +276,7 @@ export async function PATCH(
     }
 
     const payload = updateAssignedShipmentSchema.parse(await request.json());
+    const normalizedNotes = payload.notes?.trim();
 
     if (payload.partnerCustomerId) {
       const partnerCustomer = await routeDeps.prisma.partnerCustomer.findFirst({
@@ -297,7 +298,7 @@ export async function PATCH(
         partnerCustomerId: payload.partnerCustomerId,
         linkedBy: session.user.id,
         linkedAt: payload.partnerCustomerId ? new Date() : null,
-        ...(payload.notes !== undefined ? { notes: payload.notes } : {}),
+        ...(payload.notes !== undefined ? { notes: normalizedNotes || null, noteSource: normalizedNotes ? 'MANUAL' : null } : {}),
       },
       include: {
         partnerCustomer: {
