@@ -21,6 +21,8 @@ type PortalInfo = {
   id: string;
   name: string;
   code: string | null;
+  customDomain?: string | null;
+  customDomainVerifiedAt?: string | null;
   companyLabel?: string | null;
   accentColor?: string | null;
   logoUrl?: string | null;
@@ -138,6 +140,7 @@ export default function PortalSettingsPageContent() {
         description="Control the branded identity of this partner workspace without mixing it into member management."
         meta={[
           { label: 'Brand Label', value: portal?.companyLabel || portal?.name || 'Portal', helper: 'Shown in the portal shell' },
+          { label: 'Custom Domain', value: portal?.customDomain || 'Standard path', helper: portal?.customDomain ? (portal?.customDomainVerifiedAt ? 'Verified and ready to route portal traffic' : 'Saved, but still waiting for DNS verification') : 'Uses the default /portal route' },
           { label: 'Logo', value: portal?.logoUrl ? 'Configured' : 'Not set', helper: 'Upload or replace the partner mark' },
           { label: 'Notifications', value: portal?.notifyOnShipmentAssigned ? 'On' : 'Off', helper: 'Shipment assignment alerts' },
         ]}
@@ -239,7 +242,7 @@ export default function PortalSettingsPageContent() {
                   <PaletteOutlinedIcon sx={{ color: 'var(--text-secondary)', mt: 0.3 }} />
                   <Box>
                     <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>Brand identity stays separate</Typography>
-                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Logo, label, and color changes now live in settings, not inside the member administration surface.</Typography>
+                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Logo, label, color, and custom-domain changes now live in settings, not inside the member administration surface.</Typography>
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { routeDeps } from '@/lib/route-deps';
 import {
@@ -7,8 +9,10 @@ import {
   getPartnerPortalMembership,
   getPartnerPortalOrThrow,
 } from '@/lib/partner-portals';
+import { isValidPortalCustomDomain, normalizePortalCustomDomain } from '@/lib/partner-portal-domains';
 
 const updatePortalSettingsSchema = z.object({
+  customDomain: z.string().trim().max(253).optional().or(z.literal('')),
   companyLabel: z.string().trim().max(120).optional().or(z.literal('')),
   accentColor: z.string().trim().regex(/^#([0-9a-fA-F]{6})$/, 'Accent color must be a 6-digit hex code').optional().or(z.literal('')),
   logoUrl: z.string().trim().url().optional().or(z.literal('')),
@@ -75,10 +79,27 @@ export async function PATCH(
     }
 
     const payload = updatePortalSettingsSchema.parse(await request.json());
+    const normalizedCustomDomain = normalizePortalCustomDomain(payload.customDomain);
+    const customDomainChanged = payload.customDomain !== undefined && normalizedCustomDomain !== (portal.customDomain ?? null);
+
+    if (normalizedCustomDomain && !isValidPortalCustomDomain(normalizedCustomDomain)) {
+      return NextResponse.json({ error: 'Custom domain must be a valid hostname without http://, https://, ports, or paths.' }, { status: 400 });
+    }
 
     const updatedPortal = await routeDeps.prisma.partnerPortal.update({
       where: { id: portalId },
       data: {
+        ...(payload.customDomain !== undefined ? {
+          customDomain: normalizedCustomDomain,
+          customDomainVerificationToken: normalizedCustomDomain
+            ? (customDomainChanged || !portal.customDomainVerificationToken
+              ? randomBytes(16).toString('hex')
+              : portal.customDomainVerificationToken)
+            : null,
+          customDomainVerifiedAt: customDomainChanged || !normalizedCustomDomain
+            ? null
+            : portal.customDomainVerifiedAt,
+        } : {}),
         companyLabel: payload.companyLabel || null,
         accentColor: payload.accentColor || null,
         logoUrl: payload.logoUrl || null,
@@ -91,6 +112,9 @@ export async function PATCH(
         id: true,
         name: true,
         code: true,
+        customDomain: true,
+        customDomainVerificationToken: true,
+        customDomainVerifiedAt: true,
         companyLabel: true,
         accentColor: true,
         logoUrl: true,
@@ -107,6 +131,10 @@ export async function PATCH(
 
     return NextResponse.json({ portal: updatedPortal });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'That custom domain is already linked to another portal.' }, { status: 409 });
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid request', details: error.issues }, { status: 400 });
     }

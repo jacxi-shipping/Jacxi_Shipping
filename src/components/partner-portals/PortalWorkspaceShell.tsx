@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
@@ -15,11 +15,13 @@ import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { Button } from '@/components/design-system';
 import { getPortalBrandIdentity } from '@/lib/partner-portal-branding';
+import { normalizeRequestHost } from '@/lib/partner-portal-domains';
 
 type PortalSummary = {
   id: string;
   name: string;
   code: string | null;
+  customDomain?: string | null;
   companyLabel?: string | null;
   accentColor?: string | null;
   logoUrl?: string | null;
@@ -74,9 +76,9 @@ function isWorkspaceRouteActive(pathname: string, href: string) {
 }
 
 export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellProps) {
+  const params = useParams();
   const pathname = usePathname();
-  const portalMatch = pathname.match(/^\/portal\/([^/]+)/);
-  const portalId = portalMatch?.[1] ?? null;
+  const portalId = typeof params.portalId === 'string' ? params.portalId : null;
   const [portal, setPortal] = useState<PortalSummary | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
 
@@ -121,6 +123,22 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
     };
   }, [portalId]);
 
+  const usingCustomDomain = useMemo(() => {
+    if (!portal?.customDomain || typeof window === 'undefined') {
+      return false;
+    }
+
+    return normalizeRequestHost(window.location.host) === portal.customDomain;
+  }, [portal?.customDomain]);
+
+  const portalBaseHref = useMemo(() => {
+    if (!portalId) {
+      return '/portal';
+    }
+
+    return usingCustomDomain ? '' : `/portal/${portalId}`;
+  }, [portalId, usingCustomDomain]);
+
   const navItems = useMemo(() => {
     if (!portalId) {
       return [];
@@ -128,9 +146,9 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
 
     return workspaceNav.map((item) => ({
       ...item,
-      href: `/portal/${portalId}${item.suffix}`,
+      href: `${portalBaseHref}${item.suffix || ''}` || '/',
     }));
-  }, [portalId]);
+  }, [portalBaseHref, portalId]);
 
   const brand = useMemo(() => getPortalBrandIdentity(portal), [portal]);
 
@@ -206,7 +224,7 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
               </Button>
             </Link>
             {portalId ? (
-              <Link href={`/portal/${portalId}/shipments`} style={{ textDecoration: 'none' }}>
+              <Link href={`${portalBaseHref}/shipments` || '/'} style={{ textDecoration: 'none' }}>
                 <Button variant="outline" size="sm">Open Shipments</Button>
               </Link>
             ) : null}

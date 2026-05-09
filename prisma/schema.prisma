@@ -829,6 +829,9 @@ model PartnerPortal {
   id                String                    @id @default(cuid())
   name              String
   code              String?                   @unique
+  customDomain      String?                   @unique
+  customDomainVerificationToken String?
+  customDomainVerifiedAt DateTime?
   companyLabel      String?
   accentColor       String?
   logoUrl           String?

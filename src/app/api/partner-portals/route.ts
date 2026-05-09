@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { routeDeps } from '@/lib/route-deps';
 import { canManagePartnerPortals, syncPortalShipmentsForUser } from '@/lib/partner-portals';
+import { isValidPortalCustomDomain, normalizePortalCustomDomain } from '@/lib/partner-portal-domains';
 
 const createPortalSchema = z.object({
   name: z.string().trim().min(1),
   code: z.string().trim().min(2).max(50).optional(),
+  customDomain: z.string().trim().max(253).optional().or(z.literal('')),
   companyLabel: z.string().trim().max(120).optional(),
   accentColor: z.string().trim().regex(/^#([0-9a-fA-F]{6})$/, 'Accent color must be a 6-digit hex code').optional(),
   logoUrl: z.string().trim().url().optional().or(z.literal('')),
@@ -78,6 +82,11 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = createPortalSchema.parse(await request.json());
+    const normalizedCustomDomain = normalizePortalCustomDomain(payload.customDomain);
+
+    if (normalizedCustomDomain && !isValidPortalCustomDomain(normalizedCustomDomain)) {
+      return NextResponse.json({ error: 'Custom domain must be a valid hostname without http://, https://, ports, or paths.' }, { status: 400 });
+    }
 
     const owner = await routeDeps.prisma.user.findUnique({
       where: { id: payload.ownerUserId },
@@ -92,6 +101,11 @@ export async function POST(request: NextRequest) {
       data: {
         name: payload.name,
         ...(payload.code ? { code: payload.code } : {}),
+        ...(normalizedCustomDomain ? {
+          customDomain: normalizedCustomDomain,
+          customDomainVerificationToken: randomBytes(16).toString('hex'),
+          customDomainVerifiedAt: null,
+        } : {}),
         ...(payload.companyLabel ? { companyLabel: payload.companyLabel } : {}),
         ...(payload.accentColor ? { accentColor: payload.accentColor } : {}),
         ...(payload.logoUrl ? { logoUrl: payload.logoUrl } : {}),
@@ -120,6 +134,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ portal }, { status: 201 });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'That custom domain is already linked to another portal.' }, { status: 409 });
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid request', details: error.issues }, { status: 400 });
     }

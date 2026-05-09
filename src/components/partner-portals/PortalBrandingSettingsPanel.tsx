@@ -6,11 +6,19 @@ import { Box, TextField, Typography } from '@mui/material';
 import { DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Button, toast } from '@/components/design-system';
 import { getPortalBrandIdentity } from '@/lib/partner-portal-branding';
+import {
+  getPortalCustomDomainVerificationHost,
+  getPortalCustomDomainVerificationValue,
+  normalizeRequestHost,
+} from '@/lib/partner-portal-domains';
 
 type PortalBrandingInfo = {
   id: string;
   name: string;
   code: string | null;
+  customDomain?: string | null;
+  customDomainVerificationToken?: string | null;
+  customDomainVerifiedAt?: string | null;
   companyLabel?: string | null;
   accentColor?: string | null;
   logoUrl?: string | null;
@@ -35,20 +43,42 @@ export default function PortalBrandingSettingsPanel({
   onSaved,
   compact = false,
 }: PortalBrandingSettingsPanelProps) {
-  const [form, setForm] = useState({ companyLabel: '', accentColor: '', logoUrl: '' });
+  const [form, setForm] = useState({ companyLabel: '', accentColor: '', logoUrl: '', customDomain: '' });
   const [saving, setSaving] = useState(false);
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   const [pendingLogoPreviewUrl, setPendingLogoPreviewUrl] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const appHost = useMemo(() => {
+    const configuredUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!configuredUrl) {
+      if (typeof window !== 'undefined') {
+        return normalizeRequestHost(window.location.host) || '';
+      }
+
+      return '';
+    }
+
+    try {
+      return new URL(configuredUrl).host;
+    } catch {
+      if (typeof window !== 'undefined') {
+        return normalizeRequestHost(window.location.host) || '';
+      }
+
+      return '';
+    }
+  }, []);
 
   useEffect(() => {
     setForm({
       companyLabel: portal?.companyLabel || '',
       accentColor: portal?.accentColor || '',
       logoUrl: portal?.logoUrl || '',
+      customDomain: portal?.customDomain || '',
     });
-  }, [portal?.accentColor, portal?.companyLabel, portal?.logoUrl]);
+  }, [portal?.accentColor, portal?.companyLabel, portal?.customDomain, portal?.logoUrl]);
 
   useEffect(() => () => {
     if (pendingLogoPreviewUrl) {
@@ -65,6 +95,46 @@ export default function PortalBrandingSettingsPanel({
     }),
     [form.accentColor, form.companyLabel, form.logoUrl, portal?.name],
   );
+
+  const customDomainPreview = useMemo(() => {
+    if (form.customDomain) {
+      return `https://${form.customDomain}`;
+    }
+
+    return appHost ? `https://${appHost}/portal/${portalId}` : `/portal/${portalId}`;
+  }, [appHost, form.customDomain, portalId]);
+
+  const savedCustomDomain = portal?.customDomain || '';
+  const hasUnsavedDomainChange = form.customDomain !== savedCustomDomain;
+  const verificationHost = portal?.customDomain ? getPortalCustomDomainVerificationHost(portal.customDomain) : null;
+  const verificationValue = portal?.customDomainVerificationToken
+    ? getPortalCustomDomainVerificationValue(portal.customDomainVerificationToken)
+    : null;
+
+  const handleVerifyDomain = async () => {
+    if (!canEdit || !portal?.customDomain) {
+      return;
+    }
+
+    try {
+      setVerifyingDomain(true);
+      const response = await fetch(`/api/partner-portals/${portalId}/verify-domain`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to verify custom domain');
+      }
+
+      toast.success('Custom domain verified');
+      onSaved?.(data.portal);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to verify custom domain');
+    } finally {
+      setVerifyingDomain(false);
+    }
+  };
 
   const normalizeLogoFile = async (file: File) => {
     const imageUrl = URL.createObjectURL(file);
@@ -222,7 +292,7 @@ export default function PortalBrandingSettingsPanel({
     <DashboardPanel
       title="Partner Branding"
       description="Let this portal present a partner identity while still running inside your system."
-      footer={canEdit ? 'These settings update the portal shell, workspace headings, and preview surfaces for this partner.' : 'Portal branding is controlled by portal admins or internal managers.'}
+      footer={canEdit ? 'These settings update the portal shell, workspace headings, preview surfaces, and optional custom-domain routing for this partner.' : 'Portal branding is controlled by portal admins or internal managers.'}
     >
       <Box sx={{ display: 'grid', gap: 2.5, gridTemplateColumns: compact ? '1fr' : { xs: '1fr', xl: 'minmax(0, 1.15fr) minmax(300px, 0.85fr)' } }}>
         <Box sx={{ display: 'grid', gap: 2 }}>
@@ -249,6 +319,76 @@ export default function PortalBrandingSettingsPanel({
             onChange={(event) => setForm((prev) => ({ ...prev, logoUrl: event.target.value }))}
             disabled={!canEdit || saving || uploadingLogo}
           />
+          <TextField
+            label="Custom Domain"
+            placeholder="portal.partner.com"
+            helperText="Hostname only. No http://, https://, ports, or paths. After saving, point this DNS record to the main app host."
+            value={form.customDomain}
+            onChange={(event) => setForm((prev) => ({ ...prev, customDomain: event.target.value.trim().toLowerCase() }))}
+            disabled={!canEdit || saving}
+          />
+
+          <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.5, bgcolor: 'rgba(var(--brand-primary-rgb),0.05)', display: 'grid', gap: 0.65 }}>
+            <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              Domain Routing Preview
+            </Typography>
+            <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>{customDomainPreview}</Typography>
+            <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              {form.customDomain
+                ? `After DNS points ${form.customDomain} to ${appHost || 'this app'}, requests to / will open this portal workspace.`
+                : 'Without a custom domain, this portal continues to use the standard /portal/{portalId} route.'}
+            </Typography>
+          </Box>
+
+          {savedCustomDomain ? (
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.5, bgcolor: 'rgba(15,23,42,0.03)', display: 'grid', gap: 0.85 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                Domain Verification
+              </Typography>
+              <Typography sx={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                {portal?.customDomainVerifiedAt
+                  ? `Verified on ${new Date(portal.customDomainVerifiedAt).toLocaleString()}`
+                  : 'Verification pending'}
+              </Typography>
+              {hasUnsavedDomainChange ? (
+                <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  Save the custom domain first to generate the correct DNS verification record.
+                </Typography>
+              ) : (
+                <>
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2, p: 1.25, bgcolor: 'rgba(var(--brand-primary-rgb),0.04)', display: 'grid', gap: 0.85 }}>
+                    <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                      DNS Routing Setup
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      For a subdomain such as {portal?.customDomain}, create a CNAME that points the hostname to {appHost || 'your main app host'}.
+                    </Typography>
+                    <TextField label="Recommended Record Type" value="CNAME" InputProps={{ readOnly: true }} />
+                    <TextField label="CNAME Target" value={appHost || ''} InputProps={{ readOnly: true }} helperText="Some DNS providers want only the label (for example, portal). Others accept the full hostname." />
+                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      If you want to use the root domain instead of a subdomain, use ALIAS, ANAME, or CNAME flattening to {appHost || 'your main app host'} when your DNS provider supports it. If your provider only supports A records at the root, use the hosting platform's documented A-record target for this app.
+                    </Typography>
+                  </Box>
+
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    Add this TXT record to prove that you control the domain before it starts routing traffic to the portal.
+                  </Typography>
+                  <TextField label="TXT Host" value={verificationHost || ''} InputProps={{ readOnly: true }} />
+                  <TextField label="TXT Value" value={verificationValue || ''} InputProps={{ readOnly: true }} />
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    Keep the DNS target pointed at {appHost || 'the main app host'} separately. Verification only proves control of the hostname.
+                  </Typography>
+                  {canEdit && !portal?.customDomainVerifiedAt ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button variant="outline" size="sm" onClick={() => void handleVerifyDomain()} disabled={verifyingDomain || saving}>
+                        {verifyingDomain ? 'Verifying...' : 'Verify Domain'}
+                      </Button>
+                    </Box>
+                  ) : null}
+                </>
+              )}
+            </Box>
+          ) : null}
 
           <input
             ref={logoInputRef}
