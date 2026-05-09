@@ -96,7 +96,15 @@ export default function PortalBrandingSettingsPanel({
     [form.accentColor, form.companyLabel, form.logoUrl, portal?.name],
   );
 
-  const customDomainPreview = useMemo(() => {
+  const publicEntryPreview = useMemo(() => {
+    if (form.customDomain) {
+      return `https://${form.customDomain}`;
+    }
+
+    return appHost ? `https://${appHost}/portal-site/${portalId}` : `/portal-site/${portalId}`;
+  }, [appHost, form.customDomain, portalId]);
+
+  const workspacePreview = useMemo(() => {
     if (form.customDomain) {
       return `https://${form.customDomain}`;
     }
@@ -330,14 +338,20 @@ export default function PortalBrandingSettingsPanel({
 
           <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.5, bgcolor: 'rgba(var(--brand-primary-rgb),0.05)', display: 'grid', gap: 0.65 }}>
             <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-              Domain Routing Preview
+              Public Entry Preview
             </Typography>
-            <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>{customDomainPreview}</Typography>
+            <Typography sx={{ fontSize: '0.92rem', fontWeight: 700 }}>{publicEntryPreview}</Typography>
             <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
               {form.customDomain
-                ? `After DNS points ${form.customDomain} to ${appHost || 'this app'}, requests to / will open this portal workspace.`
-                : 'Without a custom domain, this portal continues to use the standard /portal/{portalId} route.'}
+                ? `After DNS points ${form.customDomain} to ${appHost || 'this app'}, visitors land on the branded portal site at /. They can sign in there and continue into the workspace.`
+                : `Without a custom domain, share /portal-site/${portalId} as the branded entry page. Signed-in members still work inside /portal/${portalId}.`}
             </Typography>
+            <TextField
+              label="Workspace Route"
+              value={workspacePreview}
+              InputProps={{ readOnly: true }}
+              helperText="Use this route when you want to open the actual workspace after sign-in."
+            />
           </Box>
 
           {savedCustomDomain ? (

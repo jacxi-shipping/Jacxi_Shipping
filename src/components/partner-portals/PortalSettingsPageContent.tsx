@@ -141,13 +141,24 @@ export default function PortalSettingsPageContent() {
         meta={[
           { label: 'Brand Label', value: portal?.companyLabel || portal?.name || 'Portal', helper: 'Shown in the portal shell' },
           { label: 'Custom Domain', value: portal?.customDomain || 'Standard path', helper: portal?.customDomain ? (portal?.customDomainVerifiedAt ? 'Verified and ready to route portal traffic' : 'Saved, but still waiting for DNS verification') : 'Uses the default /portal route' },
+          { label: 'Public Site', value: portal?.customDomainVerifiedAt && portal?.customDomain ? portal.customDomain : `/portal-site/${portalId}`, helper: 'Branded landing page shown before login' },
           { label: 'Logo', value: portal?.logoUrl ? 'Configured' : 'Not set', helper: 'Upload or replace the partner mark' },
           { label: 'Notifications', value: portal?.notifyOnShipmentAssigned ? 'On' : 'Off', helper: 'Shipment assignment alerts' },
         ]}
         actions={
-          <Link href={`/portal/${portalId}/members`} style={{ textDecoration: 'none' }}>
-            <Button variant="outline" size="sm">Back To Members</Button>
-          </Link>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <a
+              href={portal?.customDomainVerifiedAt && portal?.customDomain ? `https://${portal.customDomain}` : `/portal-site/${portalId}`}
+              target={portal?.customDomainVerifiedAt && portal?.customDomain ? '_blank' : undefined}
+              rel={portal?.customDomainVerifiedAt && portal?.customDomain ? 'noreferrer' : undefined}
+              style={{ textDecoration: 'none' }}
+            >
+              <Button variant="outline" size="sm">Open Public Site</Button>
+            </a>
+            <Link href={`/portal/${portalId}/members`} style={{ textDecoration: 'none' }}>
+              <Button variant="outline" size="sm">Back To Members</Button>
+            </Link>
+          </Box>
         }
       />
 

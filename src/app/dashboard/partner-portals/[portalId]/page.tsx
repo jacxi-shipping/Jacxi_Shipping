@@ -19,6 +19,8 @@ type PortalInfo = {
   id: string;
   name: string;
   code: string | null;
+  customDomain?: string | null;
+  customDomainVerifiedAt?: string | null;
   companyLabel?: string | null;
   accentColor?: string | null;
   logoUrl?: string | null;
@@ -115,6 +117,32 @@ export default function PartnerPortalDetailPage() {
   const [inviteResult, setInviteResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [loginCodeResult, setLoginCodeResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [activities, setActivities] = useState<PortalActivity[]>([]);
+
+  const renderAccessResult = (
+    result: { loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null },
+    title: string,
+  ) => (
+    <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
+      <Typography sx={{ fontWeight: 700 }}>{title}</Typography>
+      <Typography sx={{ color: 'var(--text-secondary)' }}>
+        Share the sign-in page and code with this user. The workspace route is where they land after sign-in.
+      </Typography>
+      <Typography><strong>Name:</strong> {result.name || result.email}</Typography>
+      <Typography><strong>Email:</strong> {result.email}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography><strong>Login Code:</strong> {result.loginCode}</Typography>
+        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(result.loginCode, 'Login code')}>Copy</Button>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography><strong>Sign-In Page:</strong> {result.simpleLoginUrl}</Typography>
+        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(result.simpleLoginUrl, 'Sign-in page')}>Copy</Button>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography><strong>Workspace Route:</strong> {result.portalUrl}</Typography>
+        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(result.portalUrl, 'Workspace route')}>Copy</Button>
+      </Box>
+    </Box>
+  );
 
   const handleCopyValue = async (value: string, label: string) => {
     try {
@@ -647,45 +675,9 @@ export default function PartnerPortalDetailPage() {
                   </Button>
                 </Box>
 
-                {inviteResult ? (
-                  <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
-                    <Typography sx={{ fontWeight: 700 }}>Portal user created</Typography>
-                    <Typography><strong>Name:</strong> {inviteResult.name || inviteResult.email}</Typography>
-                    <Typography><strong>Email:</strong> {inviteResult.email}</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography><strong>Login Code:</strong> {inviteResult.loginCode}</Typography>
-                      <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.loginCode, 'Login code')}>Copy</Button>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography><strong>Simple Login Link:</strong> {inviteResult.simpleLoginUrl}</Typography>
-                      <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.simpleLoginUrl, 'Simple login link')}>Copy</Button>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography><strong>Portal Path:</strong> {inviteResult.portalUrl}</Typography>
-                      <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.portalUrl, 'Portal path')}>Copy</Button>
-                    </Box>
-                  </Box>
-                ) : null}
+                {inviteResult ? renderAccessResult(inviteResult, 'Portal user created') : null}
 
-                {loginCodeResult ? (
-                  <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
-                    <Typography sx={{ fontWeight: 700 }}>Portal login code refreshed</Typography>
-                    <Typography><strong>Name:</strong> {loginCodeResult.name || loginCodeResult.email}</Typography>
-                    <Typography><strong>Email:</strong> {loginCodeResult.email}</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography><strong>Login Code:</strong> {loginCodeResult.loginCode}</Typography>
-                      <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.loginCode, 'Login code')}>Copy</Button>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography><strong>Simple Login Link:</strong> {loginCodeResult.simpleLoginUrl}</Typography>
-                      <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.simpleLoginUrl, 'Simple login link')}>Copy</Button>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography><strong>Portal Path:</strong> {loginCodeResult.portalUrl}</Typography>
-                      <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.portalUrl, 'Portal path')}>Copy</Button>
-                    </Box>
-                  </Box>
-                ) : null}
+                {loginCodeResult ? renderAccessResult(loginCodeResult, 'Portal login code refreshed') : null}
               </Box>
             </DashboardPanel>
 

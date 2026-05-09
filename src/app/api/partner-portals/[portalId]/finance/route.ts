@@ -5,6 +5,7 @@ import {
   canReadPartnerPortalCustomers,
   canReadPartnerPortalShipments,
   getPartnerPortalMembership,
+  getPortalMembershipCustomerScope,
   getPartnerPortalOrThrow,
 } from '@/lib/partner-portals';
 
@@ -70,6 +71,7 @@ export async function GET(
     const hasInternalAccess = canManagePartnerPortals(session.user.role)
       || canReadPartnerPortalCustomers(session.user.role)
       || canReadPartnerPortalShipments(session.user.role);
+    const scopedCustomerId = getPortalMembershipCustomerScope(membership);
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -79,7 +81,10 @@ export async function GET(
 
     const [customers, assignments, portalLedgerEntries, portalPaymentRecords] = await Promise.all([
       routeDeps.prisma.partnerCustomer.findMany({
-        where: { portalId },
+        where: {
+          portalId,
+          ...(scopedCustomerId ? { id: scopedCustomerId } : {}),
+        },
         orderBy: { createdAt: 'asc' },
         select: {
           id: true,
@@ -98,6 +103,7 @@ export async function GET(
         where: {
           portalId,
           partnerCustomerId: { not: null },
+          ...(scopedCustomerId ? { partnerCustomerId: scopedCustomerId } : {}),
         },
         orderBy: { assignedAt: 'desc' },
         select: {
@@ -143,7 +149,10 @@ export async function GET(
         },
       }),
       routeDeps.prisma.partnerPortalLedgerEntry.findMany({
-        where: { portalId },
+        where: {
+          portalId,
+          ...(scopedCustomerId ? { partnerCustomerId: scopedCustomerId } : {}),
+        },
         orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
         select: {
           id: true,
@@ -154,7 +163,10 @@ export async function GET(
         },
       }),
       routeDeps.prisma.partnerPortalPaymentRecord.findMany({
-        where: { portalId },
+        where: {
+          portalId,
+          ...(scopedCustomerId ? { partnerCustomerId: scopedCustomerId } : {}),
+        },
         orderBy: [{ paymentDate: 'desc' }, { createdAt: 'desc' }],
         select: {
           id: true,

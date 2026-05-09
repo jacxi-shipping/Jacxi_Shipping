@@ -5,6 +5,8 @@ import {
   canManagePartnerPortals,
   canReadPartnerPortalCustomers,
   getPartnerPortalMembership,
+  getPortalMembershipCustomerScope,
+  isCustomerScopedPortalMembership,
 } from '@/lib/partner-portals';
 
 const updatePartnerCustomerSchema = z.object({
@@ -31,9 +33,18 @@ export async function PATCH(
 
     const membership = await getPartnerPortalMembership(portalId, session.user.id);
     const hasInternalAccess = canManagePartnerPortals(session.user.role) || canReadPartnerPortalCustomers(session.user.role);
+    const scopedCustomerId = getPortalMembershipCustomerScope(membership);
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (isCustomerScopedPortalMembership(membership) && !hasInternalAccess) {
+      if (scopedCustomerId !== customerId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      return NextResponse.json({ error: 'Customer-scoped portal accounts cannot edit customer records' }, { status: 403 });
     }
 
     const existing = await routeDeps.prisma.partnerCustomer.findFirst({
@@ -85,9 +96,18 @@ export async function DELETE(
 
     const membership = await getPartnerPortalMembership(portalId, session.user.id);
     const hasInternalAccess = canManagePartnerPortals(session.user.role) || canReadPartnerPortalCustomers(session.user.role);
+    const scopedCustomerId = getPortalMembershipCustomerScope(membership);
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (isCustomerScopedPortalMembership(membership) && !hasInternalAccess) {
+      if (scopedCustomerId !== customerId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      return NextResponse.json({ error: 'Customer-scoped portal accounts cannot delete customer records' }, { status: 403 });
     }
 
     const existing = await routeDeps.prisma.partnerCustomer.findFirst({

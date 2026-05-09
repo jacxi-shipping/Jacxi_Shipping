@@ -26,7 +26,14 @@ type PortalSummary = {
   accentColor?: string | null;
   logoUrl?: string | null;
   isActive: boolean;
-  memberships?: Array<{ role: string }>;
+  memberships?: Array<{
+    role: string;
+    partnerCustomerId?: string | null;
+    partnerCustomer?: {
+      id: string;
+      name: string;
+    } | null;
+  }>;
   _count?: {
     customers?: number;
     shipmentAssignments?: number;
@@ -144,11 +151,26 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
       return [];
     }
 
-    return workspaceNav.map((item) => ({
-      ...item,
-      href: `${portalBaseHref}${item.suffix || ''}` || '/',
-    }));
-  }, [portalBaseHref, portalId]);
+    const currentMembership = portal?.memberships?.[0];
+    const customerScoped = Boolean(currentMembership?.partnerCustomerId);
+    const financeSuffix = customerScoped && currentMembership?.partnerCustomerId
+      ? `/finance/${currentMembership.partnerCustomerId}`
+      : '/finance';
+    const allowedSuffixes = customerScoped
+      ? new Set(['/shipments', financeSuffix])
+      : null;
+
+    return workspaceNav
+      .map((item) => {
+        const suffix = item.suffix === '/finance' ? financeSuffix : item.suffix;
+        return {
+          ...item,
+          suffix,
+          href: `${portalBaseHref}${suffix || ''}` || '/',
+        };
+      })
+      .filter((item) => !allowedSuffixes || allowedSuffixes.has(item.suffix));
+  }, [portal?.memberships, portalBaseHref, portalId]);
 
   const brand = useMemo(() => getPortalBrandIdentity(portal), [portal]);
 
@@ -328,7 +350,7 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.25, borderRadius: 2, bgcolor: 'rgba(15,23,42,0.04)' }}>
                 <LayersOutlinedIcon sx={{ fontSize: 18, color: 'var(--text-secondary)' }} />
                 <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Access level: <strong style={{ color: 'var(--text-primary)' }}>{portal?.memberships?.[0]?.role || 'Member'}</strong>
+                  Access level: <strong style={{ color: 'var(--text-primary)' }}>{portal?.memberships?.[0]?.partnerCustomer?.name ? `${portal.memberships[0].partnerCustomer.name} Customer` : portal?.memberships?.[0]?.role || 'Member'}</strong>
                 </Typography>
               </Box>
             </Box>

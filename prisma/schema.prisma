@@ -858,15 +858,18 @@ model PartnerPortalMembership {
   id         String                      @id @default(cuid())
   portalId   String
   userId     String
+  partnerCustomerId String?
   role       PartnerPortalMembershipRole @default(STAFF)
   createdBy  String?
   createdAt  DateTime                    @default(now())
   updatedAt  DateTime                    @updatedAt
   portal      PartnerPortal              @relation(fields: [portalId], references: [id], onDelete: Cascade)
   user        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerCustomer PartnerCustomer?       @relation(fields: [partnerCustomerId], references: [id], onDelete: SetNull)
 
   @@unique([portalId, userId])
   @@index([userId])
+  @@index([partnerCustomerId])
   @@index([role])
 }
 
@@ -884,6 +887,7 @@ model PartnerCustomer {
   createdAt   DateTime                  @default(now())
   updatedAt   DateTime                  @updatedAt
   portal      PartnerPortal             @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  memberships PartnerPortalMembership[]
   shipmentAssignments PartnerShipmentAssignment[]
   ledgerEntries PartnerPortalLedgerEntry[]
   paymentRecords PartnerPortalPaymentRecord[]

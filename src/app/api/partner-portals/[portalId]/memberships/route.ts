@@ -6,6 +6,7 @@ import {
   canManagePartnerPortals,
   canManagePortalMemberships,
   getPartnerPortalMembership,
+  isCustomerScopedPortalMembership,
   getPartnerPortalOrThrow,
 } from '@/lib/partner-portals';
 
@@ -40,9 +41,18 @@ export async function GET(
     }
 
     const memberships = await routeDeps.prisma.partnerPortalMembership.findMany({
-      where: { portalId },
+      where: {
+        portalId,
+        ...(!isInternalManager && isCustomerScopedPortalMembership(membership) ? { userId: session.user.id } : {}),
+      },
       orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
       include: {
+        partnerCustomer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         user: {
           select: {
             id: true,
@@ -76,6 +86,10 @@ export async function POST(
     const payload = createMembershipSchema.parse(await request.json());
     const membership = await getPartnerPortalMembership(portalId, session.user.id);
     const isInternalManager = canManagePartnerPortals(session.user.role);
+
+    if (isCustomerScopedPortalMembership(membership) && !isInternalManager) {
+      return NextResponse.json({ error: 'Customer-scoped portal accounts cannot manage memberships' }, { status: 403 });
+    }
 
     if (!isInternalManager && !canManagePortalMemberships(membership?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

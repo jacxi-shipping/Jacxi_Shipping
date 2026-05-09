@@ -6,7 +6,9 @@ import {
   canManagePartnerPortals,
   canReadPartnerPortalShipments,
   getPartnerPortalMembership,
+  getPortalMembershipCustomerScope,
   getPartnerPortalOrThrow,
+  isCustomerScopedPortalMembership,
   syncPortalShipmentsFromPrimaryMember,
 } from '@/lib/partner-portals';
 
@@ -36,6 +38,7 @@ export async function GET(
 
     const membership = await getPartnerPortalMembership(portalId, session.user.id);
     const hasInternalAccess = canManagePartnerPortals(session.user.role) || canReadPartnerPortalShipments(session.user.role);
+    const scopedCustomerId = getPortalMembershipCustomerScope(membership);
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -44,7 +47,10 @@ export async function GET(
     await syncPortalShipmentsFromPrimaryMember(portalId, session.user.id);
 
     const assignments = await routeDeps.prisma.partnerShipmentAssignment.findMany({
-      where: { portalId },
+      where: {
+        portalId,
+        ...(scopedCustomerId ? { partnerCustomerId: scopedCustomerId } : {}),
+      },
       orderBy: { assignedAt: 'desc' },
       include: {
         partnerCustomer: {
@@ -75,7 +81,15 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ portal, assignments });
+    return NextResponse.json({
+      portal,
+      assignments,
+      viewer: {
+        canManageAssignments: hasInternalAccess || !isCustomerScopedPortalMembership(membership),
+        customerScoped: isCustomerScopedPortalMembership(membership),
+        partnerCustomerId: scopedCustomerId,
+      },
+    });
   } catch (error) {
     routeDeps.logger.error('Failed to fetch portal shipment assignments', error);
     return NextResponse.json({ error: 'Failed to fetch portal shipment assignments' }, { status: 500 });
@@ -92,6 +106,12 @@ export async function POST(
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const membership = await getPartnerPortalMembership(portalId, session.user.id);
+
+    if (isCustomerScopedPortalMembership(membership)) {
+      return NextResponse.json({ error: 'Customer-scoped portal accounts cannot assign shipments' }, { status: 403 });
     }
 
     if (!canAssignShipmentsToPartnerPortals(session.user.role)) {

@@ -23,6 +23,14 @@ export function canManagePortalMemberships(membershipRole: string | null | undef
   return membershipRole === PARTNER_PORTAL_ADMIN_ROLE;
 }
 
+export function getPortalMembershipCustomerScope(membership: { partnerCustomerId?: string | null } | null | undefined) {
+  return membership?.partnerCustomerId || null;
+}
+
+export function isCustomerScopedPortalMembership(membership: { partnerCustomerId?: string | null } | null | undefined) {
+  return Boolean(getPortalMembershipCustomerScope(membership));
+}
+
 export async function getPartnerPortalMembership(portalId: string, userId: string) {
   return prisma.partnerPortalMembership.findUnique({
     where: {
@@ -32,6 +40,13 @@ export async function getPartnerPortalMembership(portalId: string, userId: strin
       },
     },
     include: {
+      partnerCustomer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
       portal: {
         select: {
           id: true,

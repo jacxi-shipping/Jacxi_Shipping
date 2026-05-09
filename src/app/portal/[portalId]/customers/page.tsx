@@ -24,6 +24,21 @@ type PortalCustomer = {
   _count?: {
     shipmentAssignments: number;
   };
+  memberships?: Array<{
+    id: string;
+    role: string;
+    user: {
+      id: string;
+      name: string | null;
+      email: string | null;
+    };
+  }>;
+};
+
+type CustomerViewer = {
+  canManageCustomers: boolean;
+  customerScoped: boolean;
+  partnerCustomerId: string | null;
 };
 
 type PortalInfo = {
@@ -40,10 +55,13 @@ export default function PortalCustomersPage() {
   const portalId = String(params.portalId || '');
   const [portal, setPortal] = useState<PortalInfo | null>(null);
   const [customers, setCustomers] = useState<PortalCustomer[]>([]);
+  const [viewer, setViewer] = useState<CustomerViewer>({ canManageCustomers: true, customerScoped: false, partnerCustomerId: null });
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
+  const [issuingAccessCustomerId, setIssuingAccessCustomerId] = useState<string | null>(null);
+  const [accessResult, setAccessResult] = useState<{ name: string; email: string; loginCode: string; simpleLoginUrl: string; portalUrl: string } | null>(null);
   const [query, setQuery] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', city: '', country: '', notes: '' });
 
@@ -59,6 +77,7 @@ export default function PortalCustomersPage() {
 
       setPortal(data.portal);
       setCustomers(data.customers || []);
+      setViewer(data.viewer || { canManageCustomers: true, customerScoped: false, partnerCustomerId: null });
     } catch (error) {
       console.error(error);
       toast.error('Failed to load portal customers');
@@ -92,6 +111,11 @@ export default function PortalCustomersPage() {
   const columns = useMemo<Column<PortalCustomer>[]>(() => [
     { key: 'name', header: 'Customer', sortable: true },
     {
+      key: 'portalAccess',
+      header: 'Portal Access',
+      render: (_, row) => row.memberships?.[0]?.user?.email || 'Not enabled',
+    },
+    {
       key: 'email',
       header: 'Email',
       render: (_, row) => row.email || '—',
@@ -116,35 +140,47 @@ export default function PortalCustomersPage() {
       header: 'Actions',
       render: (_, row) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setEditingCustomerId(row.id);
-              setForm({
-                name: row.name,
-                email: row.email || '',
-                phone: row.phone || '',
-                city: row.city || '',
-                country: row.country || '',
-                notes: row.notes || '',
-              });
-            }}
-          >
-            Edit
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void handleDeleteCustomer(row.id)}
-            disabled={deletingCustomerId === row.id}
-          >
-            {deletingCustomerId === row.id ? 'Deleting...' : 'Delete'}
-          </Button>
+          {viewer.canManageCustomers ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditingCustomerId(row.id);
+                  setForm({
+                    name: row.name,
+                    email: row.email || '',
+                    phone: row.phone || '',
+                    city: row.city || '',
+                    country: row.country || '',
+                    notes: row.notes || '',
+                  });
+                }}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleIssueCustomerAccess(row)}
+                disabled={issuingAccessCustomerId === row.id}
+              >
+                {issuingAccessCustomerId === row.id ? 'Issuing...' : row.memberships?.[0] ? 'Refresh Login' : 'Grant Login'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleDeleteCustomer(row.id)}
+                disabled={deletingCustomerId === row.id}
+              >
+                {deletingCustomerId === row.id ? 'Deleting...' : 'Delete'}
+              </Button>
+            </>
+          ) : 'Read only'}
         </Box>
       ),
     },
-  ], [deletingCustomerId]);
+  ], [deletingCustomerId, issuingAccessCustomerId, viewer.canManageCustomers]);
 
   const resetForm = () => {
     setForm({ name: '', email: '', phone: '', city: '', country: '', notes: '' });
@@ -206,11 +242,51 @@ export default function PortalCustomersPage() {
     }
   };
 
+  const handleIssueCustomerAccess = async (customer: PortalCustomer) => {
+    const fallbackEmail = customer.email || prompt('Enter the email address that should receive portal login access:', '') || '';
+    const email = fallbackEmail.trim();
+
+    if (!email) {
+      toast.error('An email address is required before portal access can be issued');
+      return;
+    }
+
+    try {
+      setIssuingAccessCustomerId(customer.id);
+      const response = await fetch(`/api/partner-portals/${portalId}/customers/${customer.id}/access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name: customer.name }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to issue portal access');
+      }
+
+      setAccessResult({
+        name: data.customer?.name || customer.name,
+        email: data.customer?.email || email,
+        loginCode: data.loginCode,
+        simpleLoginUrl: data.simpleLoginUrl,
+        portalUrl: data.portalUrl,
+      });
+      toast.success('Portal customer access issued');
+      await fetchCustomers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to issue portal access');
+    } finally {
+      setIssuingAccessCustomerId(null);
+    }
+  };
+
   return (
     <DashboardSurface>
       <DashboardHeader
         title={portal ? `${portal.companyLabel || portal.name} Customers` : 'My Customers'}
-        description="Create and maintain the downstream customer records your portal uses to own the shipment handoff layer."
+        description={viewer.customerScoped
+          ? 'Your customer profile in this portal. Staff-only customer management is hidden for customer logins.'
+          : 'Create and maintain the downstream customer records your portal uses to own the shipment handoff layer.'}
         meta={[
           { label: 'Customers', value: customers.length, helper: 'Accounts created in this portal' },
           { label: 'Assigned Shipments', value: totalAssignedShipments, helper: 'Total load mapped to portal customers' },
@@ -226,34 +302,55 @@ export default function PortalCustomersPage() {
         <>
           <DashboardGrid className="grid-cols-1 gap-3 lg:grid-cols-[0.95fr_1.35fr]">
             <DashboardPanel
-              title={editingCustomerId ? 'Edit Customer' : 'Create Customer'}
-              description="Capture the downstream customer identity that shipments in this portal should roll up under."
+              title={viewer.canManageCustomers ? (editingCustomerId ? 'Edit Customer' : 'Create Customer') : 'Customer Access'}
+              description={viewer.canManageCustomers
+                ? 'Capture the downstream customer identity that shipments in this portal should roll up under.'
+                : 'Customer-scoped logins can review their profile and shipments, but they cannot change the portal customer directory.'}
             >
-              <Box sx={{ display: 'grid', gap: 1.5 }}>
-                <TextField label="Customer Name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-                <TextField label="Email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
-                <TextField label="Phone" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
-                <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
-                  <TextField label="City" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
-                  <TextField label="Country" value={form.country} onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))} />
-                </Box>
-                <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
+              {viewer.canManageCustomers ? (
+                <Box sx={{ display: 'grid', gap: 1.5 }}>
+                  <TextField label="Customer Name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+                  <TextField label="Email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
+                  <TextField label="Phone" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                  <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+                    <TextField label="City" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
+                    <TextField label="Country" value={form.country} onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))} />
+                  </Box>
+                  <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
 
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
-                  {editingCustomerId ? (
-                    <Button variant="outline" onClick={resetForm} disabled={creating}>
-                      Cancel
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
+                    {editingCustomerId ? (
+                      <Button variant="outline" onClick={resetForm} disabled={creating}>
+                        Cancel
+                      </Button>
+                    ) : null}
+                    <Button variant="primary" onClick={() => void handleSaveCustomer()} disabled={creating}>
+                      {creating ? 'Saving...' : editingCustomerId ? 'Save Changes' : 'Create Customer'}
                     </Button>
-                  ) : null}
-                  <Button variant="primary" onClick={() => void handleSaveCustomer()} disabled={creating}>
-                    {creating ? 'Saving...' : editingCustomerId ? 'Save Changes' : 'Create Customer'}
-                  </Button>
+                  </Box>
                 </Box>
-              </Box>
+              ) : (
+                <Box sx={{ color: 'var(--text-secondary)' }}>
+                  This login is tied to a single portal customer. Staff-only customer creation, editing, and deletion are disabled.
+                </Box>
+              )}
             </DashboardPanel>
 
             <DashboardPanel title="Customer Directory" description="Search, review, and refine the customer roster tied to this portal workspace.">
               <Box sx={{ display: 'grid', gap: 2.5 }}>
+                {accessResult ? (
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.8, display: 'grid', gap: 0.8, bgcolor: 'rgba(var(--brand-primary-rgb),0.05)' }}>
+                    <Typography sx={{ fontWeight: 700 }}>Portal customer login issued</Typography>
+                    <Typography sx={{ color: 'var(--text-secondary)' }}>
+                      Share the sign-in page and code with {accessResult.name}. The workspace route is where they land after sign-in.
+                    </Typography>
+                    <Typography sx={{ color: 'var(--text-secondary)' }}>Email: {accessResult.email}</Typography>
+                    <Typography sx={{ color: 'var(--text-secondary)' }}>Login code: {accessResult.loginCode}</Typography>
+                    <Typography sx={{ color: 'var(--text-secondary)' }}>Sign-in page: {accessResult.simpleLoginUrl}</Typography>
+                    <Typography sx={{ color: 'var(--text-secondary)' }}>Workspace route: {accessResult.portalUrl}</Typography>
+                  </Box>
+                ) : null}
+
                 <DashboardGrid className="grid-cols-1 gap-3 md:grid-cols-3">
                   <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.8, bgcolor: 'rgba(var(--brand-primary-rgb),0.08)', display: 'grid', gap: 0.65 }}>
                     <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Directory Size</Typography>

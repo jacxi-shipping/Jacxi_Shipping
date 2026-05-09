@@ -386,6 +386,9 @@ export default function PortalMembersPage() {
                   {inviteResult ? (
                     <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
                       <Typography sx={{ fontWeight: 700 }}>Portal user created</Typography>
+                      <Typography sx={{ color: 'var(--text-secondary)' }}>
+                        Share the sign-in page and code with this user. The workspace route is where they land after sign-in.
+                      </Typography>
                       <Typography><strong>Name:</strong> {inviteResult.name || inviteResult.email}</Typography>
                       <Typography><strong>Email:</strong> {inviteResult.email}</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -393,12 +396,12 @@ export default function PortalMembersPage() {
                         <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.loginCode, 'Login code')}>Copy</Button>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Simple Login Link:</strong> {inviteResult.simpleLoginUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.simpleLoginUrl, 'Simple login link')}>Copy</Button>
+                        <Typography><strong>Sign-In Page:</strong> {inviteResult.simpleLoginUrl}</Typography>
+                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.simpleLoginUrl, 'Sign-in page')}>Copy</Button>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Portal Path:</strong> {inviteResult.portalUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.portalUrl, 'Portal path')}>Copy</Button>
+                        <Typography><strong>Workspace Route:</strong> {inviteResult.portalUrl}</Typography>
+                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.portalUrl, 'Workspace route')}>Copy</Button>
                       </Box>
                     </Box>
                   ) : null}
@@ -406,6 +409,9 @@ export default function PortalMembersPage() {
                   {loginCodeResult ? (
                     <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
                       <Typography sx={{ fontWeight: 700 }}>Portal login code refreshed</Typography>
+                      <Typography sx={{ color: 'var(--text-secondary)' }}>
+                        Share the sign-in page and code with this user. The workspace route is where they land after sign-in.
+                      </Typography>
                       <Typography><strong>Name:</strong> {loginCodeResult.name || loginCodeResult.email}</Typography>
                       <Typography><strong>Email:</strong> {loginCodeResult.email}</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -413,12 +419,12 @@ export default function PortalMembersPage() {
                         <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.loginCode, 'Login code')}>Copy</Button>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Simple Login Link:</strong> {loginCodeResult.simpleLoginUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.simpleLoginUrl, 'Simple login link')}>Copy</Button>
+                        <Typography><strong>Sign-In Page:</strong> {loginCodeResult.simpleLoginUrl}</Typography>
+                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.simpleLoginUrl, 'Sign-in page')}>Copy</Button>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Portal Path:</strong> {loginCodeResult.portalUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.portalUrl, 'Portal path')}>Copy</Button>
+                        <Typography><strong>Workspace Route:</strong> {loginCodeResult.portalUrl}</Typography>
+                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.portalUrl, 'Workspace route')}>Copy</Button>
                       </Box>
                     </Box>
                   ) : null}

@@ -8,6 +8,7 @@ import {
   canReadPartnerPortalCustomers,
   canReadPartnerPortalShipments,
   getPartnerPortalMembership,
+  isCustomerScopedPortalMembership,
 } from '@/lib/partner-portals';
 
 const createPortalPaymentRecordSchema = z.object({
@@ -53,6 +54,10 @@ export async function POST(
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (isCustomerScopedPortalMembership(membership) && !hasInternalAccess) {
+      return NextResponse.json({ error: 'Customer-scoped portal accounts cannot record payments' }, { status: 403 });
     }
 
     const payload = createPortalPaymentRecordSchema.parse(await request.json());

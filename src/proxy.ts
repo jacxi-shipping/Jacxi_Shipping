@@ -5,8 +5,14 @@ import { isSystemHost, normalizeRequestHost } from "./lib/partner-portal-domains
 
 const { auth } = NextAuth(authConfig);
 
+function getRequestOrigin(request: NextRequest) {
+  const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(/:$/, '') || 'http';
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+  return `${protocol}://${host}`;
+}
+
 async function resolvePortalIdForHost(request: NextRequest, host: string) {
-  const resolveUrl = new URL('/api/partner-portals/resolve-domain', request.nextUrl.origin);
+  const resolveUrl = new URL('/api/partner-portals/resolve-domain', getRequestOrigin(request));
   resolveUrl.searchParams.set('host', host);
 
   const response = await fetch(resolveUrl, {
@@ -29,6 +35,7 @@ function isCustomDomainCandidatePath(pathname: string) {
     pathname.startsWith('/auth')
     || pathname.startsWith('/dashboard')
     || pathname.startsWith('/portal')
+    || pathname.startsWith('/portal-site')
     || pathname.startsWith('/api')
   );
 }
@@ -50,14 +57,21 @@ export default auth(async (request) => {
     return NextResponse.next();
   }
 
+  if (!request.auth?.user && pathname === '/') {
+    const rewriteUrl = new URL(`/portal-site/${portalId}`, getRequestOrigin(request));
+    return NextResponse.rewrite(rewriteUrl);
+  }
+
   if (!request.auth?.user) {
-    const signInUrl = new URL('/auth/signin', request.nextUrl.origin);
+    const signInUrl = new URL('/auth/signin', getRequestOrigin(request));
     signInUrl.searchParams.set('callbackUrl', `${pathname}${search}`);
     return NextResponse.redirect(signInUrl);
   }
 
-  const rewriteUrl = request.nextUrl.clone();
-  rewriteUrl.pathname = pathname === '/' ? `/portal/${portalId}` : `/portal/${portalId}${pathname}`;
+  const rewriteUrl = new URL(
+    pathname === '/' ? `/portal/${portalId}` : `/portal/${portalId}${pathname}`,
+    getRequestOrigin(request),
+  );
   return NextResponse.rewrite(rewriteUrl);
 });
 

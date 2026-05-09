@@ -50,7 +50,16 @@ export async function GET() {
           include: {
             memberships: {
               where: { userId: session.user.id },
-              select: { role: true },
+              select: {
+                role: true,
+                partnerCustomerId: true,
+                partnerCustomer: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
               take: 1,
             },
             _count: {

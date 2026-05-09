@@ -5,7 +5,9 @@ import {
   canManagePartnerPortals,
   canReadPartnerPortalCustomers,
   getPartnerPortalMembership,
+  getPortalMembershipCustomerScope,
   getPartnerPortalOrThrow,
+  isCustomerScopedPortalMembership,
 } from '@/lib/partner-portals';
 
 const createPartnerCustomerSchema = z.object({
@@ -38,15 +40,34 @@ export async function GET(
 
     const membership = await getPartnerPortalMembership(portalId, session.user.id);
     const hasInternalAccess = canManagePartnerPortals(session.user.role) || canReadPartnerPortalCustomers(session.user.role);
+    const scopedCustomerId = getPortalMembershipCustomerScope(membership);
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const customers = await routeDeps.prisma.partnerCustomer.findMany({
-      where: { portalId },
+      where: {
+        portalId,
+        ...(scopedCustomerId ? { id: scopedCustomerId } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       include: {
+        memberships: {
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+          select: {
+            id: true,
+            role: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             shipmentAssignments: true,
@@ -55,7 +76,15 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ portal, customers });
+    return NextResponse.json({
+      portal,
+      customers,
+      viewer: {
+        canManageCustomers: hasInternalAccess || !isCustomerScopedPortalMembership(membership),
+        customerScoped: isCustomerScopedPortalMembership(membership),
+        partnerCustomerId: scopedCustomerId,
+      },
+    });
   } catch (error) {
     routeDeps.logger.error('Failed to fetch portal customers', error);
     return NextResponse.json({ error: 'Failed to fetch portal customers' }, { status: 500 });
@@ -79,6 +108,10 @@ export async function POST(
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (isCustomerScopedPortalMembership(membership) && !hasInternalAccess) {
+      return NextResponse.json({ error: 'Customer-scoped portal accounts cannot create customers' }, { status: 403 });
     }
 
     const portal = await getPartnerPortalOrThrow(portalId);

@@ -148,6 +148,11 @@ type CustomerFinanceDetailResponse = {
   shipments: ShipmentRow[];
   portalLedgerEntries: PortalLedgerEntryRow[];
   portalPaymentRecords: PortalPaymentRecordRow[];
+  viewer?: {
+    customerScoped: boolean;
+    canManageFinance: boolean;
+    partnerCustomerId: string | null;
+  };
 };
 
 function formatCurrency(amount: number) {
@@ -558,7 +563,9 @@ export default function PortalCustomerFinanceDetailPage() {
     <DashboardSurface>
       <DashboardHeader
         title={data ? `${data.customer.name} Finance` : 'Customer Finance'}
-        description="Review main-system receivables while maintaining portal-only ledgers, payment records, and activity history for this customer."
+        description={data?.viewer?.canManageFinance
+          ? 'Review main-system receivables while maintaining portal-only ledgers, payment records, and activity history for this customer.'
+          : 'Review main-system receivables and portal-only activity for this customer. Manual finance controls are hidden for customer-scoped logins.'}
         meta={data ? [
           { label: 'Open Invoices', value: formatCurrency(data.summary.outstandingAmount), helper: `${data.summary.openInvoiceCount} main-system invoices` },
           { label: 'Portal-Only Balance', value: formatCurrency(data.portalLedgerSummary.balance), helper: 'Current customer balance inside the portal only' },
@@ -627,74 +634,80 @@ export default function PortalCustomerFinanceDetailPage() {
             </DashboardPanel>
 
             <DashboardPanel title="Portal Ledger Controls" description="Create portal-only debits, credits, and payment records without changing the main shipment or customer finance tables.">
-              <Box sx={{ display: 'grid', gap: 2.5 }}>
-                <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.75, display: 'grid', gap: 1.25, bgcolor: 'rgba(var(--brand-primary-rgb),0.05)' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <NoteAddOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
-                    <Typography sx={{ fontSize: '0.95rem', fontWeight: 700 }}>Create Manual Ledger Entry</Typography>
-                  </Box>
-                  <TextField label="Description" value={ledgerForm.description} onChange={(event) => setLedgerForm((current) => ({ ...current, description: event.target.value }))} />
-                  <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
-                    <TextField select label="Type" value={ledgerForm.type} onChange={(event) => setLedgerForm((current) => ({ ...current, type: event.target.value as 'DEBIT' | 'CREDIT' }))}>
-                      <MenuItem value="DEBIT">Debit</MenuItem>
-                      <MenuItem value="CREDIT">Credit</MenuItem>
+              {data.viewer?.canManageFinance ? (
+                <Box sx={{ display: 'grid', gap: 2.5 }}>
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.75, display: 'grid', gap: 1.25, bgcolor: 'rgba(var(--brand-primary-rgb),0.05)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <NoteAddOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 700 }}>Create Manual Ledger Entry</Typography>
+                    </Box>
+                    <TextField label="Description" value={ledgerForm.description} onChange={(event) => setLedgerForm((current) => ({ ...current, description: event.target.value }))} />
+                    <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
+                      <TextField select label="Type" value={ledgerForm.type} onChange={(event) => setLedgerForm((current) => ({ ...current, type: event.target.value as 'DEBIT' | 'CREDIT' }))}>
+                        <MenuItem value="DEBIT">Debit</MenuItem>
+                        <MenuItem value="CREDIT">Credit</MenuItem>
+                      </TextField>
+                      <TextField label="Amount" type="number" value={ledgerForm.amount} onChange={(event) => setLedgerForm((current) => ({ ...current, amount: event.target.value }))} />
+                      <TextField label="Date" type="date" value={ledgerForm.transactionDate} onChange={(event) => setLedgerForm((current) => ({ ...current, transactionDate: event.target.value }))} InputLabelProps={{ shrink: true }} />
+                    </Box>
+                    <TextField select label="Portal Shipment" value={ledgerForm.shipmentId} onChange={(event) => setLedgerForm((current) => ({ ...current, shipmentId: event.target.value }))}>
+                      <MenuItem value="">Customer-level entry</MenuItem>
+                      {data.shipments.map((shipment) => (
+                        <MenuItem key={shipment.id} value={shipment.id}>{shipment.reference}</MenuItem>
+                      ))}
                     </TextField>
-                    <TextField label="Amount" type="number" value={ledgerForm.amount} onChange={(event) => setLedgerForm((current) => ({ ...current, amount: event.target.value }))} />
-                    <TextField label="Date" type="date" value={ledgerForm.transactionDate} onChange={(event) => setLedgerForm((current) => ({ ...current, transactionDate: event.target.value }))} InputLabelProps={{ shrink: true }} />
+                    <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+                      <TextField label="Payment Method" value={ledgerForm.paymentMethod} onChange={(event) => setLedgerForm((current) => ({ ...current, paymentMethod: event.target.value }))} placeholder="Optional" />
+                      <TextField label="Reference" value={ledgerForm.reference} onChange={(event) => setLedgerForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Optional" />
+                    </Box>
+                    <TextField label="Notes" multiline minRows={2} value={ledgerForm.notes} onChange={(event) => setLedgerForm((current) => ({ ...current, notes: event.target.value }))} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>This portal-only entry does not alter the main shipment finance state.</Typography>
+                      <Button variant="primary" onClick={() => void handleCreateLedgerEntry()} disabled={savingLedgerEntry}>
+                        {savingLedgerEntry ? 'Saving...' : 'Create Ledger Entry'}
+                      </Button>
+                    </Box>
                   </Box>
-                  <TextField select label="Portal Shipment" value={ledgerForm.shipmentId} onChange={(event) => setLedgerForm((current) => ({ ...current, shipmentId: event.target.value }))}>
-                    <MenuItem value="">Customer-level entry</MenuItem>
-                    {data.shipments.map((shipment) => (
-                      <MenuItem key={shipment.id} value={shipment.id}>{shipment.reference}</MenuItem>
-                    ))}
-                  </TextField>
-                  <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
-                    <TextField label="Payment Method" value={ledgerForm.paymentMethod} onChange={(event) => setLedgerForm((current) => ({ ...current, paymentMethod: event.target.value }))} placeholder="Optional" />
-                    <TextField label="Reference" value={ledgerForm.reference} onChange={(event) => setLedgerForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Optional" />
-                  </Box>
-                  <TextField label="Notes" multiline minRows={2} value={ledgerForm.notes} onChange={(event) => setLedgerForm((current) => ({ ...current, notes: event.target.value }))} />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>This portal-only entry does not alter the main shipment finance state.</Typography>
-                    <Button variant="primary" onClick={() => void handleCreateLedgerEntry()} disabled={savingLedgerEntry}>
-                      {savingLedgerEntry ? 'Saving...' : 'Create Ledger Entry'}
-                    </Button>
-                  </Box>
-                </Box>
 
-                <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.75, display: 'grid', gap: 1.25, bgcolor: 'rgba(34,197,94,0.06)' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <PaymentsOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
-                    <Typography sx={{ fontSize: '0.95rem', fontWeight: 700 }}>Record Portal Payment</Typography>
-                  </Box>
-                  <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
-                    <TextField label="Amount" type="number" value={paymentForm.amount} onChange={(event) => setPaymentForm((current) => ({ ...current, amount: event.target.value }))} />
-                    <TextField label="Date" type="date" value={paymentForm.paymentDate} onChange={(event) => setPaymentForm((current) => ({ ...current, paymentDate: event.target.value }))} InputLabelProps={{ shrink: true }} />
-                    <TextField select label="Method" value={paymentForm.paymentMethod} onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}>
-                      <MenuItem value="BANK_TRANSFER">Bank Transfer</MenuItem>
-                      <MenuItem value="CASH">Cash</MenuItem>
-                      <MenuItem value="CHECK">Check</MenuItem>
-                      <MenuItem value="CREDIT_CARD">Credit Card</MenuItem>
-                      <MenuItem value="WIRE">Wire</MenuItem>
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.75, display: 'grid', gap: 1.25, bgcolor: 'rgba(34,197,94,0.06)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PaymentsOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 700 }}>Record Portal Payment</Typography>
+                    </Box>
+                    <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
+                      <TextField label="Amount" type="number" value={paymentForm.amount} onChange={(event) => setPaymentForm((current) => ({ ...current, amount: event.target.value }))} />
+                      <TextField label="Date" type="date" value={paymentForm.paymentDate} onChange={(event) => setPaymentForm((current) => ({ ...current, paymentDate: event.target.value }))} InputLabelProps={{ shrink: true }} />
+                      <TextField select label="Method" value={paymentForm.paymentMethod} onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}>
+                        <MenuItem value="BANK_TRANSFER">Bank Transfer</MenuItem>
+                        <MenuItem value="CASH">Cash</MenuItem>
+                        <MenuItem value="CHECK">Check</MenuItem>
+                        <MenuItem value="CREDIT_CARD">Credit Card</MenuItem>
+                        <MenuItem value="WIRE">Wire</MenuItem>
+                      </TextField>
+                    </Box>
+                    <TextField select label="Portal Shipment" value={paymentForm.shipmentId} onChange={(event) => setPaymentForm((current) => ({ ...current, shipmentId: event.target.value }))}>
+                      <MenuItem value="">Customer-level payment</MenuItem>
+                      {data.shipments.map((shipment) => (
+                        <MenuItem key={shipment.id} value={shipment.id}>{shipment.reference}</MenuItem>
+                      ))}
                     </TextField>
-                  </Box>
-                  <TextField select label="Portal Shipment" value={paymentForm.shipmentId} onChange={(event) => setPaymentForm((current) => ({ ...current, shipmentId: event.target.value }))}>
-                    <MenuItem value="">Customer-level payment</MenuItem>
-                    {data.shipments.map((shipment) => (
-                      <MenuItem key={shipment.id} value={shipment.id}>{shipment.reference}</MenuItem>
-                    ))}
-                  </TextField>
-                  <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
-                    <TextField label="Reference" value={paymentForm.reference} onChange={(event) => setPaymentForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Receipt, wire ref, check number" />
-                    <TextField label="Notes" value={paymentForm.notes} onChange={(event) => setPaymentForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional" />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Portal-only payments write a portal-only credit and update the portal shipment balance, not the main shipment payment state.</Typography>
-                    <Button variant="primary" onClick={() => void handleCreatePaymentRecord()} disabled={savingPaymentRecord}>
-                      {savingPaymentRecord ? 'Recording...' : 'Record Payment'}
-                    </Button>
+                    <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+                      <TextField label="Reference" value={paymentForm.reference} onChange={(event) => setPaymentForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Receipt, wire ref, check number" />
+                      <TextField label="Notes" value={paymentForm.notes} onChange={(event) => setPaymentForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional" />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Portal-only payments write a portal-only credit and update the portal shipment balance, not the main shipment payment state.</Typography>
+                      <Button variant="primary" onClick={() => void handleCreatePaymentRecord()} disabled={savingPaymentRecord}>
+                        {savingPaymentRecord ? 'Recording...' : 'Record Payment'}
+                      </Button>
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
+              ) : (
+                <Box sx={{ color: 'var(--text-secondary)' }}>
+                  This login can review portal-only balances and payment history, but manual ledger and payment controls are restricted to portal staff.
+                </Box>
+              )}
             </DashboardPanel>
           </DashboardGrid>
 

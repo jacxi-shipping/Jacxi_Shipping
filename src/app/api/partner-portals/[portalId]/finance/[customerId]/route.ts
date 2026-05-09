@@ -5,6 +5,7 @@ import {
   canReadPartnerPortalCustomers,
   canReadPartnerPortalShipments,
   getPartnerPortalMembership,
+  getPortalMembershipCustomerScope,
   getPartnerPortalOrThrow,
 } from '@/lib/partner-portals';
 
@@ -95,8 +96,13 @@ export async function GET(
     const hasInternalAccess = canManagePartnerPortals(session.user.role)
       || canReadPartnerPortalCustomers(session.user.role)
       || canReadPartnerPortalShipments(session.user.role);
+    const scopedCustomerId = getPortalMembershipCustomerScope(membership);
 
     if (!membership && !hasInternalAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (scopedCustomerId && scopedCustomerId !== customerId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -491,6 +497,11 @@ export async function GET(
         notes: payment.notes,
         createdAt: payment.createdAt.toISOString(),
       })),
+      viewer: {
+        customerScoped: Boolean(scopedCustomerId),
+        canManageFinance: !scopedCustomerId || hasInternalAccess,
+        partnerCustomerId: scopedCustomerId,
+      },
     });
   } catch (error) {
     routeDeps.logger.error('Failed to fetch partner portal customer finance detail', error);

@@ -7,7 +7,9 @@ import {
   canManagePartnerPortals,
   canReadPartnerPortalShipments,
   getPartnerPortalMembership,
+  getPortalMembershipCustomerScope,
   getPartnerPortalOrThrow,
+  isCustomerScopedPortalMembership,
 } from '@/lib/partner-portals';
 
 const updateAssignedShipmentSchema = z.object({
@@ -35,6 +37,7 @@ export async function GET(
 
     const membership = await getPartnerPortalMembership(portalId, session.user.id);
     const hasInternalAccess = canManagePartnerPortals(session.user.role) || canReadPartnerPortalShipments(session.user.role);
+    const scopedCustomerId = getPortalMembershipCustomerScope(membership);
 
     if (!membership && !hasInternalAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -204,6 +207,10 @@ export async function GET(
 
     if (!assignment) {
       return NextResponse.json({ error: 'Assigned shipment not found in this portal' }, { status: 404 });
+    }
+
+    if (scopedCustomerId && assignment.partnerCustomer?.id !== scopedCustomerId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const trackingEvents = (assignment.shipment.container?.trackingEvents || []).map((event) => ({
@@ -423,6 +430,12 @@ export async function DELETE(
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const membership = await getPartnerPortalMembership(portalId, session.user.id);
+
+    if (isCustomerScopedPortalMembership(membership)) {
+      return NextResponse.json({ error: 'Customer-scoped portal accounts cannot modify shipment links' }, { status: 403 });
     }
 
     if (!canAssignShipmentsToPartnerPortals(session.user.role)) {
