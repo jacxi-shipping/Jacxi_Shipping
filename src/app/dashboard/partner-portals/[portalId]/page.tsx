@@ -121,6 +121,14 @@ export default function PartnerPortalDetailPage() {
   const [activities, setActivities] = useState<PortalActivity[]>([]);
   const [activeTab, setActiveTab] = useState<PortalManageTab>('shipments');
 
+  const publicSiteHref = useMemo(() => {
+    if (portal?.customDomainVerifiedAt && portal?.customDomain) {
+      return `https://${portal.customDomain}`;
+    }
+
+    return `/portal-site/${portalId}`;
+  }, [portal?.customDomain, portal?.customDomainVerifiedAt, portalId]);
+
   const renderAccessResult = (
     result: { loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null },
     title: string,
@@ -591,9 +599,19 @@ export default function PartnerPortalDetailPage() {
         title={portal ? portal.name : 'Portal'}
         description={portal?.code ? `Portal code: ${portal.code}` : 'Partner portal detail'}
         actions={
-          <Link href="/dashboard/partner-portals" style={{ textDecoration: 'none' }}>
-            <Button variant="outline" size="sm">Back to Portals</Button>
-          </Link>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <a
+              href={publicSiteHref}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: 'none' }}
+            >
+              <Button variant="outline" size="sm">Open Portal Website</Button>
+            </a>
+            <Link href="/dashboard/partner-portals" style={{ textDecoration: 'none' }}>
+              <Button variant="outline" size="sm">Back to Portals</Button>
+            </Link>
+          </Box>
         }
       >
         {loading ? (
