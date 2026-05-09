@@ -190,6 +190,8 @@ model Shipment {
   auditLogs        ShipmentAuditLog[]
   charges          ShipmentCharge[]
   partnerPortalAssignment PartnerShipmentAssignment?
+  partnerPortalLedgerEntries PartnerPortalLedgerEntry[]
+  partnerPortalPaymentRecords PartnerPortalPaymentRecord[]
 
   @@index([userId])
   @@index([dispatchId])
@@ -842,6 +844,8 @@ model PartnerPortal {
   memberships       PartnerPortalMembership[]
   customers         PartnerCustomer[]
   shipmentAssignments PartnerShipmentAssignment[]
+  ledgerEntries     PartnerPortalLedgerEntry[]
+  paymentRecords    PartnerPortalPaymentRecord[]
 
   @@index([name])
   @@index([isActive])
@@ -878,6 +882,8 @@ model PartnerCustomer {
   updatedAt   DateTime                  @updatedAt
   portal      PartnerPortal             @relation(fields: [portalId], references: [id], onDelete: Cascade)
   shipmentAssignments PartnerShipmentAssignment[]
+  ledgerEntries PartnerPortalLedgerEntry[]
+  paymentRecords PartnerPortalPaymentRecord[]
 
   @@index([portalId])
   @@index([name])
@@ -902,6 +908,62 @@ model PartnerShipmentAssignment {
   @@index([portalId])
   @@index([partnerCustomerId])
   @@index([assignedAt])
+}
+
+model PartnerPortalPaymentRecord {
+  id                String          @id @default(cuid())
+  portalId          String
+  partnerCustomerId String
+  shipmentId        String?
+  amount            Float
+  paymentDate       DateTime        @default(now())
+  paymentMethod     String
+  reference         String?
+  notes             String?
+  metadata          Json?
+  createdBy         String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  portal            PartnerPortal   @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  partnerCustomer   PartnerCustomer @relation(fields: [partnerCustomerId], references: [id], onDelete: Cascade)
+  shipment          Shipment?       @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  ledgerEntries     PartnerPortalLedgerEntry[]
+
+  @@index([portalId])
+  @@index([partnerCustomerId])
+  @@index([shipmentId])
+  @@index([paymentDate])
+}
+
+model PartnerPortalLedgerEntry {
+  id                String                   @id @default(cuid())
+  portalId          String
+  partnerCustomerId String
+  shipmentId        String?
+  paymentRecordId   String?
+  transactionDate   DateTime                 @default(now())
+  description       String
+  type              LedgerEntryType
+  amount            Float
+  balance           Float
+  paymentMethod     String?
+  reference         String?
+  notes             String?
+  metadata          Json?
+  createdBy         String
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  portal            PartnerPortal            @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  partnerCustomer   PartnerCustomer          @relation(fields: [partnerCustomerId], references: [id], onDelete: Cascade)
+  shipment          Shipment?                @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  paymentRecord     PartnerPortalPaymentRecord? @relation(fields: [paymentRecordId], references: [id], onDelete: SetNull)
+
+  @@index([portalId])
+  @@index([partnerCustomerId])
+  @@index([shipmentId])
+  @@index([paymentRecordId])
+  @@index([transactionDate])
+  @@index([type])
 }
 
 // ============================================

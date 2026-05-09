@@ -10,6 +10,19 @@ import {
 
 const outstandingInvoiceStatuses = new Set(['PENDING', 'SENT', 'OVERDUE']);
 
+function csvEscape(value: string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const stringValue = String(value);
+  if (!/[",\n]/.test(stringValue)) {
+    return stringValue;
+  }
+
+  return `"${stringValue.replace(/"/g, '""')}"`;
+}
+
 function createAgingBuckets() {
   return {
     current: { count: 0, amount: 0 },
@@ -36,7 +49,7 @@ function formatShipmentReference(shipment: {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ portalId: string }> },
 ) {
   try {
@@ -62,7 +75,9 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const [customers, assignments] = await Promise.all([
+    const format = request.nextUrl.searchParams.get('format');
+
+    const [customers, assignments, portalLedgerEntries, portalPaymentRecords] = await Promise.all([
       routeDeps.prisma.partnerCustomer.findMany({
         where: { portalId },
         orderBy: { createdAt: 'asc' },
@@ -127,6 +142,26 @@ export async function GET(
           },
         },
       }),
+      routeDeps.prisma.partnerPortalLedgerEntry.findMany({
+        where: { portalId },
+        orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          partnerCustomerId: true,
+          type: true,
+          amount: true,
+          balance: true,
+        },
+      }),
+      routeDeps.prisma.partnerPortalPaymentRecord.findMany({
+        where: { portalId },
+        orderBy: [{ paymentDate: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          partnerCustomerId: true,
+          amount: true,
+        },
+      }),
     ]);
 
     const today = new Date();
@@ -142,6 +177,11 @@ export async function GET(
         paidAmount: 0,
         unbilledAmount: 0,
         unbilledChargeCount: 0,
+        portalBalance: 0,
+        portalDebitAmount: 0,
+        portalCreditAmount: 0,
+        portalPaymentRecordCount: 0,
+        portalLedgerEntryCount: 0,
         lastInvoiceDate: null as string | null,
       }])
     );
@@ -223,6 +263,30 @@ export async function GET(
 
     invoiceRows.sort((left, right) => right.issueDate.localeCompare(left.issueDate));
 
+    for (const entry of portalLedgerEntries) {
+      const customer = customerMap.get(entry.partnerCustomerId);
+      if (!customer) {
+        continue;
+      }
+
+      customer.portalLedgerEntryCount += 1;
+      if (entry.type === 'DEBIT') {
+        customer.portalDebitAmount += entry.amount;
+      } else {
+        customer.portalCreditAmount += entry.amount;
+      }
+      customer.portalBalance = customer.portalDebitAmount - customer.portalCreditAmount;
+    }
+
+    for (const paymentRecord of portalPaymentRecords) {
+      const customer = customerMap.get(paymentRecord.partnerCustomerId);
+      if (!customer) {
+        continue;
+      }
+
+      customer.portalPaymentRecordCount += 1;
+    }
+
     const aging = createAgingBuckets();
     const summary = invoiceRows.reduce((accumulator, invoice) => {
       accumulator.invoiceCount += 1;
@@ -264,13 +328,82 @@ export async function GET(
       outstandingAmount: 0,
       overdueAmount: 0,
       paidAmount: 0,
+      portalBalance: 0,
+      portalDebitAmount: 0,
+      portalCreditAmount: 0,
+      portalPaymentRecordCount: 0,
+      portalLedgerEntryCount: 0,
     });
+
+    for (const customer of customerMap.values()) {
+      summary.portalBalance += customer.portalBalance;
+      summary.portalDebitAmount += customer.portalDebitAmount;
+      summary.portalCreditAmount += customer.portalCreditAmount;
+      summary.portalPaymentRecordCount += customer.portalPaymentRecordCount;
+      summary.portalLedgerEntryCount += customer.portalLedgerEntryCount;
+    }
+
+    const customerRows = Array.from(customerMap.values());
+
+    if (format === 'csv') {
+      const csvRows = [
+        [
+          'Customer',
+          'Email',
+          'Phone',
+          'City',
+          'Country',
+          'Linked Shipments',
+          'Invoice Count',
+          'Open Invoices',
+          'Overdue Invoices',
+          'Outstanding Amount',
+          'Overdue Amount',
+          'Paid Amount',
+          'Unbilled Amount',
+          'Portal-Only Balance',
+          'Portal-Only Debits',
+          'Portal-Only Credits',
+          'Portal-Only Payment Records',
+          'Portal-Only Ledger Entries',
+          'Last Invoice Date',
+        ].join(','),
+        ...customerRows.map((customer) => [
+          csvEscape(customer.name),
+          csvEscape(customer.email),
+          csvEscape(customer.phone),
+          csvEscape(customer.city),
+          csvEscape(customer.country),
+          customer.linkedShipmentCount,
+          customer.invoiceCount,
+          customer.openInvoiceCount,
+          customer.overdueInvoiceCount,
+          customer.outstandingAmount.toFixed(2),
+          customer.overdueAmount.toFixed(2),
+          customer.paidAmount.toFixed(2),
+          (customer.unbilledAmount || 0).toFixed(2),
+          (customer.portalBalance || 0).toFixed(2),
+          (customer.portalDebitAmount || 0).toFixed(2),
+          (customer.portalCreditAmount || 0).toFixed(2),
+          customer.portalPaymentRecordCount || 0,
+          customer.portalLedgerEntryCount || 0,
+          csvEscape(customer.lastInvoiceDate ? customer.lastInvoiceDate.slice(0, 10) : null),
+        ].join(',')),
+      ];
+
+      return new NextResponse(csvRows.join('\n'), {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="partner-portal-finance-${portal.id}-${Date.now()}.csv"`,
+        },
+      });
+    }
 
     return NextResponse.json({
       portal,
       summary,
       aging,
-      customers: Array.from(customerMap.values()),
+      customers: customerRows,
       invoices: invoiceRows,
     });
   } catch (error) {

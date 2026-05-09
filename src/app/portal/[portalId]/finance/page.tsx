@@ -39,6 +39,11 @@ type CustomerFinance = {
   paidAmount: number;
   unbilledAmount?: number;
   unbilledChargeCount?: number;
+  portalBalance?: number;
+  portalDebitAmount?: number;
+  portalCreditAmount?: number;
+  portalPaymentRecordCount?: number;
+  portalLedgerEntryCount?: number;
   lastInvoiceDate: string | null;
 };
 
@@ -70,6 +75,11 @@ type FinanceResponse = {
     outstandingAmount: number;
     overdueAmount: number;
     paidAmount: number;
+    portalBalance: number;
+    portalDebitAmount: number;
+    portalCreditAmount: number;
+    portalPaymentRecordCount: number;
+    portalLedgerEntryCount: number;
   };
   aging: {
     current: { count: number; amount: number };
@@ -97,6 +107,7 @@ function formatDate(value: string | null) {
 export default function PortalFinancePage() {
   const params = useParams();
   const portalId = String(params.portalId || '');
+  const exportHref = useMemo(() => `/api/partner-portals/${portalId}/finance?format=csv`, [portalId]);
   const [data, setData] = useState<FinanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -225,6 +236,26 @@ export default function PortalFinancePage() {
       render: (_, row) => formatCurrency(row.paidAmount),
     },
     {
+      key: 'portalBalance',
+      header: 'Portal-Only Balance',
+      render: (_, row) => formatCurrency(row.portalBalance || 0),
+    },
+    {
+      key: 'portalDebits',
+      header: 'Portal-Only Debits',
+      render: (_, row) => formatCurrency(row.portalDebitAmount || 0),
+    },
+    {
+      key: 'portalCredits',
+      header: 'Portal-Only Credits',
+      render: (_, row) => formatCurrency(row.portalCreditAmount || 0),
+    },
+    {
+      key: 'portalPayments',
+      header: 'Portal-Only Payments',
+      render: (_, row) => row.portalPaymentRecordCount || 0,
+    },
+    {
       key: 'unbilled',
       header: 'Unbilled',
       render: (_, row) => formatCurrency(row.unbilledAmount || 0),
@@ -241,7 +272,7 @@ export default function PortalFinancePage() {
         </Link>
       ),
     },
-  ], []);
+  ], [portalId]);
 
   const invoiceColumns = useMemo<Column<InvoiceRow>[]>(() => [
     {
@@ -305,15 +336,18 @@ export default function PortalFinancePage() {
     <DashboardSurface>
       <DashboardHeader
         title={data?.portal ? `${data.portal.companyLabel || data.portal.name} Finance` : 'Portal Finance'}
-        description="Track invoice exposure and payment status for the customers your portal has linked to assigned shipments."
+        description="Track main-system invoice exposure alongside portal-only ledger totals for the customers your portal has linked to assigned shipments."
         meta={data ? [
           { label: 'Customers', value: data.summary.linkedCustomerCount, helper: 'Portal customers with linked shipment finance' },
           { label: 'Open', value: formatCurrency(data.summary.outstandingAmount), helper: `${data.summary.openInvoiceCount} invoices still open` },
-          { label: 'Overdue', value: formatCurrency(data.summary.overdueAmount), helper: `${data.summary.overdueInvoiceCount} invoices past due` },
-          { label: 'Paid', value: formatCurrency(data.summary.paidAmount), helper: 'Closed invoice value' },
+          { label: 'Portal-Only Balance', value: formatCurrency(data.summary.portalBalance), helper: `${data.summary.portalLedgerEntryCount} portal-only ledger entries` },
+          { label: 'Portal-Only Payments', value: data.summary.portalPaymentRecordCount, helper: formatCurrency(data.summary.portalCreditAmount) },
         ] : undefined}
         actions={
           <>
+            <a href={exportHref} style={{ textDecoration: 'none' }}>
+              <Button variant="outline" size="sm">Export Portal-Only CSV</Button>
+            </a>
             <Link href={`/portal/${portalId}/customers`} style={{ textDecoration: 'none' }}>
               <Button variant="outline" size="sm">Customers</Button>
             </Link>
@@ -334,7 +368,7 @@ export default function PortalFinancePage() {
         </DashboardPanel>
       ) : (
         <>
-          <DashboardGrid className="grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <DashboardGrid className="grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-7">
             <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(var(--brand-primary-rgb),0.08)', display: 'grid', gap: 0.75 }}>
               <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Linked Customers</Typography>
               <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{data.summary.linkedCustomerCount}</Typography>
@@ -350,9 +384,24 @@ export default function PortalFinancePage() {
               <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{formatCurrency(data.summary.overdueAmount)}</Typography>
               <WarningAmberOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
             </Box>
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(15,23,42,0.05)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Portal-Only Balance</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{formatCurrency(data.summary.portalBalance)}</Typography>
+              <AccountBalanceWalletOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(245,158,11,0.12)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Portal-Only Debits</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{formatCurrency(data.summary.portalDebitAmount)}</Typography>
+              <ReceiptLongOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(34,197,94,0.12)', display: 'grid', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Portal-Only Credits</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{formatCurrency(data.summary.portalCreditAmount)}</Typography>
+              <PaidOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
+            </Box>
             <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'rgba(34,197,94,0.08)', display: 'grid', gap: 0.75 }}>
-              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Paid Value</Typography>
-              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{formatCurrency(data.summary.paidAmount)}</Typography>
+              <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Portal-Only Payments</Typography>
+              <Typography sx={{ fontSize: '1.55rem', fontWeight: 800 }}>{data.summary.portalPaymentRecordCount}</Typography>
               <PaidOutlinedIcon sx={{ color: 'var(--text-secondary)' }} />
             </Box>
           </DashboardGrid>
@@ -376,7 +425,7 @@ export default function PortalFinancePage() {
           </DashboardPanel>
 
           <DashboardGrid className="grid-cols-1 gap-3 xl:grid-cols-[0.95fr_1.35fr]">
-            <DashboardPanel title="Customer Accounts" description="Finance rollups for the customers your portal has linked to assigned shipments.">
+            <DashboardPanel title="Customer Accounts" description="Main invoice visibility plus portal-only ledger rollups for customers linked to this portal's assigned shipments.">
               {customerRows.length === 0 ? (
                 <EmptyState
                   icon={<GroupsOutlinedIcon />}

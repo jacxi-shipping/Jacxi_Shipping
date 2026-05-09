@@ -40,132 +40,167 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const assignment = await routeDeps.prisma.partnerShipmentAssignment.findFirst({
-      where: { portalId, shipmentId },
-      include: {
-        partnerCustomer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            city: true,
-            country: true,
-          },
-        },
-        shipment: {
-          select: {
-            id: true,
-            serviceType: true,
-            vehicleType: true,
-            vehicleMake: true,
-            vehicleModel: true,
-            vehicleYear: true,
-            vehicleVIN: true,
-            vehicleColor: true,
-            lotNumber: true,
-            auctionName: true,
-            hasKey: true,
-            hasTitle: true,
-            status: true,
-            paymentStatus: true,
-            createdAt: true,
-            updatedAt: true,
-            vehiclePhotos: true,
-            arrivalPhotos: true,
-            dispatchId: true,
-            transitId: true,
-            documents: {
-              where: { isPublic: true },
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                fileUrl: true,
-                fileType: true,
-                fileSize: true,
-                category: true,
-                createdAt: true,
-              },
-              orderBy: { createdAt: 'desc' },
-            },
-            dispatch: {
-              select: {
-                referenceNumber: true,
-                origin: true,
-                destination: true,
-                status: true,
-                dispatchDate: true,
-                events: {
-                  select: {
-                    id: true,
-                    status: true,
-                    location: true,
-                    description: true,
-                    eventDate: true,
-                  },
-                  orderBy: { eventDate: 'desc' },
-                  take: 10,
-                },
-              },
-            },
-            transit: {
-              select: {
-                referenceNumber: true,
-                origin: true,
-                destination: true,
-                status: true,
-                dispatchDate: true,
-                estimatedDelivery: true,
-                actualDelivery: true,
-                events: {
-                  select: {
-                    id: true,
-                    origin: true,
-                    destination: true,
-                    status: true,
-                    location: true,
-                    description: true,
-                    eventDate: true,
-                  },
-                  orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
-                  take: 10,
-                },
-              },
-            },
-            container: {
-              select: {
-                containerNumber: true,
-                trackingNumber: true,
-                vesselName: true,
-                voyageNumber: true,
-                loadingPort: true,
-                destinationPort: true,
-                estimatedArrival: true,
-                actualArrival: true,
-                status: true,
-                currentLocation: true,
-                progress: true,
-                loadingDate: true,
-                departureDate: true,
-                trackingEvents: {
-                  select: {
-                    id: true,
-                    status: true,
-                    location: true,
-                    description: true,
-                    eventDate: true,
-                    completed: true,
-                  },
-                  orderBy: { eventDate: 'desc' },
-                  take: 20,
-                },
-              },
+    const [assignment, portalLedgerEntries, portalPaymentRecords] = await Promise.all([
+      routeDeps.prisma.partnerShipmentAssignment.findFirst({
+        where: { portalId, shipmentId },
+        include: {
+          partnerCustomer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              city: true,
+              country: true,
             },
           },
+          shipment: {
+            select: {
+              id: true,
+              serviceType: true,
+              vehicleType: true,
+              vehicleMake: true,
+              vehicleModel: true,
+              vehicleYear: true,
+              vehicleVIN: true,
+              vehicleColor: true,
+              lotNumber: true,
+              auctionName: true,
+              hasKey: true,
+              hasTitle: true,
+              status: true,
+              paymentStatus: true,
+              createdAt: true,
+              updatedAt: true,
+              vehiclePhotos: true,
+              arrivalPhotos: true,
+              dispatchId: true,
+              transitId: true,
+              documents: {
+                where: { isPublic: true },
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  fileUrl: true,
+                  fileType: true,
+                  fileSize: true,
+                  category: true,
+                  createdAt: true,
+                },
+                orderBy: { createdAt: 'desc' },
+              },
+              dispatch: {
+                select: {
+                  referenceNumber: true,
+                  origin: true,
+                  destination: true,
+                  status: true,
+                  dispatchDate: true,
+                  events: {
+                    select: {
+                      id: true,
+                      status: true,
+                      location: true,
+                      description: true,
+                      eventDate: true,
+                    },
+                    orderBy: { eventDate: 'desc' },
+                    take: 10,
+                  },
+                },
+              },
+              transit: {
+                select: {
+                  referenceNumber: true,
+                  origin: true,
+                  destination: true,
+                  status: true,
+                  dispatchDate: true,
+                  estimatedDelivery: true,
+                  actualDelivery: true,
+                  events: {
+                    select: {
+                      id: true,
+                      origin: true,
+                      destination: true,
+                      status: true,
+                      location: true,
+                      description: true,
+                      eventDate: true,
+                    },
+                    orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
+                    take: 10,
+                  },
+                },
+              },
+              container: {
+                select: {
+                  containerNumber: true,
+                  trackingNumber: true,
+                  vesselName: true,
+                  voyageNumber: true,
+                  loadingPort: true,
+                  destinationPort: true,
+                  estimatedArrival: true,
+                  actualArrival: true,
+                  status: true,
+                  currentLocation: true,
+                  progress: true,
+                  loadingDate: true,
+                  departureDate: true,
+                  trackingEvents: {
+                    select: {
+                      id: true,
+                      status: true,
+                      location: true,
+                      description: true,
+                      eventDate: true,
+                      completed: true,
+                    },
+                    orderBy: { eventDate: 'desc' },
+                    take: 20,
+                  },
+                },
+              },
+            },
+          },
         },
-      },
-    });
+      }),
+      routeDeps.prisma.partnerPortalLedgerEntry.findMany({
+        where: {
+          portalId,
+          shipmentId,
+        },
+        orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          transactionDate: true,
+          description: true,
+          type: true,
+          amount: true,
+          balance: true,
+          paymentMethod: true,
+          reference: true,
+          notes: true,
+        },
+      }),
+      routeDeps.prisma.partnerPortalPaymentRecord.findMany({
+        where: {
+          portalId,
+          shipmentId,
+        },
+        orderBy: [{ paymentDate: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          amount: true,
+          paymentDate: true,
+          paymentMethod: true,
+          reference: true,
+          notes: true,
+        },
+      }),
+    ]);
 
     if (!assignment) {
       return NextResponse.json({ error: 'Assigned shipment not found in this portal' }, { status: 404 });
@@ -228,7 +263,50 @@ export async function GET(
       })),
     ].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
 
-    return NextResponse.json({ portal, assignment, customerTracking, history });
+    const portalDebitAmount = portalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0);
+    const portalCreditAmount = portalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0);
+    const portalBalance = portalDebitAmount - portalCreditAmount;
+    const portalPaymentStatus = portalDebitAmount <= 0
+      ? 'PENDING'
+      : portalBalance <= 0.001
+        ? 'PAID'
+        : portalCreditAmount > 0
+          ? 'PARTIAL'
+          : 'PENDING';
+
+    return NextResponse.json({
+      portal,
+      assignment,
+      customerTracking,
+      history,
+      portalFinance: {
+        status: portalPaymentStatus,
+        balance: portalBalance,
+        debitAmount: portalDebitAmount,
+        paidAmount: portalCreditAmount,
+        ledgerEntryCount: portalLedgerEntries.length,
+        paymentRecordCount: portalPaymentRecords.length,
+        recentLedgerEntries: portalLedgerEntries.map((entry) => ({
+          id: entry.id,
+          transactionDate: entry.transactionDate.toISOString(),
+          description: entry.description,
+          type: entry.type,
+          amount: entry.amount,
+          balance: entry.balance,
+          paymentMethod: entry.paymentMethod,
+          reference: entry.reference,
+          notes: entry.notes,
+        })),
+        recentPayments: portalPaymentRecords.map((payment) => ({
+          id: payment.id,
+          amount: payment.amount,
+          paymentDate: payment.paymentDate.toISOString(),
+          paymentMethod: payment.paymentMethod,
+          reference: payment.reference,
+          notes: payment.notes,
+        })),
+      },
+    });
   } catch (error) {
     routeDeps.logger.error('Failed to fetch portal shipment detail', error);
     return NextResponse.json({ error: 'Failed to fetch portal shipment detail' }, { status: 500 });

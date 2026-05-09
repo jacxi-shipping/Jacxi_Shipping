@@ -8,7 +8,7 @@ import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import { Box, Typography } from '@mui/material';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
-import { Button, EmptyState, toast } from '@/components/design-system';
+import { Button, EmptyState, PaymentStatusBadge, toast } from '@/components/design-system';
 
 type ShipmentDetailResponse = {
   portal: { id: string; name: string; code: string | null; requireCustomerLinkForReady?: boolean; defaultShipmentNotes?: string | null };
@@ -102,7 +102,38 @@ type ShipmentDetailResponse = {
     description: string | null;
     occurredAt: string;
   }>;
+  portalFinance: {
+    status: 'PENDING' | 'PARTIAL' | 'PAID';
+    balance: number;
+    debitAmount: number;
+    paidAmount: number;
+    ledgerEntryCount: number;
+    paymentRecordCount: number;
+    recentLedgerEntries: Array<{
+      id: string;
+      transactionDate: string;
+      description: string;
+      type: 'DEBIT' | 'CREDIT';
+      amount: number;
+      balance: number;
+      paymentMethod: string | null;
+      reference: string | null;
+      notes: string | null;
+    }>;
+    recentPayments: Array<{
+      id: string;
+      amount: number;
+      paymentDate: string;
+      paymentMethod: string;
+      reference: string | null;
+      notes: string | null;
+    }>;
+  };
 };
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+}
 
 export default function PortalShipmentDetailPage() {
   const params = useParams();
@@ -293,6 +324,31 @@ export default function PortalShipmentDetailPage() {
                   <Box sx={{ display: 'grid', gap: 0.5 }}>
                     <Typography sx={{ fontWeight: 700, color: '#1d4ed8' }}>Portal default is available</Typography>
                     <Typography><strong>Default Portal Notes:</strong> {data.portal.defaultShipmentNotes}</Typography>
+                  </Box>
+                ) : null}
+              </Box>
+            </DashboardPanel>
+
+            <DashboardPanel title="Portal Finance">
+              <Box sx={{ display: 'grid', gap: 1.25 }}>
+                <Typography sx={{ fontWeight: 700 }}>Portal-only status</Typography>
+                <PaymentStatusBadge status={data.portalFinance.status} />
+                <Typography><strong>Portal Balance:</strong> {formatCurrency(data.portalFinance.balance)}</Typography>
+                <Typography><strong>Portal Debits:</strong> {formatCurrency(data.portalFinance.debitAmount)}</Typography>
+                <Typography><strong>Portal Payments:</strong> {formatCurrency(data.portalFinance.paidAmount)}</Typography>
+                <Typography sx={{ color: 'var(--text-secondary)' }}>
+                  {data.portalFinance.paymentRecordCount} payment record(s) and {data.portalFinance.ledgerEntryCount} ledger entry/entries exist only in the portal and do not change the main shipment payment state.
+                </Typography>
+                {data.portalFinance.recentPayments.length > 0 ? (
+                  <Box sx={{ display: 'grid', gap: 0.75, pt: 0.75 }}>
+                    <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Recent Portal Payments</Typography>
+                    {data.portalFinance.recentPayments.slice(0, 3).map((payment) => (
+                      <Box key={payment.id} sx={{ border: '1px solid var(--border)', borderRadius: 2, p: 1.25, bgcolor: 'rgba(34,197,94,0.05)' }}>
+                        <Typography sx={{ fontWeight: 700 }}>{formatCurrency(payment.amount)}</Typography>
+                        <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{new Date(payment.paymentDate).toLocaleDateString()} • {payment.paymentMethod}</Typography>
+                        {payment.reference ? <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Ref: {payment.reference}</Typography> : null}
+                      </Box>
+                    ))}
                   </Box>
                 ) : null}
               </Box>
