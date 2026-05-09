@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import { Autocomplete, Box, MenuItem, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, MenuItem, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, EmptyState, toast } from '@/components/design-system';
 import { PortalActivityList } from '@/components/partner-portals/PortalActivityList';
@@ -90,6 +90,8 @@ type ShipmentOption = {
   user?: { name: string | null; email: string };
 };
 
+type PortalManageTab = 'shipments' | 'members' | 'activity' | 'branding' | 'customers';
+
 export default function PartnerPortalDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -117,6 +119,7 @@ export default function PartnerPortalDetailPage() {
   const [inviteResult, setInviteResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [loginCodeResult, setLoginCodeResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [activities, setActivities] = useState<PortalActivity[]>([]);
+  const [activeTab, setActiveTab] = useState<PortalManageTab>('shipments');
 
   const renderAccessResult = (
     result: { loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null },
@@ -597,126 +600,169 @@ export default function PartnerPortalDetailPage() {
           <Box sx={{ color: 'var(--text-secondary)' }}>Loading portal details...</Box>
         ) : (
           <Box sx={{ display: 'grid', gap: 3 }}>
-            <DashboardPanel title="Assigned Shipments" description="Shipments visible to this partner workspace">
-              {assignments.length === 0 ? (
-                <EmptyState icon={<Inventory2OutlinedIcon />} title="No assigned shipments" description="Search below and assign the first shipment into this portal." />
-              ) : (
-                <DataTable data={assignments} columns={assignmentColumns} keyField="id" />
-              )}
+            <Box sx={{ borderBottom: 1, borderColor: 'var(--border)' }}>
+              <Tabs
+                value={activeTab}
+                onChange={(_, value) => setActiveTab(value)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{
+                  '& .MuiTab-root': {
+                    textTransform: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--text-secondary)',
+                    minHeight: 48,
+                    '&:hover': {
+                      color: 'var(--accent-gold)',
+                    },
+                  },
+                  '& .Mui-selected': {
+                    color: 'var(--accent-gold) !important',
+                  },
+                  '& .MuiTabs-indicator': {
+                    backgroundColor: 'var(--accent-gold)',
+                  },
+                }}
+              >
+                <Tab value="shipments" label={`Shipments (${assignments.length})`} />
+                <Tab value="members" label={`Members (${memberships.length})`} />
+                <Tab value="activity" label={`Activity (${activities.length})`} />
+                <Tab value="branding" label="Branding" />
+                <Tab value="customers" label={`Customers (${customers.length})`} />
+              </Tabs>
+            </Box>
 
-              <Box sx={{ mt: 3, display: 'grid', gap: 2 }}>
-                <Typography sx={{ fontWeight: 700 }}>Assign Shipment</Typography>
-                <TextField label="Search shipments by vehicle or VIN" value={shipmentSearch} onChange={(event) => setShipmentSearch(event.target.value)} />
-                {shipmentResults.length > 0 ? (
-                  <Box sx={{ display: 'grid', gap: 1 }}>
-                    {shipmentResults.map((shipment) => (
-                      <Box key={shipment.id} sx={{ border: '1px solid var(--border)', borderRadius: 2, px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                        <Box>
-                          <Typography sx={{ fontWeight: 600 }}>
-                            {[shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleType}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            {shipment.vehicleVIN || 'No VIN'} • {shipment.status} • {shipment.user?.name || shipment.user?.email || 'No owner'}
-                          </Typography>
+            {activeTab === 'shipments' ? (
+              <DashboardPanel title="Assigned Shipments" description="Shipments visible to this partner workspace">
+                {assignments.length === 0 ? (
+                  <EmptyState icon={<Inventory2OutlinedIcon />} title="No assigned shipments" description="Search below and assign the first shipment into this portal." />
+                ) : (
+                  <DataTable data={assignments} columns={assignmentColumns} keyField="id" />
+                )}
+
+                <Box sx={{ mt: 3, display: 'grid', gap: 2 }}>
+                  <Typography sx={{ fontWeight: 700 }}>Assign Shipment</Typography>
+                  <TextField label="Search shipments by vehicle or VIN" value={shipmentSearch} onChange={(event) => setShipmentSearch(event.target.value)} />
+                  {shipmentResults.length > 0 ? (
+                    <Box sx={{ display: 'grid', gap: 1 }}>
+                      {shipmentResults.map((shipment) => (
+                        <Box key={shipment.id} sx={{ border: '1px solid var(--border)', borderRadius: 2, px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                          <Box>
+                            <Typography sx={{ fontWeight: 600 }}>
+                              {[shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleType}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              {shipment.vehicleVIN || 'No VIN'} • {shipment.status} • {shipment.user?.name || shipment.user?.email || 'No owner'}
+                            </Typography>
+                          </Box>
+                          <Button variant="outline" size="sm" onClick={() => void handleAssignShipment(shipment.id)} disabled={savingShipmentId === shipment.id}>
+                            {savingShipmentId === shipment.id ? 'Assigning...' : 'Assign'}
+                          </Button>
                         </Box>
-                        <Button variant="outline" size="sm" onClick={() => void handleAssignShipment(shipment.id)} disabled={savingShipmentId === shipment.id}>
-                          {savingShipmentId === shipment.id ? 'Assigning...' : 'Assign'}
-                        </Button>
-                      </Box>
-                    ))}
-                  </Box>
-                ) : shipmentSearch.trim().length >= 2 ? (
-                  <Box sx={{ color: 'var(--text-secondary)' }}>No unassigned search results found.</Box>
-                ) : null}
-              </Box>
-            </DashboardPanel>
+                      ))}
+                    </Box>
+                  ) : shipmentSearch.trim().length >= 2 ? (
+                    <Box sx={{ color: 'var(--text-secondary)' }}>No unassigned search results found.</Box>
+                  ) : null}
+                </Box>
+              </DashboardPanel>
+            ) : null}
 
-            <DashboardPanel title="Portal Members" description="Users who can enter this workspace">
-              {memberships.length === 0 ? (
-                <EmptyState icon={<PeopleOutlineIcon />} title="No members" description="Add the first member below." />
-              ) : (
-                <DataTable data={memberships} columns={membershipColumns} keyField="id" />
-              )}
+            {activeTab === 'members' ? (
+              <DashboardPanel title="Portal Members" description="Users who can enter this workspace">
+                {memberships.length === 0 ? (
+                  <EmptyState icon={<PeopleOutlineIcon />} title="No members" description="Add the first member below." />
+                ) : (
+                  <DataTable data={memberships} columns={membershipColumns} keyField="id" />
+                )}
 
-              <Box sx={{ mt: 3, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 200px auto' }, alignItems: 'start' }}>
-                <Autocomplete
-                  options={users}
-                  value={selectedUser}
-                  onChange={(_, value) => setSelectedUser(value)}
-                  onInputChange={(_, value) => setMemberSearch(value)}
-                  getOptionLabel={(option) => option.name ? `${option.name} (${option.email})` : option.email}
-                  renderInput={(params) => <TextField {...params} label="Add user to portal" placeholder="Search users by name or email" />}
-                />
-                <TextField select label="Portal Role" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}>
-                  <MenuItem value="ADMIN">ADMIN</MenuItem>
-                  <MenuItem value="STAFF">STAFF</MenuItem>
-                </TextField>
-                <Button variant="primary" onClick={() => void handleAddMember()} disabled={savingMember}>
-                  {savingMember ? 'Saving...' : 'Add Member'}
-                </Button>
-              </Box>
-
-              <Box sx={{ mt: 4, display: 'grid', gap: 2 }}>
-                <Typography sx={{ fontWeight: 700 }}>Create Portal User</Typography>
-                <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
-                  <TextField label="Name" value={inviteForm.name} onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))} />
-                  <TextField label="Email" value={inviteForm.email} onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))} />
-                  <TextField label="Phone" value={inviteForm.phone} onChange={(event) => setInviteForm((prev) => ({ ...prev, phone: event.target.value }))} />
-                  <TextField label="City" value={inviteForm.city} onChange={(event) => setInviteForm((prev) => ({ ...prev, city: event.target.value }))} />
-                  <TextField label="Country" value={inviteForm.country} onChange={(event) => setInviteForm((prev) => ({ ...prev, country: event.target.value }))} />
-                  <TextField select label="Portal Role" value={inviteForm.membershipRole} onChange={(event) => setInviteForm((prev) => ({ ...prev, membershipRole: event.target.value }))}>
+                <Box sx={{ mt: 3, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 200px auto' }, alignItems: 'start' }}>
+                  <Autocomplete
+                    options={users}
+                    value={selectedUser}
+                    onChange={(_, value) => setSelectedUser(value)}
+                    onInputChange={(_, value) => setMemberSearch(value)}
+                    getOptionLabel={(option) => option.name ? `${option.name} (${option.email})` : option.email}
+                    renderInput={(params) => <TextField {...params} label="Add user to portal" placeholder="Search users by name or email" />}
+                  />
+                  <TextField select label="Portal Role" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}>
                     <MenuItem value="ADMIN">ADMIN</MenuItem>
                     <MenuItem value="STAFF">STAFF</MenuItem>
                   </TextField>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button variant="primary" onClick={() => void handleInvitePortalUser()} disabled={inviting}>
-                    {inviting ? 'Preparing...' : 'Create User And Access Code'}
+                  <Button variant="primary" onClick={() => void handleAddMember()} disabled={savingMember}>
+                    {savingMember ? 'Saving...' : 'Add Member'}
                   </Button>
                 </Box>
 
-                {inviteResult ? renderAccessResult(inviteResult, 'Portal user created') : null}
+                <Box sx={{ mt: 4, display: 'grid', gap: 2 }}>
+                  <Typography sx={{ fontWeight: 700 }}>Create Portal User</Typography>
+                  <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
+                    <TextField label="Name" value={inviteForm.name} onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))} />
+                    <TextField label="Email" value={inviteForm.email} onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))} />
+                    <TextField label="Phone" value={inviteForm.phone} onChange={(event) => setInviteForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                    <TextField label="City" value={inviteForm.city} onChange={(event) => setInviteForm((prev) => ({ ...prev, city: event.target.value }))} />
+                    <TextField label="Country" value={inviteForm.country} onChange={(event) => setInviteForm((prev) => ({ ...prev, country: event.target.value }))} />
+                    <TextField select label="Portal Role" value={inviteForm.membershipRole} onChange={(event) => setInviteForm((prev) => ({ ...prev, membershipRole: event.target.value }))}>
+                      <MenuItem value="ADMIN">ADMIN</MenuItem>
+                      <MenuItem value="STAFF">STAFF</MenuItem>
+                    </TextField>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button variant="primary" onClick={() => void handleInvitePortalUser()} disabled={inviting}>
+                      {inviting ? 'Preparing...' : 'Create User And Access Code'}
+                    </Button>
+                  </Box>
 
-                {loginCodeResult ? renderAccessResult(loginCodeResult, 'Portal login code refreshed') : null}
-              </Box>
-            </DashboardPanel>
+                  {inviteResult ? renderAccessResult(inviteResult, 'Portal user created') : null}
 
-            <DashboardPanel title="Portal Activity" description="Recent membership and access-code changes for this portal">
-              <PortalActivityList
-                activities={activities}
-                emptyTitle="No portal activity yet"
-                emptyDescription="Role changes, member invites, removals, and login-code refreshes will appear here."
+                  {loginCodeResult ? renderAccessResult(loginCodeResult, 'Portal login code refreshed') : null}
+                </Box>
+              </DashboardPanel>
+            ) : null}
+
+            {activeTab === 'activity' ? (
+              <DashboardPanel title="Portal Activity" description="Recent membership and access-code changes for this portal">
+                <PortalActivityList
+                  activities={activities}
+                  emptyTitle="No portal activity yet"
+                  emptyDescription="Role changes, member invites, removals, and login-code refreshes will appear here."
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Link href={`/dashboard/partner-portals/${portalId}/activity`} style={{ textDecoration: 'none' }}>
+                    <Button variant="outline" size="sm">View All Activity</Button>
+                  </Link>
+                </Box>
+              </DashboardPanel>
+            ) : null}
+
+            {activeTab === 'branding' ? (
+              <PortalBrandingSettingsPanel
+                portalId={portalId}
+                portal={portal}
+                canEdit={true}
+                onSaved={(nextPortal) => setPortal((prev) => prev ? ({ ...prev, ...nextPortal }) : ({
+                  id: nextPortal.id,
+                  name: nextPortal.name,
+                  code: nextPortal.code,
+                  companyLabel: nextPortal.companyLabel || null,
+                  accentColor: nextPortal.accentColor || null,
+                  logoUrl: nextPortal.logoUrl || null,
+                  isActive: nextPortal.isActive ?? true,
+                  notes: nextPortal.notes || null,
+                }))}
               />
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                <Link href={`/dashboard/partner-portals/${portalId}/activity`} style={{ textDecoration: 'none' }}>
-                  <Button variant="outline" size="sm">View All Activity</Button>
-                </Link>
-              </Box>
-            </DashboardPanel>
+            ) : null}
 
-            <PortalBrandingSettingsPanel
-              portalId={portalId}
-              portal={portal}
-              canEdit={true}
-              onSaved={(nextPortal) => setPortal((prev) => prev ? ({ ...prev, ...nextPortal }) : ({
-                id: nextPortal.id,
-                name: nextPortal.name,
-                code: nextPortal.code,
-                companyLabel: nextPortal.companyLabel || null,
-                accentColor: nextPortal.accentColor || null,
-                logoUrl: nextPortal.logoUrl || null,
-                isActive: nextPortal.isActive ?? true,
-                notes: nextPortal.notes || null,
-              }))}
-            />
-
-            <DashboardPanel title="Portal Customers" description="Customers created inside this partner workspace">
-              {customers.length === 0 ? (
-                <EmptyState icon={<PersonOutlineIcon />} title="No portal customers" description="The partner can create their own customers from the portal workspace." />
-              ) : (
-                <DataTable data={customers} columns={customerColumns} keyField="id" />
-              )}
-            </DashboardPanel>
+            {activeTab === 'customers' ? (
+              <DashboardPanel title="Portal Customers" description="Customers created inside this partner workspace">
+                {customers.length === 0 ? (
+                  <EmptyState icon={<PersonOutlineIcon />} title="No portal customers" description="The partner can create their own customers from the portal workspace." />
+                ) : (
+                  <DataTable data={customers} columns={customerColumns} keyField="id" />
+                )}
+              </DashboardPanel>
+            ) : null}
           </Box>
         )}
       </DashboardPanel>
