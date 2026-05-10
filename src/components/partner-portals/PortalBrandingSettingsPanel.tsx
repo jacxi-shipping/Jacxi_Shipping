@@ -319,10 +319,52 @@ export default function PortalBrandingSettingsPanel({
             onChange={(event) => setForm((prev) => ({ ...prev, accentColor: event.target.value }))}
             disabled={!canEdit || saving}
           />
+          <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 1.5, bgcolor: 'rgba(var(--brand-primary-rgb),0.05)', display: 'grid', gap: 1.1 }}>
+            <Typography sx={{ fontSize: '0.76rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              Portal Logo
+            </Typography>
+            <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              Upload a logo directly here for the portal. A public URL is optional and only needed if you prefer linking an existing image.
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+              {(pendingLogoPreviewUrl || form.logoUrl) ? (
+                <Box
+                  component="img"
+                  src={pendingLogoPreviewUrl || form.logoUrl}
+                  alt="Portal logo preview"
+                  sx={{ width: 56, height: 56, borderRadius: 2, objectFit: 'cover', border: '1px solid var(--border)', bgcolor: '#fff' }}
+                />
+              ) : (
+                <Box sx={{ width: 56, height: 56, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: brand.accentColor, color: '#fff', fontSize: '1rem', fontWeight: 800 }}>
+                  {brand.companyLabel.slice(0, 1).toUpperCase()}
+                </Box>
+              )}
+              <Box sx={{ display: 'grid', gap: 0.35 }}>
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700 }}>
+                  {pendingLogoFile ? 'Logo ready to upload' : form.logoUrl ? 'Logo configured' : 'No logo uploaded yet'}
+                </Typography>
+                <Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {pendingLogoFile ? 'Review the crop preview below, then upload it.' : 'Square logos work best in the portal header and cards.'}
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {canEdit ? (
+                <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={saving || uploadingLogo}>
+                  {pendingLogoFile ? 'Choose Different Logo' : form.logoUrl ? 'Replace Logo' : 'Upload Logo'}
+                </Button>
+              ) : null}
+              {canEdit && form.logoUrl ? (
+                <Button variant="outline" size="sm" onClick={() => void handleClearLogo()} disabled={saving || uploadingLogo}>
+                  Remove Logo
+                </Button>
+              ) : null}
+            </Box>
+          </Box>
           <TextField
-            label="Logo URL"
+            label="Logo URL (Optional)"
             placeholder="https://..."
-            helperText="You can paste a public image URL or upload a logo. Uploaded images are center-cropped and normalized to a square for consistent shell display."
+            helperText="Optional fallback if you want to link an existing public image instead of uploading a file."
             value={form.logoUrl}
             onChange={(event) => setForm((prev) => ({ ...prev, logoUrl: event.target.value }))}
             disabled={!canEdit || saving || uploadingLogo}
@@ -411,19 +453,6 @@ export default function PortalBrandingSettingsPanel({
             hidden
             onChange={(event) => void handleLogoSelected(event)}
           />
-
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {canEdit ? (
-              <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={saving || uploadingLogo}>
-                {pendingLogoFile ? 'Choose Different Logo' : form.logoUrl ? 'Replace Logo' : 'Choose Logo'}
-              </Button>
-            ) : null}
-            {canEdit && form.logoUrl ? (
-              <Button variant="outline" size="sm" onClick={() => void handleClearLogo()} disabled={saving || uploadingLogo}>
-                Remove Logo
-              </Button>
-            ) : null}
-          </Box>
 
           {pendingLogoPreviewUrl ? (
             <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, display: 'grid', gap: 1.25, bgcolor: 'rgba(15,23,42,0.03)' }}>
