@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { fetchIaaiLotVehicleData } from '@/lib/iaai/lot-scraper';
+import { getLotFetchProxyDebugInfo } from '@/lib/lot-fetch-proxy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ stockNumber: string }> },
 ) {
+  let resolvedStockNumber: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -22,10 +25,16 @@ export async function GET(
     }
 
     const { stockNumber } = await params;
+    resolvedStockNumber = stockNumber;
     const data = await fetchIaaiLotVehicleData(stockNumber);
     return NextResponse.json(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch IAAI lot data.';
+    console.error('[iaai-lot-fetch]', {
+      stockNumber: resolvedStockNumber || 'unknown',
+      proxy: getLotFetchProxyDebugInfo(),
+      error: message,
+    });
     const status = message.includes('must be') ? 400 : 502;
     return NextResponse.json({ error: message }, { status });
   }

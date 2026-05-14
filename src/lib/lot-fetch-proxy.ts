@@ -1,13 +1,5 @@
 import { ProxyAgent, fetch as undiciFetch } from 'undici';
 
-const LOT_FETCH_PROXY_MODE = process.env.LOT_FETCH_PROXY_MODE;
-const LOT_FETCH_PROXY_URL = process.env.LOT_FETCH_PROXY_URL;
-const LOT_FETCH_PROXY_USERNAME = process.env.LOT_FETCH_PROXY_USERNAME;
-const LOT_FETCH_PROXY_PASSWORD = process.env.LOT_FETCH_PROXY_PASSWORD;
-const LOT_FETCH_PROXY_AUTH_TOKEN = process.env.LOT_FETCH_PROXY_AUTH_TOKEN;
-const LOT_FETCH_PROXY_AUTH_HEADER = process.env.LOT_FETCH_PROXY_AUTH_HEADER;
-const LOT_FETCH_PROXY_AUTH_SCHEME = process.env.LOT_FETCH_PROXY_AUTH_SCHEME;
-
 function normalizeEnvValue(value: string | undefined) {
   const normalized = value?.trim();
   return normalized ? normalized : undefined;
@@ -17,27 +9,92 @@ type LotFetchProxyMode = 'template' | 'connect';
 
 let cachedProxyAgent: ProxyAgent | null = null;
 
+function getProxyModeEnv() {
+  return process.env.LOT_FETCH_PROXY_MODE;
+}
+
+function getProxyUrlEnv() {
+  return process.env.LOT_FETCH_PROXY_URL;
+}
+
+function getProxyUsernameEnv() {
+  return process.env.LOT_FETCH_PROXY_USERNAME;
+}
+
+function getProxyPasswordEnv() {
+  return process.env.LOT_FETCH_PROXY_PASSWORD;
+}
+
+function getProxyAuthTokenEnv() {
+  return process.env.LOT_FETCH_PROXY_AUTH_TOKEN;
+}
+
+function getProxyAuthHeaderEnv() {
+  return process.env.LOT_FETCH_PROXY_AUTH_HEADER;
+}
+
+function getProxyAuthSchemeEnv() {
+  return process.env.LOT_FETCH_PROXY_AUTH_SCHEME;
+}
+
+function safeProxyHost(proxyUrl: string | undefined) {
+  const normalized = normalizeEnvValue(proxyUrl);
+  if (!normalized) return undefined;
+
+  try {
+    const url = new URL(/^[a-z]+:\/\//i.test(normalized) ? normalized : `http://${normalized}`);
+    return url.host;
+  } catch {
+    return normalized;
+  }
+}
+
+export function getLotFetchProxyDebugInfo() {
+  return {
+    configured: Boolean(normalizeEnvValue(getProxyUrlEnv()) && resolveProxyMode()),
+    mode: resolveProxyMode() || null,
+    host: safeProxyHost(getProxyUrlEnv()) || null,
+    hasUsername: Boolean(normalizeEnvValue(getProxyUsernameEnv())),
+    hasPassword: Boolean(normalizeEnvValue(getProxyPasswordEnv())),
+    hasTemplateToken: Boolean(normalizeEnvValue(getProxyAuthTokenEnv())),
+  };
+}
+
+function buildProxyRequestFailureMessage(mode: LotFetchProxyMode | undefined, error: unknown) {
+  const reason = error instanceof Error ? error.message : String(error);
+
+  if (mode === 'connect') {
+    return `Outbound proxy request failed. Check LOT_FETCH_PROXY_URL, LOT_FETCH_PROXY_USERNAME, and LOT_FETCH_PROXY_PASSWORD. ${reason}`;
+  }
+
+  if (mode === 'template') {
+    return `Template proxy request failed. Check LOT_FETCH_PROXY_URL and LOT_FETCH_PROXY_AUTH_TOKEN. ${reason}`;
+  }
+
+  return `Lot fetch request failed. ${reason}`;
+}
+
 function resolveProxyMode(): LotFetchProxyMode | undefined {
-  const explicitMode = normalizeEnvValue(LOT_FETCH_PROXY_MODE)?.toLowerCase();
+  const explicitMode = normalizeEnvValue(getProxyModeEnv())?.toLowerCase();
   if (explicitMode === 'template') return 'template';
   if (explicitMode === 'connect') return 'connect';
 
-  if (normalizeEnvValue(LOT_FETCH_PROXY_USERNAME) || normalizeEnvValue(LOT_FETCH_PROXY_PASSWORD)) {
+  if (normalizeEnvValue(getProxyUsernameEnv()) || normalizeEnvValue(getProxyPasswordEnv())) {
     return 'connect';
   }
 
-  if (normalizeEnvValue(LOT_FETCH_PROXY_AUTH_TOKEN)) {
+  if (normalizeEnvValue(getProxyAuthTokenEnv())) {
     return 'template';
   }
 
-  const proxyUrl = normalizeEnvValue(LOT_FETCH_PROXY_URL);
+  const proxyUrl = normalizeEnvValue(getProxyUrlEnv());
   if (!proxyUrl) return undefined;
 
   return proxyUrl.includes('{url}') ? 'template' : 'connect';
 }
 
 function buildProxyUrl(targetUrl: string) {
-  const proxyUrl = normalizeEnvValue(LOT_FETCH_PROXY_URL);
+  const proxyUrl = normalizeEnvValue(getProxyUrlEnv());
   if (!proxyUrl) {
     throw new Error('LOT_FETCH_PROXY_URL is not configured.');
   }
@@ -51,7 +108,7 @@ function buildProxyUrl(targetUrl: string) {
 }
 
 function buildOutboundProxyUrl() {
-  const proxyUrl = normalizeEnvValue(LOT_FETCH_PROXY_URL);
+  const proxyUrl = normalizeEnvValue(getProxyUrlEnv());
   if (!proxyUrl) {
     throw new Error('LOT_FETCH_PROXY_URL is not configured.');
   }
@@ -59,8 +116,8 @@ function buildOutboundProxyUrl() {
   const normalizedProxyUrl = /^[a-z]+:\/\//i.test(proxyUrl) ? proxyUrl : `http://${proxyUrl}`;
   const url = new URL(normalizedProxyUrl);
 
-  const username = normalizeEnvValue(LOT_FETCH_PROXY_USERNAME);
-  const password = normalizeEnvValue(LOT_FETCH_PROXY_PASSWORD);
+  const username = normalizeEnvValue(getProxyUsernameEnv());
+  const password = normalizeEnvValue(getProxyPasswordEnv());
 
   if (username) {
     url.username = username;
@@ -82,11 +139,12 @@ function getProxyAgent() {
 }
 
 function applyProxyAuth(headers: Headers) {
-  const token = normalizeEnvValue(LOT_FETCH_PROXY_AUTH_TOKEN);
+  const token = normalizeEnvValue(getProxyAuthTokenEnv());
   if (!token) return;
 
-  const headerName = normalizeEnvValue(LOT_FETCH_PROXY_AUTH_HEADER) || 'authorization';
-  const authScheme = LOT_FETCH_PROXY_AUTH_SCHEME === undefined ? 'Bearer' : LOT_FETCH_PROXY_AUTH_SCHEME.trim();
+  const headerName = normalizeEnvValue(getProxyAuthHeaderEnv()) || 'authorization';
+  const authSchemeEnv = getProxyAuthSchemeEnv();
+  const authScheme = authSchemeEnv === undefined ? 'Bearer' : authSchemeEnv.trim();
   const headerValue = authScheme ? `${authScheme} ${token}` : token;
   headers.set(headerName, headerValue);
 }
@@ -102,7 +160,7 @@ export type LotFetchHtmlResult = {
 };
 
 export function hasLotFetchProxy() {
-  return Boolean(normalizeEnvValue(LOT_FETCH_PROXY_URL) && resolveProxyMode());
+  return Boolean(normalizeEnvValue(getProxyUrlEnv()) && resolveProxyMode());
 }
 
 export async function fetchLotHtml(targetUrl: string, requestHeaders: HeadersInit, useProxy = false): Promise<LotFetchHtmlResult> {
@@ -114,15 +172,21 @@ export async function fetchLotHtml(targetUrl: string, requestHeaders: HeadersIni
     applyProxyAuth(headers);
   }
 
-  const response = proxyMode === 'connect'
-    ? await undiciFetch(targetUrl, {
-        headers,
-        dispatcher: getProxyAgent(),
-      })
-    : await fetch(requestUrl, {
-        headers,
-        cache: 'no-store',
-      });
+  let response;
+
+  try {
+    response = proxyMode === 'connect'
+      ? await undiciFetch(targetUrl, {
+          headers,
+          dispatcher: getProxyAgent(),
+        })
+      : await fetch(requestUrl, {
+          headers,
+          cache: 'no-store',
+        });
+  } catch (error) {
+    throw new Error(buildProxyRequestFailureMessage(proxyMode, error));
+  }
 
   return {
     html: await response.text(),
