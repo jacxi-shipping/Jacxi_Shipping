@@ -50,6 +50,16 @@ For shipment photo uploads you must also configure a Vercel Blob token:
 
 Without this token, `/api/upload` will return a configuration error.
 
+For auction lot auto-fill in production, public Copart or IAAI pages may block Vercel serverless IPs. If that happens, configure one of these server-side fallbacks:
+
+- `LOT_FETCH_PROXY_MODE` – `connect` for a real outbound proxy such as Oxylabs, or `template` for a fetch endpoint that accepts a target URL.
+- `LOT_FETCH_PROXY_URL` – proxy address. For Oxylabs, use the proxy server URL such as `http://dc.oxylabs.io:8000`. For template mode, use a URL containing `{url}` or an endpoint that accepts `?url=`.
+- `LOT_FETCH_PROXY_USERNAME` and `LOT_FETCH_PROXY_PASSWORD` – proxy credentials for `connect` mode.
+- `LOT_FETCH_PROXY_AUTH_TOKEN` – optional token for `template` mode.
+- `LOT_FETCH_PROXY_AUTH_HEADER` – optional header name for the template-mode auth token. Defaults to `authorization`.
+- `LOT_FETCH_PROXY_AUTH_SCHEME` – optional auth scheme for template mode. Defaults to `Bearer`. Set it to an empty string if your proxy expects the raw token.
+- `IAAI_API_URL` and `IAAI_API_KEY` – optional approved JSON provider for IAAI if public page scraping is blocked.
+
 ## Shipment Photo Uploads
 
 Arrival and container photos are uploaded via the `/api/upload` route, which now writes directly to [Vercel Blob Storage](https://vercel.com/docs/storage/vercel-blob). Only authenticated admins can call this endpoint. Files are validated for type (JPEG, PNG, WebP) and size (<5 MB) before being persisted to a public `shipments/...` object key. The generated URL is saved on the shipment record and rendered in the dashboard gallery components.
@@ -65,3 +75,5 @@ Additional database utilities live under the `scripts/` directory (see `QUICK_ST
 ## Deployment
 
 Deploy to Vercel for the best experience. Ensure the environment variables above (including `BLOB_READ_WRITE_TOKEN`) are configured in the project settings so uploads continue to work in production.
+
+If lot-number auto-fill works locally but fails after deployment, the usual cause is Copart or IAAI blocking Vercel serverless requests. For an Oxylabs-style proxy, set `LOT_FETCH_PROXY_MODE=connect` with `LOT_FETCH_PROXY_URL`, `LOT_FETCH_PROXY_USERNAME`, and `LOT_FETCH_PROXY_PASSWORD` in Vercel. Also set `IAAI_API_URL`/`IAAI_API_KEY` if you use an approved IAAI provider.

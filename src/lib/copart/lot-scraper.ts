@@ -2,6 +2,8 @@ type CopartDynamicLotDetails = {
   saleStatus?: string;
 };
 
+import { fetchLotHtml, hasLotFetchProxy } from '@/lib/lot-fetch-proxy';
+
 type CopartLotRawPayload = {
   lotNumberStr?: string;
   lcy?: number;
@@ -53,6 +55,26 @@ export type CopartLotVehicleData = {
 };
 
 const COPART_LOT_URL = 'https://www.copart.com/lot';
+
+function looksBlockedByCopart(html: string) {
+  return /_Incapsula_Resource|Request unsuccessful\. Incapsula|captcha|pardon our interruption|access denied/i.test(html);
+}
+
+function buildCopartBlockedMessage(viaProxy: boolean) {
+  if (viaProxy) {
+    return 'Copart blocked the public lot fetch even through the configured LOT_FETCH_PROXY_URL. Use an approved proxy/provider in Vercel, or enter the Copart details manually.';
+  }
+
+  return 'Copart blocked the public lot fetch from this server. Configure LOT_FETCH_PROXY_URL in Vercel, or enter the Copart details manually.';
+}
+
+function buildCopartStatusMessage(status: number, viaProxy: boolean) {
+  if ([403, 429].includes(status) || status >= 500) {
+    return buildCopartBlockedMessage(viaProxy);
+  }
+
+  return `Copart returned status ${status}.`;
+}
 
 function normalizeValue(value: string | number | null | undefined) {
   if (value === null || value === undefined) {
@@ -129,6 +151,14 @@ function extractLotPayload(html: string) {
   return JSON.parse(rawJsonString) as CopartLotRawPayload;
 }
 
+function tryExtractLotPayload(html: string) {
+  try {
+    return extractLotPayload(html);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function fetchCopartLotVehicleData(lotNumber: string): Promise<CopartLotVehicleData> {
   const normalizedLotNumber = normalizeValue(lotNumber);
   if (!normalizedLotNumber || !/^\d{5,12}$/.test(normalizedLotNumber)) {
@@ -136,21 +166,39 @@ export async function fetchCopartLotVehicleData(lotNumber: string): Promise<Copa
   }
 
   const copartUrl = `${COPART_LOT_URL}/${normalizedLotNumber}`;
-  const response = await fetch(copartUrl, {
-    headers: {
-      'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'accept-language': 'en-US,en;q=0.9',
-      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    },
-    cache: 'no-store',
-  });
+  const requestHeaders = {
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language': 'en-US,en;q=0.9',
+    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  };
 
-  if (!response.ok) {
-    throw new Error(`Copart returned status ${response.status}.`);
+  let page = await (async () => {
+    try {
+      return await fetchLotHtml(copartUrl, requestHeaders);
+    } catch (error) {
+      if (!hasLotFetchProxy()) throw error;
+      return fetchLotHtml(copartUrl, requestHeaders, true);
+    }
+  })();
+
+  let raw = tryExtractLotPayload(page.html);
+
+  if (!raw && hasLotFetchProxy() && !page.viaProxy) {
+    page = await fetchLotHtml(copartUrl, requestHeaders, true);
+    raw = tryExtractLotPayload(page.html);
   }
 
-  const html = await response.text();
-  const raw = extractLotPayload(html);
+  if (!raw) {
+    if (looksBlockedByCopart(page.html)) {
+      throw new Error(buildCopartBlockedMessage(page.viaProxy));
+    }
+
+    if (!page.response.ok) {
+      throw new Error(buildCopartStatusMessage(page.response.status, page.viaProxy));
+    }
+
+    throw new Error('Copart lot payload was not found on the public page.');
+  }
 
   return {
     lotNumber: normalizeValue(raw.lotNumberStr) || normalizedLotNumber,

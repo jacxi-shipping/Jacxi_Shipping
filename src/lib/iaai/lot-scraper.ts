@@ -1,5 +1,7 @@
 type IaaiVehicleJson = Record<string, unknown>;
 
+import { fetchLotHtml, hasLotFetchProxy, type LotFetchHtmlResult } from '@/lib/lot-fetch-proxy';
+
 export type IaaiLotVehicleData = {
   lotNumber: string;
   auctionName: 'IAAI';
@@ -28,6 +30,14 @@ export type IaaiLotVehicleData = {
 const IAAI_VEHICLE_URL = 'https://www.iaai.com/VehicleDetail';
 const IAAI_PROVIDER_URL = process.env.IAAI_API_URL;
 const IAAI_PROVIDER_KEY = process.env.IAAI_API_KEY;
+
+function buildIaaiBlockedMessage(viaProxy: boolean) {
+  if (viaProxy) {
+    return 'IAAI blocked the public lot fetch even through the configured LOT_FETCH_PROXY_URL. Configure IAAI_API_URL/IAAI_API_KEY for an approved data provider, or enter the IAAI details manually.';
+  }
+
+  return 'IAAI blocked the public lot fetch from this server. Configure LOT_FETCH_PROXY_URL or IAAI_API_URL/IAAI_API_KEY for an approved data provider, or enter the IAAI details manually.';
+}
 
 function normalizeValue(value: unknown) {
   if (value === null || value === undefined) {
@@ -409,47 +419,31 @@ function buildIaaiVehicleUrls(stockNumber: string) {
   ];
 }
 
-export async function fetchIaaiLotVehicleData(stockNumber: string): Promise<IaaiLotVehicleData> {
-  const normalizedStockNumber = normalizeValue(stockNumber);
-  if (!normalizedStockNumber || !/^[a-zA-Z0-9~-]{4,40}$/.test(normalizedStockNumber)) {
-    throw new Error('IAAI stock numbers must be 4-40 letters, numbers, hyphens, or region suffixes like ~US.');
+async function fetchIaaiLotPage(urls: string[], requestHeaders: HeadersInit, useProxy = false): Promise<LotFetchHtmlResult> {
+  let lastResult: LotFetchHtmlResult | null = null;
+  let lastError: unknown;
+
+  for (const url of urls) {
+    try {
+      const result = await fetchLotHtml(url, requestHeaders, useProxy);
+      if (result.response.ok) {
+        return result;
+      }
+
+      lastResult = result;
+    } catch (error) {
+      lastError = error;
+    }
   }
 
-  const [primaryIaaiUrl, ...fallbackIaaiUrls] = buildIaaiVehicleUrls(normalizedStockNumber);
-  const iaaiUrl = primaryIaaiUrl;
-  const providerData = await fetchIaaiLotVehicleDataFromProvider(normalizedStockNumber, iaaiUrl);
-  if (providerData) {
-    return providerData;
+  if (lastResult) {
+    return lastResult;
   }
 
-  const requestHeaders = {
-    accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'accept-language': 'en-US,en;q=0.9',
-    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  };
+  throw lastError instanceof Error ? lastError : new Error('Failed to fetch the IAAI lot page.');
+}
 
-  let response = await fetch(iaaiUrl, {
-    headers: requestHeaders,
-    cache: 'no-store',
-  });
-
-  for (const fallbackUrl of fallbackIaaiUrls) {
-    if (response.ok) break;
-    response = await fetch(fallbackUrl, {
-      headers: requestHeaders,
-      cache: 'no-store',
-    });
-  }
-
-  if (!response.ok) {
-    throw new Error(`IAAI returned status ${response.status}.`);
-  }
-
-  const html = await response.text();
-  if (looksBlockedByIncapsula(html)) {
-    throw new Error('IAAI blocked the public lot fetch from this server. Configure IAAI_API_URL/IAAI_API_KEY for an approved data provider, or enter the IAAI details manually.');
-  }
-
+function extractIaaiVehicleDataFromHtml(html: string, normalizedStockNumber: string, iaaiUrl: string): IaaiLotVehicleData {
   const jsonLd = extractJsonLd(html);
   const nextData = extractNextData(html);
   const dataSources = [jsonLd, nextData, ...extractScriptJsonData(html)].filter(Boolean) as IaaiVehicleJson[];
@@ -498,7 +492,7 @@ export async function fetchIaaiLotVehicleData(stockNumber: string): Promise<Iaai
   ].some(Boolean);
 
   if (!hasUsefulVehicleData) {
-    throw new Error('IAAI lot page loaded, but no vehicle details could be extracted. Please enter the IAAI details manually.');
+    throw new Error('IAAI lot page loaded, but no vehicle details could be extracted.');
   }
 
   return {
@@ -523,4 +517,79 @@ export async function fetchIaaiLotVehicleData(stockNumber: string): Promise<Iaai
       saleStatus,
     },
   };
+}
+
+export async function fetchIaaiLotVehicleData(stockNumber: string): Promise<IaaiLotVehicleData> {
+  const normalizedStockNumber = normalizeValue(stockNumber);
+  if (!normalizedStockNumber || !/^[a-zA-Z0-9~-]{4,40}$/.test(normalizedStockNumber)) {
+    throw new Error('IAAI stock numbers must be 4-40 letters, numbers, hyphens, or region suffixes like ~US.');
+  }
+
+  const [primaryIaaiUrl, ...fallbackIaaiUrls] = buildIaaiVehicleUrls(normalizedStockNumber);
+  const iaaiUrl = primaryIaaiUrl;
+  const providerData = await fetchIaaiLotVehicleDataFromProvider(normalizedStockNumber, iaaiUrl);
+  if (providerData) {
+    return providerData;
+  }
+
+  const requestHeaders = {
+    accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language': 'en-US,en;q=0.9',
+    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  };
+
+  const urlCandidates = [iaaiUrl, ...fallbackIaaiUrls];
+
+  let page = await (async () => {
+    try {
+      return await fetchIaaiLotPage(urlCandidates, requestHeaders);
+    } catch (error) {
+      if (!hasLotFetchProxy()) throw error;
+      return fetchIaaiLotPage(urlCandidates, requestHeaders, true);
+    }
+  })();
+
+  if (!page.response.ok && hasLotFetchProxy() && !page.viaProxy) {
+    page = await fetchIaaiLotPage(urlCandidates, requestHeaders, true);
+  }
+
+  if (!page.response.ok) {
+    throw new Error(`IAAI returned status ${page.response.status}.`);
+  }
+
+  if (looksBlockedByIncapsula(page.html)) {
+    if (!page.viaProxy && hasLotFetchProxy()) {
+      page = await fetchIaaiLotPage(urlCandidates, requestHeaders, true);
+    }
+
+    if (looksBlockedByIncapsula(page.html)) {
+      throw new Error(buildIaaiBlockedMessage(page.viaProxy));
+    }
+  }
+
+  try {
+    return extractIaaiVehicleDataFromHtml(page.html, normalizedStockNumber, page.requestUrl);
+  } catch (error) {
+    const shouldRetryWithProxy = !page.viaProxy && hasLotFetchProxy() && error instanceof Error && error.message.includes('no vehicle details could be extracted');
+
+    if (!shouldRetryWithProxy) {
+      if (error instanceof Error && error.message.includes('no vehicle details could be extracted')) {
+        throw new Error(`${error.message} Configure LOT_FETCH_PROXY_URL or IAAI_API_URL/IAAI_API_KEY for Vercel, or enter the IAAI details manually.`);
+      }
+
+      throw error;
+    }
+
+    page = await fetchIaaiLotPage(urlCandidates, requestHeaders, true);
+
+    if (!page.response.ok) {
+      throw new Error(`IAAI returned status ${page.response.status}.`);
+    }
+
+    if (looksBlockedByIncapsula(page.html)) {
+      throw new Error(buildIaaiBlockedMessage(true));
+    }
+
+    return extractIaaiVehicleDataFromHtml(page.html, normalizedStockNumber, page.requestUrl);
+  }
 }

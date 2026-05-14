@@ -3,6 +3,10 @@ import { auth } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { fetchIaaiLotVehicleData } from '@/lib/iaai/lot-scraper';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ stockNumber: string }> },
