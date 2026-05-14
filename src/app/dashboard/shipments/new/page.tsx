@@ -251,6 +251,7 @@ export default function NewShipmentPage() {
 			if (lotData.vehicleVIN) setFetchedValue('vehicleVIN', lotData.vehicleVIN);
 			if (typeof lotData.hasKey === 'boolean') setFetchedValue('hasKey', lotData.hasKey);
 			if (typeof lotData.hasTitle === 'boolean') setFetchedValue('hasTitle', lotData.hasTitle);
+			if (lotData.purchaseDate && !formValues.purchaseDate) setFetchedValue('purchaseDate', lotData.purchaseDate);
 			if (lotData.purchaseLocation && !formValues.purchaseLocation) setFetchedValue('purchaseLocation', lotData.purchaseLocation);
 			if (lotData.internalNotes && !formValues.internalNotes) setFetchedValue('internalNotes', lotData.internalNotes);
 

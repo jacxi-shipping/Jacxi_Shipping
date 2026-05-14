@@ -331,6 +331,7 @@ export default function EditShipmentPage() {
       if (lotData.vehicleVIN) setValue('vehicleVIN', lotData.vehicleVIN);
       if (typeof lotData.hasKey === 'boolean') setValue('hasKey', lotData.hasKey);
       if (typeof lotData.hasTitle === 'boolean') setValue('hasTitle', lotData.hasTitle);
+      if (lotData.purchaseDate && !watch('purchaseDate')) setValue('purchaseDate', lotData.purchaseDate);
       if (lotData.purchaseLocation && !watch('purchaseLocation')) setValue('purchaseLocation', lotData.purchaseLocation);
       if (lotData.internalNotes && !watch('internalNotes')) setValue('internalNotes', lotData.internalNotes);
 

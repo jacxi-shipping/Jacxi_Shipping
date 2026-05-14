@@ -13,6 +13,7 @@ export type IaaiLotVehicleData = {
   vehicleType?: string;
   hasKey?: boolean;
   hasTitle?: boolean;
+  purchaseDate?: string;
   purchaseLocation?: string;
   internalNotes?: string;
   iaaiUrl: string;

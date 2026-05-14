@@ -71,6 +71,7 @@ export type CopartLotVehicleData = {
   vehicleType?: string;
   hasKey?: boolean;
   hasTitle?: boolean;
+  purchaseDate?: string;
   purchaseLocation?: string;
   internalNotes?: string;
   copartUrl: string;
@@ -211,6 +212,49 @@ function buildOxylabsLocation(notes?: string) {
   return normalizeValue(normalized.replace(/^located in\s+/i, '')) || normalized;
 }
 
+function parseCopartSaleDateToPurchaseDate(value?: string) {
+  const normalized = normalizeValue(value);
+  if (!normalized) return undefined;
+
+  const monthMatch = normalized.match(/\b(Jan|January|Feb|February|Mar|March|Apr|April|May|Jun|June|Jul|July|Aug|August|Sep|Sept|September|Oct|October|Nov|November|Dec|December)\b\.?\s+(\d{1,2}),\s*(\d{4})/i);
+  if (!monthMatch) return undefined;
+
+  const rawMonth = monthMatch[1].toLowerCase();
+  const day = monthMatch[2].padStart(2, '0');
+  const year = monthMatch[3];
+  const months: Record<string, string> = {
+    jan: '01',
+    january: '01',
+    feb: '02',
+    february: '02',
+    mar: '03',
+    march: '03',
+    apr: '04',
+    april: '04',
+    may: '05',
+    jun: '06',
+    june: '06',
+    jul: '07',
+    july: '07',
+    aug: '08',
+    august: '08',
+    sep: '09',
+    sept: '09',
+    september: '09',
+    oct: '10',
+    october: '10',
+    nov: '11',
+    november: '11',
+    dec: '12',
+    december: '12',
+  };
+
+  const month = months[rawMonth];
+  if (!month) return undefined;
+
+  return `${year}-${month}-${day}`;
+}
+
 function buildOxylabsInternalNotes(content: OxylabsCopartParsedContent) {
   const details = [
     normalizeValue(content.primary_damage) ? `Damage: ${normalizeValue(content.primary_damage)}` : undefined,
@@ -259,6 +303,7 @@ function normalizeOxylabsCopartResult(lotNumber: string, fallbackUrl: string, re
   const content = result.content || {};
   const titleParts = parseOxylabsTitle(content.title);
   const purchaseLocation = buildOxylabsLocation(content.notes);
+  const purchaseDate = parseCopartSaleDateToPurchaseDate(content.sale_date);
 
   return {
     lotNumber: normalizeValue(content.lot_number) || lotNumber,
@@ -271,6 +316,7 @@ function normalizeOxylabsCopartResult(lotNumber: string, fallbackUrl: string, re
     vehicleType: inferVehicleType(normalizeValue(content.body_style), normalizeValue(content.vehicle_type)),
     hasKey: typeof content.has_key === 'boolean' ? content.has_key : undefined,
     hasTitle: undefined,
+    purchaseDate,
     purchaseLocation,
     internalNotes: buildOxylabsInternalNotes(content),
     copartUrl: normalizeValue(result.url) || fallbackUrl,
