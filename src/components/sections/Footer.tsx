@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Ship } from 'lucide-react';
+import SiteLogo from '@/components/brand/SiteLogo';
 
 const navigationLinks = [
   { label: 'Services', href: '/#services' },
@@ -28,11 +28,8 @@ export default function Footer() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-16 grid grid-cols-1 gap-12 lg:grid-cols-[1.2fr_0.9fr_1fr]">
           <div className="space-y-6">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 flex items-center justify-center bg-[var(--accent-gold)] rounded-xl shadow-sm">
-                <Ship className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold tracking-tight text-white">JACXI SHIPPING</span>
+            <Link href="/" className="flex items-center">
+              <SiteLogo variant="main" theme="dark" className="w-[190px] sm:w-[220px]" priority />
             </Link>
             <p className="leading-relaxed text-slate-300">
               Pioneering vehicle logistics from the USA to Afghanistan for over a decade. Trusted by thousands.

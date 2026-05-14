@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Ship, Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
+import SiteLogo from '@/components/brand/SiteLogo';
 
 interface HeaderProps {
   isAuthenticated?: boolean;
@@ -43,13 +44,8 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-6">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-gold)] text-white shadow-sm">
-                <Ship className="h-5 w-5" />
-              </div>
-              <span className="text-sm font-bold uppercase tracking-[0.22em] text-[var(--text-primary)] sm:text-base">
-                JACXI SHIPPING
-              </span>
+            <Link href="/" className="flex items-center">
+              <SiteLogo variant="header" className="w-[148px] sm:w-[172px]" priority />
             </Link>
 
             <nav className="hidden items-center gap-8 md:flex">
@@ -88,11 +84,8 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
         <div className="fixed inset-0 z-[60] bg-white/95 backdrop-blur-xl md:hidden">
           <div className="p-6 h-full flex flex-col">
             <div className="flex items-center justify-between mb-12">
-              <Link href="/" className="flex items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
-                <div className="w-10 h-10 flex items-center justify-center bg-[var(--accent-gold)] rounded-xl shadow-lg">
-                  <Ship className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-sm font-bold uppercase tracking-[0.22em] text-[var(--text-primary)]">JACXI SHIPPING</span>
+              <Link href="/" className="flex items-center" onClick={() => setIsMobileMenuOpen(false)}>
+                <SiteLogo variant="header" className="w-[148px]" priority />
               </Link>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}

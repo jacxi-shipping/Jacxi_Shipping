@@ -29,6 +29,7 @@ import { Ship, Package, FileText } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/design-system';
+import SiteLogo from '@/components/brand/SiteLogo';
 import { NotificationCenter } from '@/components/ui/NotificationCenter';
 
 interface HeaderProps {
@@ -129,33 +130,8 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 
 				{/* Logo/Title */}
 				<Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-					<Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-					<Box
-						sx={{
-							width: 32,
-							height: 32,
-							borderRadius: 1,
-							backgroundColor: 'var(--accent-gold)',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							fontWeight: 800,
-							fontSize: '1rem',
-							color: 'var(--background)',
-						}}
-					>
-						J
-					</Box>
-					<Typography
-						sx={{
-							display: { xs: 'none', sm: 'block' },
-							fontWeight: 700,
-							fontSize: '1.125rem',
-							color: 'var(--text-primary)',
-						}}
-					>
-						JACXI
-					</Typography>
+					<Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+						<SiteLogo variant="dashboard" className="w-[108px] sm:w-[126px]" priority />
 					</Link>
 
 					{/* Page Title (if provided) */}

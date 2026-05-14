@@ -1,4 +1,7 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
+import { siteBrandAssetFiles } from '@/lib/site-branding';
 
 export const size = {
   width: 512,
@@ -7,7 +10,19 @@ export const size = {
 
 export const contentType = 'image/png';
 
-export default function Icon() {
+export default async function Icon() {
+  try {
+    const iconBuffer = await readFile(join(process.cwd(), siteBrandAssetFiles.favicon));
+    return new Response(iconBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
+  } catch {
+    // Fall back to the generated monogram when the branded asset has not been added yet.
+  }
+
   return new ImageResponse(
     (
       <div
