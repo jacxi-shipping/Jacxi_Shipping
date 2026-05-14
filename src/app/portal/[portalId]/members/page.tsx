@@ -8,7 +8,7 @@ import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import BrandingWatermarkOutlinedIcon from '@mui/icons-material/BrandingWatermarkOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
-import { Box, MenuItem, TextField, Typography } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField, Typography } from '@mui/material';
 import { useSession } from 'next-auth/react';
 import { DashboardSurface, DashboardPanel, DashboardGrid, DashboardHeader } from '@/components/dashboard/DashboardSurface';
 import { Button, EmptyState, toast } from '@/components/design-system';
@@ -45,6 +45,15 @@ type PortalActivity = {
   changes?: Record<string, unknown>;
 };
 
+const initialInviteForm = {
+  name: '',
+  email: '',
+  phone: '',
+  city: '',
+  country: '',
+  membershipRole: 'STAFF',
+};
+
 export default function PortalMembersPage() {
   const params = useParams();
   const { data: session } = useSession();
@@ -56,11 +65,12 @@ export default function PortalMembersPage() {
   const [savingMembershipRoleId, setSavingMembershipRoleId] = useState<string | null>(null);
   const [removingMembershipId, setRemovingMembershipId] = useState<string | null>(null);
   const [regeneratingLoginCodeMembershipId, setRegeneratingLoginCodeMembershipId] = useState<string | null>(null);
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '', phone: '', city: '', country: '', membershipRole: 'STAFF' });
+  const [inviteForm, setInviteForm] = useState(initialInviteForm);
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [loginCodeResult, setLoginCodeResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [activities, setActivities] = useState<PortalActivity[]>([]);
+  const [openCreatePortalUserDialog, setOpenCreatePortalUserDialog] = useState(false);
 
   const currentMembership = useMemo(
     () => memberships.find((membership) => membership.user.id === session?.user?.id) || null,
@@ -112,6 +122,32 @@ export default function PortalMembersPage() {
       toast.error(`Failed to copy ${label.toLowerCase()}`);
     }
   };
+
+  const renderAccessResult = (
+    result: { loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null },
+    title: string,
+  ) => (
+    <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
+      <Typography sx={{ fontWeight: 700 }}>{title}</Typography>
+      <Typography sx={{ color: 'var(--text-secondary)' }}>
+        Share the sign-in page and code with this user. The workspace route is where they land after sign-in.
+      </Typography>
+      <Typography><strong>Name:</strong> {result.name || result.email}</Typography>
+      <Typography><strong>Email:</strong> {result.email}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography><strong>Login Code:</strong> {result.loginCode}</Typography>
+        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(result.loginCode, 'Login code')}>Copy</Button>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography><strong>Sign-In Page:</strong> {result.simpleLoginUrl}</Typography>
+        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(result.simpleLoginUrl, 'Sign-in page')}>Copy</Button>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography><strong>Workspace Route:</strong> {result.portalUrl}</Typography>
+        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(result.portalUrl, 'Workspace route')}>Copy</Button>
+      </Box>
+    </Box>
+  );
 
   const handleUpdateMembershipRole = async (membership: PortalMembership) => {
     const nextRole = memberRoleDrafts[membership.id] || membership.role;
@@ -229,7 +265,8 @@ export default function PortalMembersPage() {
         email: data.user.email,
         name: data.user.name,
       });
-      setInviteForm({ name: '', email: '', phone: '', city: '', country: '', membershipRole: 'STAFF' });
+      setInviteForm(initialInviteForm);
+      setOpenCreatePortalUserDialog(false);
       toast.success('Portal user ready');
       await fetchMemberships();
     } catch (error) {
@@ -311,9 +348,21 @@ export default function PortalMembersPage() {
           { label: 'Portal Users', value: customerAppUsers, helper: 'Customer-style accounts using login codes' },
         ]}
         actions={canManageMembers ? (
-          <Link href={`/portal/${portalId}/settings`} style={{ textDecoration: 'none' }}>
-            <Button variant="outline" size="sm">Open Settings</Button>
-          </Link>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setInviteForm(initialInviteForm);
+                setOpenCreatePortalUserDialog(true);
+              }}
+            >
+              Create Portal User
+            </Button>
+            <Link href={`/portal/${portalId}/settings`} style={{ textDecoration: 'none' }}>
+              <Button variant="outline" size="sm">Open Settings</Button>
+            </Link>
+          </Box>
         ) : undefined}
       />
 
@@ -364,70 +413,29 @@ export default function PortalMembersPage() {
 
           {canManageMembers ? (
             <DashboardGrid className="grid-cols-1 gap-3 xl:grid-cols-[1fr]">
-              <DashboardPanel title="Invite Portal User" description="Create a portal-ready account and issue an immediate login code for the partner team.">
+              <DashboardPanel title="Member Actions" description="Launch the member creation flow from a dedicated action instead of editing fields inline.">
                 <Box sx={{ display: 'grid', gap: 2 }}>
-                  <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
-                    <TextField label="Name" value={inviteForm.name} onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))} />
-                    <TextField label="Email" value={inviteForm.email} onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))} />
-                    <TextField label="Phone" value={inviteForm.phone} onChange={(event) => setInviteForm((prev) => ({ ...prev, phone: event.target.value }))} />
-                    <TextField label="City" value={inviteForm.city} onChange={(event) => setInviteForm((prev) => ({ ...prev, city: event.target.value }))} />
-                    <TextField label="Country" value={inviteForm.country} onChange={(event) => setInviteForm((prev) => ({ ...prev, country: event.target.value }))} />
-                    <TextField select label="Portal Role" value={inviteForm.membershipRole} onChange={(event) => setInviteForm((prev) => ({ ...prev, membershipRole: event.target.value }))}>
-                      <MenuItem value="ADMIN">ADMIN</MenuItem>
-                      <MenuItem value="STAFF">STAFF</MenuItem>
-                    </TextField>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button variant="primary" onClick={() => void handleInvitePortalUser()} disabled={inviting}>
-                      {inviting ? 'Preparing...' : 'Create User And Access Code'}
-                    </Button>
+                  <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.24)', borderRadius: 2.5, p: 2.25, display: 'grid', gap: 1.25, bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)' }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700 }}>Create New Portal User</Typography>
+                    <Typography sx={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                      Create a portal-ready user profile, assign the workspace role, and issue the initial access code from a single modal.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setInviteForm(initialInviteForm);
+                          setOpenCreatePortalUserDialog(true);
+                        }}
+                      >
+                        Add New Portal User
+                      </Button>
+                    </Box>
                   </Box>
 
-                  {inviteResult ? (
-                    <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
-                      <Typography sx={{ fontWeight: 700 }}>Portal user created</Typography>
-                      <Typography sx={{ color: 'var(--text-secondary)' }}>
-                        Share the sign-in page and code with this user. The workspace route is where they land after sign-in.
-                      </Typography>
-                      <Typography><strong>Name:</strong> {inviteResult.name || inviteResult.email}</Typography>
-                      <Typography><strong>Email:</strong> {inviteResult.email}</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Login Code:</strong> {inviteResult.loginCode}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.loginCode, 'Login code')}>Copy</Button>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Sign-In Page:</strong> {inviteResult.simpleLoginUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.simpleLoginUrl, 'Sign-in page')}>Copy</Button>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Workspace Route:</strong> {inviteResult.portalUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(inviteResult.portalUrl, 'Workspace route')}>Copy</Button>
-                      </Box>
-                    </Box>
-                  ) : null}
-
-                  {loginCodeResult ? (
-                    <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.28)', bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)', borderRadius: 2, p: 2, display: 'grid', gap: 0.75 }}>
-                      <Typography sx={{ fontWeight: 700 }}>Portal login code refreshed</Typography>
-                      <Typography sx={{ color: 'var(--text-secondary)' }}>
-                        Share the sign-in page and code with this user. The workspace route is where they land after sign-in.
-                      </Typography>
-                      <Typography><strong>Name:</strong> {loginCodeResult.name || loginCodeResult.email}</Typography>
-                      <Typography><strong>Email:</strong> {loginCodeResult.email}</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Login Code:</strong> {loginCodeResult.loginCode}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.loginCode, 'Login code')}>Copy</Button>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Sign-In Page:</strong> {loginCodeResult.simpleLoginUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.simpleLoginUrl, 'Sign-in page')}>Copy</Button>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography><strong>Workspace Route:</strong> {loginCodeResult.portalUrl}</Typography>
-                        <Button variant="outline" size="sm" onClick={() => void handleCopyValue(loginCodeResult.portalUrl, 'Workspace route')}>Copy</Button>
-                      </Box>
-                    </Box>
-                  ) : null}
+                  {inviteResult ? renderAccessResult(inviteResult, 'Portal user created') : null}
+                  {loginCodeResult ? renderAccessResult(loginCodeResult, 'Portal login code refreshed') : null}
                 </Box>
               </DashboardPanel>
 
@@ -476,6 +484,51 @@ export default function PortalMembersPage() {
               </Box>
             </DashboardPanel>
           </DashboardGrid>
+
+          <Dialog
+            open={openCreatePortalUserDialog}
+            onClose={() => {
+              if (!inviting) {
+                setOpenCreatePortalUserDialog(false);
+                setInviteForm(initialInviteForm);
+              }
+            }}
+            fullWidth
+            maxWidth="md"
+          >
+            <DialogTitle>Create Portal User</DialogTitle>
+            <DialogContent sx={{ pt: 1.5, display: 'grid', gap: 2 }}>
+              <Typography sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                Create a portal-ready user profile and generate the initial access code in one step.
+              </Typography>
+              <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+                <TextField label="Name" value={inviteForm.name} onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))} />
+                <TextField label="Email" value={inviteForm.email} onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))} />
+                <TextField label="Phone" value={inviteForm.phone} onChange={(event) => setInviteForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                <TextField label="City" value={inviteForm.city} onChange={(event) => setInviteForm((prev) => ({ ...prev, city: event.target.value }))} />
+                <TextField label="Country" value={inviteForm.country} onChange={(event) => setInviteForm((prev) => ({ ...prev, country: event.target.value }))} />
+                <TextField select label="Portal Role" value={inviteForm.membershipRole} onChange={(event) => setInviteForm((prev) => ({ ...prev, membershipRole: event.target.value }))}>
+                  <MenuItem value="ADMIN">ADMIN</MenuItem>
+                  <MenuItem value="STAFF">STAFF</MenuItem>
+                </TextField>
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 3 }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOpenCreatePortalUserDialog(false);
+                  setInviteForm(initialInviteForm);
+                }}
+                disabled={inviting}
+              >
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={() => void handleInvitePortalUser()} disabled={inviting}>
+                {inviting ? 'Preparing...' : 'Create User And Access Code'}
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
       )}
     </DashboardSurface>

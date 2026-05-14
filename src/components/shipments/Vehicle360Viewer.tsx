@@ -183,7 +183,7 @@ export default function Vehicle360Viewer({
         <div className="space-y-4">
           <div
             className={cn(
-              'group relative aspect-square overflow-hidden rounded-[24px] border border-white/10 sm:aspect-[16/10]',
+              'group relative aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 sm:aspect-[16/10]',
               canSpin ? 'cursor-ew-resize' : 'cursor-default',
             )}
             style={{

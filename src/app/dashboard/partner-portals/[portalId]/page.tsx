@@ -6,7 +6,19 @@ import { useParams, useRouter } from 'next/navigation';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import { Autocomplete, Box, MenuItem, Tab, Tabs, TextField, Typography } from '@mui/material';
+import {
+  Autocomplete,
+  Box,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, EmptyState, toast } from '@/components/design-system';
 import { PortalActivityList } from '@/components/partner-portals/PortalActivityList';
@@ -92,6 +104,15 @@ type ShipmentOption = {
 
 type PortalManageTab = 'shipments' | 'members' | 'activity' | 'branding' | 'customers';
 
+const initialInviteForm = {
+  name: '',
+  email: '',
+  phone: '',
+  city: '',
+  country: '',
+  membershipRole: 'STAFF',
+};
+
 export default function PartnerPortalDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -114,12 +135,14 @@ export default function PartnerPortalDetailPage() {
   const [shipmentSearch, setShipmentSearch] = useState('');
   const [shipmentResults, setShipmentResults] = useState<ShipmentOption[]>([]);
   const [savingShipmentId, setSavingShipmentId] = useState<string | null>(null);
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '', phone: '', city: '', country: '', membershipRole: 'STAFF' });
+  const [inviteForm, setInviteForm] = useState(initialInviteForm);
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [loginCodeResult, setLoginCodeResult] = useState<{ loginCode: string; simpleLoginUrl: string; portalUrl: string; email: string; name: string | null } | null>(null);
   const [activities, setActivities] = useState<PortalActivity[]>([]);
   const [activeTab, setActiveTab] = useState<PortalManageTab>('shipments');
+  const [openAddMemberDialog, setOpenAddMemberDialog] = useState(false);
+  const [openCreatePortalUserDialog, setOpenCreatePortalUserDialog] = useState(false);
 
   const publicSiteHref = useMemo(() => {
     if (portal?.customDomainVerifiedAt && portal?.customDomain) {
@@ -221,7 +244,11 @@ export default function PartnerPortalDetailPage() {
   }, [portalId, status, canAccess]);
 
   useEffect(() => {
-    if (!canAccess) return;
+    if (!canAccess || !openAddMemberDialog) {
+      setUsers([]);
+      return;
+    }
+
     const controller = new AbortController();
 
     const fetchUsers = async () => {
@@ -242,7 +269,7 @@ export default function PartnerPortalDetailPage() {
 
     void fetchUsers();
     return () => controller.abort();
-  }, [memberSearch, canAccess]);
+  }, [memberSearch, canAccess, openAddMemberDialog]);
 
   useEffect(() => {
     if (!canAccess || shipmentSearch.trim().length < 2) {
@@ -410,6 +437,7 @@ export default function PartnerPortalDetailPage() {
       toast.success('Portal member saved');
       setSelectedUser(null);
       setMemberSearch('');
+      setOpenAddMemberDialog(false);
       await fetchPortalData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save portal member');
@@ -575,7 +603,8 @@ export default function PartnerPortalDetailPage() {
         email: data.user.email,
         name: data.user.name,
       });
-      setInviteForm({ name: '', email: '', phone: '', city: '', country: '', membershipRole: 'STAFF' });
+      setInviteForm(initialInviteForm);
+      setOpenCreatePortalUserDialog(false);
       toast.success('Portal user ready');
       await fetchPortalData();
     } catch (error) {
@@ -688,52 +717,84 @@ export default function PartnerPortalDetailPage() {
             ) : null}
 
             {activeTab === 'members' ? (
-              <DashboardPanel title="Portal Members" description="Users who can enter this workspace">
+              <DashboardPanel
+                title="Portal Members"
+                description="Users who can enter this workspace"
+                actions={
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedUser(null);
+                        setMemberSearch('');
+                        setOpenAddMemberDialog(true);
+                      }}
+                    >
+                      Add Existing User
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setInviteForm(initialInviteForm);
+                        setOpenCreatePortalUserDialog(true);
+                      }}
+                    >
+                      Create Portal User
+                    </Button>
+                  </Box>
+                }
+              >
                 {memberships.length === 0 ? (
-                  <EmptyState icon={<PeopleOutlineIcon />} title="No members" description="Add the first member below." />
+                  <EmptyState icon={<PeopleOutlineIcon />} title="No members" description="Use the member actions to add the first portal user." />
                 ) : (
                   <DataTable data={memberships} columns={membershipColumns} keyField="id" />
                 )}
 
-                <Box sx={{ mt: 3, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 200px auto' }, alignItems: 'start' }}>
-                  <Autocomplete
-                    options={users}
-                    value={selectedUser}
-                    onChange={(_, value) => setSelectedUser(value)}
-                    onInputChange={(_, value) => setMemberSearch(value)}
-                    getOptionLabel={(option) => option.name ? `${option.name} (${option.email})` : option.email}
-                    renderInput={(params) => <TextField {...params} label="Add user to portal" placeholder="Search users by name or email" />}
-                  />
-                  <TextField select label="Portal Role" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}>
-                    <MenuItem value="ADMIN">ADMIN</MenuItem>
-                    <MenuItem value="STAFF">STAFF</MenuItem>
-                  </TextField>
-                  <Button variant="primary" onClick={() => void handleAddMember()} disabled={savingMember}>
-                    {savingMember ? 'Saving...' : 'Add Member'}
-                  </Button>
+                <Box sx={{ mt: 3, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' } }}>
+                  <Box sx={{ border: '1px solid var(--border)', borderRadius: 2.5, p: 2.25, display: 'grid', gap: 1.25, bgcolor: 'rgba(255,255,255,0.7)' }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700 }}>Add Existing User</Typography>
+                    <Typography sx={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                      Link an existing account to this portal and assign the correct workspace role.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(null);
+                          setMemberSearch('');
+                          setOpenAddMemberDialog(true);
+                        }}
+                      >
+                        Add Member
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ border: '1px solid rgba(var(--accent-gold-rgb), 0.24)', borderRadius: 2.5, p: 2.25, display: 'grid', gap: 1.25, bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)' }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700 }}>Create New Portal User</Typography>
+                    <Typography sx={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                      Create a new portal-ready user, then issue an access code and sign-in link immediately.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setInviteForm(initialInviteForm);
+                          setOpenCreatePortalUserDialog(true);
+                        }}
+                      >
+                        Create User
+                      </Button>
+                    </Box>
+                  </Box>
                 </Box>
 
-                <Box sx={{ mt: 4, display: 'grid', gap: 2 }}>
-                  <Typography sx={{ fontWeight: 700 }}>Create Portal User</Typography>
-                  <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
-                    <TextField label="Name" value={inviteForm.name} onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))} />
-                    <TextField label="Email" value={inviteForm.email} onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))} />
-                    <TextField label="Phone" value={inviteForm.phone} onChange={(event) => setInviteForm((prev) => ({ ...prev, phone: event.target.value }))} />
-                    <TextField label="City" value={inviteForm.city} onChange={(event) => setInviteForm((prev) => ({ ...prev, city: event.target.value }))} />
-                    <TextField label="Country" value={inviteForm.country} onChange={(event) => setInviteForm((prev) => ({ ...prev, country: event.target.value }))} />
-                    <TextField select label="Portal Role" value={inviteForm.membershipRole} onChange={(event) => setInviteForm((prev) => ({ ...prev, membershipRole: event.target.value }))}>
-                      <MenuItem value="ADMIN">ADMIN</MenuItem>
-                      <MenuItem value="STAFF">STAFF</MenuItem>
-                    </TextField>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button variant="primary" onClick={() => void handleInvitePortalUser()} disabled={inviting}>
-                      {inviting ? 'Preparing...' : 'Create User And Access Code'}
-                    </Button>
-                  </Box>
-
+                <Box sx={{ mt: 3, display: 'grid', gap: 2 }}>
                   {inviteResult ? renderAccessResult(inviteResult, 'Portal user created') : null}
-
                   {loginCodeResult ? renderAccessResult(loginCodeResult, 'Portal login code refreshed') : null}
                 </Box>
               </DashboardPanel>
@@ -781,6 +842,101 @@ export default function PartnerPortalDetailPage() {
                 )}
               </DashboardPanel>
             ) : null}
+
+            <Dialog
+              open={openAddMemberDialog}
+              onClose={() => {
+                if (!savingMember) {
+                  setOpenAddMemberDialog(false);
+                  setSelectedUser(null);
+                  setMemberSearch('');
+                }
+              }}
+              fullWidth
+              maxWidth="sm"
+            >
+              <DialogTitle>Add Existing User To Portal</DialogTitle>
+              <DialogContent sx={{ pt: 1.5, display: 'grid', gap: 2 }}>
+                <Typography sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Search for an existing application user, then assign their portal role before saving access.
+                </Typography>
+                <Autocomplete
+                  disablePortal
+                  options={users}
+                  value={selectedUser}
+                  onChange={(_, value) => setSelectedUser(value)}
+                  onInputChange={(_, value) => setMemberSearch(value)}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  getOptionLabel={(option) => option.name ? `${option.name} (${option.email})` : option.email}
+                  renderInput={(params) => <TextField {...params} label="Search users" placeholder="Search users by name or email" />}
+                />
+                <TextField select label="Portal Role" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}>
+                  <MenuItem value="ADMIN">ADMIN</MenuItem>
+                  <MenuItem value="STAFF">STAFF</MenuItem>
+                </TextField>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 3 }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setOpenAddMemberDialog(false);
+                    setSelectedUser(null);
+                    setMemberSearch('');
+                  }}
+                  disabled={savingMember}
+                >
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={() => void handleAddMember()} disabled={savingMember}>
+                  {savingMember ? 'Saving...' : 'Add Member'}
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            <Dialog
+              open={openCreatePortalUserDialog}
+              onClose={() => {
+                if (!inviting) {
+                  setOpenCreatePortalUserDialog(false);
+                  setInviteForm(initialInviteForm);
+                }
+              }}
+              fullWidth
+              maxWidth="md"
+            >
+              <DialogTitle>Create Portal User</DialogTitle>
+              <DialogContent sx={{ pt: 1.5, display: 'grid', gap: 2 }}>
+                <Typography sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Create a portal-ready user profile and generate the initial access code in one step.
+                </Typography>
+                <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+                  <TextField label="Name" value={inviteForm.name} onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))} />
+                  <TextField label="Email" value={inviteForm.email} onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))} />
+                  <TextField label="Phone" value={inviteForm.phone} onChange={(event) => setInviteForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                  <TextField label="City" value={inviteForm.city} onChange={(event) => setInviteForm((prev) => ({ ...prev, city: event.target.value }))} />
+                  <TextField label="Country" value={inviteForm.country} onChange={(event) => setInviteForm((prev) => ({ ...prev, country: event.target.value }))} />
+                  <TextField select label="Portal Role" value={inviteForm.membershipRole} onChange={(event) => setInviteForm((prev) => ({ ...prev, membershipRole: event.target.value }))}>
+                    <MenuItem value="ADMIN">ADMIN</MenuItem>
+                    <MenuItem value="STAFF">STAFF</MenuItem>
+                  </TextField>
+                </Box>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 3 }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setOpenCreatePortalUserDialog(false);
+                    setInviteForm(initialInviteForm);
+                  }}
+                  disabled={inviting}
+                >
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={() => void handleInvitePortalUser()} disabled={inviting}>
+                  {inviting ? 'Preparing...' : 'Create User And Access Code'}
+                </Button>
+              </DialogActions>
+            </Dialog>
           </Box>
         )}
       </DashboardPanel>
