@@ -1,4 +1,10 @@
 import type { NextAuthConfig } from "next-auth";
+import { NextResponse } from "next/server";
+
+function getPortalIdFromPath(pathname: string) {
+  const match = pathname.match(/^\/portal\/([^/?#]+)/);
+  return match?.[1] || null;
+}
 
 export const authConfig = {
   pages: {
@@ -12,7 +18,21 @@ export const authConfig = {
       const isOnPortal = nextUrl.pathname.startsWith('/portal');
       const isOnProtected = nextUrl.pathname.startsWith('/api/protected');
 
-      if (isOnDashboard || isOnPortal || isOnProtected) {
+      if (isOnPortal) {
+        if (isLoggedIn) return true;
+
+        const portalId = getPortalIdFromPath(nextUrl.pathname);
+        if (!portalId) {
+          return false;
+        }
+
+        const signInUrl = new URL('/auth/simple-login', nextUrl);
+        signInUrl.searchParams.set('portalId', portalId);
+        signInUrl.searchParams.set('callbackUrl', `${nextUrl.pathname}${nextUrl.search}`);
+        return NextResponse.redirect(signInUrl);
+      }
+
+      if (isOnDashboard || isOnProtected) {
         if (isLoggedIn) return true;
         return false; // Redirect unauthenticated users to login page
       }

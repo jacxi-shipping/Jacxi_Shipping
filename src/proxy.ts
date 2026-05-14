@@ -63,7 +63,8 @@ export default auth(async (request) => {
   }
 
   if (!request.auth?.user) {
-    const signInUrl = new URL('/auth/signin', getRequestOrigin(request));
+    const signInUrl = new URL('/auth/simple-login', getRequestOrigin(request));
+    signInUrl.searchParams.set('portalId', portalId);
     signInUrl.searchParams.set('callbackUrl', `${pathname}${search}`);
     return NextResponse.redirect(signInUrl);
   }
