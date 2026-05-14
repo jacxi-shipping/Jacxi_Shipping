@@ -103,6 +103,7 @@ const formatRelativeTime = (value?: string | null) => {
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const isAdmin = session?.user?.role === 'admin';
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [profileForm, setProfileForm] = useState({ name: '', phone: '', address: '', city: '', country: '' });
@@ -124,9 +125,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (status === 'loading') return;
 
-    const role = session?.user?.role;
-    if (!session || role !== 'admin') {
-      router.replace('/dashboard');
+    if (!session) {
+      router.replace('/auth/signin?callbackUrl=/dashboard/settings');
       return;
     }
 
@@ -136,7 +136,7 @@ export default function SettingsPage() {
         const [profileRes, settingsRes, backupRes] = await Promise.all([
           fetch('/api/profile'),
           fetch('/api/settings'),
-          fetch('/api/settings/backup', { cache: 'no-store' })
+          isAdmin ? fetch('/api/settings/backup', { cache: 'no-store' }) : Promise.resolve(null),
         ]);
 
         if (profileRes.ok) {
@@ -169,7 +169,7 @@ export default function SettingsPage() {
           });
         }
 
-        if (backupRes.ok) {
+        if (backupRes?.ok) {
           const data = await backupRes.json();
           setBackupState(prev => ({
             ...prev,
@@ -179,17 +179,26 @@ export default function SettingsPage() {
             },
             loading: false
           }));
+        } else {
+          setBackupState(prev => ({
+            ...prev,
+            loading: false,
+          }));
         }
       } catch (error) {
         console.error('Error fetching settings data:', error);
         toast.error('Failed to load settings data');
+        setBackupState(prev => ({
+          ...prev,
+          loading: false,
+        }));
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [session, status, router]);
+  }, [isAdmin, session, status, router]);
 
   const handleProfileFieldChange = (field: keyof typeof profileForm, value: string) => {
     setProfileForm((prev) => ({ ...prev, [field]: value }));
@@ -346,8 +355,8 @@ export default function SettingsPage() {
       </Box>
 
       <PageHeader 
-        title="Admin Settings" 
-        description="Manage your profile, preferences, and system configuration"
+        title={isAdmin ? 'Admin Settings' : 'Settings'} 
+        description={isAdmin ? 'Manage your profile, preferences, and system configuration' : 'Manage your profile, preferences, and account settings'}
       />
 
       <DashboardGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
@@ -367,10 +376,10 @@ export default function SettingsPage() {
           size="md"
         />
         <StatsCard
-          icon={<Activity style={{ fontSize: 18 }} />}
-          title="Last Backup"
-          value={backupState.info?.lastBackupAt ? new Date(backupState.info.lastBackupAt).toLocaleDateString() : 'None'}
-          variant={backupState.info?.lastBackupAt ? 'success' : 'error'}
+          icon={isAdmin ? <Activity style={{ fontSize: 18 }} /> : <Palette style={{ fontSize: 18 }} />}
+          title={isAdmin ? 'Last Backup' : 'Theme'}
+          value={isAdmin ? (backupState.info?.lastBackupAt ? new Date(backupState.info.lastBackupAt).toLocaleDateString() : 'None') : settingsForm.theme}
+          variant={isAdmin ? (backupState.info?.lastBackupAt ? 'success' : 'error') : 'default'}
           size="md"
         />
         <StatsCard
@@ -521,8 +530,8 @@ export default function SettingsPage() {
 
         {/* System & Backup */}
         <DashboardPanel 
-          title="System & Backup" 
-          description="Database management and security"
+          title={isAdmin ? 'System & Backup' : 'Security'} 
+          description={isAdmin ? 'Database management and security' : 'Account security controls'}
         >
           <div className="space-y-6">
             <div className="p-4 border border-[var(--border)] rounded-lg bg-[var(--background)]">
@@ -538,62 +547,64 @@ export default function SettingsPage() {
                 </Button>
               </div>
               <Typography variant="caption" color="text.secondary">
-                Require authenticator verification for admin dashboard sign-in.
+                {isAdmin ? 'Require authenticator verification for admin dashboard sign-in.' : 'Require extra verification for your account sign-in.'}
               </Typography>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Typography variant="subtitle2" fontWeight="600">Create Backup</Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Generate a JSON snapshot of current data.
-                </Typography>
-                <Button 
-                  onClick={handleCreateBackup} 
-                  disabled={backupState.running}
-                  variant="primary"
-                  fullWidth
-                  icon={backupState.running ? <RefreshCw className="animate-spin" /> : <Database />}
-                >
-                  {backupState.running ? 'Backing up...' : 'Create Backup'}
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                <Typography variant="subtitle2" fontWeight="600">Restore Data</Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Upload a JSON backup file to restore.
-                </Typography>
-                <input
-                  type="file"
-                  accept="application/json"
-                  onChange={(e) => setBackupFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                  id="backup-upload"
-                />
-                <label htmlFor="backup-upload">
+            {isAdmin ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Typography variant="subtitle2" fontWeight="600">Create Backup</Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Generate a JSON snapshot of current data.
+                  </Typography>
                   <Button 
-                    component="span" 
-                    variant="outline" 
-                    fullWidth
-                    icon={<UploadCloud />}
-                  >
-                    {backupFile ? 'File Selected' : 'Select File'}
-                  </Button>
-                </label>
-                {backupFile && (
-                  <Button 
-                    onClick={handleRestoreBackup}
+                    onClick={handleCreateBackup} 
                     disabled={backupState.running}
-                     variant="danger"
+                    variant="primary"
                     fullWidth
-                    size="sm"
+                    icon={backupState.running ? <RefreshCw className="animate-spin" /> : <Database />}
                   >
-                    Confirm Restore
+                    {backupState.running ? 'Backing up...' : 'Create Backup'}
                   </Button>
-                )}
+                </div>
+
+                <div className="space-y-2">
+                  <Typography variant="subtitle2" fontWeight="600">Restore Data</Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Upload a JSON backup file to restore.
+                  </Typography>
+                  <input
+                    type="file"
+                    accept="application/json"
+                    onChange={(e) => setBackupFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    id="backup-upload"
+                  />
+                  <label htmlFor="backup-upload">
+                    <Button 
+                      component="span" 
+                      variant="outline" 
+                      fullWidth
+                      icon={<UploadCloud />}
+                    >
+                      {backupFile ? 'File Selected' : 'Select File'}
+                    </Button>
+                  </label>
+                  {backupFile && (
+                    <Button 
+                      onClick={handleRestoreBackup}
+                      disabled={backupState.running}
+                       variant="danger"
+                      fullWidth
+                      size="sm"
+                    >
+                      Confirm Restore
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </DashboardPanel>
       </DashboardGrid>

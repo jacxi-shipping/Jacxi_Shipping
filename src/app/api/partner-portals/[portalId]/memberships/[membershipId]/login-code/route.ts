@@ -84,8 +84,10 @@ export async function POST(
       return NextResponse.json({ error: 'Portal membership not found' }, { status: 404 });
     }
 
-    if (targetMembership.user.role !== 'user') {
-      return NextResponse.json({ error: 'Login code regeneration is only available for portal user accounts' }, { status: 400 });
+    const canUseLoginCode = targetMembership.user.role === 'user' || targetMembership.role === 'ADMIN';
+
+    if (!canUseLoginCode) {
+      return NextResponse.json({ error: 'Login code generation is only available for portal user accounts and portal admins' }, { status: 400 });
     }
 
     const loginCode = await generateUniqueLoginCode(targetMembership.user.id);

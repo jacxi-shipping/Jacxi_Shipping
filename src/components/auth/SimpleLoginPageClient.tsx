@@ -89,6 +89,225 @@ export default function SimpleLoginPageClient({ portal }: SimpleLoginPageClientP
 		}
 	};
 
+	if (!portal) {
+		return (
+			<Box
+				sx={{
+					minHeight: '100vh',
+					bgcolor: 'var(--background)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					py: { xs: 6, sm: 10 },
+					px: { xs: 2, sm: 3, lg: 4 },
+				}}
+			>
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.6 }}
+					style={{ maxWidth: 448, width: '100%', position: 'relative', zIndex: 10 }}
+				>
+					<Paper
+						elevation={0}
+						sx={{
+							position: 'relative',
+							borderRadius: 4,
+							background: 'var(--panel)',
+							border: '1px solid rgba(var(--panel-rgb), 0.9)',
+							boxShadow: '0 25px 60px rgba(var(--text-primary-rgb), 0.12)',
+							p: { xs: 4, sm: 5 },
+							overflow: 'hidden',
+						}}
+					>
+						<Box sx={{ position: 'relative', zIndex: 1 }}>
+							<Box sx={{ textAlign: 'center', mb: 3 }}>
+								<Typography
+									variant="h3"
+									sx={{
+										fontSize: { xs: '1.875rem', sm: '2.25rem' },
+										fontWeight: 700,
+										color: 'var(--text-primary)',
+										mb: 1,
+									}}
+								>
+									Login With Code
+								</Typography>
+								<Typography
+									variant="body1"
+									sx={{
+										color: 'var(--text-secondary)',
+									}}
+								>
+									Enter your 8-character access code to continue.
+								</Typography>
+							</Box>
+
+							{error && (
+								<Alert
+									severity="error"
+									sx={{
+										mb: 2,
+										bgcolor: 'rgba(var(--error-rgb), 0.15)',
+										border: '1px solid rgba(var(--error-rgb), 0.4)',
+										color: 'var(--error)',
+										'& .MuiAlert-icon': {
+											color: 'var(--error)',
+										},
+									}}
+								>
+									{error}
+								</Alert>
+							)}
+
+							<Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+								<Box>
+									<Typography
+										component="label"
+										htmlFor="loginCode"
+										sx={{
+											display: 'block',
+											fontSize: '0.875rem',
+											fontWeight: 500,
+											color: 'var(--text-primary)',
+											mb: 1,
+										}}
+									>
+										8-Character Code
+									</Typography>
+									<TextField
+										id="loginCode"
+										type={showCode ? 'text' : 'password'}
+										fullWidth
+										value={loginCode}
+										onChange={handleCodeChange}
+										required
+										placeholder="Enter your 8-character code"
+										autoComplete="off"
+										autoFocus
+										InputProps={{
+											startAdornment: (
+												<InputAdornment position="start">
+													<VpnKey sx={{ fontSize: 20, color: 'var(--text-secondary)' }} />
+												</InputAdornment>
+											),
+											endAdornment: (
+												<InputAdornment position="end">
+													<IconButton
+														onClick={() => setShowCode(!showCode)}
+														edge="end"
+														sx={{
+															color: 'var(--accent-gold)',
+															'&:hover': {
+																color: 'var(--accent-gold)',
+															},
+														}}
+													>
+														{showCode ? (
+															<VisibilityOff sx={{ fontSize: 20 }} />
+														) : (
+															<Visibility sx={{ fontSize: 20 }} />
+														)}
+													</IconButton>
+												</InputAdornment>
+											),
+										}}
+										sx={{
+											'& .MuiOutlinedInput-root': {
+												bgcolor: 'var(--background)',
+												borderRadius: 2,
+												color: 'var(--text-primary)',
+												'& fieldset': {
+													borderColor: 'rgba(var(--panel-rgb), 0.9)',
+												},
+												'&:hover fieldset': {
+													borderColor: 'var(--panel)',
+												},
+												'&.Mui-focused fieldset': {
+													borderColor: 'var(--accent-gold)',
+													borderWidth: 2,
+												},
+												'& input': {
+													color: 'var(--text-primary)',
+													letterSpacing: '0.28em',
+													fontWeight: 600,
+													textAlign: 'center',
+													'&::placeholder': {
+														letterSpacing: 'normal',
+														color: 'var(--text-secondary)',
+														opacity: 1,
+													},
+												},
+											},
+										}}
+									/>
+								</Box>
+
+								<Button
+									type="submit"
+									disabled={isLoading || loginCode.length !== 8}
+									variant="contained"
+									size="large"
+									endIcon={!isLoading && <ArrowForward />}
+									sx={{
+										width: '100%',
+										bgcolor: 'var(--accent-gold)',
+										color: 'var(--background)',
+										fontWeight: 600,
+										py: 1.5,
+										fontSize: '1rem',
+										'&:hover': {
+											bgcolor: 'var(--accent-gold)',
+										},
+										'&:disabled': {
+											bgcolor: 'rgba(var(--accent-gold-rgb), 0.5)',
+											color: 'rgba(var(--background-rgb), 0.85)',
+										},
+									}}
+								>
+									{isLoading ? (
+										<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+											<CircularProgress size={20} sx={{ color: 'var(--background)' }} />
+											<Typography component="span">Signing in...</Typography>
+										</Box>
+									) : (
+										<Typography component="span">Login with Code</Typography>
+									)}
+								</Button>
+							</Box>
+
+							<Box sx={{ textAlign: 'center', pt: 2, mt: 2, borderTop: '1px solid var(--border)' }}>
+								<Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)', mb: 1 }}>
+									Prefer email and password?
+								</Typography>
+								<Typography
+									component="button"
+									type="button"
+									onClick={() => router.push('/auth/signin')}
+									sx={{
+										background: 'none',
+										border: 'none',
+										color: 'var(--accent-gold)',
+										fontWeight: 500,
+										cursor: 'pointer',
+										fontSize: '0.875rem',
+										textDecoration: 'underline',
+										transition: 'color 0.2s ease',
+										'&:hover': {
+											color: 'var(--accent-gold)',
+										},
+									}}
+								>
+									Back to Sign In
+								</Typography>
+							</Box>
+						</Box>
+					</Paper>
+				</motion.div>
+			</Box>
+		);
+	}
+
 	return (
 		<Box
 			sx={{
@@ -300,7 +519,7 @@ export default function SimpleLoginPageClient({ portal }: SimpleLoginPageClientP
 
 						<Box sx={{ textAlign: 'center', pt: 4, mt: 4, borderTop: `1px solid rgba(${brand.accentRgb}, 0.14)`, display: 'grid', gap: 1.25 }}>
 							<Typography variant="body2" sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-								Need portal support or staff access instead?
+								Prefer email and password instead?
 							</Typography>
 							<Link href={staffLoginHref} style={{ textDecoration: 'none' }}>
 								<Button
@@ -317,7 +536,7 @@ export default function SimpleLoginPageClient({ portal }: SimpleLoginPageClientP
 										},
 									}}
 								>
-									Portal Staff Sign In
+									Sign In With Email
 								</Button>
 							</Link>
 						</Box>

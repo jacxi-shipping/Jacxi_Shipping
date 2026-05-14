@@ -32,6 +32,12 @@ type ProfileFormState = {
 	image: string;
 };
 
+type PasswordFormState = {
+	currentPassword: string;
+	newPassword: string;
+	confirmPassword: string;
+};
+
 type ProfileResponse = {
 	user: {
 		id: string;
@@ -58,13 +64,21 @@ const initialFormState: ProfileFormState = {
 	image: '',
 };
 
+const initialPasswordFormState: PasswordFormState = {
+	currentPassword: '',
+	newPassword: '',
+	confirmPassword: '',
+};
+
 export default function ProfilePage() {
 	const { data: session, status } = useSession();
 	const router = useRouter();
 	const [profile, setProfile] = useState<ProfileResponse['user'] | null>(null);
 	const [form, setForm] = useState<ProfileFormState>(initialFormState);
+	const [passwordForm, setPasswordForm] = useState<PasswordFormState>(initialPasswordFormState);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [savingPassword, setSavingPassword] = useState(false);
 	const [generatingCode, setGeneratingCode] = useState(false);
 
 	useEffect(() => {
@@ -156,6 +170,49 @@ export default function ProfilePage() {
 			image: profile.image ?? '',
 		});
 		toast.info('Form reset to saved values');
+	};
+
+	const handlePasswordFieldChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const { name, value } = event.target;
+		setPasswordForm((prev) => ({ ...prev, [name]: value }));
+	};
+
+	const handlePasswordReset = () => {
+		setPasswordForm(initialPasswordFormState);
+		toast.info('Password form cleared');
+	};
+
+	const handlePasswordSubmit = async (event: React.FormEvent) => {
+		event.preventDefault();
+
+		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+			toast.error('New password and confirmation do not match');
+			return;
+		}
+
+		setSavingPassword(true);
+
+		try {
+			const response = await fetch('/api/profile/password', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(passwordForm),
+			});
+
+			const payload = (await response.json()) as { message?: string };
+
+			if (!response.ok) {
+				throw new Error(payload.message ?? 'Failed to update password');
+			}
+
+			setPasswordForm(initialPasswordFormState);
+			toast.success(payload.message ?? 'Password updated successfully');
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to update password';
+			toast.error(message);
+		} finally {
+			setSavingPassword(false);
+		}
 	};
 
 	const handleCopyLoginCode = () => {
@@ -405,6 +462,67 @@ export default function ProfilePage() {
 										<li style={{ marginBottom: '0.5rem' }}>Keep your contact info up to date</li>
 										<li style={{ marginBottom: '0.5rem' }}>Review account activity regularly</li>
 									</ul>
+								</Box>
+							</DashboardPanel>
+
+							<DashboardPanel
+								title="Password"
+								description="Set a new password for your account"
+							>
+								<Box component="form" onSubmit={handlePasswordSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+									<FormField
+										label="Current Password"
+										name="currentPassword"
+										type="password"
+										value={passwordForm.currentPassword}
+										onChange={handlePasswordFieldChange}
+										placeholder={profile.role === 'user' ? 'Optional if you signed in with a code' : 'Enter your current password'}
+										helperText={profile.role === 'user' ? 'Customers who signed in with an 8-character code can set a password without entering a current one.' : 'Required before saving a new password.'}
+										leftIcon={<Key className="w-4 h-4 text-[var(--text-secondary)]" />}
+									/>
+
+									<FormField
+										label="New Password"
+										name="newPassword"
+										type="password"
+										value={passwordForm.newPassword}
+										onChange={handlePasswordFieldChange}
+										placeholder="At least 8 characters"
+										helperText="Choose a password with at least 8 characters."
+										leftIcon={<Key className="w-4 h-4 text-[var(--text-secondary)]" />}
+									/>
+
+									<FormField
+										label="Confirm New Password"
+										name="confirmPassword"
+										type="password"
+										value={passwordForm.confirmPassword}
+										onChange={handlePasswordFieldChange}
+										placeholder="Re-enter your new password"
+										leftIcon={<Key className="w-4 h-4 text-[var(--text-secondary)]" />}
+									/>
+
+									<Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											icon={<RotateCcw className="w-4 h-4" />}
+											onClick={handlePasswordReset}
+											disabled={savingPassword}
+										>
+											Reset
+										</Button>
+										<Button
+											type="submit"
+											variant="primary"
+											size="sm"
+											icon={<Key className="w-4 h-4" />}
+											disabled={savingPassword}
+										>
+											{savingPassword ? 'Updating...' : 'Update Password'}
+										</Button>
+									</Box>
 								</Box>
 							</DashboardPanel>
 

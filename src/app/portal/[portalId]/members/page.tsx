@@ -325,9 +325,9 @@ export default function PortalMembersPage() {
             variant="outline"
             size="sm"
             onClick={() => void handleRegenerateLoginCode(row)}
-            disabled={regeneratingLoginCodeMembershipId === row.id || row.user.role !== 'user'}
+            disabled={regeneratingLoginCodeMembershipId === row.id || (row.user.role !== 'user' && row.role !== 'ADMIN')}
           >
-            {regeneratingLoginCodeMembershipId === row.id ? 'Generating...' : 'Regenerate Code'}
+            {regeneratingLoginCodeMembershipId === row.id ? 'Generating...' : 'Generate Code'}
           </Button>
           <Button variant="outline" size="sm" onClick={() => void handleRemoveMembership(row.id)} disabled={removingMembershipId === row.id}>
             {removingMembershipId === row.id ? 'Removing...' : 'Remove'}
