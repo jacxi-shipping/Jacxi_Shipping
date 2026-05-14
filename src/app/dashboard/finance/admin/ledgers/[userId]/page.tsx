@@ -199,18 +199,6 @@ export default function UserLedgerManagementPage() {
     e.preventDefault();
     try {
       const amount = parseFloat(formData.amount);
-      // Balance check: customer must have enough credit for a DEBIT
-      if (formData.type === 'DEBIT') {
-        const availableCredit = summary.currentBalance < 0 ? -summary.currentBalance : 0;
-        if (amount > availableCredit) {
-          setSnackbar({
-            open: true,
-            message: `Insufficient balance. Customer only has ${formatCurrency(availableCredit)} available. Ask the customer to deposit more credit first.`,
-            severity: 'error',
-          });
-          return;
-        }
-      }
       const response = await fetch('/api/ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -218,6 +206,7 @@ export default function UserLedgerManagementPage() {
           userId,
           description: formData.description,
           type: formData.type,
+          transactionInfoType: formData.transactionInfoType,
           amount,
           notes: formData.notes,
         }),
@@ -743,32 +732,28 @@ export default function UserLedgerManagementPage() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* Account balance info */}
               {(() => {
-                const availableCredit = summary.currentBalance < 0 ? -summary.currentBalance : 0;
                 const enteredAmount = parseFloat(formData.amount) || 0;
-                const isInsufficientCredit = formData.type === 'DEBIT' && enteredAmount > 0 && enteredAmount > availableCredit;
-                const hasNoCredit = summary.currentBalance >= 0;
+                const projectedBalance = formData.type === 'DEBIT'
+                  ? summary.currentBalance + enteredAmount
+                  : summary.currentBalance - enteredAmount;
+                const currentBalanceLabel = summary.currentBalance > 0
+                  ? `Customer owes ${formatCurrency(summary.currentBalance)}`
+                  : summary.currentBalance < 0
+                    ? `Customer has ${formatCurrency(Math.abs(summary.currentBalance))} credit`
+                    : 'Account is settled';
+                const projectedBalanceLabel = projectedBalance > 0
+                  ? `customer will owe ${formatCurrency(projectedBalance)}`
+                  : projectedBalance < 0
+                    ? `customer will have ${formatCurrency(Math.abs(projectedBalance))} credit`
+                    : 'account will be settled';
                 return (
                   <>
                     <Alert
-                      severity={hasNoCredit ? 'error' : 'success'}
+                      severity={formData.type === 'DEBIT' ? 'info' : 'success'}
                       sx={{ fontSize: '0.9rem', fontWeight: 500 }}
                     >
-                      {hasNoCredit
-                        ? summary.currentBalance === 0
-                          ? 'Account Balance: $0.00 — No credit available. Customer must deposit funds first before any payment can be made.'
-                          : `Account Balance: Customer owes ${formatCurrency(summary.currentBalance)} — No credit available. Customer must deposit funds first.`
-                        : `Available Credit: ${formatCurrency(availableCredit)} — Customer can pay up to this amount.`}
+                      Current Balance: {currentBalanceLabel}. {enteredAmount > 0 ? `After this transaction, ${projectedBalanceLabel}.` : 'Enter an amount to preview the new balance.'}
                     </Alert>
-                    {isInsufficientCredit && (
-                      <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                        ❌ Insufficient credit. Customer only has {formatCurrency(availableCredit)} available but you entered {formatCurrency(enteredAmount)}. Ask the customer to deposit more funds first.
-                      </Alert>
-                    )}
-                    {formData.type === 'DEBIT' && hasNoCredit && (
-                      <Alert severity="error" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                        ❌ Cannot make a payment — this customer has no credit in their account. Add a deposit (Credit) first.
-                      </Alert>
-                    )}
                   </>
                 );
               })()}
@@ -781,8 +766,22 @@ export default function UserLedgerManagementPage() {
                   label="Type *"
                   required
                 >
-                  <MenuItem value="CREDIT">Deposit / Add Credit (Customer pays in)</MenuItem>
-                  <MenuItem value="DEBIT">Payment / Debit (Pay from account)</MenuItem>
+                  <MenuItem value="DEBIT">Debit / Charge Customer</MenuItem>
+                  <MenuItem value="CREDIT">Credit / Customer Payment</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Category *</InputLabel>
+                <Select
+                  value={formData.transactionInfoType}
+                  onChange={(e) => setFormData({ ...formData, transactionInfoType: e.target.value as TransactionInfoType })}
+                  label="Category *"
+                  required
+                >
+                  {Object.entries(transactionInfoTypeLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>{label}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 
@@ -790,7 +789,7 @@ export default function UserLedgerManagementPage() {
                 label="Description *"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="e.g. Customer deposit, Car purchase payment"
+                placeholder="e.g. Shipping charge, Customer payment"
                 required
                 fullWidth
               />
@@ -803,14 +802,15 @@ export default function UserLedgerManagementPage() {
                 placeholder="0.00"
                 inputProps={{ step: '0.01', min: '0.01' }}
                 helperText={
-                  formData.type === 'CREDIT' && formData.amount
-                    ? `After deposit: account will have ${formatCurrency((summary.currentBalance < 0 ? -summary.currentBalance : 0) + parseFloat(formData.amount || '0'))} available`
-                    : formData.type === 'DEBIT' && formData.amount
+                  formData.amount
                     ? (() => {
-                        const amt = parseFloat(formData.amount);
-                        const avail = summary.currentBalance < 0 ? -summary.currentBalance : 0;
-                        if (amt <= avail) return `After payment: ${formatCurrency(avail - amt)} will remain available`;
-                        return '';
+                        const amt = parseFloat(formData.amount) || 0;
+                        const projected = formData.type === 'DEBIT'
+                          ? summary.currentBalance + amt
+                          : summary.currentBalance - amt;
+                        if (projected > 0) return `New balance: customer owes ${formatCurrency(projected)}`;
+                        if (projected < 0) return `New balance: customer has ${formatCurrency(Math.abs(projected))} credit`;
+                        return 'New balance: account settled';
                       })()
                     : ''
                 }
@@ -839,14 +839,6 @@ export default function UserLedgerManagementPage() {
               variant="primary"
               icon={<Check />}
               sx={{ textTransform: 'none' }}
-              disabled={(() => {
-                if (formData.type === 'DEBIT') {
-                  const avail = summary.currentBalance < 0 ? -summary.currentBalance : 0;
-                  const amt = parseFloat(formData.amount) || 0;
-                  return avail === 0 || amt > avail;
-                }
-                return false;
-              })()}
             >
               Add Transaction
             </Button>

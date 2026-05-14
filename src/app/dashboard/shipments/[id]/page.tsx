@@ -5,11 +5,9 @@ import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
+import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Button, DetailPageSkeleton } from '@/components/design-system';
-import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
   CalendarCheck,
@@ -29,7 +27,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Tabs, Tab, Box } from '@mui/material';
-import { Breadcrumbs, toast, EmptyState, Tooltip, StatusBadge } from '@/components/design-system';
+import { Breadcrumbs, toast, Tooltip } from '@/components/design-system';
 
 import ShipmentDetailOverlays from '@/components/shipments/ShipmentDetailOverlays';
 import ShipmentActivityTab from '@/components/shipments/ShipmentActivityTab';
@@ -110,6 +108,18 @@ function classifyExpenseSource(metadata: Record<string, unknown>): ClassifiedExp
   }
 
   return 'SHIPMENT';
+}
+
+function formatMoney(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 'Not set';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+}
+
+function formatShortDate(value: string | null | undefined) {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not set';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }
 
 export default function ShipmentDetailPage() {
@@ -837,88 +847,199 @@ export default function ShipmentDetailPage() {
   }
 
   const statusStyle = statusStyles[shipment.status] || statusColors['ON_HAND'];
+  const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ').trim() || 'Shipment Details';
+  const shipmentRoute = shipment.container
+    ? [shipment.container.loadingPort, shipment.container.destinationPort].filter(Boolean).join(' to ')
+    : shipment.dispatch
+    ? [shipment.dispatch.origin, shipment.dispatch.destination].filter(Boolean).join(' to ')
+    : shipment.transit
+    ? [shipment.transit.origin, shipment.transit.destination].filter(Boolean).join(' to ')
+    : 'Route not assigned';
+  const primaryPhoto = shipment.vehiclePhotos?.[0] || arrivalPhotos[0];
+  const activeMovement = shipment.container?.containerNumber || shipment.dispatch?.referenceNumber || shipment.transit?.referenceNumber || 'Not assigned';
+  const movementLabel = shipment.container
+    ? 'Container'
+    : shipment.dispatch
+    ? 'Dispatch'
+    : shipment.transit
+    ? 'Transit'
+    : 'Movement';
+  const serviceLabel = shipment.serviceType === 'PURCHASE_AND_SHIPPING' ? 'Purchase + Shipping' : 'Shipping Only';
 
   return (
     <ProtectedRoute>
       <DashboardSurface>
-        {/* Header */}
-        <div className="flex flex-col gap-3">
-          <Breadcrumbs 
+        <div className="flex flex-col gap-4">
+          <Breadcrumbs
             items={[
               { label: 'Shipments', href: '/dashboard/shipments' },
-              { label: shipment.vehicleVIN || `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim() || 'Details', href: '' },
+              { label: shipment.vehicleVIN || vehicleLabel, href: '' },
             ]}
           />
-          
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Link href="/dashboard/shipments">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-            </Link>
 
-            <div className="flex-1 text-center">
-              <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
-                {shipment.vehicleVIN || `${shipment.vehicleYear || ''} ${shipment.vehicleMake || ''} ${shipment.vehicleModel || ''}`.trim() || 'Shipment Details'}
-              </h1>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Detailed view of shipment lifecycle and information
-              </p>
-            </div>
+          <DashboardPanel noHeaderBorder>
+            <div className="flex flex-col gap-5 lg:flex-row">
+              <button
+                type="button"
+                onClick={() => openLightbox(primaryPhoto ? [primaryPhoto] : [], 0, 'Vehicle Photo')}
+                className="relative h-44 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--background)] text-left lg:h-auto lg:w-72 lg:flex-shrink-0"
+              >
+                {primaryPhoto ? (
+                  <Image src={primaryPhoto} alt={vehicleLabel} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 288px" />
+                ) : (
+                  <div className="flex h-full min-h-44 items-center justify-center text-[var(--text-secondary)]">
+                    <ImageIcon className="h-10 w-10" />
+                  </div>
+                )}
+                <div className="absolute left-3 top-3 rounded-full border border-white/30 bg-black/55 px-3 py-1 text-xs font-semibold text-white">
+                  {serviceLabel}
+                </div>
+              </button>
 
-            <div className="flex items-center gap-2">
-                <Tooltip title="Download a PDF receipt for this shipment. For official invoices, use the Billing tab on this shipment.">
-                  <Button variant="outline" size="sm" onClick={handleDownloadReceipt}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Download Receipt
-                  </Button>
-                </Tooltip>
-                {canManageWorkflow && !shipment.releaseToken && (
-                  <Tooltip
-                    title={
-                      isReleasedForTransit
-                        ? 'Generate release token for this shipment'
-                        : 'Release token can be generated after shipment/container status is Released'
-                    }
-                  >
-                    <span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        icon={<FileText className="w-4 h-4" />}
-                        onClick={() => void handleGenerateReleaseToken()}
-                        disabled={creatingReleaseToken || !isReleasedForTransit}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span
+                        className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                        style={{ backgroundColor: statusStyle.bg, color: statusStyle.text, borderColor: statusStyle.border }}
                       >
-                        {creatingReleaseToken ? 'Generating...' : 'Generate Token'}
-                      </Button>
-                    </span>
-                  </Tooltip>
-                )}
-                {shipment.releaseToken && (
-                  <Tooltip title="Download release token document as PDF with customer, vehicle, and payment details.">
-                    <Button variant="outline" size="sm" onClick={handleDownloadReleaseToken}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Release Token PDF
-                    </Button>
-                  </Tooltip>
-                )}
-                {canManageShipmentRecord && (
-                  <>
-                    <Link href={`/dashboard/shipments/${shipment.id}/edit`}>
-                      <Button size="sm">
-                        <PenLine className="mr-2 h-4 w-4" />
-                        Edit
+                        {formatStatus(shipment.status)}
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                        {shipment.paymentStatus ? formatStatus(shipment.paymentStatus) : 'Payment Unknown'}
+                      </span>
+                      {shipment.releaseToken && (
+                        <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600">
+                          Release Token Ready
+                        </span>
+                      )}
+                    </div>
+
+                    <h1 className="text-2xl font-semibold leading-tight text-[var(--text-primary)] sm:text-3xl">
+                      {vehicleLabel}
+                    </h1>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--text-secondary)]">
+                      <span>VIN: <strong className="text-[var(--text-primary)]">{shipment.vehicleVIN || 'Not recorded'}</strong></span>
+                      <span>Lot: <strong className="text-[var(--text-primary)]">{shipment.lotNumber || 'Not recorded'}</strong></span>
+                      <span>Auction: <strong className="text-[var(--text-primary)]">{shipment.auctionName || 'Not recorded'}</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Link href="/dashboard/shipments">
+                      <Button variant="outline" size="sm">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
                       </Button>
                     </Link>
+                    <Tooltip title="Download a PDF receipt for this shipment. For official invoices, use the Billing tab on this shipment.">
+                      <Button variant="outline" size="sm" onClick={handleDownloadReceipt}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Receipt
+                      </Button>
+                    </Tooltip>
+                    {shipment.releaseToken && (
+                      <Tooltip title="Download release token document as PDF with customer, vehicle, and payment details.">
+                        <Button variant="outline" size="sm" onClick={handleDownloadReleaseToken}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Token PDF
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {canManageShipmentRecord && (
+                      <Link href={`/dashboard/shipments/${shipment.id}/edit`}>
+                        <Button size="sm">
+                          <PenLine className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[var(--text-secondary)]">
+                      <User className="h-4 w-4" />
+                      Customer
+                    </div>
+                    <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{shipment.user.name || shipment.user.email}</div>
+                    <div className="truncate text-xs text-[var(--text-secondary)]">{shipment.user.email}</div>
+                  </div>
+
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[var(--text-secondary)]">
+                      <MapPin className="h-4 w-4" />
+                      Route
+                    </div>
+                    <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{shipmentRoute}</div>
+                    <div className="truncate text-xs text-[var(--text-secondary)]">{movementLabel}: {activeMovement}</div>
+                  </div>
+
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[var(--text-secondary)]">
+                      <CalendarCheck className="h-4 w-4" />
+                      ETA
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{formatShortDate(shipment.container?.estimatedArrival)}</div>
+                    <div className="text-xs text-[var(--text-secondary)]">Created {formatShortDate(shipment.createdAt)}</div>
+                  </div>
+
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[var(--text-secondary)]">
+                      <DollarSign className="h-4 w-4" />
+                      Customer Balance
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{formatMoney(netUserCharged)}</div>
+                    <div className="text-xs text-[var(--text-secondary)]">Expenses {formatMoney(classifiedShipmentExpenseData.total)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {canManageWorkflow && !shipment.releaseToken && (
+                    <Tooltip
+                      title={
+                        isReleasedForTransit
+                          ? 'Generate release token for this shipment'
+                          : 'Release token can be generated after shipment/container status is Released'
+                      }
+                    >
+                      <span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<FileText className="w-4 h-4" />}
+                          onClick={() => void handleGenerateReleaseToken()}
+                          disabled={creatingReleaseToken || !isReleasedForTransit}
+                        >
+                          {creatingReleaseToken ? 'Generating...' : 'Generate Token'}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  )}
+                  {canAssignDispatch && (
+                    <Button variant="outline" size="sm" onClick={() => setOpenAssignDispatch(true)}>
+                      <Truck className="mr-2 h-4 w-4" />
+                      Assign Dispatch
+                    </Button>
+                  )}
+                  {canManageWorkflow && isReleasedForTransit && !shipment.transitId && (
+                    <Button variant="outline" size="sm" onClick={() => setOpenAssignTransit(true)}>
+                      <Ship className="mr-2 h-4 w-4" />
+                      Assign Transit
+                    </Button>
+                  )}
+                  {canManageShipmentRecord && (
                     <Button variant="outline" size="sm" onClick={handleDelete} className="border-[var(--error)] text-[var(--error)]">
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete
                     </Button>
-                  </>
-                )}
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          </DashboardPanel>
         </div>
 
         <ShipmentWorkflowStrip
@@ -932,34 +1053,56 @@ export default function ShipmentDetailPage() {
         />
 
         {/* Tabs Navigation */}
-        <Box sx={{ borderBottom: 1, borderColor: 'var(--border)' }}>
+        <Box
+          sx={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 15,
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            backgroundColor: 'var(--panel)',
+            boxShadow: '0 12px 28px rgba(var(--text-primary-rgb),0.08)',
+            overflow: 'hidden',
+          }}
+        >
           <Tabs
             value={activeTab}
             onChange={(_, newValue) => setActiveTab(newValue)}
             variant="scrollable"
             scrollButtons="auto"
             sx={{
+              minHeight: 52,
+              '& .MuiTabs-flexContainer': {
+                gap: 0.25,
+                px: 1,
+              },
               '& .MuiTab-root': {
                 textTransform: 'none',
                 fontSize: '0.875rem',
-                fontWeight: 500,
+                fontWeight: 650,
                 color: 'var(--text-secondary)',
-                minHeight: 48,
+                minHeight: 52,
+                borderRadius: '10px',
+                my: 0.75,
+                px: 1.5,
                 '&:hover': {
                   color: 'var(--accent-gold)',
+                  backgroundColor: 'rgba(var(--accent-gold-rgb), 0.08)',
                 },
               },
               '& .Mui-selected': {
                 color: 'var(--accent-gold) !important',
+                backgroundColor: 'rgba(var(--accent-gold-rgb), 0.1)',
               },
               '& .MuiTabs-indicator': {
                 backgroundColor: 'var(--accent-gold)',
+                height: 3,
               },
             }}
           >
             <Tab icon={<Info className="h-4 w-4" />} iconPosition="start" label="Overview" />
             <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Timeline" />
-            <Tab icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label="Photos" />
+            <Tab icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label={`Photos (${(shipment.vehiclePhotos?.length || 0) + arrivalPhotos.length})`} />
             <Tab icon={<FileText className="h-4 w-4" />} iconPosition="start" label={`Documents (${shipment.documents?.length || 0})`} />
             <Tab icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label="Financials" />
             <Tab icon={<Wallet className="h-4 w-4" />} iconPosition="start" label="Billing" />

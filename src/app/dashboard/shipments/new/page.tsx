@@ -16,6 +16,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { compressImage, isValidImageFile, formatFileSize } from '@/lib/utils/image-compression';
 import { decodeVIN as decodeVINService, getBestWeightEstimate } from '@/lib/services/vin-decoder';
 import { buildCopartLotSummary, fetchCopartLotDataForShipment } from '@/lib/copart/lot-client';
+import { buildIaaiLotSummary, fetchIaaiLotDataForShipment } from '@/lib/iaai/lot-client';
 import { hasPermission } from '@/lib/rbac';
 
 interface UserOption {
@@ -90,8 +91,23 @@ export default function NewShipmentPage() {
 	const statusValue = watch('status');
 	const vinValue = watch('vehicleVIN');
 	const lotNumberValue = watch('lotNumber');
+	const auctionNameValue = watch('auctionName');
+	const dealerNameValue = watch('dealerName');
 	const serviceTypeValue = watch('serviceType');
 	const formValues = watch();
+
+	useEffect(() => {
+		if (serviceTypeValue !== 'PURCHASE_AND_SHIPPING') return;
+
+		if (auctionNameValue && auctionNameValue !== 'Other') {
+			setValue('dealerName', auctionNameValue, { shouldValidate: true });
+			return;
+		}
+
+		if (auctionNameValue === 'Other' && (dealerNameValue === 'Copart' || dealerNameValue === 'IAAI')) {
+			setValue('dealerName', '', { shouldValidate: true });
+		}
+	}, [auctionNameValue, dealerNameValue, serviceTypeValue, setValue]);
 
 	// Fetch users
 	useEffect(() => {
@@ -190,32 +206,60 @@ export default function NewShipmentPage() {
 		}
 	};
 
-	const fetchCopartLotData = async (lotNumber: string) => {
+	const fetchAuctionLotData = async (lotNumber: string) => {
 		if (!lotNumber?.trim()) return;
+
+		if (serviceTypeValue !== 'PURCHASE_AND_SHIPPING') {
+			toast.error('Lot data fetch is only available for Purchase + Shipping shipments');
+			return;
+		}
+
+		if (!auctionNameValue) {
+			toast.error('Select an auction before fetching lot data');
+			return;
+		}
+
+		if (auctionNameValue !== 'Copart' && auctionNameValue !== 'IAAI') {
+			toast.error('Automatic lot data fetch currently supports Copart and IAAI only');
+			return;
+		}
 
 		setFetchingLotData(true);
 		try {
-			const lotData = await fetchCopartLotDataForShipment(lotNumber.trim());
+			const trimmedLotNumber = lotNumber.trim();
+			const { lotData, lotSummary } = await (auctionNameValue === 'IAAI'
+				? fetchIaaiLotDataForShipment(trimmedLotNumber).then((data) => ({
+					lotData: data,
+					lotSummary: buildIaaiLotSummary(data),
+				}))
+				: fetchCopartLotDataForShipment(trimmedLotNumber).then((data) => ({
+					lotData: data,
+					lotSummary: buildCopartLotSummary(data),
+				})));
 
-			setValue('lotNumber', lotData.lotNumber);
-			setValue('auctionName', lotData.auctionName);
-			if (lotData.vehicleMake) setValue('vehicleMake', lotData.vehicleMake);
-			if (lotData.vehicleModel) setValue('vehicleModel', lotData.vehicleModel);
-			if (lotData.vehicleYear) setValue('vehicleYear', lotData.vehicleYear);
-			if (lotData.vehicleColor) setValue('vehicleColor', lotData.vehicleColor);
-			if (lotData.vehicleType) setValue('vehicleType', lotData.vehicleType);
-			if (lotData.vehicleVIN) setValue('vehicleVIN', lotData.vehicleVIN);
-			if (typeof lotData.hasKey === 'boolean') setValue('hasKey', lotData.hasKey);
-			if (typeof lotData.hasTitle === 'boolean') setValue('hasTitle', lotData.hasTitle);
-			if (lotData.purchaseLocation && !formValues.purchaseLocation) setValue('purchaseLocation', lotData.purchaseLocation);
-			if (lotData.internalNotes && !formValues.internalNotes) setValue('internalNotes', lotData.internalNotes);
+			const setFetchedValue = (field: Parameters<typeof setValue>[0], value: Parameters<typeof setValue>[1]) => {
+				setValue(field, value, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+			};
 
-			toast.success('Copart lot data fetched', {
-				description: buildCopartLotSummary(lotData),
+			setFetchedValue('lotNumber', lotData.lotNumber);
+			setFetchedValue('auctionName', lotData.auctionName);
+			if (lotData.vehicleMake) setFetchedValue('vehicleMake', lotData.vehicleMake);
+			if (lotData.vehicleModel) setFetchedValue('vehicleModel', lotData.vehicleModel);
+			if (lotData.vehicleYear) setFetchedValue('vehicleYear', lotData.vehicleYear);
+			if (lotData.vehicleColor) setFetchedValue('vehicleColor', lotData.vehicleColor);
+			if (lotData.vehicleType) setFetchedValue('vehicleType', lotData.vehicleType);
+			if (lotData.vehicleVIN) setFetchedValue('vehicleVIN', lotData.vehicleVIN);
+			if (typeof lotData.hasKey === 'boolean') setFetchedValue('hasKey', lotData.hasKey);
+			if (typeof lotData.hasTitle === 'boolean') setFetchedValue('hasTitle', lotData.hasTitle);
+			if (lotData.purchaseLocation && !formValues.purchaseLocation) setFetchedValue('purchaseLocation', lotData.purchaseLocation);
+			if (lotData.internalNotes && !formValues.internalNotes) setFetchedValue('internalNotes', lotData.internalNotes);
+
+			toast.success(`${auctionNameValue} lot data fetched`, {
+				description: lotSummary,
 			});
 		} catch (error) {
-			console.error('Error fetching Copart lot data:', error);
-			toast.error('Failed to fetch Copart lot data', {
+			console.error(`Error fetching ${auctionNameValue} lot data:`, error);
+			toast.error(`Failed to fetch ${auctionNameValue || 'auction'} lot data`, {
 				description: error instanceof Error ? error.message : 'Please verify the lot number and try again',
 			});
 		} finally {
@@ -655,7 +699,7 @@ export default function NewShipmentPage() {
 									/>
 								</Box>
 
-								{/* Color, Lot Number, Auction */}
+								{/* Color, Auction, Lot Number */}
 								<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
 									<FormField
 										id="vehicleColor"
@@ -664,36 +708,73 @@ export default function NewShipmentPage() {
 										{...register('vehicleColor')}
 									/>
 									<Box>
+										<Typography
+											component="label"
+											htmlFor="auctionName"
+											sx={{
+												display: 'block',
+												fontSize: '0.875rem',
+												fontWeight: 500,
+												color: 'var(--text-primary)',
+												mb: 1,
+											}}
+										>
+											Auction
+										</Typography>
+										<select
+											id="auctionName"
+											{...register('auctionName')}
+											style={{
+												width: '100%',
+												padding: '10px 12px',
+												borderRadius: '16px',
+												border: '1px solid rgba(var(--border-rgb), 0.9)',
+												backgroundColor: 'var(--background)',
+												color: 'var(--text-primary)',
+												fontSize: '0.875rem',
+											}}
+										>
+											<option value="">Select auction</option>
+											<option value="Copart">Copart</option>
+											<option value="IAAI">IAAI</option>
+											<option value="Other">Other</option>
+										</select>
+									</Box>
+									<Box>
 										<Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
 											<Box sx={{ flex: 1 }}>
 												<FormField
 													id="lotNumber"
 													label="Lot Number"
-													placeholder="Copart lot #"
+													placeholder="Auction lot #"
 													{...register('lotNumber')}
 												/>
 											</Box>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												onClick={() => lotNumberValue && fetchCopartLotData(lotNumberValue)}
-												disabled={!lotNumberValue || fetchingLotData}
-												loading={fetchingLotData}
-											>
-												{fetchingLotData ? 'Fetching...' : 'Fetch Data'}
-											</Button>
+											{serviceTypeValue === 'PURCHASE_AND_SHIPPING' && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => lotNumberValue && fetchAuctionLotData(lotNumberValue)}
+													disabled={!lotNumberValue || !auctionNameValue || auctionNameValue === 'Other' || fetchingLotData}
+													loading={fetchingLotData}
+												>
+													{fetchingLotData ? 'Fetching...' : 'Fetch Data'}
+												</Button>
+											)}
 										</Box>
 										<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.75 }}>
-											Enter a Copart lot number and use Fetch Data to auto-fill the vehicle details from the public lot page.
+											{serviceTypeValue === 'PURCHASE_AND_SHIPPING'
+												? auctionNameValue === 'Copart'
+													? 'Enter a Copart lot number and use Fetch Data to auto-fill vehicle details.'
+													: auctionNameValue
+														? auctionNameValue === 'IAAI'
+															? 'Enter an IAAI stock number and use Fetch Data to auto-fill vehicle details.'
+															: 'Save the auction and lot number manually. Automatic fetch supports Copart and IAAI only.'
+														: 'Select an auction before fetching lot data.'
+												: 'Lot data fetch is available only for Purchase + Shipping shipments.'}
 										</Typography>
 									</Box>
-									<FormField
-										id="auctionName"
-										label="Auction Name"
-										placeholder="e.g., Copart"
-										{...register('auctionName')}
-									/>
 								</Box>
 
 								{/* Weight, Dimensions */}
@@ -837,14 +918,47 @@ export default function NewShipmentPage() {
 
 											{/* Dealer/Auction Information */}
 											<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
-												<FormField
-													id="dealerName"
-													label="Dealer/Auction Name"
-													placeholder="e.g., Copart, IAAI, Local Dealer"
-													error={!!errors.dealerName}
-													helperText={errors.dealerName?.message}
-													{...register('dealerName')}
-												/>
+												{auctionNameValue === 'Other' ? (
+													<FormField
+														id="dealerName"
+														label="Auction / Dealer Name"
+														placeholder="Enter auction or dealer name"
+														error={!!errors.dealerName}
+														helperText={errors.dealerName?.message}
+														{...register('dealerName')}
+													/>
+												) : (
+													<Box>
+														<input type="hidden" {...register('dealerName')} />
+														<Typography
+															component="label"
+															sx={{
+																display: 'block',
+																fontSize: '0.875rem',
+																fontWeight: 500,
+																color: 'var(--text-primary)',
+																mb: 1,
+															}}
+														>
+															Selected Auction
+														</Typography>
+														<Box
+															sx={{
+																minHeight: 42,
+																display: 'flex',
+																alignItems: 'center',
+																px: 1.5,
+																borderRadius: '16px',
+																border: '1px solid rgba(var(--border-rgb), 0.9)',
+																backgroundColor: 'var(--background)',
+																color: auctionNameValue ? 'var(--text-primary)' : 'var(--text-secondary)',
+																fontSize: '0.875rem',
+															}}
+														>
+															{auctionNameValue || 'Select auction above'}
+														</Box>
+													</Box>
+												)}
 												<FormField
 													id="purchaseLocation"
 													label="Purchase Location"

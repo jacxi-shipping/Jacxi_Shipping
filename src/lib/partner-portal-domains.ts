@@ -72,5 +72,5 @@ export function isSystemHost(host: string | null | undefined) {
     return true;
   }
 
-  return normalizedHost.endsWith('.vercel.app');
+  return normalizedHost.endsWith('.vercel.app') || normalizedHost.endsWith('.github.dev');
 }
