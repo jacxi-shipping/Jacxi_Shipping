@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Visibility, VisibilityOff, Email, Lock, ArrowForward } from '@mui/icons-material';
@@ -21,11 +21,26 @@ import {
 export default function SignInPage() {
 	const { t } = useTranslation();
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState('');
+	const callbackUrl = searchParams.get('callbackUrl');
+	const portalId = searchParams.get('portalId');
+	const redirectTarget = callbackUrl || (portalId ? `/portal/${portalId}` : '/dashboard');
+	const simpleLoginHref = useMemo(() => {
+		const nextSearchParams = new URLSearchParams();
+		if (callbackUrl) {
+			nextSearchParams.set('callbackUrl', callbackUrl);
+		}
+		if (portalId) {
+			nextSearchParams.set('portalId', portalId);
+		}
+
+		return `/auth/simple-login${nextSearchParams.size ? `?${nextSearchParams.toString()}` : ''}`;
+	}, [callbackUrl, portalId]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -40,12 +55,13 @@ export default function SignInPage() {
 				email: normalizedEmail,
 				password,
 				redirect: false,
+				callbackUrl: redirectTarget,
 			});
 
 			if (result?.error || !result?.ok) {
 				setError('Invalid email or password');
 			} else {
-				router.replace('/dashboard');
+				router.replace(result?.url || redirectTarget);
 				router.refresh();
 			}
 		} catch {
@@ -342,7 +358,7 @@ export default function SignInPage() {
 							<Typography
 								component="button"
 								type="button"
-								onClick={() => router.push('/auth/simple-login')}
+								onClick={() => router.push(simpleLoginHref)}
 								sx={{
 									background: 'none',
 									border: 'none',

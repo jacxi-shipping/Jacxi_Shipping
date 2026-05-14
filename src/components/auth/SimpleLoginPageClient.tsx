@@ -40,6 +40,7 @@ export default function SimpleLoginPageClient({ portal }: SimpleLoginPageClientP
 	const [error, setError] = useState('');
 	const brand = useMemo(() => getPortalBrandIdentity(portal), [portal]);
 	const callbackUrl = searchParams.get('callbackUrl');
+	const redirectTarget = callbackUrl || (portal?.id ? `/portal/${portal.id}` : '/dashboard');
 	const staffLoginHref = useMemo(() => {
 		const nextSearchParams = new URLSearchParams();
 		if (callbackUrl) {
@@ -72,12 +73,13 @@ export default function SimpleLoginPageClient({ portal }: SimpleLoginPageClientP
 			const result = await signIn('credentials', {
 				loginCode: loginCode.trim(),
 				redirect: false,
+				callbackUrl: redirectTarget,
 			});
 
 			if (result?.error || !result?.ok) {
 				setError('Invalid login code. Please check your code and try again.');
 			} else {
-				router.replace(callbackUrl || '/dashboard');
+				router.replace(result?.url || redirectTarget);
 				router.refresh();
 			}
 		} catch {
