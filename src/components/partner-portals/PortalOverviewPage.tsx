@@ -11,7 +11,7 @@ import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { Box, Typography } from '@mui/material';
-import { DashboardGrid, DashboardHeader, DashboardPanel, DashboardSurface } from '@/components/dashboard/DashboardSurface';
+import { DashboardGrid, DashboardPanel, DashboardSurface } from '@/components/dashboard/DashboardSurface';
 import { Button, EmptyState, toast } from '@/components/design-system';
 import { formatRelativeTime } from '@/lib/relative-time';
 
@@ -119,10 +119,10 @@ function MetricCard({
       sx={{
         border: '1px solid var(--border)',
         borderRadius: 3,
-        p: 2,
+        p: 1.75,
         background: backgrounds[tone],
         display: 'grid',
-        gap: 1,
+        gap: 0.85,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
@@ -131,7 +131,7 @@ function MetricCard({
         </Typography>
         <Box sx={{ color: 'var(--text-secondary)', display: 'inline-flex' }}>{icon}</Box>
       </Box>
-      <Typography sx={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em' }}>{value}</Typography>
+      <Typography sx={{ fontSize: '1.45rem', fontWeight: 800, letterSpacing: '-0.03em' }}>{value}</Typography>
       <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{helper}</Typography>
     </Box>
   );
@@ -243,25 +243,35 @@ export default function PortalOverviewPage() {
 
   return (
     <DashboardSurface>
-      <DashboardHeader
-        title={portal ? `${portal.name} Overview` : 'Portal Overview'}
-        description="A partner-facing operations dashboard that mirrors the main system at the portal level."
-        meta={[
-          { label: 'Shipments', value: assignments.length, helper: 'Assigned from the main system' },
-          { label: 'Customers', value: customers.length, helper: 'Portal-owned customer records' },
-          { label: 'Members', value: memberships.length, helper: `${adminCount} admin${adminCount === 1 ? '' : 's'} managing access` },
-        ]}
-        actions={
-          <>
-            <Link href={`/portal/${portalId}/shipments`} style={{ textDecoration: 'none' }}>
-              <Button variant="primary" size="sm">Open Shipments</Button>
-            </Link>
-            <Link href={`/portal/${portalId}/customers`} style={{ textDecoration: 'none' }}>
-              <Button variant="outline" size="sm">Manage Customers</Button>
-            </Link>
-          </>
-        }
-      />
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          justifyContent: 'space-between',
+          gap: 1.5,
+          flexDirection: { xs: 'column', md: 'row' },
+        }}
+      >
+        <Box sx={{ display: 'grid', gap: 0.35 }}>
+          <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+            Overview
+          </Typography>
+          <Typography sx={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+            {loading
+              ? 'Loading portal workspace data.'
+              : `${portal?.name || 'Portal'} workspace: ${assignments.length} shipments, ${customers.length} customers, ${memberships.length} members, ${adminCount} admin${adminCount === 1 ? '' : 's'}.`}
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Link href={`/portal/${portalId}/shipments`} style={{ textDecoration: 'none' }}>
+            <Button variant="primary" size="sm">Open Shipments</Button>
+          </Link>
+          <Link href={`/portal/${portalId}/customers`} style={{ textDecoration: 'none' }}>
+            <Button variant="outline" size="sm">Manage Customers</Button>
+          </Link>
+        </Box>
+      </Box>
 
       {loading ? (
         <DashboardPanel title="Loading workspace" description="Fetching the latest portal data from the shared system.">

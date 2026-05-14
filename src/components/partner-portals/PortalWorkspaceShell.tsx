@@ -173,6 +173,10 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
   }, [portal?.memberships, portalBaseHref, portalId]);
 
   const brand = useMemo(() => getPortalBrandIdentity(portal), [portal]);
+  const hasPortalWorkspace = Boolean(portalId);
+  const portalAccessLabel = portal?.memberships?.[0]?.partnerCustomer?.name
+    ? `${portal.memberships[0].partnerCustomer.name} Customer`
+    : portal?.memberships?.[0]?.role || 'Member';
 
   return (
     <Box
@@ -188,9 +192,11 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
       <Box
         sx={{
           px: { xs: 2, md: 3, xl: 4 },
-          py: { xs: 2, md: 2.5 },
+          py: hasPortalWorkspace ? { xs: 1.25, md: 1.5 } : { xs: 2, md: 2.5 },
           borderBottom: '1px solid var(--border)',
-          background: `linear-gradient(135deg, rgba(${brand.accentRgb}, 0.22), rgba(${brand.accentRgb}, 0.10) 46%, rgba(255,255,255,0.9) 100%)`,
+          background: hasPortalWorkspace
+            ? `linear-gradient(135deg, rgba(${brand.accentRgb}, 0.15), rgba(${brand.accentRgb}, 0.06) 46%, rgba(255,255,255,0.94) 100%)`
+            : `linear-gradient(135deg, rgba(${brand.accentRgb}, 0.22), rgba(${brand.accentRgb}, 0.10) 46%, rgba(255,255,255,0.9) 100%)`,
           backdropFilter: 'blur(18px)',
           position: 'sticky',
           top: 0,
@@ -200,42 +206,46 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
         <Box
           sx={{
             display: 'flex',
-            alignItems: { xs: 'flex-start', lg: 'center' },
+            alignItems: { xs: 'flex-start', md: 'center' },
             justifyContent: 'space-between',
-            gap: 2,
-            flexDirection: { xs: 'column', lg: 'row' },
+            gap: hasPortalWorkspace ? 1.5 : 2,
+            flexDirection: { xs: 'column', md: 'row' },
           }}
         >
-          <Box sx={{ display: 'grid', gap: 0.5 }}>
+          <Box sx={{ display: 'grid', gap: hasPortalWorkspace ? 0.35 : 0.5 }}>
             <Typography sx={{ fontSize: '0.75rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
               {portalId ? 'Partner Workspace' : 'Partner Portal'}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
               {portalId ? (
                 brand.logoUrl ? (
-                  <Box component="img" src={brand.logoUrl} alt={`${brand.companyLabel} logo`} sx={{ width: 44, height: 44, borderRadius: 2, objectFit: 'cover', bgcolor: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.5)' }} />
+                  <Box component="img" src={brand.logoUrl} alt={`${brand.companyLabel} logo`} sx={{ width: hasPortalWorkspace ? 36 : 44, height: hasPortalWorkspace ? 36 : 44, borderRadius: 2, objectFit: 'cover', bgcolor: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.5)' }} />
                 ) : (
-                  <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: brand.accentColor, color: '#fff', fontWeight: 800 }}>
+                  <Box sx={{ width: hasPortalWorkspace ? 36 : 44, height: hasPortalWorkspace ? 36 : 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: brand.accentColor, color: '#fff', fontWeight: 800, fontSize: hasPortalWorkspace ? '0.9rem' : '1rem' }}>
                     {brand.companyLabel.slice(0, 1).toUpperCase()}
                   </Box>
                 )
               ) : null}
               <Box>
-                <Typography sx={{ fontSize: { xs: '1.15rem', md: '1.5rem' }, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                <Typography sx={{ fontSize: hasPortalWorkspace ? { xs: '1rem', md: '1.2rem' } : { xs: '1.15rem', md: '1.5rem' }, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
                   {portalId ? brand.companyLabel : 'Shared Customer Portal'}
                 </Typography>
                 {portalId ? (
-                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  <Typography sx={{ fontSize: hasPortalWorkspace ? '0.78rem' : '0.82rem', color: 'var(--text-secondary)' }}>
                     {portal?.name || 'Portal Workspace'}
                   </Typography>
                 ) : null}
               </Box>
             </Box>
-            <Typography sx={{ color: 'var(--text-secondary)', maxWidth: 780 }}>
-              {portalId
-                ? 'A partner-facing view of the main system with shipments, customer assignments, member access, and activity in one workspace.'
-                : 'Open a portal workspace to manage assigned shipments, customer handoffs, team members, and partner activity.'}
-            </Typography>
+            {hasPortalWorkspace ? (
+              <Typography sx={{ color: 'var(--text-secondary)', fontSize: '0.82rem', maxWidth: 780 }}>
+                Access: {portalAccessLabel}
+              </Typography>
+            ) : (
+              <Typography sx={{ color: 'var(--text-secondary)', maxWidth: 780 }}>
+                Open a portal workspace to manage assigned shipments, customer handoffs, team members, and partner activity.
+              </Typography>
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -256,10 +266,16 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
         {portalId ? (
           <Box
             sx={{
-              mt: 2,
-              display: { xs: 'grid', lg: 'none' },
-              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              mt: 1.25,
+              display: { xs: 'flex', lg: 'none' },
+              overflowX: 'auto',
               gap: 1,
+              pb: 0.25,
+              pr: 0.5,
+              '&::-webkit-scrollbar': {
+                display: 'none',
+              },
+              scrollbarWidth: 'none',
             }}
           >
             {navItems.map((item) => {
@@ -271,9 +287,11 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
                       display: 'flex',
                       alignItems: 'center',
                       gap: 1,
-                      px: 1.5,
-                      py: 1.25,
-                      borderRadius: 2,
+                      px: 1.35,
+                      py: 0.95,
+                      borderRadius: 999,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                       border: '1px solid',
                       borderColor: active ? brand.accentColor : 'var(--border)',
                       bgcolor: active ? `rgba(${brand.accentRgb}, 0.10)` : 'rgba(255,255,255,0.82)',
@@ -281,7 +299,7 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
                     }}
                   >
                     {item.icon}
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600 }}>{item.label}</Typography>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.label}</Typography>
                   </Box>
                 </Link>
               );
@@ -295,7 +313,7 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
           <Box
             component="aside"
             sx={{
-              width: 300,
+              width: 280,
               borderRight: '1px solid var(--border)',
               px: 2,
               py: 2,
@@ -350,7 +368,7 @@ export default function PortalWorkspaceShell({ children }: PortalWorkspaceShellP
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.25, borderRadius: 2, bgcolor: 'rgba(15,23,42,0.04)' }}>
                 <LayersOutlinedIcon sx={{ fontSize: 18, color: 'var(--text-secondary)' }} />
                 <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Access level: <strong style={{ color: 'var(--text-primary)' }}>{portal?.memberships?.[0]?.partnerCustomer?.name ? `${portal.memberships[0].partnerCustomer.name} Customer` : portal?.memberships?.[0]?.role || 'Member'}</strong>
+                  Access level: <strong style={{ color: 'var(--text-primary)' }}>{portalAccessLabel}</strong>
                 </Typography>
               </Box>
             </Box>
