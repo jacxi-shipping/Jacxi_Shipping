@@ -52,6 +52,9 @@ Without this token, `/api/upload` will return a configuration error.
 
 For auction lot auto-fill in production, public Copart or IAAI pages may block Vercel serverless IPs. If that happens, configure one of these server-side fallbacks:
 
+- `OXYLABS_DATA_API_USERNAME` and `OXYLABS_DATA_API_PASSWORD` – preferred Copart provider when you have Oxylabs Web Scraper API access.
+- `OXYLABS_COPART_PARSER_PRESET` – optional Copart parser preset for Oxylabs. Defaults to `shkrcopart`.
+
 - `LOT_FETCH_PROXY_MODE` – `connect` for a real outbound proxy such as Oxylabs, or `template` for a fetch endpoint that accepts a target URL.
 - `LOT_FETCH_PROXY_URL` – proxy address. For Oxylabs, use the proxy server URL such as `http://dc.oxylabs.io:8000`. For template mode, use a URL containing `{url}` or an endpoint that accepts `?url=`.
 - `LOT_FETCH_PROXY_USERNAME` and `LOT_FETCH_PROXY_PASSWORD` – proxy credentials for `connect` mode.
@@ -76,4 +79,4 @@ Additional database utilities live under the `scripts/` directory (see `QUICK_ST
 
 Deploy to Vercel for the best experience. Ensure the environment variables above (including `BLOB_READ_WRITE_TOKEN`) are configured in the project settings so uploads continue to work in production.
 
-If lot-number auto-fill works locally but fails after deployment, the usual cause is Copart or IAAI blocking Vercel serverless requests. For an Oxylabs-style proxy, set `LOT_FETCH_PROXY_MODE=connect` with `LOT_FETCH_PROXY_URL`, `LOT_FETCH_PROXY_USERNAME`, and `LOT_FETCH_PROXY_PASSWORD` in Vercel. Also set `IAAI_API_URL`/`IAAI_API_KEY` if you use an approved IAAI provider.
+If lot-number auto-fill works locally but fails after deployment, the usual cause is Copart or IAAI blocking Vercel serverless requests. For Copart, prefer the Oxylabs data API by setting `OXYLABS_DATA_API_USERNAME`, `OXYLABS_DATA_API_PASSWORD`, and optionally `OXYLABS_COPART_PARSER_PRESET`. Keep the proxy variables only as fallback. Also set `IAAI_API_URL`/`IAAI_API_KEY` if you use an approved IAAI provider.

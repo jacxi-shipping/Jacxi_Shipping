@@ -4,6 +4,38 @@ type CopartDynamicLotDetails = {
 
 import { fetchLotHtml, hasLotFetchProxy } from '@/lib/lot-fetch-proxy';
 
+type OxylabsCopartParsedContent = {
+  vin?: string;
+  color?: string;
+  notes?: string;
+  title?: string;
+  has_key?: boolean;
+  odometer?: string;
+  cylinders?: number | string;
+  sale_date?: string;
+  body_style?: string;
+  drivetrain?: string;
+  highlights?: string;
+  lot_number?: string;
+  engine_type?: string;
+  transmission?: boolean | string;
+  vehicle_type?: string;
+  primary_damage?: string;
+  estimated_retail_value?: number;
+};
+
+type OxylabsCopartResult = {
+  content?: OxylabsCopartParsedContent;
+  url?: string;
+  status_code?: number;
+};
+
+type OxylabsCopartJobPayload = {
+  id?: string;
+  status?: string;
+  results?: OxylabsCopartResult[];
+};
+
 type CopartLotRawPayload = {
   lotNumberStr?: string;
   lcy?: number;
@@ -42,7 +74,7 @@ export type CopartLotVehicleData = {
   purchaseLocation?: string;
   internalNotes?: string;
   copartUrl: string;
-  source: 'copart-public-page';
+  source: 'copart-public-page' | 'copart-oxylabs-data-api';
   extracted: {
     bodyStyle?: string;
     damage?: string;
@@ -55,6 +87,33 @@ export type CopartLotVehicleData = {
 };
 
 const COPART_LOT_URL = 'https://www.copart.com/lot';
+const OXYLABS_DATA_API_URL = 'https://data.oxylabs.io/v1/queries';
+const OXYLABS_COPART_POLL_ATTEMPTS = 20;
+const OXYLABS_COPART_POLL_INTERVAL_MS = 2000;
+
+function getOxylabsDataApiUsername() {
+  return normalizeValue(process.env.OXYLABS_DATA_API_USERNAME);
+}
+
+function getOxylabsDataApiPassword() {
+  return normalizeValue(process.env.OXYLABS_DATA_API_PASSWORD);
+}
+
+function getOxylabsCopartParserPreset() {
+  return normalizeValue(process.env.OXYLABS_COPART_PARSER_PRESET) || 'shkrcopart';
+}
+
+function hasOxylabsCopartProvider() {
+  return Boolean(getOxylabsDataApiUsername() && getOxylabsDataApiPassword());
+}
+
+export function getCopartDataProviderDebugInfo() {
+  return {
+    hasOxylabsDataApi: hasOxylabsCopartProvider(),
+    oxylabsParserPreset: getOxylabsCopartParserPreset(),
+    hasLotFetchProxy: hasLotFetchProxy(),
+  };
+}
 
 function looksBlockedByCopart(html: string) {
   return /_Incapsula_Resource|Request unsuccessful\. Incapsula|captcha|pardon our interruption|access denied/i.test(html);
@@ -62,7 +121,7 @@ function looksBlockedByCopart(html: string) {
 
 function buildCopartBlockedMessage(viaProxy: boolean) {
   if (viaProxy) {
-    return 'Copart blocked the public lot fetch even through the configured LOT_FETCH_PROXY_URL. Use an approved proxy/provider in Vercel, or enter the Copart details manually.';
+    return 'Copart blocked the public lot fetch even through the configured LOT_FETCH_PROXY_URL. Datacenter proxies can still be blocked by Incapsula; use a residential or unblocker-grade proxy/provider in Vercel, or enter the Copart details manually.';
   }
 
   return 'Copart blocked the public lot fetch from this server. Configure LOT_FETCH_PROXY_URL in Vercel, or enter the Copart details manually.';
@@ -74,6 +133,10 @@ function buildCopartStatusMessage(status: number, viaProxy: boolean) {
   }
 
   return `Copart returned status ${status}.`;
+}
+
+function buildOxylabsCopartErrorMessage(message: string) {
+  return `Oxylabs Copart data API failed. ${message}`;
 }
 
 function normalizeValue(value: string | number | null | undefined) {
@@ -141,6 +204,188 @@ function buildInternalNotes(raw: CopartLotRawPayload) {
   return details.length > 0 ? details.join(' | ') : undefined;
 }
 
+function buildOxylabsLocation(notes?: string) {
+  const normalized = normalizeValue(notes);
+  if (!normalized) return undefined;
+
+  return normalizeValue(normalized.replace(/^located in\s+/i, '')) || normalized;
+}
+
+function buildOxylabsInternalNotes(content: OxylabsCopartParsedContent) {
+  const details = [
+    normalizeValue(content.primary_damage) ? `Damage: ${normalizeValue(content.primary_damage)}` : undefined,
+    normalizeValue(content.body_style) ? `Body style: ${normalizeValue(content.body_style)}` : undefined,
+    normalizeValue(content.engine_type) ? `Engine: ${normalizeValue(content.engine_type)}` : undefined,
+    normalizeValue(content.cylinders) ? `Cylinders: ${normalizeValue(content.cylinders)}` : undefined,
+    normalizeValue(content.odometer) ? `Odometer: ${normalizeValue(content.odometer)}` : undefined,
+    normalizeValue(content.drivetrain) ? `Drivetrain: ${normalizeValue(content.drivetrain)}` : undefined,
+    normalizeValue(content.highlights) ? `Highlights: ${normalizeValue(content.highlights)}` : undefined,
+    normalizeValue(content.sale_date) ? `Sale date: ${normalizeValue(content.sale_date)}` : undefined,
+    typeof content.estimated_retail_value === 'number'
+      ? `Estimated retail value: $${content.estimated_retail_value.toLocaleString()}`
+      : undefined,
+  ].filter(Boolean);
+
+  return details.length > 0 ? details.join(' | ') : undefined;
+}
+
+function parseOxylabsTitle(title?: string) {
+  const normalized = normalizeValue(title);
+  if (!normalized) {
+    return {
+      vehicleYear: undefined,
+      vehicleMake: undefined,
+      vehicleModel: undefined,
+    };
+  }
+
+  const match = normalized.match(/\b(19\d{2}|20\d{2})\b\s+([^\s]+)\s+(.+)/);
+  if (!match) {
+    return {
+      vehicleYear: undefined,
+      vehicleMake: undefined,
+      vehicleModel: normalized,
+    };
+  }
+
+  return {
+    vehicleYear: normalizeValue(match[1]),
+    vehicleMake: normalizeValue(match[2]),
+    vehicleModel: normalizeValue(match[3]),
+  };
+}
+
+function normalizeOxylabsCopartResult(lotNumber: string, fallbackUrl: string, result: OxylabsCopartResult): CopartLotVehicleData {
+  const content = result.content || {};
+  const titleParts = parseOxylabsTitle(content.title);
+  const purchaseLocation = buildOxylabsLocation(content.notes);
+
+  return {
+    lotNumber: normalizeValue(content.lot_number) || lotNumber,
+    auctionName: 'Copart',
+    vehicleMake: titleParts.vehicleMake,
+    vehicleModel: titleParts.vehicleModel,
+    vehicleYear: titleParts.vehicleYear,
+    vehicleVIN: normalizeValue(content.vin),
+    vehicleColor: normalizeValue(content.color),
+    vehicleType: inferVehicleType(normalizeValue(content.body_style), normalizeValue(content.vehicle_type)),
+    hasKey: typeof content.has_key === 'boolean' ? content.has_key : undefined,
+    hasTitle: undefined,
+    purchaseLocation,
+    internalNotes: buildOxylabsInternalNotes(content),
+    copartUrl: normalizeValue(result.url) || fallbackUrl,
+    source: 'copart-oxylabs-data-api',
+    extracted: {
+      bodyStyle: normalizeValue(content.body_style),
+      damage: normalizeValue(content.primary_damage),
+      transmission: typeof content.transmission === 'string' ? normalizeValue(content.transmission) : undefined,
+      engine: normalizeValue(content.engine_type),
+      cylinders: normalizeValue(content.cylinders),
+      saleStatus: undefined,
+      yardName: purchaseLocation,
+    },
+  };
+}
+
+async function fetchOxylabsJson<T>(url: string, init: RequestInit) {
+  const response = await fetch(url, init);
+  const payload = (await response.json().catch(() => ({}))) as T;
+  return { response, payload };
+}
+
+async function waitForOxylabsCopartJob(jobId: string, authHeader: string) {
+  for (let attempt = 0; attempt < OXYLABS_COPART_POLL_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, OXYLABS_COPART_POLL_INTERVAL_MS));
+    }
+
+    const { response, payload } = await fetchOxylabsJson<OxylabsCopartJobPayload>(
+      `${OXYLABS_DATA_API_URL}/${jobId}`,
+      {
+        headers: {
+          Authorization: authHeader,
+        },
+        cache: 'no-store',
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(buildOxylabsCopartErrorMessage(`job polling returned status ${response.status}.`));
+    }
+
+    if (payload.status === 'done') {
+      return;
+    }
+
+    if (payload.status === 'failed') {
+      throw new Error(buildOxylabsCopartErrorMessage('job polling reported a failed status.'));
+    }
+  }
+
+  throw new Error(buildOxylabsCopartErrorMessage('timed out waiting for the job to finish.'));
+}
+
+async function fetchCopartLotVehicleDataFromOxylabs(lotNumber: string, copartUrl: string): Promise<CopartLotVehicleData> {
+  const username = getOxylabsDataApiUsername();
+  const password = getOxylabsDataApiPassword();
+  if (!username || !password) {
+    throw new Error(buildOxylabsCopartErrorMessage('OXYLABS_DATA_API_USERNAME or OXYLABS_DATA_API_PASSWORD is missing.'));
+  }
+
+  const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+  const createBody = {
+    source: 'universal',
+    url: copartUrl,
+    user_agent_type: 'desktop_edge',
+    geo_location: 'United States',
+    render: 'html',
+    parse: true,
+    parser_preset: getOxylabsCopartParserPreset(),
+  };
+
+  const { response: createResponse, payload: createPayload } = await fetchOxylabsJson<OxylabsCopartJobPayload>(
+    OXYLABS_DATA_API_URL,
+    {
+      method: 'POST',
+      body: JSON.stringify(createBody),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const immediateResult = createPayload.results?.[0];
+  if (createResponse.ok && immediateResult?.content) {
+    return normalizeOxylabsCopartResult(lotNumber, copartUrl, immediateResult);
+  }
+
+  const jobId = normalizeValue(createPayload.id);
+  if (!jobId) {
+    throw new Error(buildOxylabsCopartErrorMessage(`job creation returned status ${createResponse.status} without a job id.`));
+  }
+
+  await waitForOxylabsCopartJob(jobId, authHeader);
+
+  const { response: resultsResponse, payload: resultsPayload } = await fetchOxylabsJson<OxylabsCopartJobPayload>(
+    `${OXYLABS_DATA_API_URL}/${jobId}/results?type=parsed`,
+    {
+      headers: {
+        Authorization: authHeader,
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const result = resultsPayload.results?.[0];
+  if (result?.content) {
+    return normalizeOxylabsCopartResult(lotNumber, copartUrl, result);
+  }
+
+  throw new Error(buildOxylabsCopartErrorMessage(`results endpoint returned status ${resultsResponse.status} without parsed content.`));
+}
+
 function extractLotPayload(html: string) {
   const match = html.match(/cachedSolrLotDetailsStr:\s*"((?:\\.|[^"\\])*)"/);
   if (!match?.[1]) {
@@ -166,6 +411,16 @@ export async function fetchCopartLotVehicleData(lotNumber: string): Promise<Copa
   }
 
   const copartUrl = `${COPART_LOT_URL}/${normalizedLotNumber}`;
+  let oxylabsError: Error | undefined;
+
+  if (hasOxylabsCopartProvider()) {
+    try {
+      return await fetchCopartLotVehicleDataFromOxylabs(normalizedLotNumber, copartUrl);
+    } catch (error) {
+      oxylabsError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
   const requestHeaders = {
     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'accept-language': 'en-US,en;q=0.9',
@@ -190,14 +445,14 @@ export async function fetchCopartLotVehicleData(lotNumber: string): Promise<Copa
 
   if (!raw) {
     if (looksBlockedByCopart(page.html)) {
-      throw new Error(buildCopartBlockedMessage(page.viaProxy));
+      throw new Error(oxylabsError ? `${buildCopartBlockedMessage(page.viaProxy)} Oxylabs data API also failed: ${oxylabsError.message}` : buildCopartBlockedMessage(page.viaProxy));
     }
 
     if (!page.response.ok) {
-      throw new Error(buildCopartStatusMessage(page.response.status, page.viaProxy));
+      throw new Error(oxylabsError ? `${buildCopartStatusMessage(page.response.status, page.viaProxy)} Oxylabs data API also failed: ${oxylabsError.message}` : buildCopartStatusMessage(page.response.status, page.viaProxy));
     }
 
-    throw new Error('Copart lot payload was not found on the public page.');
+    throw new Error(oxylabsError ? `Copart lot payload was not found on the public page. Oxylabs data API also failed: ${oxylabsError.message}` : 'Copart lot payload was not found on the public page.');
   }
 
   return {

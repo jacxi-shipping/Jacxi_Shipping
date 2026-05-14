@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
-import { fetchCopartLotVehicleData } from '@/lib/copart/lot-scraper';
+import { fetchCopartLotVehicleData, getCopartDataProviderDebugInfo } from '@/lib/copart/lot-scraper';
 import { getLotFetchProxyDebugInfo } from '@/lib/lot-fetch-proxy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function GET(
   _request: NextRequest,
@@ -32,6 +32,7 @@ export async function GET(
     const message = error instanceof Error ? error.message : 'Failed to fetch Copart lot data.';
     console.error('[copart-lot-fetch]', {
       lotNumber: resolvedLotNumber || 'unknown',
+      provider: getCopartDataProviderDebugInfo(),
       proxy: getLotFetchProxyDebugInfo(),
       error: message,
     });
