@@ -1154,6 +1154,7 @@ export default function ShipmentDetailPage() {
         {/* Photos Tab */}
         <TabPanel value={activeTab} index={2}>
           <ShipmentPhotosTab
+            vehicleLabel={vehicleLabel}
             vehiclePhotos={shipment.vehiclePhotos || []}
             arrivalPhotos={arrivalPhotos}
             canUploadArrivalPhotos={canUploadArrivalPhotos}
