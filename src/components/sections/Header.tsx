@@ -45,7 +45,7 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-6">
             <Link href="/" className="flex items-center">
-              <SiteLogo variant="header" className="w-[148px] sm:w-[172px]" priority />
+              <SiteLogo variant="header" className="w-[108px] sm:w-[124px]" priority />
             </Link>
 
             <nav className="hidden items-center gap-8 md:flex">
@@ -85,7 +85,7 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
           <div className="p-6 h-full flex flex-col">
             <div className="flex items-center justify-between mb-12">
               <Link href="/" className="flex items-center" onClick={() => setIsMobileMenuOpen(false)}>
-                <SiteLogo variant="header" className="w-[148px]" priority />
+                <SiteLogo variant="header" className="w-[108px]" priority />
               </Link>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}

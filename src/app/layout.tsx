@@ -16,6 +16,14 @@ export const metadata: Metadata = {
   description: "Professional vehicle shipping from USA through Dubai UAE to Herat and all Afghan provinces. Complete door-to-door service with customs clearance, insurance, and tracking. Serving Kabul, Kandahar, Mazar-i-Sharif and more.",
   keywords: "vehicle shipping USA to Afghanistan, car shipping to Herat, USA to UAE to Afghanistan, vehicle transport Kabul, Jacxi Shipping, Afghanistan car import",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: ['/favicon.png'],
+    apple: [{ url: '/apple-icon', type: 'image/png', sizes: '180x180' }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
