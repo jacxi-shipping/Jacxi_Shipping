@@ -1,5 +1,9 @@
 export const siteBrandAssets = {
-  favicon: '/branding/jacxi-favicon.svg',
-  headerLogo: '/branding/jacxi-logo-header.svg',
-  mainLogo: '/branding/jacxi-logo-main.svg',
+  favicon: '/favicon.png',
+  headerLogo: '/higher-logo.png',
+  mainLogo: '/main-logo.png',
+} as const;
+
+export const siteBrandAssetFiles = {
+  favicon: 'public/favicon.png',
 } as const;

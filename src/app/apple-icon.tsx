@@ -1,4 +1,7 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
+import { siteBrandAssetFiles } from '@/lib/site-branding';
 
 export const size = {
   width: 180,
@@ -8,6 +11,18 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function AppleIcon() {
+  try {
+    const iconBuffer = await readFile(join(process.cwd(), siteBrandAssetFiles.favicon));
+    return new Response(iconBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
+  } catch {
+    // Fall back to the generated icon if the public asset is unavailable.
+  }
+
   return new ImageResponse(
     (
       <div
