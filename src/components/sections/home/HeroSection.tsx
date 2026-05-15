@@ -31,7 +31,7 @@ export default function HeroSection() {
             <span className="block text-[var(--accent-gold)]">Boundaries.</span>
           </h1>
           <p className="landing-reveal mx-auto mt-6 max-w-[54rem] text-[1.05rem] leading-8 text-[var(--text-secondary)] sm:text-xl" style={{ animationDelay: '220ms' }}>
-            The most trusted vehicle shipping service from the USA to Afghanistan - via Dubai UAE. Door-to-door delivery with full customs clearance, real-time tracking, and white-glove service.
+            The most trusted vehicle shipping service from the USA to Afghanistan - via Mersin, Turkey. Door-to-door delivery to Herat with full customs clearance, real-time tracking, and white-glove service.
           </p>
           <div className="landing-reveal mt-9 flex flex-col justify-center gap-4 sm:flex-row" style={{ animationDelay: '320ms' }}>
             <Link
@@ -76,7 +76,7 @@ export default function HeroSection() {
           </div>
 
           <p className="landing-reveal mt-8 text-sm font-medium tracking-[0.08em] text-[var(--text-secondary)]" style={{ animationDelay: '860ms' }}>
-            USA → Dubai UAE → Afghanistan
+            USA → Mersin, Turkey → Herat, Afghanistan
           </p>
         </div>
       </div>

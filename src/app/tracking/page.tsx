@@ -7,6 +7,7 @@ import Button from '@/components/design-system/Button';
 import { AlertCircle, CheckCircle2, Clock, MapPin, Search, ArrowLeft, Ship, Package } from 'lucide-react';
 import Link from 'next/link';
 import Footer from '@/components/sections/Footer';
+import TrackingRouteMap from '@/components/tracking/TrackingRouteMap';
 
 interface TrackingEventEntry {
 	id: string;
@@ -328,7 +329,7 @@ function TrackingPageInner() {
 								</div>
 
 								{trackingDetails.customerTracking && (
-									<div className="space-y-3">
+									<div className="space-y-3 hidden">
 										<div className="flex items-center justify-between text-sm">
 											<span className="font-medium text-gray-700">Customer Journey</span>
 											<span className="font-bold text-[rgb(var(--jacxi-blue))]">{trackingDetails.customerTracking.progressPercent}%</span>
@@ -343,7 +344,7 @@ function TrackingPageInner() {
 								)}
 
 								{progressValue !== null && (
-									<div className="space-y-2">
+									<div className="space-y-2 hidden">
 										<div className="flex items-center justify-between text-sm">
 											<span className="font-medium text-gray-700">Shipping Progress</span>
 											<span className="font-bold text-[rgb(var(--jacxi-blue))]">{progressValue}%</span>
@@ -358,14 +359,30 @@ function TrackingPageInner() {
 								)}
 							</motion.div>
 
-							{/* Simplified Journey */}
+							{/* Tracking Animated Map */}
+							{trackingDetails.customerTracking && (
+								<motion.div
+									initial={{ opacity: 0, scale: 0.95 }}
+									animate={{ opacity: 1, scale: 1 }}
+									transition={{ duration: 0.6 }}
+									className="mt-6 mb-8"
+								>
+									<TrackingRouteMap 
+										progressPercent={trackingDetails.customerTracking.progressPercent || progressValue || 0}
+										origin={trackingDetails.origin || 'USA'}
+										destination={trackingDetails.destination || 'Herat'}
+									/>
+								</motion.div>
+							)}
+
+							{/* Simplified Journey list */}
 							<motion.div
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ duration: 0.4, delay: 0.2 }}
 								className="space-y-4"
 							>
-								<h2 className="text-2xl font-bold text-gray-900">Shipment Journey</h2>
+								<h2 className="text-2xl font-bold text-gray-900">Live Status & Milestone Updates</h2>
 								<div className="space-y-3">
 									{customerMilestones.length === 0 && (
 										<div className="rounded-xl border border-gray-200 bg-white/80 px-6 py-4 text-sm text-gray-600">
