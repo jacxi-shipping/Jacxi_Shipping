@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import AnimatedWorldMap from '@/components/ui/AnimatedWorldMap';
 
 const stats = [
   { label: 'Active Countries', value: '45+' },
@@ -19,7 +20,8 @@ const trustPoints = [
 export default function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-[var(--background)] pt-28 pb-24 sm:pt-32 sm:pb-28 lg:pt-36 lg:pb-32">
-      <div className="relative container mx-auto px-4 sm:px-6 lg:px-8">
+      <AnimatedWorldMap />
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl text-center">
           <p className="landing-reveal mx-auto max-w-xl text-[11px] font-semibold uppercase tracking-[0.34em] text-[var(--text-secondary)] sm:text-sm" style={{ animationDelay: '40ms' }}>
             Shipping BeyondBoundaries.
