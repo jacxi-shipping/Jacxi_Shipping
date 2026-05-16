@@ -71,7 +71,7 @@ export function buildVoiceStepUrl(
   params: Record<string, string | undefined> = {},
 ) {
   const urlParams = new URLSearchParams();
-  const token = request.nextUrl.searchParams.get('token');
+  const token = request.nextUrl.searchParams.get('token') || request.headers.get('x-voice-webhook-token');
 
   if (token) {
     urlParams.set('token', token);
@@ -95,7 +95,7 @@ export function buildVoiceLiveStreamUrl(request: NextRequest) {
   const protocol = forwardedProto || requestUrl.protocol.replace(':', '');
   const host = forwardedHost || request.headers.get('host') || requestUrl.host;
   const url = new URL(`${protocol === 'https' ? 'wss' : 'ws'}://${host}/api/voice/live`);
-  const token = request.nextUrl.searchParams.get('token');
+  const token = request.nextUrl.searchParams.get('token') || request.headers.get('x-voice-webhook-token');
 
   if (token) {
     url.searchParams.set('token', token);
