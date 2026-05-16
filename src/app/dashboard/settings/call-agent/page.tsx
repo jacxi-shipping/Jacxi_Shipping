@@ -169,6 +169,39 @@ export default function CallAgentSettingsPage() {
     void loadConfig();
   }, [fetchConfig, router, session, status]);
 
+  
+  const [testingCall, setTestingCall] = useState(false);
+
+  const handleTestCall = async () => {
+    if (!config?.twilioInspection.phoneNumber) {
+      toast.error('No Twilio phone number available');
+      return;
+    }
+    
+    // We'll prompt the user for the number using a simple window.prompt
+    const toField = window.prompt('Enter your phone number to test (e.g. +1...):');
+    if (!toField) return;
+
+    setTestingCall(true);
+    try {
+      const response = await fetch('/api/voice/test-call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toField }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || 'Failed to start test call');
+      }
+    } catch (e) {
+      toast.error('Network error');
+    } finally {
+      setTestingCall(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     const success = await fetchConfig(true);
@@ -300,6 +333,16 @@ export default function CallAgentSettingsPage() {
               >
                 Refresh Twilio Inspection
               </Button>
+
+              <Button
+              variant="outline"
+              icon={<PhoneCall className="w-4 h-4" />}
+              onClick={() => void handleTestCall()}
+              disabled={!config?.status.twilioPhoneNumberConfigured && !config?.status.twilioPhoneNumberSidConfigured}
+              loading={testingCall}
+            >
+              Test Call
+            </Button>
               <Link href="/dashboard/settings" style={{ textDecoration: 'none' }}>
                 <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>
                   Back To Settings
@@ -333,6 +376,16 @@ export default function CallAgentSettingsPage() {
               loading={refreshing}
             >
               Refresh Twilio Inspection
+            </Button>
+
+            <Button
+              variant="outline"
+              icon={<PhoneCall className="w-4 h-4" />}
+              onClick={() => void handleTestCall()}
+              disabled={!config?.status.twilioPhoneNumberConfigured && !config?.status.twilioPhoneNumberSidConfigured}
+              loading={testingCall}
+            >
+              Test Call
             </Button>
             <Link href="/dashboard/settings" style={{ textDecoration: 'none' }}>
               <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>
