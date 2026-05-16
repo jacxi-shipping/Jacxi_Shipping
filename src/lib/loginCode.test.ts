@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { isValidLoginCode, formatLoginCode } from './loginCode.ts';
+import { formatLoginCode, isValidLoginCode, loginCodeToVoiceDigits } from './loginCode.ts';
 import { generateLoginCode } from './loginCodeGenerator.ts';
 
 describe('Login Code Generation', () => {
@@ -78,5 +78,19 @@ describe('Login Code Formatting', () => {
 
   it('should not format invalid length codes', () => {
     assert.strictEqual(formatLoginCode('ABC'), 'ABC');
+  });
+});
+
+describe('Voice Keypad Mapping', () => {
+  it('should map letters to standard phone keypad digits', () => {
+    assert.strictEqual(loginCodeToVoiceDigits('ABCD1234'), '22231234');
+  });
+
+  it('should preserve numeric codes', () => {
+    assert.strictEqual(loginCodeToVoiceDigits('12345678'), '12345678');
+  });
+
+  it('should return an empty string for invalid codes', () => {
+    assert.strictEqual(loginCodeToVoiceDigits('BAD-CODE'), '');
   });
 });
