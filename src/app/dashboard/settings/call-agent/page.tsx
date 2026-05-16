@@ -187,7 +187,7 @@ export default function CallAgentSettingsPage() {
       const response = await fetch('/api/voice/test-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toField }),
+        body: JSON.stringify({ toField, webhookUrl: config?.urls?.webhookUrl }),
       });
       const data = await response.json();
       if (response.ok) {

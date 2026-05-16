@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const payload = await request.json() as { toField?: string };
+    const payload = await request.json() as { toField?: string, webhookUrl?: string };
     const toField = payload.toField?.trim();
+    const providedWebhookUrl = payload.webhookUrl?.trim();
 
     if (!toField) {
       return NextResponse.json({ message: 'Phone number to call is required' }, { status: 400 });
@@ -43,19 +44,21 @@ export async function POST(request: NextRequest) {
     const host = forwardedHost || request.headers.get('host') || requestUrl.host;
     const baseUrl = `${protocol}://${host}`;
 
-    const webhookUrl = new URL('/api/voice', baseUrl);
-    const voiceWebhookToken = process.env.VOICE_WEBHOOK_TOKEN?.trim() || '';
-    if (voiceWebhookToken) {
-      webhookUrl.searchParams.set('token', voiceWebhookToken);
+    let finalWebhookUrl = providedWebhookUrl;
+    if (!finalWebhookUrl) {
+      const url = new URL('/api/voice', baseUrl);
+      const voiceWebhookToken = process.env.VOICE_WEBHOOK_TOKEN?.trim() || '';
+      if (voiceWebhookToken) {
+        url.searchParams.set('token', voiceWebhookToken);
+      }
+      finalWebhookUrl = url.toString();
     }
-    
-    const tokenPart = voiceWebhookToken ? `token=${voiceWebhookToken}&` : '';
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${baseUrl}/api/voice?${tokenPart}step=intro</Redirect></Response>`;
 
     const body = new URLSearchParams({
         To: toField,
         From: settings.twilioPhoneNumber,
-        Twiml: twiml
+        Url: finalWebhookUrl,
+        Method: 'POST'
     });
 
     const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${settings.twilioAccountSid}/Calls.json`, {
