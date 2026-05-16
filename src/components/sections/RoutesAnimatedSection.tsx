@@ -156,7 +156,7 @@ export default function RoutesAnimatedSection() {
                   initial={{ opacity: 0 }}
                   animate={{
                     opacity: [0, 1, 1, 0],
-                    motionDistance: ["0%", "100%", "100%", "100%"]
+                    offsetDistance: ["0%", "100%", "100%", "100%"]
                   }}
                   transition={{
                     duration: p.duration * 2,
