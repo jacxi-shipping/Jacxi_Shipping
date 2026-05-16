@@ -115,7 +115,7 @@ export default function TrackingRouteMap({ progressPercent, origin, destination 
         {/* Active Moving Vehicle SVG based on Progress */}
         <motion.g
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1, motionDistance: `${relativeSegmentProgress}%` }}
+            animate={{ opacity: 1, offsetDistance: `${relativeSegmentProgress}%` }}
             transition={{ duration: 2, ease: "easeOut" }}
             style={{ offsetPath: `path('${currentSegment.path}')` } as any}
         >
