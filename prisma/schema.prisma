@@ -478,6 +478,10 @@ model CallAgentSettings {
   twilioApiSecret      String?
   twilioPhoneNumber    String?
   twilioPhoneNumberSid String?
+  geminiApiKey         String?
+  geminiLiveApiKey     String?
+  geminiVoiceModel     String?
+  geminiLiveModel      String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }

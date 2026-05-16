@@ -29,6 +29,13 @@ const DEFAULT_TWILIO_VALUES = {
   twilioPhoneNumberSid: '',
 };
 
+const DEFAULT_GEMINI_VALUES = {
+  geminiApiKey: '',
+  geminiLiveApiKey: '',
+  geminiVoiceModel: 'gemini-2.5-flash',
+  geminiLiveModel: 'gemini-3.1-flash-live-preview',
+};
+
 type CallAgentConfig = {
   urls: {
     preferredBaseUrl: string;
@@ -71,6 +78,7 @@ type CallAgentConfig = {
     error: string | null;
   };
   twilioValues: typeof DEFAULT_TWILIO_VALUES;
+  geminiValues: typeof DEFAULT_GEMINI_VALUES;
 };
 
 function StatusLine({ label, ready, detail }: { label: string; ready: boolean; detail: string }) {
@@ -110,9 +118,11 @@ export default function CallAgentSettingsPage() {
   const router = useRouter();
   const [config, setConfig] = useState<CallAgentConfig | null>(null);
   const [twilioForm, setTwilioForm] = useState(DEFAULT_TWILIO_VALUES);
+  const [geminiForm, setGeminiForm] = useState(DEFAULT_GEMINI_VALUES);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingTwilioSettings, setSavingTwilioSettings] = useState(false);
+  const [savingGeminiSettings, setSavingGeminiSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchConfig = useCallback(async (showToastOnError = false) => {
@@ -127,6 +137,7 @@ export default function CallAgentSettingsPage() {
 
       setConfig(data);
       setTwilioForm(data.twilioValues || DEFAULT_TWILIO_VALUES);
+      setGeminiForm(data.geminiValues || DEFAULT_GEMINI_VALUES);
       return true;
     } catch (fetchError) {
       console.error(fetchError);
@@ -171,6 +182,10 @@ export default function CallAgentSettingsPage() {
     setTwilioForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleGeminiFieldChange = (field: keyof typeof DEFAULT_GEMINI_VALUES, value: string) => {
+    setGeminiForm((prev) => ({ ...prev, [field]: value }));
+  };
+
   const handleSaveTwilioSettings = async (event: React.FormEvent) => {
     event.preventDefault();
     setSavingTwilioSettings(true);
@@ -198,6 +213,33 @@ export default function CallAgentSettingsPage() {
     }
   };
 
+  const handleSaveGeminiSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingGeminiSettings(true);
+
+    try {
+      const response = await fetch('/api/settings/call-agent', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geminiForm),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to save Gemini settings');
+      }
+
+      setConfig(data);
+      setGeminiForm(data.geminiValues || DEFAULT_GEMINI_VALUES);
+      toast.success('Gemini settings saved');
+    } catch (saveError) {
+      console.error(saveError);
+      toast.error(saveError instanceof Error ? saveError.message : 'Unable to save Gemini settings');
+    } finally {
+      setSavingGeminiSettings(false);
+    }
+  };
+
   const warnings = useMemo(() => {
     if (!config) {
       return [] as string[];
@@ -208,10 +250,10 @@ export default function CallAgentSettingsPage() {
       nextWarnings.push('VOICE_WEBHOOK_TOKEN is missing. The webhook URL will work without a token, but inbound requests are no longer protected.');
     }
     if (!config.status.geminiStandardConfigured) {
-      nextWarnings.push('GEMINI_API_KEY is missing, so the fallback text assistant is unavailable.');
+      nextWarnings.push('Gemini standard API key is not configured on this page, so the fallback text assistant is unavailable.');
     }
     if (!config.status.geminiLiveConfigured) {
-      nextWarnings.push('GEMINI_LIVE_API_KEY is missing, so menu option 4 cannot open the live audio session.');
+      nextWarnings.push('Gemini live configuration is incomplete on this page, so menu option 4 cannot open the live audio session.');
     }
     if (!config.status.twilioConfigured) {
       nextWarnings.push('Twilio API credentials are not configured on this page. Manual webhook setup still works, but this app cannot inspect your Twilio account automatically.');
@@ -348,6 +390,57 @@ export default function CallAgentSettingsPage() {
       </DashboardGrid>
 
       <DashboardGrid className="grid-cols-1 xl:grid-cols-2">
+        <DashboardPanel title="Gemini Configuration" description="Saved Call Agent Gemini keys and model overrides used by both the IVR assistant and live audio bridge.">
+          <form onSubmit={handleSaveGeminiSettings} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                label="GEMINI_API_KEY"
+                type="password"
+                value={geminiForm.geminiApiKey}
+                onChange={(event) => handleGeminiFieldChange('geminiApiKey', event.target.value)}
+                placeholder="Gemini API key"
+                autoComplete="new-password"
+              />
+              <FormField
+                label="GEMINI_LIVE_API_KEY"
+                type="password"
+                value={geminiForm.geminiLiveApiKey}
+                onChange={(event) => handleGeminiFieldChange('geminiLiveApiKey', event.target.value)}
+                placeholder="Optional dedicated live API key"
+                autoComplete="new-password"
+              />
+              <FormField
+                label="GEMINI_VOICE_MODEL"
+                value={geminiForm.geminiVoiceModel}
+                onChange={(event) => handleGeminiFieldChange('geminiVoiceModel', event.target.value)}
+                placeholder="gemini-2.5-flash"
+                autoComplete="off"
+              />
+              <FormField
+                label="GEMINI_LIVE_MODEL"
+                value={geminiForm.geminiLiveModel}
+                onChange={(event) => handleGeminiFieldChange('geminiLiveModel', event.target.value)}
+                placeholder="gemini-3.1-flash-live-preview"
+                autoComplete="off"
+              />
+            </div>
+
+            <Alert severity="info" sx={{ alignItems: 'flex-start' }}>
+              If GEMINI_LIVE_API_KEY is empty, the live bridge falls back to GEMINI_API_KEY. The model fields can be left at their defaults unless you need to override them.
+            </Alert>
+
+            <Alert severity="warning" sx={{ alignItems: 'flex-start' }}>
+              These Gemini values are stored in the application database and visible to admins on this page.
+            </Alert>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 1 }}>
+              <Button type="submit" variant="primary" loading={savingGeminiSettings}>
+                Save Gemini Settings
+              </Button>
+            </Box>
+          </form>
+        </DashboardPanel>
+
         <DashboardPanel title="Twilio Number Inspection" description="Live readback of the configured Twilio phone number when API credentials are available.">
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <StatusLine

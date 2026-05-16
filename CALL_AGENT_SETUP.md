@@ -18,15 +18,11 @@ Add these to your deployment environment:
 
 ```env
 VOICE_WEBHOOK_TOKEN="your-shared-webhook-token"
-GEMINI_API_KEY="your-gemini-api-key"
-GEMINI_LIVE_API_KEY="your-gemini-live-api-key"
-GEMINI_VOICE_MODEL="gemini-2.5-flash"
-GEMINI_LIVE_MODEL="gemini-3.1-flash-live-preview"
 ```
 
-`GEMINI_API_KEY` can also be supplied as `GOOGLE_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY`.
+Save Gemini API keys and model settings from Dashboard > Settings > Call Agent.
 
-`GEMINI_LIVE_API_KEY` is optional. If you do not set it, the live bridge falls back to `GEMINI_API_KEY`.
+`GEMINI_LIVE_API_KEY` remains optional on that page. If you leave it blank, the live bridge falls back to the saved `GEMINI_API_KEY`.
 
 ## Hosting Requirement
 

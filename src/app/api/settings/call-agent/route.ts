@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/lib/auth';
+import {
+  CALL_AGENT_SETTING_KEYS,
+  DEFAULT_GEMINI_LIVE_MODEL,
+  DEFAULT_GEMINI_VOICE_MODEL,
+  type CallAgentSettingsValues,
+  getEffectiveGeminiApiKey,
+  getEffectiveGeminiLiveApiKey,
+  getEffectiveGeminiLiveModel,
+  getEffectiveGeminiVoiceModel,
+  getStoredCallAgentSettings,
+  saveStoredCallAgentSettings,
+} from '@/lib/call-agent-settings';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -33,24 +45,6 @@ type TwilioInspection = {
   trunkSid: string | null;
   matchesExpectedWebhook: boolean | null;
   error: string | null;
-};
-
-type StoredTwilioSettings = {
-  twilioAccountSid: string;
-  twilioAuthToken: string;
-  twilioApiKey: string;
-  twilioApiSecret: string;
-  twilioPhoneNumber: string;
-  twilioPhoneNumberSid: string;
-};
-
-const EMPTY_TWILIO_SETTINGS: StoredTwilioSettings = {
-  twilioAccountSid: '',
-  twilioAuthToken: '',
-  twilioApiKey: '',
-  twilioApiSecret: '',
-  twilioPhoneNumber: '',
-  twilioPhoneNumberSid: '',
 };
 
 function normalizeBaseUrl(value?: string | null) {
@@ -97,50 +91,12 @@ function sanitizeStoredString(value: unknown) {
   return value.trim();
 }
 
-function mapStoredTwilioSettings(record?: Partial<Record<keyof StoredTwilioSettings, string | null>> | null): StoredTwilioSettings {
-  return {
-    twilioAccountSid: record?.twilioAccountSid?.trim() || '',
-    twilioAuthToken: record?.twilioAuthToken?.trim() || '',
-    twilioApiKey: record?.twilioApiKey?.trim() || '',
-    twilioApiSecret: record?.twilioApiSecret?.trim() || '',
-    twilioPhoneNumber: record?.twilioPhoneNumber?.trim() || '',
-    twilioPhoneNumberSid: record?.twilioPhoneNumberSid?.trim() || '',
-  };
-}
-
-function toPersistedTwilioData(settings: StoredTwilioSettings) {
-  return {
-    twilioAccountSid: settings.twilioAccountSid || null,
-    twilioAuthToken: settings.twilioAuthToken || null,
-    twilioApiKey: settings.twilioApiKey || null,
-    twilioApiSecret: settings.twilioApiSecret || null,
-    twilioPhoneNumber: settings.twilioPhoneNumber || null,
-    twilioPhoneNumberSid: settings.twilioPhoneNumberSid || null,
-  };
-}
-
-function getTwilioAuthMode(settings: StoredTwilioSettings): TwilioAuthMode {
+function getTwilioAuthMode(settings: CallAgentSettingsValues): TwilioAuthMode {
   return settings.twilioAccountSid && settings.twilioAuthToken
     ? 'auth-token'
     : settings.twilioAccountSid && settings.twilioApiKey && settings.twilioApiSecret
       ? 'api-key'
       : 'missing';
-}
-
-async function getStoredTwilioSettings() {
-  const settings = await prisma.callAgentSettings.findUnique({
-    where: { scope: 'default' },
-    select: {
-      twilioAccountSid: true,
-      twilioAuthToken: true,
-      twilioApiKey: true,
-      twilioApiSecret: true,
-      twilioPhoneNumber: true,
-      twilioPhoneNumberSid: true,
-    },
-  });
-
-  return mapStoredTwilioSettings(settings);
 }
 
 function normalizeComparableUrl(value?: string | null) {
@@ -164,7 +120,7 @@ function normalizeComparableUrl(value?: string | null) {
   }
 }
 
-function createTwilioAuthHeader(authMode: TwilioAuthMode, settings: StoredTwilioSettings) {
+function createTwilioAuthHeader(authMode: TwilioAuthMode, settings: CallAgentSettingsValues) {
   if (authMode === 'auth-token') {
     const username = settings.twilioAccountSid;
     const password = settings.twilioAuthToken;
@@ -220,7 +176,7 @@ function buildTwilioInspection(record: TwilioPhoneRecord, source: TwilioInspecti
   } satisfies TwilioInspection;
 }
 
-async function buildCallAgentResponse(request: NextRequest, twilioSettings: StoredTwilioSettings) {
+async function buildCallAgentResponse(request: NextRequest, settings: CallAgentSettingsValues) {
   const configuredBaseUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
   const detectedBaseUrl = getDetectedBaseUrl(request);
   const preferredBaseUrl = configuredBaseUrl && !isLocalBaseUrl(configuredBaseUrl)
@@ -236,30 +192,21 @@ async function buildCallAgentResponse(request: NextRequest, twilioSettings: Stor
     websocketUrl.searchParams.set('token', voiceWebhookToken);
   }
 
-  const geminiStandardConfigured = Boolean(
-    (
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
-      ''
-    ).trim(),
-  );
-  const geminiLiveConfigured = Boolean(
-    (process.env.GEMINI_LIVE_API_KEY || process.env.GEMINI_API_KEY || '').trim(),
-  );
-  const twilioAccountSidConfigured = Boolean(twilioSettings.twilioAccountSid);
-  const twilioAuthTokenConfigured = Boolean(twilioSettings.twilioAuthToken);
-  const twilioApiKeyConfigured = Boolean(twilioSettings.twilioApiKey);
-  const twilioApiSecretConfigured = Boolean(twilioSettings.twilioApiSecret);
-  const twilioPhoneNumberConfigured = Boolean(twilioSettings.twilioPhoneNumber);
-  const twilioPhoneNumberSidConfigured = Boolean(twilioSettings.twilioPhoneNumberSid);
-  const twilioAuthMode = getTwilioAuthMode(twilioSettings);
+  const geminiStandardConfigured = Boolean(getEffectiveGeminiApiKey(settings));
+  const geminiLiveConfigured = Boolean(getEffectiveGeminiLiveApiKey(settings));
+  const twilioAccountSidConfigured = Boolean(settings.twilioAccountSid);
+  const twilioAuthTokenConfigured = Boolean(settings.twilioAuthToken);
+  const twilioApiKeyConfigured = Boolean(settings.twilioApiKey);
+  const twilioApiSecretConfigured = Boolean(settings.twilioApiSecret);
+  const twilioPhoneNumberConfigured = Boolean(settings.twilioPhoneNumber);
+  const twilioPhoneNumberSidConfigured = Boolean(settings.twilioPhoneNumberSid);
+  const twilioAuthMode = getTwilioAuthMode(settings);
 
   let twilioInspection: TwilioInspection = {
     attempted: false,
     inspected: false,
     source: twilioAuthMode === 'missing' ? 'missing-credentials' : 'missing-target',
-    target: twilioSettings.twilioPhoneNumberSid || twilioSettings.twilioPhoneNumber || null,
+    target: settings.twilioPhoneNumberSid || settings.twilioPhoneNumber || null,
     phoneNumber: null,
     sid: null,
     voiceUrl: null,
@@ -275,20 +222,20 @@ async function buildCallAgentResponse(request: NextRequest, twilioSettings: Stor
   };
 
   if (twilioAuthMode !== 'missing') {
-    const authHeader = createTwilioAuthHeader(twilioAuthMode, twilioSettings);
+    const authHeader = createTwilioAuthHeader(twilioAuthMode, settings);
 
     if (authHeader) {
       try {
-        if (twilioSettings.twilioPhoneNumberSid) {
-          const record = (await fetchTwilioJson(`/IncomingPhoneNumbers/${encodeURIComponent(twilioSettings.twilioPhoneNumberSid)}.json`, authHeader, twilioSettings.twilioAccountSid)) as TwilioPhoneRecord;
-          twilioInspection = buildTwilioInspection(record, 'phone-sid', twilioSettings.twilioPhoneNumberSid, webhookUrl.toString());
+        if (settings.twilioPhoneNumberSid) {
+          const record = (await fetchTwilioJson(`/IncomingPhoneNumbers/${encodeURIComponent(settings.twilioPhoneNumberSid)}.json`, authHeader, settings.twilioAccountSid)) as TwilioPhoneRecord;
+          twilioInspection = buildTwilioInspection(record, 'phone-sid', settings.twilioPhoneNumberSid, webhookUrl.toString());
         } else {
           const query = new URLSearchParams({ PageSize: '20' });
-          if (twilioSettings.twilioPhoneNumber) {
-            query.set('PhoneNumber', twilioSettings.twilioPhoneNumber);
+          if (settings.twilioPhoneNumber) {
+            query.set('PhoneNumber', settings.twilioPhoneNumber);
           }
 
-          const payload = await fetchTwilioJson(`/IncomingPhoneNumbers.json?${query.toString()}`, authHeader, twilioSettings.twilioAccountSid);
+          const payload = await fetchTwilioJson(`/IncomingPhoneNumbers.json?${query.toString()}`, authHeader, settings.twilioAccountSid);
           const numbers = Array.isArray(payload.incoming_phone_numbers)
             ? (payload.incoming_phone_numbers as TwilioPhoneRecord[])
             : [];
@@ -296,8 +243,8 @@ async function buildCallAgentResponse(request: NextRequest, twilioSettings: Stor
           if (numbers.length === 1) {
             twilioInspection = buildTwilioInspection(
               numbers[0],
-              twilioSettings.twilioPhoneNumber ? 'phone-number' : 'single-number',
-              twilioSettings.twilioPhoneNumber || numbers[0].phone_number || null,
+              settings.twilioPhoneNumber ? 'phone-number' : 'single-number',
+              settings.twilioPhoneNumber || numbers[0].phone_number || null,
               webhookUrl.toString(),
             );
           } else if (numbers.length > 1) {
@@ -311,8 +258,8 @@ async function buildCallAgentResponse(request: NextRequest, twilioSettings: Stor
             twilioInspection = {
               ...twilioInspection,
               attempted: true,
-              source: twilioSettings.twilioPhoneNumber ? 'phone-number' : 'missing-target',
-              error: twilioSettings.twilioPhoneNumber
+              source: settings.twilioPhoneNumber ? 'phone-number' : 'missing-target',
+              error: settings.twilioPhoneNumber
                 ? 'No Twilio number matched the saved TWILIO_PHONE_NUMBER.'
                 : 'No incoming Twilio phone numbers were found on this account.',
             };
@@ -342,8 +289,8 @@ async function buildCallAgentResponse(request: NextRequest, twilioSettings: Stor
       voiceWebhookTokenConfigured: Boolean(voiceWebhookToken),
       geminiStandardConfigured,
       geminiLiveConfigured,
-      geminiVoiceModel: (process.env.GEMINI_VOICE_MODEL || 'gemini-2.5-flash').trim(),
-      geminiLiveModel: (process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview').trim(),
+      geminiVoiceModel: getEffectiveGeminiVoiceModel(settings),
+      geminiLiveModel: getEffectiveGeminiLiveModel(settings),
       twilioAccountSidConfigured,
       twilioAuthTokenConfigured,
       twilioApiKeyConfigured,
@@ -353,7 +300,20 @@ async function buildCallAgentResponse(request: NextRequest, twilioSettings: Stor
       twilioPhoneNumberConfigured,
       twilioPhoneNumberSidConfigured,
     },
-    twilioValues: twilioSettings,
+    twilioValues: {
+      twilioAccountSid: settings.twilioAccountSid,
+      twilioAuthToken: settings.twilioAuthToken,
+      twilioApiKey: settings.twilioApiKey,
+      twilioApiSecret: settings.twilioApiSecret,
+      twilioPhoneNumber: settings.twilioPhoneNumber,
+      twilioPhoneNumberSid: settings.twilioPhoneNumberSid,
+    },
+    geminiValues: {
+      geminiApiKey: settings.geminiApiKey,
+      geminiLiveApiKey: settings.geminiLiveApiKey,
+      geminiVoiceModel: settings.geminiVoiceModel || DEFAULT_GEMINI_VOICE_MODEL,
+      geminiLiveModel: settings.geminiLiveModel || DEFAULT_GEMINI_LIVE_MODEL,
+    },
     twilioInspection,
   };
 }
@@ -365,9 +325,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const twilioSettings = await getStoredTwilioSettings();
+    const settings = await getStoredCallAgentSettings();
 
-    return NextResponse.json(await buildCallAgentResponse(request, twilioSettings), { status: 200 });
+    return NextResponse.json(await buildCallAgentResponse(request, settings), { status: 200 });
   } catch (error) {
     console.error('Error fetching call agent settings:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
@@ -382,25 +342,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const payload = await request.json() as Record<string, unknown>;
-    const twilioSettings: StoredTwilioSettings = {
-      twilioAccountSid: sanitizeStoredString(payload.twilioAccountSid),
-      twilioAuthToken: sanitizeStoredString(payload.twilioAuthToken),
-      twilioApiKey: sanitizeStoredString(payload.twilioApiKey),
-      twilioApiSecret: sanitizeStoredString(payload.twilioApiSecret),
-      twilioPhoneNumber: sanitizeStoredString(payload.twilioPhoneNumber),
-      twilioPhoneNumberSid: sanitizeStoredString(payload.twilioPhoneNumberSid),
-    };
+    const partial: Partial<CallAgentSettingsValues> = {};
 
-    await prisma.callAgentSettings.upsert({
-      where: { scope: 'default' },
-      create: {
-        scope: 'default',
-        ...toPersistedTwilioData(twilioSettings),
-      },
-      update: toPersistedTwilioData(twilioSettings),
-    });
+    for (const key of CALL_AGENT_SETTING_KEYS) {
+      if (key in payload) {
+        partial[key] = sanitizeStoredString(payload[key]);
+      }
+    }
 
-    return NextResponse.json(await buildCallAgentResponse(request, twilioSettings), { status: 200 });
+    if (Object.keys(partial).length === 0) {
+      return NextResponse.json({ message: 'No valid call agent settings provided' }, { status: 400 });
+    }
+
+    const settings = await saveStoredCallAgentSettings(partial);
+
+    return NextResponse.json(await buildCallAgentResponse(request, settings), { status: 200 });
   } catch (error) {
     console.error('Error updating call agent settings:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

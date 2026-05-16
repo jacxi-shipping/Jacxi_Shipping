@@ -4,8 +4,7 @@ import WebSocket, { type RawData } from 'ws';
 
 import {
   buildVoiceAssistantContext,
-  getGeminiLiveApiKey,
-  getGeminiLiveModel,
+  getGeminiLiveRuntimeConfig,
   getVoiceUserById,
   isVoiceTokenValid,
 } from './call-agent';
@@ -93,20 +92,18 @@ function buildUnauthorizedCloseReason(request: IncomingMessage) {
   return isVoiceTokenValid(url.searchParams.get('token')) ? null : 'Unauthorized voice live stream.';
 }
 
-export function handleVoiceLiveSocket(twilioSocket: WebSocket, request: IncomingMessage) {
+export async function handleVoiceLiveSocket(twilioSocket: WebSocket, request: IncomingMessage) {
   const unauthorizedReason = buildUnauthorizedCloseReason(request);
   if (unauthorizedReason) {
     closeSocket(twilioSocket, 1008, unauthorizedReason);
     return;
   }
 
-  const geminiApiKey = getGeminiLiveApiKey();
+  const { apiKey: geminiApiKey, model: geminiModel } = await getGeminiLiveRuntimeConfig();
   if (!geminiApiKey) {
     closeSocket(twilioSocket, 1011, 'Gemini Live API key is not configured.');
     return;
   }
-
-  const geminiModel = getGeminiLiveModel();
   let geminiSocket: WebSocket | null = null;
   let geminiReady = false;
   let streamSid = '';

@@ -26,7 +26,7 @@ export async function startServer() {
   });
 
   liveBridgeServer.on('connection', (socket, request) => {
-    handleVoiceLiveSocket(socket, request);
+    void handleVoiceLiveSocket(socket, request);
   });
 
   server.on('upgrade', async (request, socket, head) => {

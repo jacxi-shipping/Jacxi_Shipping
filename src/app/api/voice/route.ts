@@ -210,7 +210,7 @@ async function handleMenu(request: NextRequest) {
   }
 
   if (selection === '4') {
-    if (isGeminiLiveConfigured()) {
+    if (await isGeminiLiveConfigured()) {
       return renderAssistantStream(request, user.id);
     }
 

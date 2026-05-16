@@ -2,6 +2,13 @@ import crypto from 'crypto';
 
 import type { NextRequest } from 'next/server';
 
+import {
+  getEffectiveGeminiApiKey,
+  getEffectiveGeminiLiveApiKey,
+  getEffectiveGeminiLiveModel,
+  getEffectiveGeminiVoiceModel,
+  getStoredCallAgentSettings,
+} from '../call-agent-settings';
 import { prisma } from '../db';
 import { isValidLoginCode, loginCodeToVoiceDigits } from '../loginCode';
 import { buildTrackingResponse } from '../tracking-response';
@@ -38,15 +45,6 @@ function safeCompare(left: string, right: string) {
 
 function getConfiguredVoiceToken() {
   return process.env.VOICE_WEBHOOK_TOKEN?.trim() || '';
-}
-
-function getGeminiApiKey() {
-  return (
-    process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
-    ''
-  ).trim();
 }
 
 export function isVoiceTokenValid(presentedToken?: string | null) {
@@ -350,16 +348,18 @@ export async function getAuthorizedTrackingSpeech(userId: string, requestedNumbe
   });
 }
 
-export function isGeminiLiveConfigured() {
-  return Boolean((process.env.GEMINI_LIVE_API_KEY || getGeminiApiKey()).trim());
+export async function isGeminiLiveConfigured() {
+  const settings = await getStoredCallAgentSettings();
+  return Boolean(getEffectiveGeminiLiveApiKey(settings));
 }
 
-export function getGeminiLiveApiKey() {
-  return (process.env.GEMINI_LIVE_API_KEY || getGeminiApiKey()).trim();
-}
+export async function getGeminiLiveRuntimeConfig() {
+  const settings = await getStoredCallAgentSettings();
 
-export function getGeminiLiveModel() {
-  return (process.env.GEMINI_LIVE_MODEL || process.env.GEMINI_VOICE_MODEL || 'gemini-3.1-flash-live-preview').trim();
+  return {
+    apiKey: getEffectiveGeminiLiveApiKey(settings),
+    model: getEffectiveGeminiLiveModel(settings),
+  };
 }
 
 function extractGeminiText(payload: unknown) {
@@ -393,12 +393,13 @@ function extractGeminiText(payload: unknown) {
 }
 
 export async function generateVoiceAssistantReply(user: VoiceAccountUser, question: string) {
-  const apiKey = getGeminiApiKey();
+  const settings = await getStoredCallAgentSettings();
+  const apiKey = getEffectiveGeminiApiKey(settings);
   if (!apiKey) {
     return null;
   }
 
-  const model = (process.env.GEMINI_VOICE_MODEL || 'gemini-2.5-flash').trim();
+  const model = getEffectiveGeminiVoiceModel(settings);
   const [finance, recentShipments] = await Promise.all([
     getVoiceFinanceSummary(user.id),
     getRecentVoiceShipments(user.id),

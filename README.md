@@ -66,10 +66,8 @@ For auction lot auto-fill in production, public Copart or IAAI pages may block V
 For the call agent service, configure these server-side variables:
 
 - `VOICE_WEBHOOK_TOKEN` – shared secret appended to the inbound voice webhook URL, for example `/api/voice?token=...`.
-- `GEMINI_API_KEY` – Gemini API key for the non-live phone assistant path. `GOOGLE_API_KEY` and `GOOGLE_GENERATIVE_AI_API_KEY` are also accepted as fallbacks.
-- `GEMINI_LIVE_API_KEY` – optional dedicated Gemini API key for the live audio bridge. If omitted, live mode falls back to `GEMINI_API_KEY`.
-- `GEMINI_VOICE_MODEL` – optional Gemini model override. Defaults to `gemini-2.5-flash`.
-- `GEMINI_LIVE_MODEL` – optional Gemini Live model override for real-time audio. Defaults to `gemini-3.1-flash-live-preview`.
+
+Then configure the call-agent Gemini API keys and model overrides from Dashboard > Settings > Call Agent.
 
 ## Shipment Photo Uploads
 
