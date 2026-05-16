@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Save, Loader2, AlertCircle, Key, Copy, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, AlertCircle, Key, Copy, RefreshCw, Trash2, PhoneCall } from 'lucide-react';
 import { Box, Typography, Alert, Divider } from '@mui/material';
 import { 
   DashboardSurface, 
@@ -21,7 +21,7 @@ import {
   LoadingState,
   toast,
 } from '@/components/design-system';
-import { formatLoginCode } from '@/lib/loginCode';
+import { formatLoginCode, loginCodeToVoiceDigits } from '@/lib/loginCode';
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -43,6 +43,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const [error, setError] = useState<string | null>(null);
   const [loginCode, setLoginCode] = useState<string | null>(null);
   const [generatingCode, setGeneratingCode] = useState(false);
+  const voiceAccessCode = loginCode ? loginCodeToVoiceDigits(loginCode) : null;
 
   const {
     register,
@@ -114,6 +115,12 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     if (!loginCode) return;
     navigator.clipboard.writeText(loginCode);
     toast.success('Login code copied to clipboard');
+  };
+
+  const handleCopyVoiceAccessCode = () => {
+    if (!voiceAccessCode) return;
+    navigator.clipboard.writeText(voiceAccessCode);
+    toast.success('Voice access code copied to clipboard');
   };
 
   const handleGenerateLoginCode = async () => {
@@ -344,11 +351,75 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                 <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: 1.5 }}>
                   This user can login using this code at <Box component="span" sx={{ color: 'var(--accent-gold)', fontWeight: 500 }}>/auth/simple-login</Box>
                 </Typography>
+
+                <Alert
+                  severity="info"
+                  icon={<PhoneCall className="w-4 h-4" />}
+                  sx={{
+                    alignItems: 'flex-start',
+                    bgcolor: 'rgba(14, 165, 233, 0.08)',
+                    border: '1px solid rgba(14, 165, 233, 0.18)',
+                    color: 'var(--text-primary)',
+                    '& .MuiAlert-icon': {
+                      color: 'rgb(14, 165, 233)',
+                      mt: '2px',
+                    },
+                  }}
+                >
+                  The call agent asks for an 8-digit phone keypad code. If this access code contains letters, share the keypad version below with the customer for phone support.
+                </Alert>
+
+                {voiceAccessCode ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1.5,
+                      bgcolor: 'var(--background)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 2,
+                      p: 2,
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block' }}>
+                      Voice keypad code for the call agent
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <Box
+                        sx={{
+                          fontSize: '1.25rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          fontFamily: 'monospace',
+                          letterSpacing: '0.2em',
+                          flex: 1,
+                        }}
+                      >
+                        {formatLoginCode(voiceAccessCode)}
+                      </Box>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<Copy className="w-4 h-4" />}
+                        onClick={handleCopyVoiceAccessCode}
+                        type="button"
+                      >
+                        Copy Voice Code
+                      </Button>
+                    </Box>
+                    <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: 1.6 }}>
+                      Standard phone mapping: ABC = 2, DEF = 3, GHI = 4, JKL = 5, MNO = 6, PQRS = 7, TUV = 8, WXYZ = 9.
+                    </Typography>
+                  </Box>
+                ) : null}
               </Box>
             ) : (
               <Box sx={{ textAlign: 'center', py: 3, bgcolor: 'var(--background)', borderRadius: 2, border: '1px dashed var(--border)' }}>
                 <Typography sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)', mb: 2 }}>
                   No login code set for this user
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block', mb: 2, lineHeight: 1.5 }}>
+                  Generate a login code first to enable both simple login and phone-call access for this user.
                 </Typography>
                 <Button
                   variant="primary"

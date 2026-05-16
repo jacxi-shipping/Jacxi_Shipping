@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
@@ -14,6 +14,7 @@ type NavigationItem = {
 	href: string;
 	icon: SvgIconComponent;
 	requiredPermission?: Permission;
+	allowedRoles?: string[];
 };
 
 const mainNavigation: NavigationItem[] = [
@@ -102,6 +103,13 @@ const adminNavigation: NavigationItem[] = [
 		href: '/dashboard/ai-logs',
 		icon: SmartToy,
 		requiredPermission: 'shipments:read_all',
+	},
+	{
+		name: 'Call Agent',
+		href: '/dashboard/settings/call-agent',
+		icon: PhoneInTalk,
+		requiredPermission: 'users:manage',
+		allowedRoles: ['admin'],
 	},
 ];
 
@@ -283,7 +291,7 @@ function NavSection({ title, items, role, isActive, onNavClick }: NavSectionProp
 			)}
 			<List sx={{ py: 0 }}>
 				{items
-					.filter((item) => !item.requiredPermission || hasPermission(role, item.requiredPermission))
+					.filter((item) => (!item.requiredPermission || hasPermission(role, item.requiredPermission)) && (!item.allowedRoles || (role ? item.allowedRoles.includes(role) : false)))
 				.map((item) => (
 					<NavItem key={item.name} item={item} isActive={isActive} onNavClick={onNavClick} />
 				))}

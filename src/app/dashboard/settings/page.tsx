@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   User, 
   Bell, 
@@ -13,7 +14,9 @@ import {
   Moon, 
   Database, 
   RefreshCw, 
-  UploadCloud 
+  UploadCloud,
+  PhoneCall,
+  ArrowRight,
 } from 'lucide-react';
 import { Box, Typography } from '@mui/material';
 
@@ -358,6 +361,30 @@ export default function SettingsPage() {
         title={isAdmin ? 'Admin Settings' : 'Settings'} 
         description={isAdmin ? 'Manage your profile, preferences, and system configuration' : 'Manage your profile, preferences, and account settings'}
       />
+
+      {isAdmin ? (
+        <DashboardPanel
+          title="Call Agent"
+          description="Open the dedicated voice settings screen for Twilio endpoint URLs, Gemini readiness, and webhook status."
+        >
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <PhoneCall className="w-4 h-4" />
+                Voice webhook and live media setup
+              </Typography>
+              <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 1, lineHeight: 1.7 }}>
+                Review the Twilio webhook URL, the live stream WebSocket URL, and whether Gemini Live and webhook protection are configured.
+              </Typography>
+            </Box>
+            <Link href="/dashboard/settings/call-agent" style={{ textDecoration: 'none' }}>
+              <Button variant="primary" icon={<ArrowRight className="w-4 h-4" />}>
+                Open Call Agent
+              </Button>
+            </Link>
+          </Box>
+        </DashboardPanel>
+      ) : null}
 
       <DashboardGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
