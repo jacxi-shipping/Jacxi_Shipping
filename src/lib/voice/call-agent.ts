@@ -70,27 +70,22 @@ export function buildVoiceStepUrl(
   step: string,
   params: Record<string, string | undefined> = {},
 ) {
-  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
-  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
-  const requestUrl = new URL(request.url);
-  const protocol = forwardedProto || requestUrl.protocol.replace(':', '');
-  const host = forwardedHost || request.headers.get('host') || requestUrl.host;
-  const url = new URL(`${protocol}://${host}/api/voice`);
+  const urlParams = new URLSearchParams();
   const token = request.nextUrl.searchParams.get('token');
 
   if (token) {
-    url.searchParams.set('token', token);
+    urlParams.set('token', token);
   }
 
-  url.searchParams.set('step', step);
+  urlParams.set('step', step);
 
   Object.entries(params).forEach(([key, value]) => {
     if (value) {
-      url.searchParams.set(key, value);
+      urlParams.set(key, value);
     }
   });
 
-  return url.toString();
+  return `/api/voice?${urlParams.toString()}`;
 }
 
 export function buildVoiceLiveStreamUrl(request: NextRequest) {
