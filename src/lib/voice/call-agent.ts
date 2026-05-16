@@ -367,7 +367,7 @@ function extractGeminiText(payload: unknown) {
     return '';
   }
 
-  const candidates = 'candidates' in payload && Array.isArray(payload.candidates)
+  const candidates: unknown[] = 'candidates' in payload && Array.isArray(payload.candidates)
     ? payload.candidates
     : [];
 
@@ -380,7 +380,7 @@ function extractGeminiText(payload: unknown) {
       const content = 'content' in candidate && candidate.content && typeof candidate.content === 'object'
         ? candidate.content
         : null;
-      const parts = content && 'parts' in content && Array.isArray(content.parts)
+      const parts: unknown[] = content && 'parts' in content && Array.isArray(content.parts)
         ? content.parts
         : [];
 
