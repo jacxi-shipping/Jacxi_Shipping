@@ -53,7 +53,7 @@ export default function DashboardLayout({
 								sx={{
 									flexGrow: 1,
 									minWidth: 0,
-									height: { xs: 'calc(100vh - 64px - 64px)', lg: 'calc(100vh - 64px)' },
+									height: { xs: 'calc(100vh - 56px - 64px)', lg: 'calc(100vh - 56px)' },
 									bgcolor: 'var(--background)',
 									backgroundImage: 'none',
 									overflow: 'auto',

@@ -107,9 +107,10 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 		>
 			<Toolbar
 				sx={{
-					minHeight: 64,
-					px: { xs: 2, sm: 3 },
-					py: { xs: 1, sm: 1.5 },
+					minHeight: 56,
+					height: 56,
+					px: { xs: 1.5, sm: 2.5 },
+					py: 0,
 					color: 'var(--text-primary)',
 				}}
 			>
@@ -119,19 +120,19 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 					color="inherit"
 					onClick={onMenuClick}
 					sx={{
-						mr: 2,
+						mr: 1,
 						display: { xs: 'flex', lg: 'none' },
 						color: 'var(--text-primary)',
-						p: 1,
+						p: 0.75,
 					}}
 				>
-					<MenuIcon sx={{ fontSize: 24 }} />
+					<MenuIcon sx={{ fontSize: 22 }} />
 				</IconButton>
 
 				{/* Logo/Title */}
 				<Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-					<Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-						<SiteLogo variant="dashboard" className="w-[108px] sm:w-[126px]" priority />
+					<Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', padding: '2px 6px' }}>
+						<SiteLogo variant="dashboard" className="w-[72px] sm:w-[88px]" priority />
 					</Link>
 
 					{/* Page Title (if provided) */}
@@ -161,15 +162,15 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 				</Box>
 
 				{/* Right Actions */}
-				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
           {/* Quick Actions (FAB) */}
           <Tooltip title="Quick Actions">
             <IconButton
               onClick={handleQuickActionOpen}
               sx={{
                 color: 'var(--accent-gold)',
-                p: 1,
-                mr: 0.5,
+									p: 0.75,
+									mr: 0.25,
                 '&:hover': {
                   bgcolor: 'rgba(var(--accent-gold-rgb), 0.1)',
                 },
@@ -185,7 +186,7 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
               onClick={toggleKeyboardShortcuts}
               sx={{
                 color: 'var(--text-secondary)',
-                p: 1,
+									p: 0.75,
                 display: { xs: 'none', md: 'inline-flex' },
                 '&:hover': {
                   bgcolor: 'rgba(var(--border-rgb), 0.4)',
@@ -209,7 +210,7 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 							<IconButton
 								sx={{
 									color: 'var(--text-secondary)',
-									p: 1,
+									p: 0.75,
 									'&:hover': {
 										bgcolor: 'rgba(var(--border-rgb), 0.4)',
 										color: 'var(--text-primary)',
@@ -226,14 +227,14 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 						<IconButton
 							onClick={handleProfileMenuOpen}
 							sx={{
-								ml: 1,
-								p: 0.75,
+								ml: 0.5,
+								p: 0.5,
 							}}
 						>
 						<Avatar
 							sx={{
-								width: 32,
-								height: 32,
+									width: 30,
+									height: 30,
 								bgcolor: 'var(--accent-gold)',
 								fontSize: '0.875rem',
 								fontWeight: 600,
