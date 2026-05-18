@@ -3,7 +3,9 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
+  Add,
   Download,
   Print,
   FilterList,
@@ -63,6 +65,7 @@ const transactionInfoTypeLabels: Record<TransactionInfoType, string> = {
 export default function LedgerPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const isAdmin = session?.user?.role === 'admin';
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [summary, setSummary] = useState<LedgerSummary>({
     totalDebit: 0,
@@ -492,6 +495,30 @@ export default function LedgerPage() {
           fullHeight
           actions={
             <Box sx={{ display: 'flex', gap: 1 }}>
+              {isAdmin && (
+                <>
+                  <Link href="/dashboard/finance/record-payment">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<Add />}
+                      sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                    >
+                      Record Payment
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/finance/add-expense">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={<Add />}
+                      sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                    >
+                      Add Expense
+                    </Button>
+                  </Link>
+                </>
+              )}
               <Button
                 variant="outline"
                 size="sm"
