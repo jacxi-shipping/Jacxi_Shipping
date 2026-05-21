@@ -3,9 +3,10 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
 import {
   Add,
+  Check,
+  Close,
   Download,
   Print,
   FilterList,
@@ -17,7 +18,7 @@ import {
   AttachMoney,
   LocalShipping,
 } from '@mui/icons-material';
-import {  Box, Typography, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
 import { Breadcrumbs, Button, toast, EmptyState, SkeletonCard, SkeletonTable, Tooltip, StatusBadge, TableSkeleton, StatsCard } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
@@ -85,6 +86,14 @@ export default function LedgerPage() {
     endDate: '',
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [formData, setFormData] = useState({
+    description: '',
+    type: 'DEBIT' as 'DEBIT' | 'CREDIT',
+    transactionInfoType: 'SHIPPING_PAYMENT' as TransactionInfoType,
+    amount: '',
+    notes: '',
+  });
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -176,6 +185,40 @@ export default function LedgerPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleAddEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.user?.id) return;
+
+    try {
+      const amount = parseFloat(formData.amount);
+      const response = await fetch('/api/ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: session.user.id,
+          description: formData.description,
+          type: formData.type,
+          transactionInfoType: formData.transactionInfoType,
+          amount,
+          notes: formData.notes,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Transaction added successfully');
+        setShowAddModal(false);
+        setFormData({ description: '', type: 'DEBIT', transactionInfoType: 'SHIPPING_PAYMENT', amount: '', notes: '' });
+        fetchLedgerEntries();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to add transaction');
+      }
+    } catch (error) {
+      console.error('Error adding entry:', error);
+      toast.error('An error occurred');
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -496,28 +539,15 @@ export default function LedgerPage() {
           actions={
             <Box sx={{ display: 'flex', gap: 1 }}>
               {isAdmin && (
-                <>
-                  <Link href="/dashboard/finance/record-payment">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={<Add />}
-                      sx={{ textTransform: 'none', fontSize: '0.75rem' }}
-                    >
-                      Record Payment
-                    </Button>
-                  </Link>
-                  <Link href="/dashboard/finance/add-expense">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      icon={<Add />}
-                      sx={{ textTransform: 'none', fontSize: '0.75rem' }}
-                    >
-                      Add Expense
-                    </Button>
-                  </Link>
-                </>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowAddModal(true)}
+                  icon={<Add />}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                >
+                  Add Transaction
+                </Button>
               )}
               <Button
                 variant="outline"
@@ -587,6 +617,109 @@ export default function LedgerPage() {
           )}
         </DashboardPanel>
       </DashboardSurface>
+
+      <Dialog open={showAddModal} onClose={() => setShowAddModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6">Add Transaction</Typography>
+            <IconButton onClick={() => setShowAddModal(false)} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <form onSubmit={handleAddEntry}>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {(() => {
+                const enteredAmount = parseFloat(formData.amount) || 0;
+                const projectedBalance = formData.type === 'DEBIT'
+                  ? summary.currentBalance + enteredAmount
+                  : summary.currentBalance - enteredAmount;
+                const currentBalanceLabel = summary.currentBalance > 0
+                  ? `You owe ${formatCurrency(summary.currentBalance)}`
+                  : summary.currentBalance < 0
+                    ? `You have ${formatCurrency(Math.abs(summary.currentBalance))} credit`
+                    : 'Account is settled';
+                const projectedBalanceLabel = projectedBalance > 0
+                  ? `you will owe ${formatCurrency(projectedBalance)}`
+                  : projectedBalance < 0
+                    ? `you will have ${formatCurrency(Math.abs(projectedBalance))} credit`
+                    : 'account will be settled';
+                return (
+                  <Alert severity={formData.type === 'DEBIT' ? 'info' : 'success'} sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                    Current Balance: {currentBalanceLabel}. {enteredAmount > 0 ? `After this transaction, ${projectedBalanceLabel}.` : 'Enter an amount to preview the new balance.'}
+                  </Alert>
+                );
+              })()}
+
+              <FormControl fullWidth>
+                <InputLabel>Type *</InputLabel>
+                <Select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'DEBIT' | 'CREDIT' })}
+                  label="Type *"
+                  required
+                >
+                  <MenuItem value="DEBIT">Debit / Charge</MenuItem>
+                  <MenuItem value="CREDIT">Credit / Payment</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Category *</InputLabel>
+                <Select
+                  value={formData.transactionInfoType}
+                  onChange={(e) => setFormData({ ...formData, transactionInfoType: e.target.value as TransactionInfoType })}
+                  label="Category *"
+                  required
+                >
+                  {Object.entries(transactionInfoTypeLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>{label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <TextField
+                label="Description *"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="e.g. Shipping charge, Payment"
+                required
+                fullWidth
+              />
+
+              <TextField
+                label="Amount * (USD)"
+                type="number"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                placeholder="0.00"
+                inputProps={{ step: '0.01', min: '0.01' }}
+                required
+                fullWidth
+              />
+
+              <TextField
+                label="Notes (Optional)"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Add any additional notes"
+                multiline
+                rows={3}
+                fullWidth
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowAddModal(false)} sx={{ textTransform: 'none' }}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" icon={<Check />} sx={{ textTransform: 'none' }}>
+              Add Transaction
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </ProtectedRoute>
   );
 }
