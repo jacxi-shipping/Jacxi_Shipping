@@ -116,6 +116,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const type = searchParams.get('type') || '';
+    const source = searchParams.get('source') || '';
 
     const where: {
       companyId: string;
@@ -142,7 +143,7 @@ export async function GET(
     }
 
     // ⚡ Bolt: Consolidated separate debit and credit aggregate queries into a single groupBy query
-    const [entries, groupedSums, latestEntry, expenseEntries] = await Promise.all([
+    const [entriesRaw, groupedSums, latestEntry, expenseEntries] = await Promise.all([
       prisma.companyLedgerEntry.findMany({
         where,
         orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
@@ -162,6 +163,23 @@ export async function GET(
         select: { amount: true, category: true, reference: true, metadata: true },
       }),
     ]);
+
+    const entries = entriesRaw.filter((entry) => {
+      const metadata = entry.metadata && typeof entry.metadata === 'object' && !Array.isArray(entry.metadata)
+        ? (entry.metadata as Record<string, unknown>)
+        : {};
+      const isBankImport = metadata.importSource === 'BANK_OF_AMERICA_CSV';
+
+      if (source === 'BANK_IMPORT') {
+        return isBankImport;
+      }
+
+      if (source === 'MANUAL') {
+        return !isBankImport;
+      }
+
+      return true;
+    });
 
     const totalExpenseCharges = expenseEntries.reduce((sum, entry) => {
       return isCompanyExpenseLedgerEntry(entry) ? sum + entry.amount : sum;

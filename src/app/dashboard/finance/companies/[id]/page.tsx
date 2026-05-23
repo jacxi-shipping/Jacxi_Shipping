@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -14,7 +14,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { ArrowLeft, Building2, DollarSign, Eye, Pencil, Plus, ReceiptText, Trash2, Truck } from 'lucide-react';
+import { ArrowLeft, Building2, DollarSign, Eye, Pencil, Plus, ReceiptText, Trash2, Truck, Upload } from 'lucide-react';
 import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
@@ -107,6 +107,30 @@ interface LedgerEntry {
   };
 }
 
+interface ImportPreviewRow {
+  transactionDate: string;
+  description: string;
+  type: 'DEBIT' | 'CREDIT';
+  amount: number;
+  reference: string | null;
+  notes: string | null;
+  isDuplicate: boolean;
+  duplicateReason: 'ALREADY_IMPORTED' | 'DUPLICATE_IN_FILE' | null;
+}
+
+interface ImportPreview {
+  totalCount: number;
+  duplicateCount: number;
+  importableCount: number;
+  importableNetChange: number;
+  currentBalance: number;
+  projectedEndingBalance: number;
+  statementEndingBalance: number | null;
+  reconciliationDifference: number | null;
+  reconciliationStatus: 'NOT_PROVIDED' | 'MATCH' | 'VARIANCE';
+  rows: ImportPreviewRow[];
+}
+
 interface CompanyReport {
   summary: {
     transactionCount: number;
@@ -138,7 +162,16 @@ export default function CompanyLedgerDetailPage() {
   const [posting, setPosting] = useState(false);
   const [openEntry, setOpenEntry] = useState(false);
   const [isPaymentMode, setIsPaymentMode] = useState(false);
-  const [filters, setFilters] = useState({ search: '', type: '' });
+  const [openImportDialog, setOpenImportDialog] = useState(false);
+  const [previewingImport, setPreviewingImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [filters, setFilters] = useState({ search: '', type: '', source: '' });
+  const [importForm, setImportForm] = useState({
+    category: 'Bank Statement',
+    statementEndingBalance: '',
+  });
   const [formData, setFormData] = useState({
     description: '',
     type: 'CREDIT',
@@ -199,6 +232,17 @@ export default function CompanyLedgerDetailPage() {
 
   const getDisplayType = (row: LedgerEntry) => (isExpenseRecoveryEntry(row) ? 'CREDIT' : row.type);
 
+  const isBankImportedEntry = (row: LedgerEntry) => {
+    const metadata = (row.metadata || {}) as Record<string, unknown>;
+    return metadata.importSource === 'BANK_OF_AMERICA_CSV';
+  };
+
+  const resetImportForm = () => {
+    setImportFile(null);
+    setImportPreview(null);
+    setImportForm({ category: 'Bank Statement', statementEndingBalance: '' });
+  };
+
   const fetchCompany = async () => {
     const response = await fetch(`/api/finance/companies/${companyId}`);
     const data = await response.json();
@@ -215,6 +259,7 @@ export default function CompanyLedgerDetailPage() {
     const params = new URLSearchParams();
     if (filters.search) params.append('search', filters.search);
     if (filters.type) params.append('type', filters.type);
+    if (filters.source) params.append('source', filters.source);
 
     const response = await fetch(`/api/finance/companies/${companyId}/ledger?${params}`);
     const data = await response.json();
@@ -261,7 +306,7 @@ export default function CompanyLedgerDetailPage() {
   useEffect(() => {
     if (!companyId) return;
     void fetchLedger();
-  }, [filters.search, filters.type]);
+  }, [filters.search, filters.type, filters.source]);
 
   useEffect(() => {
     if (!focusedEntryId) {
@@ -380,6 +425,99 @@ export default function CompanyLedgerDetailPage() {
     }
   };
 
+  const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setImportFile(event.target.files?.[0] || null);
+    setImportPreview(null);
+  };
+
+  const handlePreviewBankCsv = async () => {
+    if (!importFile) {
+      toast.error('Select a CSV file to preview');
+      return;
+    }
+
+    try {
+      setPreviewingImport(true);
+      const body = new FormData();
+      body.append('action', 'preview');
+      body.append('file', importFile);
+      body.append('category', importForm.category.trim() || 'Bank Statement');
+      body.append('sourceLabel', 'Bank of America CSV');
+      body.append('statementEndingBalance', importForm.statementEndingBalance.trim());
+
+      const response = await fetch(`/api/finance/companies/${companyId}/ledger/import-bank-csv`, {
+        method: 'POST',
+        body,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to preview Bank of America CSV');
+      }
+
+      setImportPreview(data.preview as ImportPreview);
+      toast.success('Bank CSV preview ready');
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to preview Bank of America CSV');
+    } finally {
+      setPreviewingImport(false);
+    }
+  };
+
+  const handleImportBankCsv = async () => {
+    if (!importFile) {
+      toast.error('Select a CSV file to import');
+      return;
+    }
+
+    if (!importPreview) {
+      toast.error('Preview the CSV before importing');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      const body = new FormData();
+      body.append('action', 'import');
+      body.append('file', importFile);
+      body.append('category', importForm.category.trim() || 'Bank Statement');
+      body.append('sourceLabel', 'Bank of America CSV');
+      body.append('statementEndingBalance', importForm.statementEndingBalance.trim());
+
+      const response = await fetch(`/api/finance/companies/${companyId}/ledger/import-bank-csv`, {
+        method: 'POST',
+        body,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to import Bank of America CSV');
+      }
+
+      if (data.importedCount > 0) {
+        toast.success(
+          `${data.importedCount} bank transaction${data.importedCount === 1 ? '' : 's'} imported`,
+          data.skippedCount > 0 ? `${data.skippedCount} duplicate row${data.skippedCount === 1 ? '' : 's'} skipped` : undefined
+        );
+      } else {
+        toast.info('No new bank transactions were imported', data.skippedCount > 0 ? 'All rows were already imported previously' : undefined);
+      }
+
+      setFilters({ search: '', type: '', source: 'BANK_IMPORT' });
+      setOpenImportDialog(false);
+      resetImportForm();
+      await Promise.all([fetchCompany(), fetchLedger(), fetchReport()]);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to import Bank of America CSV');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const openEditEntryDialog = (entry: LedgerEntry, event: React.MouseEvent) => {
     event.stopPropagation();
     setEditEntry(entry);
@@ -457,7 +595,30 @@ export default function CompanyLedgerDetailPage() {
         sortable: true,
         render: (_, row) => (
           <Box>
-            <Box sx={{ fontWeight: 500 }}>{row.description}</Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Box sx={{ fontWeight: 500 }}>{row.description}</Box>
+              {isBankImportedEntry(row) && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    color: '#2563eb',
+                    border: '1px solid rgba(59, 130, 246, 0.22)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Bank Import
+                </Box>
+              )}
+            </Box>
             <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
               {row.category || 'General'}{row.reference ? ` • Ref: ${row.reference}` : ''}
             </Box>
@@ -564,6 +725,13 @@ export default function CompanyLedgerDetailPage() {
               <Link href="/dashboard/finance/companies" style={{ textDecoration: 'none' }}>
                 <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
               </Link>
+              <Button
+                variant="outline"
+                icon={<Upload className="w-4 h-4" />}
+                onClick={() => setOpenImportDialog(true)}
+              >
+                Import BOA CSV
+              </Button>
               <Button variant="outline" icon={<DollarSign className="w-4 h-4" />} onClick={() => {
                 setIsPaymentMode(true);
                 setFormData((prev) => ({ ...prev, type: 'DEBIT', category: 'Payment', description: `Payment to ${company?.name || 'Company'}` }));
@@ -588,7 +756,7 @@ export default function CompanyLedgerDetailPage() {
             <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Total Transactions" value={report?.summary.transactionCount || entries.length} variant="default" />
           </DashboardGrid>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px' }, gap: 1.5, mb: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 180px 180px' }, gap: 1.5, mb: 2 }}>
             <TextField
               size="small"
               placeholder="Search description / category / notes"
@@ -604,6 +772,16 @@ export default function CompanyLedgerDetailPage() {
               <MenuItem value="">All Types</MenuItem>
               <MenuItem value="DEBIT">DEBIT</MenuItem>
               <MenuItem value="CREDIT">CREDIT</MenuItem>
+            </TextField>
+            <TextField
+              select
+              size="small"
+              value={filters.source}
+              onChange={(event) => setFilters((prev) => ({ ...prev, source: event.target.value }))}
+            >
+              <MenuItem value="">All Sources</MenuItem>
+              <MenuItem value="BANK_IMPORT">Bank Imports</MenuItem>
+              <MenuItem value="MANUAL">Manual Entries</MenuItem>
             </TextField>
           </Box>
 
@@ -919,6 +1097,159 @@ export default function CompanyLedgerDetailPage() {
           <DialogActions>
             <Button variant="outline" onClick={() => { setOpenEntry(false); setIsPaymentMode(false); }} disabled={posting}>Cancel</Button>
             <Button variant="primary" onClick={handleCreateEntry} disabled={posting}>{posting ? 'Saving...' : isPaymentMode ? 'Record Payment' : 'Save Transaction'}</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openImportDialog} onClose={() => { if (!importing && !previewingImport) { setOpenImportDialog(false); resetImportForm(); } }} maxWidth="md" fullWidth>
+          <DialogTitle>Import Bank of America CSV</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
+            <Box sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              Import a Bank of America CSV statement into this company ledger. Use a dedicated company record per bank account so the running balance stays meaningful.
+            </Box>
+            <Box sx={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Money in is imported as <strong>DEBIT</strong>. Money out is imported as <strong>CREDIT</strong>. Previously imported rows are skipped automatically.
+            </Box>
+            <TextField
+              label="Ledger Category"
+              value={importForm.category}
+              onChange={(event) => {
+                setImportForm((prev) => ({ ...prev, category: event.target.value }));
+                setImportPreview(null);
+              }}
+              placeholder="Bank Statement"
+              fullWidth
+            />
+            <TextField
+              label="Statement Ending Balance"
+              value={importForm.statementEndingBalance}
+              onChange={(event) => {
+                setImportForm((prev) => ({ ...prev, statementEndingBalance: event.target.value }));
+                setImportPreview(null);
+              }}
+              placeholder="0.00"
+              helperText="Optional, but recommended for reconciliation against the statement total"
+              fullWidth
+            />
+            <Box>
+              <Box sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)', mb: 1 }}>
+                CSV file
+              </Box>
+              <input type="file" accept=".csv,text/csv" onChange={handleImportFileChange} />
+              {importFile && (
+                <Box sx={{ mt: 1, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Selected: {importFile.name}
+                </Box>
+              )}
+            </Box>
+            {importPreview && (
+              <Box sx={{ display: 'grid', gap: 2 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+                  <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                    <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Rows</Box>
+                    <Box sx={{ mt: 0.5, fontWeight: 700 }}>{importPreview.totalCount}</Box>
+                    <Box sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{importPreview.importableCount} ready to import</Box>
+                  </Box>
+                  <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                    <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Duplicates</Box>
+                    <Box sx={{ mt: 0.5, fontWeight: 700 }}>{importPreview.duplicateCount}</Box>
+                    <Box sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Already imported or repeated in file</Box>
+                  </Box>
+                  <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                    <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Net Change</Box>
+                    <Box sx={{ mt: 0.5, fontWeight: 700 }}>{formatCurrency(importPreview.importableNetChange)}</Box>
+                    <Box sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Current {formatCurrency(importPreview.currentBalance)}</Box>
+                  </Box>
+                  <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                    <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Projected Ending</Box>
+                    <Box sx={{ mt: 0.5, fontWeight: 700 }}>{formatCurrency(importPreview.projectedEndingBalance)}</Box>
+                    <Box sx={{ fontSize: '0.78rem', color: importPreview.reconciliationStatus === 'MATCH' ? '#16a34a' : importPreview.reconciliationStatus === 'VARIANCE' ? '#dc2626' : 'var(--text-secondary)' }}>
+                      {importPreview.reconciliationStatus === 'NOT_PROVIDED'
+                        ? 'Add statement ending balance to reconcile'
+                        : `${importPreview.reconciliationStatus === 'MATCH' ? 'Matches statement' : 'Difference'} ${formatCurrency(Math.abs(importPreview.reconciliationDifference || 0))}`}
+                    </Box>
+                  </Box>
+                </Box>
+
+                {importPreview.statementEndingBalance !== null && (
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: '1px solid var(--border)',
+                      background: importPreview.reconciliationStatus === 'MATCH' ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                    }}
+                  >
+                    <Box sx={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Statement ending balance: {formatCurrency(importPreview.statementEndingBalance)}
+                    </Box>
+                    <Box sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                      {importPreview.reconciliationStatus === 'MATCH'
+                        ? 'Projected ledger ending balance matches the statement total.'
+                        : `Projected ledger ending balance differs by ${formatCurrency(Math.abs(importPreview.reconciliationDifference || 0))}. Review duplicates and source data before importing.`}
+                    </Box>
+                  </Box>
+                )}
+
+                <Box sx={{ border: '1px solid var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                  <Box sx={{ px: 2, py: 1.25, fontWeight: 700, borderBottom: '1px solid var(--border)', background: 'var(--panel)' }}>
+                    Preview Rows
+                  </Box>
+                  <Box sx={{ maxHeight: 320, overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ textAlign: 'left', padding: '10px 12px' }}>Date</th>
+                          <th style={{ textAlign: 'left', padding: '10px 12px' }}>Description</th>
+                          <th style={{ textAlign: 'left', padding: '10px 12px' }}>Status</th>
+                          <th style={{ textAlign: 'right', padding: '10px 12px' }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.rows.map((row, index) => (
+                          <tr key={`${row.transactionDate}-${row.description}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>{new Date(`${row.transactionDate}T00:00:00`).toLocaleDateString()}</td>
+                            <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                              <div style={{ fontWeight: 600 }}>{row.description}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                                {row.reference ? `Ref: ${row.reference}` : 'No reference'}{row.notes ? ` • ${row.notes}` : ''}
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  padding: '4px 8px',
+                                  borderRadius: 999,
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  background: row.isDuplicate ? 'rgba(234, 179, 8, 0.14)' : 'rgba(34, 197, 94, 0.12)',
+                                  color: row.isDuplicate ? '#b45309' : '#15803d',
+                                }}
+                              >
+                                {row.isDuplicate
+                                  ? row.duplicateReason === 'ALREADY_IMPORTED'
+                                    ? 'Already Imported'
+                                    : 'Duplicate In File'
+                                  : 'Will Import'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 12px', verticalAlign: 'top', textAlign: 'right', color: row.type === 'DEBIT' ? 'var(--error)' : '#16a34a', fontWeight: 700 }}>
+                              {row.type === 'DEBIT' ? '+' : '-'}{formatCurrency(row.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </Box>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button variant="outline" onClick={() => { setOpenImportDialog(false); resetImportForm(); }} disabled={importing || previewingImport}>Cancel</Button>
+            <Button variant="outline" onClick={handlePreviewBankCsv} disabled={importing || previewingImport}>{previewingImport ? 'Previewing...' : 'Preview CSV'}</Button>
+            <Button variant="primary" onClick={handleImportBankCsv} disabled={importing || previewingImport || !importPreview}>{importing ? 'Importing...' : 'Import CSV'}</Button>
           </DialogActions>
         </Dialog>
 
