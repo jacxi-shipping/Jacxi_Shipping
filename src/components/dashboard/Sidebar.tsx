@@ -18,6 +18,15 @@ type NavigationItem = {
 	allowedRoles?: string[];
 };
 
+type NavBadges = {
+	agingShipments: number;
+	overdueInvoices: number;
+};
+
+type BadgeColor = 'warning' | 'error';
+
+type BadgeMap = Record<string, { count: number; color: BadgeColor }>;
+
 const mainNavigation: NavigationItem[] = [
 	{
 		name: 'Dashboard',
@@ -231,12 +240,28 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 type NavItemProps = {
 	item: NavigationItem;
 	isActive: (href: string) => boolean;
+	badge?: number;
+	badgeColor?: BadgeColor;
 	onNavClick?: () => void;
 };
 
-function NavItem({ item, isActive, onNavClick }: NavItemProps) {
+function NavItem({ item, isActive, badge, badgeColor, onNavClick }: NavItemProps) {
 	const Icon = item.icon;
 	const active = isActive(item.href);
+	const badgeStyles: Record<BadgeColor, { background: string; color: string; border: string }> = {
+		warning: {
+			background: 'rgba(var(--warning-rgb), 0.15)',
+			color: 'var(--warning)',
+			border: '1px solid rgba(var(--warning-rgb), 0.3)',
+		},
+		error: {
+			background: 'rgba(var(--error-rgb), 0.15)',
+			color: 'var(--error)',
+			border: '1px solid rgba(var(--error-rgb), 0.3)',
+		},
+	};
+	const badgeStyle = badgeColor ? badgeStyles[badgeColor] : null;
+	const badgeLabel = typeof badge === 'number' && badge > 99 ? '99+' : badge;
 
 	return (
 		<ListItemButton
@@ -288,6 +313,31 @@ function NavItem({ item, isActive, onNavClick }: NavItemProps) {
 					color: 'inherit',
 				}}
 			/>
+			{typeof badge === 'number' && badge > 0 && badgeStyle && (
+				<Box
+					component="span"
+					sx={{
+						borderRadius: '10px',
+						px: 0.75,
+						py: 0.125,
+						fontSize: '0.625rem',
+						fontWeight: 700,
+						lineHeight: 1.6,
+						minWidth: '18px',
+						textAlign: 'center',
+						ml: 'auto',
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						flexShrink: 0,
+						background: badgeStyle.background,
+						color: badgeStyle.color,
+						border: badgeStyle.border,
+					}}
+				>
+					{badgeLabel}
+				</Box>
+			)}
 		</ListItemButton>
 	);
 }
@@ -297,6 +347,7 @@ type NavSectionProps = {
 	items: NavigationItem[];
 	role?: string;
 	isActive: (href: string) => boolean;
+	badgeMap?: BadgeMap;
 	onNavClick?: () => void;
 };
 
@@ -318,7 +369,7 @@ function filterNavigationItems(items: NavigationItem[], role?: string) {
 	);
 }
 
-function NavSection({ title, items, role, isActive, onNavClick }: NavSectionProps) {
+function NavSection({ title, items, role, isActive, badgeMap, onNavClick }: NavSectionProps) {
 	return (
 		<Box sx={{ mb: 0.5 }}>
 			{title && (
@@ -339,7 +390,14 @@ function NavSection({ title, items, role, isActive, onNavClick }: NavSectionProp
 			)}
 			<List sx={{ py: 0 }}>
 				{filterNavigationItems(items, role).map((item) => (
-					<NavItem key={item.name} item={item} isActive={isActive} onNavClick={onNavClick} />
+					<NavItem
+						key={item.name}
+						item={item}
+						isActive={isActive}
+						badge={badgeMap?.[item.href]?.count}
+						badgeColor={badgeMap?.[item.href]?.color}
+						onNavClick={onNavClick}
+					/>
 				))}
 			</List>
 		</Box>
@@ -350,6 +408,7 @@ function CollapsibleAdminSection({
 	items,
 	role,
 	isActive,
+	badgeMap,
 	onNavClick,
 	collapsed,
 	onToggleCollapsed,
@@ -403,7 +462,14 @@ function CollapsibleAdminSection({
 			<Collapse in={!collapsed}>
 				<List sx={{ py: 0 }}>
 					{visibleItems.map((item) => (
-						<NavItem key={item.name} item={item} isActive={isActive} onNavClick={onNavClick} />
+						<NavItem
+							key={item.name}
+							item={item}
+							isActive={isActive}
+							badge={badgeMap?.[item.href]?.count}
+							badgeColor={badgeMap?.[item.href]?.color}
+							onNavClick={onNavClick}
+						/>
 					))}
 				</List>
 			</Collapse>
@@ -427,6 +493,42 @@ function SidebarContent({
 	type AppUser = Session['user'] & { role?: string };
 	const appUser = session?.user as AppUser | undefined;
 	const userRole = appUser?.role;
+	const [navBadges, setNavBadges] = useState<NavBadges | null>(null);
+
+	useEffect(() => {
+		let isMounted = true;
+
+		const loadNavBadges = async () => {
+			try {
+				const response = await fetch('/api/nav-badges');
+
+				if (!response.ok) {
+					return;
+				}
+
+				const data = (await response.json()) as NavBadges;
+
+				if (isMounted) {
+					setNavBadges(data);
+				}
+			} catch {
+				// Gracefully omit badges if this request fails.
+			}
+		};
+
+		void loadNavBadges();
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
+	const badgeMap: BadgeMap | undefined = navBadges
+		? {
+				'/dashboard/shipments': { count: navBadges.agingShipments, color: 'warning' },
+				'/dashboard/invoices': { count: navBadges.overdueInvoices, color: 'error' },
+		  }
+		: undefined;
 
 	const isActive = (href: string) => {
 		return isNavigationItemActive(pathname, href);
@@ -455,14 +557,14 @@ function SidebarContent({
 				{/* Main */}
 				<NavSection items={mainNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
-			{/* Shipments */}
-			<NavSection title="Shipments" items={shipmentNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
+				{/* Shipments */}
+				<NavSection title="Shipments" items={shipmentNavigation} role={userRole} isActive={isActive} badgeMap={badgeMap} onNavClick={onNavClick} />
 
-			{/* Finance */}
-			<NavSection title="Finance" items={financeNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
+				{/* Finance */}
+				<NavSection title="Finance" items={financeNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
-			{/* Admin / Internal Section */}
-			<CollapsibleAdminSection items={adminNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} collapsed={adminCollapsed} onToggleCollapsed={onToggleAdminCollapsed} />
+				{/* Admin / Internal Section */}
+				<CollapsibleAdminSection items={adminNavigation} role={userRole} isActive={isActive} badgeMap={badgeMap} onNavClick={onNavClick} collapsed={adminCollapsed} onToggleCollapsed={onToggleAdminCollapsed} />
 
 				{/* Other */}
 				<NavSection items={otherNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
