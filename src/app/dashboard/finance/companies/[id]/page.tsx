@@ -14,7 +14,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { ArrowLeft, Building2, DollarSign, Eye, Pencil, Plus, ReceiptText, Trash2, Truck, Upload } from 'lucide-react';
+import { ArrowLeft, Building2, DollarSign, Eye, Landmark, Pencil, Plus, ReceiptText, Trash2, Truck, Upload } from 'lucide-react';
 import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
@@ -732,13 +732,11 @@ export default function CompanyLedgerDetailPage() {
               <Link href="/dashboard/finance/companies" style={{ textDecoration: 'none' }}>
                 <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
               </Link>
-              <Button
-                variant="outline"
-                icon={<Upload className="w-4 h-4" />}
-                onClick={() => setOpenImportDialog(true)}
-              >
-                Import BOA CSV
-              </Button>
+              <Link href={`/dashboard/finance/banking?companyId=${companyId}`} style={{ textDecoration: 'none' }}>
+                <Button variant="outline" icon={<Landmark className="w-4 h-4" />}>
+                  Banking
+                </Button>
+              </Link>
               <Button variant="outline" icon={<DollarSign className="w-4 h-4" />} onClick={() => {
                 setIsPaymentMode(true);
                 setFormData((prev) => ({ ...prev, type: 'DEBIT', category: 'Payment', description: `Payment to ${company?.name || 'Company'}` }));
