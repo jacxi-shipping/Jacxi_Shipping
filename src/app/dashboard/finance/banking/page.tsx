@@ -2,49 +2,23 @@
 
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   Box,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  MenuItem,
   TextField,
 } from '@mui/material';
-import { ArrowRightLeft, Building2, ExternalLink, Landmark, ReceiptText, Upload } from 'lucide-react';
-import PermissionRoute from '@/components/auth/PermissionRoute';
+import { ArrowRightLeft, ExternalLink, Landmark, ReceiptText, Upload } from 'lucide-react';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, TableSkeleton, toast } from '@/components/design-system';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 
-interface CompanyListItem {
-  id: string;
-  name: string;
-  code: string | null;
-  email: string | null;
+interface BankingSummary {
   currentBalance: number;
-  totalDebit: number;
-  totalCredit: number;
-  _count: {
-    ledgerEntries: number;
-  };
-}
-
-interface CompanySummary {
-  totalDebit: number;
-  totalCredit: number;
-  totalExpenseCharges: number;
-  currentBalance: number;
-}
-
-interface CompanyDetail {
-  id: string;
-  name: string;
-  code: string | null;
-  email: string | null;
-  phone: string | null;
-  country: string | null;
 }
 
 interface LedgerEntry {
@@ -54,10 +28,10 @@ interface LedgerEntry {
   type: 'DEBIT' | 'CREDIT';
   amount: number;
   balance: number;
-  category?: string | null;
-  reference?: string | null;
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
+  reference?: string | null;
+  category?: string | null;
 }
 
 interface ImportPreviewRow {
@@ -84,24 +58,25 @@ interface ImportPreview {
   rows: ImportPreviewRow[];
 }
 
-const emptySummary: CompanySummary = {
+interface FilteredBankSummary {
+  entryCount: number;
+  totalDebit: number;
+  totalCredit: number;
+  netChange: number;
+}
+
+const emptySummary: FilteredBankSummary = {
+  entryCount: 0,
   totalDebit: 0,
   totalCredit: 0,
-  totalExpenseCharges: 0,
-  currentBalance: 0,
+  netChange: 0,
 };
 
 export default function BankingFinancePage() {
-  const searchParams = useSearchParams();
-  const companyIdFromQuery = searchParams.get('companyId') || '';
-
-  const [companies, setCompanies] = useState<CompanyListItem[]>([]);
-  const [loadingCompanies, setLoadingCompanies] = useState(true);
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
-  const [selectedCompany, setSelectedCompany] = useState<CompanyDetail | null>(null);
-  const [selectedSummary, setSelectedSummary] = useState<CompanySummary>(emptySummary);
-  const [bankEntries, setBankEntries] = useState<LedgerEntry[]>([]);
-  const [loadingAccount, setLoadingAccount] = useState(false);
+  const { data: session, status } = useSession();
+  const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  const [summary, setSummary] = useState<FilteredBankSummary>(emptySummary);
+  const [loading, setLoading] = useState(true);
   const [openImportDialog, setOpenImportDialog] = useState(false);
   const [previewingImport, setPreviewingImport] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -124,83 +99,35 @@ export default function BankingFinancePage() {
     });
   };
 
-  const fetchCompanies = async () => {
+  const fetchBankingData = async () => {
     try {
-      setLoadingCompanies(true);
-      const response = await fetch('/api/finance/companies');
+      setLoading(true);
+      const response = await fetch('/api/ledger?source=BANK_IMPORT&page=1&limit=500');
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load banking accounts');
+        throw new Error(data.error || 'Failed to load bank ledger');
       }
 
-      const nextCompanies = data.companies || [];
-      setCompanies(nextCompanies);
-
-      setSelectedCompanyId((currentValue) => {
-        if (currentValue && nextCompanies.some((company: CompanyListItem) => company.id === currentValue)) {
-          return currentValue;
-        }
-
-        if (companyIdFromQuery && nextCompanies.some((company: CompanyListItem) => company.id === companyIdFromQuery)) {
-          return companyIdFromQuery;
-        }
-
-        return nextCompanies[0]?.id || '';
+      setEntries(data.entries || []);
+      setSummary({
+        entryCount: data.filteredSummary?.entryCount || data.pagination?.totalCount || 0,
+        totalDebit: data.filteredSummary?.totalDebit || 0,
+        totalCredit: data.filteredSummary?.totalCredit || 0,
+        netChange: data.filteredSummary?.netChange || 0,
       });
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to load banking accounts');
-    } finally {
-      setLoadingCompanies(false);
-    }
-  };
-
-  const fetchSelectedAccount = async (companyId: string) => {
-    if (!companyId) {
-      setSelectedCompany(null);
-      setSelectedSummary(emptySummary);
-      setBankEntries([]);
-      return;
-    }
-
-    try {
-      setLoadingAccount(true);
-      const [companyResponse, ledgerResponse] = await Promise.all([
-        fetch(`/api/finance/companies/${companyId}`),
-        fetch(`/api/finance/companies/${companyId}/ledger?source=BANK_IMPORT`),
-      ]);
-
-      const companyData = await companyResponse.json();
-      const ledgerData = await ledgerResponse.json();
-
-      if (!companyResponse.ok) {
-        throw new Error(companyData.error || 'Failed to load banking account');
-      }
-
-      if (!ledgerResponse.ok) {
-        throw new Error(ledgerData.error || 'Failed to load bank imports');
-      }
-
-      setSelectedCompany(companyData.company);
-      setSelectedSummary(companyData.summary || emptySummary);
-      setBankEntries(ledgerData.entries || []);
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : 'Failed to load bank activity');
     } finally {
-      setLoadingAccount(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    void fetchCompanies();
-  }, [companyIdFromQuery]);
-
-  useEffect(() => {
-    if (!selectedCompanyId) return;
-    void fetchSelectedAccount(selectedCompanyId);
-  }, [selectedCompanyId]);
+    if (status !== 'authenticated') return;
+    void fetchBankingData();
+  }, [status]);
 
   const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setImportFile(event.target.files?.[0] || null);
@@ -208,11 +135,6 @@ export default function BankingFinancePage() {
   };
 
   const handlePreviewBankCsv = async () => {
-    if (!selectedCompanyId) {
-      toast.error('Choose a banking account first');
-      return;
-    }
-
     if (!importFile) {
       toast.error('Select a CSV file to preview');
       return;
@@ -227,7 +149,7 @@ export default function BankingFinancePage() {
       body.append('sourceLabel', 'Bank of America CSV');
       body.append('statementEndingBalance', importForm.statementEndingBalance.trim());
 
-      const response = await fetch(`/api/finance/companies/${selectedCompanyId}/ledger/import-bank-csv`, {
+      const response = await fetch('/api/ledger/import-bank-csv', {
         method: 'POST',
         body,
       });
@@ -249,11 +171,6 @@ export default function BankingFinancePage() {
   };
 
   const handleImportBankCsv = async () => {
-    if (!selectedCompanyId) {
-      toast.error('Choose a banking account first');
-      return;
-    }
-
     if (!importFile) {
       toast.error('Select a CSV file to import');
       return;
@@ -273,7 +190,7 @@ export default function BankingFinancePage() {
       body.append('sourceLabel', 'Bank of America CSV');
       body.append('statementEndingBalance', importForm.statementEndingBalance.trim());
 
-      const response = await fetch(`/api/finance/companies/${selectedCompanyId}/ledger/import-bank-csv`, {
+      const response = await fetch('/api/ledger/import-bank-csv', {
         method: 'POST',
         body,
       });
@@ -302,7 +219,7 @@ export default function BankingFinancePage() {
 
       setOpenImportDialog(false);
       resetImportForm();
-      await Promise.all([fetchCompanies(), fetchSelectedAccount(selectedCompanyId)]);
+      await fetchBankingData();
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : 'Failed to import Bank of America CSV');
@@ -310,25 +227,6 @@ export default function BankingFinancePage() {
       setImporting(false);
     }
   };
-
-  const bankStats = useMemo(() => {
-    let importedDebit = 0;
-    let importedCredit = 0;
-
-    for (const entry of bankEntries) {
-      if (entry.type === 'DEBIT') {
-        importedDebit += entry.amount;
-      } else {
-        importedCredit += entry.amount;
-      }
-    }
-
-    return {
-      importedRows: bankEntries.length,
-      importedDebit,
-      importedCredit,
-    };
-  }, [bankEntries]);
 
   const columns = useMemo<Column<LedgerEntry>[]>(
     () => [
@@ -367,7 +265,8 @@ export default function BankingFinancePage() {
               </Box>
             </Box>
             <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              {row.category || 'Bank Statement'}{row.reference ? ` • Ref: ${row.reference}` : ''}
+              {typeof row.metadata?.category === 'string' ? row.metadata.category : row.category || 'Bank Statement'}
+              {row.reference ? ` • Ref: ${row.reference}` : ''}
             </Box>
             {row.notes && (
               <Box sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>{row.notes}</Box>
@@ -401,18 +300,18 @@ export default function BankingFinancePage() {
     [formatCurrency]
   );
 
-  if (loadingCompanies) {
+  if (status === 'loading' || loading) {
     return (
-      <PermissionRoute permission="finance:manage">
+      <ProtectedRoute>
         <DashboardSurface>
           <TableSkeleton rows={8} />
         </DashboardSurface>
-      </PermissionRoute>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <PermissionRoute permission="finance:manage">
+    <ProtectedRoute>
       <DashboardSurface>
         <Box sx={{ px: 2, pt: 2 }}>
           <Breadcrumbs />
@@ -420,127 +319,65 @@ export default function BankingFinancePage() {
 
         <DashboardPanel
           title="Banking"
-          description="Import bank CSV statements into a dedicated finance workspace"
+          description="Import your bank CSV into your own ledger from one dedicated finance page"
           actions={
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {selectedCompanyId && (
-                <Link href={`/dashboard/finance/companies/${selectedCompanyId}`} style={{ textDecoration: 'none' }}>
-                  <Button variant="outline" icon={<ExternalLink className="w-4 h-4" />}>
-                    Open Ledger
-                  </Button>
-                </Link>
-              )}
-              <Button
-                variant="primary"
-                icon={<Upload className="w-4 h-4" />}
-                onClick={() => setOpenImportDialog(true)}
-                disabled={!selectedCompanyId}
-              >
+              <Link href="/dashboard/finance/ledger" style={{ textDecoration: 'none' }}>
+                <Button variant="outline" icon={<ExternalLink className="w-4 h-4" />}>
+                  My Ledger
+                </Button>
+              </Link>
+              <Button variant="primary" icon={<Upload className="w-4 h-4" />} onClick={() => setOpenImportDialog(true)}>
                 Import Bank CSV
               </Button>
             </Box>
           }
         >
           <Box sx={{ mb: 2, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Choose the company ledger that represents your bank account, then preview and import the Bank of America CSV here instead of from a ledger detail page.
+            Bank imports now post into <strong>{session?.user?.name || session?.user?.email || 'your account'}</strong> instead of a company ledger. Use this page to preview the statement, reconcile the ending balance, and review imported rows.
           </Box>
 
-          {companies.length === 0 ? (
-            <Box sx={{ py: 4, textAlign: 'center', color: 'var(--text-secondary)' }}>
-              <Box sx={{ mb: 2 }}>No company ledgers are available yet for banking imports.</Box>
-              <Link href="/dashboard/finance/companies" style={{ textDecoration: 'none' }}>
-                <Button variant="primary" icon={<Building2 className="w-4 h-4" />}>
-                  Create Company Ledger
-                </Button>
-              </Link>
-            </Box>
-          ) : (
-            <>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 340px) 1fr' }, gap: 2, mb: 3 }}>
-                <TextField
-                  select
-                  label="Banking Account Destination"
-                  value={selectedCompanyId}
-                  onChange={(event) => setSelectedCompanyId(event.target.value)}
-                  fullWidth
-                >
-                  {companies.map((company) => (
-                    <MenuItem key={company.id} value={company.id}>
-                      {company.name}{company.code ? ` • ${company.code}` : ''}
-                    </MenuItem>
-                  ))}
-                </TextField>
+          <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4 mb-4">
+            <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Imported Rows" value={summary.entryCount} variant="default" />
+            <StatsCard icon={<ArrowRightLeft className="w-5 h-5" />} title="Money In" value={formatCurrency(summary.totalDebit)} variant="error" />
+            <StatsCard icon={<ArrowRightLeft className="w-5 h-5" />} title="Money Out" value={formatCurrency(summary.totalCredit)} variant="success" />
+            <StatsCard icon={<Landmark className="w-5 h-5" />} title="Imported Net" value={formatCurrency(summary.netChange)} variant="info" />
+          </DashboardGrid>
 
-                <Box
-                  sx={{
-                    border: '1px solid var(--border)',
-                    borderRadius: 2,
-                    p: 2,
-                    background: 'var(--panel)',
-                    minHeight: 84,
-                  }}
-                >
-                  {selectedCompany ? (
-                    <>
-                      <Box sx={{ fontWeight: 700, color: 'var(--text-primary)' }}>{selectedCompany.name}</Box>
-                      <Box sx={{ mt: 0.75, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                        {selectedCompany.code || selectedCompany.email || selectedCompany.phone || 'No reference on file'}
-                      </Box>
-                      <Box sx={{ mt: 0.75, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                        {selectedCompany.country || 'Country not set'}
-                      </Box>
-                    </>
-                  ) : (
-                    <Box sx={{ color: 'var(--text-secondary)' }}>Select a banking account destination to start importing.</Box>
-                  )}
-                </Box>
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              borderRadius: 2,
+              border: '1px solid var(--border)',
+              background: 'rgba(59, 130, 246, 0.06)',
+              color: 'var(--text-secondary)',
+              fontSize: '0.82rem',
+            }}
+          >
+            Imported bank rows are stored on your ledger with bank-import metadata, but CSV upload starts here in Banking instead of from the ledger screen.
+          </Box>
+
+          <DashboardPanel
+            title="Bank Ledger"
+            description="Bank-imported rows in your ledger"
+            fullHeight
+          >
+            {entries.length === 0 ? (
+              <Box sx={{ py: 3, textAlign: 'center', color: 'var(--text-secondary)' }}>
+                No bank-imported transactions yet.
               </Box>
-
-              <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4 mb-4">
-                <StatsCard icon={<Landmark className="w-5 h-5" />} title="Current Balance" value={formatCurrency(selectedSummary.currentBalance)} variant="info" />
-                <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Imported Rows" value={bankStats.importedRows} variant="default" />
-                <StatsCard icon={<ArrowRightLeft className="w-5 h-5" />} title="Money In" value={formatCurrency(bankStats.importedDebit)} variant="error" />
-                <StatsCard icon={<ArrowRightLeft className="w-5 h-5" />} title="Money Out" value={formatCurrency(bankStats.importedCredit)} variant="success" />
-              </DashboardGrid>
-
-              <Box
-                sx={{
-                  mb: 2,
-                  p: 1.5,
-                  borderRadius: 2,
-                  border: '1px solid var(--border)',
-                  background: 'rgba(59, 130, 246, 0.06)',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.82rem',
-                }}
-              >
-                Imported bank rows remain visible in the account ledger with a <strong>Bank Import</strong> badge, but CSV upload now starts only from this Banking page.
-              </Box>
-
-              <DashboardPanel
-                title="Imported Bank Activity"
-                description={selectedCompany ? `Bank-imported rows for ${selectedCompany.name}` : 'Choose an account to review imports'}
-                fullHeight
-              >
-                {loadingAccount ? (
-                  <Box sx={{ py: 3, textAlign: 'center', color: 'var(--text-secondary)' }}>Loading bank activity...</Box>
-                ) : bankEntries.length === 0 ? (
-                  <Box sx={{ py: 3, textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    No bank-imported transactions yet for this account.
-                  </Box>
-                ) : (
-                  <DataTable data={bankEntries} columns={columns} keyField="id" />
-                )}
-              </DashboardPanel>
-            </>
-          )}
+            ) : (
+              <DataTable data={entries} columns={columns} keyField="id" />
+            )}
+          </DashboardPanel>
         </DashboardPanel>
 
         <Dialog open={openImportDialog} onClose={() => { if (!importing && !previewingImport) { setOpenImportDialog(false); resetImportForm(); } }} maxWidth="md" fullWidth>
           <DialogTitle>Import Bank of America CSV</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
             <Box sx={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              Import the statement into <strong>{selectedCompany?.name || 'the selected banking account'}</strong>. Money in is imported as <strong>DEBIT</strong>. Money out is imported as <strong>CREDIT</strong>.
+              This import will post into your ledger. Money in is imported as <strong>DEBIT</strong>. Money out is imported as <strong>CREDIT</strong>.
             </Box>
             <TextField
               label="Ledger Category"
@@ -685,6 +522,6 @@ export default function BankingFinancePage() {
           </DialogActions>
         </Dialog>
       </DashboardSurface>
-    </PermissionRoute>
+    </ProtectedRoute>
   );
 }

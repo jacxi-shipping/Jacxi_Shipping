@@ -42,6 +42,8 @@ interface LedgerEntry {
   };
 }
 
+type LedgerSourceFilter = '' | 'BANK_IMPORT' | 'MANUAL';
+
 interface LedgerSummary {
   totalDebit: number;
   totalCredit: number;
@@ -81,6 +83,7 @@ export default function LedgerPage() {
   const [filters, setFilters] = useState({
     search: '',
     type: '',
+    source: '' as LedgerSourceFilter,
     transactionInfoType: '',
     startDate: '',
     endDate: '',
@@ -112,6 +115,7 @@ export default function LedgerPage() {
         limit: '20',
         ...(filters.search && { search: filters.search }),
         ...(filters.type && { type: filters.type }),
+        ...(filters.source && { source: filters.source }),
         ...(filters.transactionInfoType && { transactionInfoType: filters.transactionInfoType }),
         ...(filters.startDate && { startDate: filters.startDate }),
         ...(filters.endDate && { endDate: filters.endDate }),
@@ -139,6 +143,7 @@ export default function LedgerPage() {
       const params = new URLSearchParams({
         ...(filters.search && { search: filters.search }),
         ...(filters.type && { type: filters.type }),
+        ...(filters.source && { source: filters.source }),
         ...(filters.transactionInfoType && { transactionInfoType: filters.transactionInfoType }),
         ...(filters.startDate && { startDate: filters.startDate }),
         ...(filters.endDate && { endDate: filters.endDate }),
@@ -244,6 +249,8 @@ export default function LedgerPage() {
     return 'var(--text-secondary)';
   };
 
+  const isBankImportEntry = (entry: LedgerEntry) => entry.metadata?.importSource === 'BANK_OF_AMERICA_CSV';
+
   const normalizeShipmentReference = (entry: LedgerEntry) => {
     if (!entry.shipment?.id || !entry.shipment?.vehicleVIN) {
       return entry.description;
@@ -278,6 +285,7 @@ export default function LedgerPage() {
       render: (_, row) => {
         const isPending = row.metadata?.pendingInvoice === true;
         const isInvoicePaid = !isPending && (typeof row.metadata?.invoiceId === 'string' || typeof row.metadata?.invoiceNumber === 'string');
+        const isBankImport = isBankImportEntry(row);
 
         return (
           <Box>
@@ -285,6 +293,27 @@ export default function LedgerPage() {
               <Typography sx={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                 {normalizeShipmentReference(row)}
               </Typography>
+              {isBankImport && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    color: '#2563eb',
+                    border: '1px solid rgba(59, 130, 246, 0.22)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Bank Import
+                </Box>
+              )}
               {isPending && (
                 <Box
                   component="span"
@@ -496,6 +525,18 @@ export default function LedgerPage() {
                   </Select>
                 </FormControl>
                 <FormControl size="small" fullWidth>
+                  <InputLabel>Source</InputLabel>
+                  <Select
+                    value={filters.source}
+                    onChange={(e) => setFilters({ ...filters, source: e.target.value as LedgerSourceFilter })}
+                    label="Source"
+                  >
+                    <MenuItem value="">All Sources</MenuItem>
+                    <MenuItem value="BANK_IMPORT">Bank Imports</MenuItem>
+                    <MenuItem value="MANUAL">Manual Entries</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth>
                   <InputLabel>Transaction Info</InputLabel>
                   <Select
                     value={filters.transactionInfoType}
@@ -517,6 +558,8 @@ export default function LedgerPage() {
                   InputLabelProps={{ shrink: true }}
                   fullWidth
                 />
+              </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
                 <TextField
                   label="End Date"
                   type="date"
@@ -534,7 +577,7 @@ export default function LedgerPage() {
         {/* Transactions Table */}
         <DashboardPanel
           title="Transaction History"
-          description={`Showing ${entries.length} transaction${entries.length !== 1 ? 's' : ''}`}
+          description={`Showing ${entries.length} transaction${entries.length !== 1 ? 's' : ''}${filters.source === 'BANK_IMPORT' ? ' from bank imports' : filters.source === 'MANUAL' ? ' from manual entries' : ''}`}
           fullHeight
           actions={
             <Box sx={{ display: 'flex', gap: 1 }}>

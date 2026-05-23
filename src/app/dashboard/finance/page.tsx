@@ -306,6 +306,18 @@ export default async function FinancePage() {
                             </div>
                         </Link>
 
+                        <Link href="/dashboard/finance/banking">
+                            <div className="p-4 rounded-xl border border-border bg-panel hover:border-emerald-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                                        <Landmark className="w-5 h-5" />
+                                    </div>
+                                    <span className="font-semibold text-primary">Banking</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Preview and import bank CSV statements into your ledger</p>
+                            </div>
+                        </Link>
+
                         {isAdmin && (
                             <>
                                 <Link href="/dashboard/finance/admin/ledgers">
@@ -341,18 +353,6 @@ export default async function FinancePage() {
                                             <span className="font-semibold text-primary">Company Ledgers</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground">Manage partner company accounts</p>
-                                    </div>
-                                </Link>
-
-                                <Link href="/dashboard/finance/banking">
-                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-emerald-400/50 hover:shadow-lg transition-all cursor-pointer group">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-                                                <Landmark className="w-5 h-5" />
-                                            </div>
-                                            <span className="font-semibold text-primary">Banking</span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">Preview and import bank CSV statements</p>
                                     </div>
                                 </Link>
                             </>

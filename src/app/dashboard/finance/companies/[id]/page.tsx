@@ -732,7 +732,7 @@ export default function CompanyLedgerDetailPage() {
               <Link href="/dashboard/finance/companies" style={{ textDecoration: 'none' }}>
                 <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
               </Link>
-              <Link href={`/dashboard/finance/banking?companyId=${companyId}`} style={{ textDecoration: 'none' }}>
+              <Link href="/dashboard/finance/banking" style={{ textDecoration: 'none' }}>
                 <Button variant="outline" icon={<Landmark className="w-4 h-4" />}>
                   Banking
                 </Button>

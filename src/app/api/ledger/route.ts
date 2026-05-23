@@ -31,6 +31,11 @@ function isShipmentPurchasePriceEntry(metadata: unknown): boolean {
   return (metadata as Record<string, unknown>).isShipmentPurchasePrice === true;
 }
 
+function isBankImportEntry(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object') return false;
+  return (metadata as Record<string, unknown>).importSource === 'BANK_OF_AMERICA_CSV';
+}
+
 // Schema for creating a ledger entry
 const createLedgerEntrySchema = z.object({
   userId: z.string(),
@@ -58,6 +63,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const type = searchParams.get('type');
+    const source = searchParams.get('source');
     const transactionInfoType = searchParams.get('transactionInfoType');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -181,12 +187,20 @@ export async function GET(request: NextRequest) {
       const isPaymentAllocation = isPaymentAllocationEntry(entry.metadata);
       if (isPaymentAllocation) return false;
 
+      const isBankImport = isBankImportEntry(entry.metadata);
+      if (source === 'BANK_IMPORT' && !isBankImport) return false;
+      if (source === 'MANUAL' && isBankImport) return false;
+
       return true;
     });
 
     const summaryVisibleEntries = summaryEntriesRaw.filter((entry) => {
       const isPaymentAllocation = isPaymentAllocationEntry(entry.metadata);
       if (isPaymentAllocation) return false;
+
+      const isBankImport = isBankImportEntry(entry.metadata);
+      if (source === 'BANK_IMPORT' && !isBankImport) return false;
+      if (source === 'MANUAL' && isBankImport) return false;
 
       return true;
     });
@@ -243,6 +257,13 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    const filteredSummary = {
+      entryCount: totalCount,
+      totalDebit: summary.totalDebit,
+      totalCredit: summary.totalCredit,
+      netChange: summary.totalDebit - summary.totalCredit,
+    };
+
     return NextResponse.json({
       entries: pagedEntries,
       pagination: {
@@ -260,6 +281,7 @@ export async function GET(request: NextRequest) {
         currentBalance: latestEntry?.balance || 0,
         transactionInfoBreakdown: summary.transactionInfoBreakdown,
       },
+      filteredSummary,
     });
   } catch (error) {
     console.error('Error fetching ledger entries:', error);

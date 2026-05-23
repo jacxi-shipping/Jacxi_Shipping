@@ -45,7 +45,7 @@ const financeNavigation: NavigationItem[] = [
 		name: 'Banking',
 		href: '/dashboard/finance/banking',
 		icon: Payment,
-		requiredPermission: 'finance:manage',
+		requiredPermission: 'finance:view',
 	},
 	{
 		name: 'Company Ledgers',
