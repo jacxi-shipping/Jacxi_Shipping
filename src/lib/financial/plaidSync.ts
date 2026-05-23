@@ -1,4 +1,5 @@
 import { Prisma, PlaidItem } from '@prisma/client';
+import { PersonalFinanceCategoryVersion } from 'plaid';
 import type { Transaction as PlaidTransaction, TransactionsSyncResponse } from 'plaid';
 import { prisma } from '@/lib/db';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
@@ -99,7 +100,7 @@ async function fetchTransactionUpdates(plaidItem: PlaidItem) {
       count: 100,
       options: {
         include_original_description: true,
-        personal_finance_category_version: 'v2',
+        personal_finance_category_version: PersonalFinanceCategoryVersion.V2,
       },
     });
 
@@ -287,7 +288,7 @@ async function applyTransactionUpdates(
         subtype: account.subtype,
         type: account.type,
         balances: account.balances,
-      })) as Prisma.InputJsonValue,
+      })) as unknown as Prisma.InputJsonValue,
     },
   });
 

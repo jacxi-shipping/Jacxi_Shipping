@@ -1,3 +1,4 @@
+import { DepositoryAccountSubtype } from 'plaid';
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getPlaidClient, getPlaidWebhookUrl, isPlaidConfigured, PLAID_COUNTRY_CODES, PLAID_PRODUCTS } from '@/lib/financial/plaid';
@@ -28,7 +29,7 @@ export async function POST() {
       },
       account_filters: {
         depository: {
-          account_subtypes: ['checking', 'savings'],
+          account_subtypes: [DepositoryAccountSubtype.Checking, DepositoryAccountSubtype.Savings],
         },
       },
       ...(getPlaidWebhookUrl() ? { webhook: getPlaidWebhookUrl() } : {}),

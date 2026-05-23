@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
       const result = await syncPlaidItem(plaidItem);
 
-      await createAuditLog('PlaidItem', plaidItem.id, 'UPDATE', session.user.id, result, request);
+      await createAuditLog('PlaidItem', plaidItem.id, 'UPDATE', session.user.id, { ...result }, request);
 
       return NextResponse.json({ results: [{ itemId: plaidItem.itemId, institutionName: plaidItem.institutionName, ...result }] });
     }
