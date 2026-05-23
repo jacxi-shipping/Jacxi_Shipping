@@ -500,10 +500,17 @@ export default function CompanyLedgerDetailPage() {
       if (data.importedCount > 0) {
         toast.success(
           `${data.importedCount} bank transaction${data.importedCount === 1 ? '' : 's'} imported`,
-          data.skippedCount > 0 ? `${data.skippedCount} duplicate row${data.skippedCount === 1 ? '' : 's'} skipped` : undefined
+          data.skippedCount > 0
+            ? { description: `${data.skippedCount} duplicate row${data.skippedCount === 1 ? '' : 's'} skipped` }
+            : undefined
         );
       } else {
-        toast.info('No new bank transactions were imported', data.skippedCount > 0 ? 'All rows were already imported previously' : undefined);
+        toast.info(
+          'No new bank transactions were imported',
+          data.skippedCount > 0
+            ? { description: 'All rows were already imported previously' }
+            : undefined
+        );
       }
 
       setFilters({ search: '', type: '', source: 'BANK_IMPORT' });
