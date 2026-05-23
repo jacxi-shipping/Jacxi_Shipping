@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandMore, ChevronRight } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
-import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography, Collapse, IconButton } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
 
 type NavigationItem = {
@@ -95,7 +96,7 @@ const adminNavigation: NavigationItem[] = [
 	{
 		name: 'Transits',
 		href: '/dashboard/transits',
-		icon: LocalShipping,
+		icon: Route,
 		requiredPermission: 'transits:manage',
 	},
 	{
@@ -142,8 +143,31 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 	const pathname = usePathname();
 	const { data: session } = useSession();
+	type AppUser = Session['user'] & { role?: string };
+	const appUser = session?.user as AppUser | undefined;
+	const userRole = appUser?.role;
+	const visibleAdminItems = filterNavigationItems(adminNavigation, userRole);
+	const hasActiveAdminItem = visibleAdminItems.some((item) => isNavigationItemActive(pathname, item.href));
+	const [adminCollapsedPreference, setAdminCollapsedPreference] = useState(true);
 
 	const drawerWidth = 260;
+	const adminCollapsed = hasActiveAdminItem ? false : adminCollapsedPreference;
+
+	useEffect(() => {
+		const storedValue = window.localStorage.getItem(ADMIN_SECTION_STORAGE_KEY);
+
+		if (storedValue !== null) {
+			setAdminCollapsedPreference(storedValue === 'true');
+		}
+	}, []);
+
+	const toggleAdminCollapsed = () => {
+		setAdminCollapsedPreference((prev) => {
+			const next = !prev;
+			window.localStorage.setItem(ADMIN_SECTION_STORAGE_KEY, String(next));
+			return next;
+		});
+	};
 
 	return (
 		<>
@@ -171,6 +195,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 			<SidebarContent
 				pathname={pathname}
 				session={session}
+				adminCollapsed={adminCollapsed}
+				onToggleAdminCollapsed={toggleAdminCollapsed}
 				onNavClick={onMobileClose}
 			/>
 			</Drawer>
@@ -198,6 +224,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 				<SidebarContent
 					pathname={pathname}
 					session={session}
+					adminCollapsed={adminCollapsed}
+					onToggleAdminCollapsed={toggleAdminCollapsed}
 				/>
 			</Drawer>
 		</>
@@ -276,6 +304,24 @@ type NavSectionProps = {
 	onNavClick?: () => void;
 };
 
+const ADMIN_SECTION_STORAGE_KEY = 'sidebar_admin_collapsed';
+
+function isNavigationItemActive(pathname: string, href: string) {
+	if (href === '/dashboard') {
+		return pathname === '/dashboard';
+	}
+
+	return pathname.startsWith(href);
+}
+
+function filterNavigationItems(items: NavigationItem[], role?: string) {
+	return items.filter(
+		(item) =>
+			(!item.requiredPermission || hasPermission(role, item.requiredPermission)) &&
+			(!item.allowedRoles || (role ? item.allowedRoles.includes(role) : false))
+	);
+}
+
 function NavSection({ title, items, role, isActive, onNavClick }: NavSectionProps) {
 	return (
 		<Box sx={{ mb: 0.5 }}>
@@ -296,9 +342,7 @@ function NavSection({ title, items, role, isActive, onNavClick }: NavSectionProp
 				</Box>
 			)}
 			<List sx={{ py: 0 }}>
-				{items
-					.filter((item) => (!item.requiredPermission || hasPermission(role, item.requiredPermission)) && (!item.allowedRoles || (role ? item.allowedRoles.includes(role) : false)))
-				.map((item) => (
+				{filterNavigationItems(items, role).map((item) => (
 					<NavItem key={item.name} item={item} isActive={isActive} onNavClick={onNavClick} />
 				))}
 			</List>
@@ -306,13 +350,82 @@ function NavSection({ title, items, role, isActive, onNavClick }: NavSectionProp
 	);
 }
 
+function CollapsibleAdminSection({
+	items,
+	role,
+	isActive,
+	onNavClick,
+	collapsed,
+	onToggleCollapsed,
+}: NavSectionProps & {
+	collapsed: boolean;
+	onToggleCollapsed: () => void;
+}) {
+	const visibleItems = filterNavigationItems(items, role);
+
+	return (
+		<Box sx={{ mb: 0.5 }}>
+			<Box
+				sx={{
+					px: 2,
+					py: 0.5,
+					mt: 1,
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					cursor: 'pointer',
+				}}
+				onClick={onToggleCollapsed}
+			>
+				<Typography
+					variant="caption"
+					sx={{
+						fontSize: '0.6875rem',
+						fontWeight: 600,
+						color: 'var(--text-secondary)',
+						textTransform: 'uppercase',
+						letterSpacing: 0.5,
+					}}
+				>
+					Admin
+				</Typography>
+				<IconButton
+					size="small"
+					onClick={(event) => {
+						event.stopPropagation();
+						onToggleCollapsed();
+					}}
+					sx={{
+						p: 0.25,
+						color: 'var(--text-secondary)',
+					}}
+					aria-label={collapsed ? 'Expand admin navigation' : 'Collapse admin navigation'}
+				>
+					{collapsed ? <ChevronRight sx={{ fontSize: 14 }} /> : <ExpandMore sx={{ fontSize: 14 }} />}
+				</IconButton>
+			</Box>
+			<Collapse in={!collapsed}>
+				<List sx={{ py: 0 }}>
+					{visibleItems.map((item) => (
+						<NavItem key={item.name} item={item} isActive={isActive} onNavClick={onNavClick} />
+					))}
+				</List>
+			</Collapse>
+		</Box>
+	);
+}
+
 function SidebarContent({
 	pathname,
 	session,
+	adminCollapsed,
+	onToggleAdminCollapsed,
 	onNavClick,
 }: {
 	pathname: string;
 	session: Session | null;
+	adminCollapsed: boolean;
+	onToggleAdminCollapsed: () => void;
 	onNavClick?: () => void;
 }) {
 	type AppUser = Session['user'] & { role?: string };
@@ -320,10 +433,7 @@ function SidebarContent({
 	const userRole = appUser?.role;
 
 	const isActive = (href: string) => {
-		if (href === '/dashboard') {
-			return pathname === '/dashboard';
-		}
-		return pathname.startsWith(href);
+		return isNavigationItemActive(pathname, href);
 	};
 
 	return (
@@ -356,7 +466,7 @@ function SidebarContent({
 			<NavSection title="Finance" items={financeNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 			{/* Admin / Internal Section */}
-			<NavSection title="Admin" items={adminNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
+			<CollapsibleAdminSection items={adminNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} collapsed={adminCollapsed} onToggleCollapsed={onToggleAdminCollapsed} />
 
 				{/* Other */}
 				<NavSection items={otherNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />

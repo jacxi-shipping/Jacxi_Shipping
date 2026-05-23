@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Edit, Columns } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Edit, Columns, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@mui/material';
 
@@ -34,6 +34,8 @@ interface DataTableProps<T> {
 
 type SortDirection = 'asc' | 'desc' | null;
 
+type AriaSort = 'ascending' | 'descending' | 'none';
+
 export function DataTable<T extends Record<string, any>>({
   data,
   columns,
@@ -62,6 +64,7 @@ export function DataTable<T extends Record<string, any>>({
   const columnMenuRef = useRef<HTMLDivElement | null>(null);
   const columnButtonRef = useRef<HTMLButtonElement | null>(null);
   const [bulkStatus, setBulkStatus] = useState('');
+  const hasActionsColumn = Boolean(onRowClick || onEdit || onDelete);
 
   // Handle sorting
   const handleSort = (columnKey: string) => {
@@ -170,6 +173,26 @@ export function DataTable<T extends Record<string, any>>({
     ) : (
       <ArrowDown className="w-4 h-4 text-[var(--accent-gold)]" />
     );
+  };
+
+  const getAriaSort = (columnKey: string): AriaSort => {
+    if (sortColumn !== columnKey || !sortDirection) {
+      return 'none';
+    }
+
+    return sortDirection === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const getSortButtonLabel = (columnHeader: string, columnKey: string) => {
+    if (sortColumn !== columnKey || !sortDirection) {
+      return `Sort by ${columnHeader} ascending`;
+    }
+
+    if (sortDirection === 'asc') {
+      return `Sort by ${columnHeader} descending`;
+    }
+
+    return `Clear sorting for ${columnHeader}`;
   };
 
   useEffect(() => {
@@ -323,22 +346,33 @@ export function DataTable<T extends Record<string, any>>({
               {visibleColumns.map((column) => (
                 <th
                   key={column.key}
+                  scope="col"
+                  aria-sort={column.sortable ? getAriaSort(column.key) : undefined}
                   className={cn(
-                    'px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)]',
-                    column.sortable && 'cursor-pointer select-none hover:bg-[var(--background)]'
+                    'px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)]'
                   )}
-                  onClick={() => column.sortable && handleSort(column.key)}
                   style={{ width: column.width }}
                 >
-                  <div className="flex items-center gap-2">
-                    {column.header}
-                    {column.sortable && getSortIcon(column.key)}
-                  </div>
+                  {column.sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(column.key)}
+                      className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)]"
+                      aria-label={getSortButtonLabel(column.header, column.key)}
+                    >
+                      <span>{column.header}</span>
+                      {getSortIcon(column.key)}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 px-1 py-1">
+                      {column.header}
+                    </div>
+                  )}
                 </th>
               ))}
-              {(onEdit || onDelete) && (
-                <th className="w-12 px-4 py-3 text-left">
-                  <span className="sr-only">Actions</span>
+              {hasActionsColumn && (
+                <th scope="col" className="w-28 px-4 py-3 text-left">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Actions</span>
                 </th>
               )}
             </tr>
@@ -347,7 +381,7 @@ export function DataTable<T extends Record<string, any>>({
             {sortedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={visibleColumns.length + (selectable ? 1 : 0) + (onEdit || onDelete ? 1 : 0)}
+                  colSpan={visibleColumns.length + (selectable ? 1 : 0) + (hasActionsColumn ? 1 : 0)}
                   className="px-4 py-8 text-center text-sm text-[var(--text-secondary)]"
                 >
                   No data available
@@ -397,13 +431,27 @@ export function DataTable<T extends Record<string, any>>({
                           : row[column.key] || '-'}
                       </td>
                     ))}
-                    {(onEdit || onDelete) && (
+                    {hasActionsColumn && (
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
+                          {onRowClick && (
+                            <button
+                              type="button"
+                              onClick={() => onRowClick(row)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] transition-colors"
+                              aria-label={`Open details for row ${rowId}`}
+                              title="Open details"
+                            >
+                              <Eye className="w-4 h-4 text-[var(--text-secondary)]" />
+                              <span className="sr-only">Open details</span>
+                            </button>
+                          )}
                           {onEdit && (
                             <button
+                              type="button"
                               onClick={() => onEdit(row)}
-                              className="p-1.5 rounded hover:bg-[var(--panel)] transition-colors"
+                              className="p-1.5 rounded hover:bg-[var(--panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] transition-colors"
+                              aria-label={`Edit row ${rowId}`}
                               title="Edit"
                             >
                               <Edit className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -411,8 +459,10 @@ export function DataTable<T extends Record<string, any>>({
                           )}
                           {onDelete && (
                             <button
+                              type="button"
                               onClick={() => onDelete([rowId])}
-                              className="p-1.5 rounded hover:bg-[var(--panel)] transition-colors"
+                              className="p-1.5 rounded hover:bg-[var(--panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] transition-colors"
+                              aria-label={`Delete row ${rowId}`}
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4 text-[var(--error)]" />

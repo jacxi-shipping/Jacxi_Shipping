@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
@@ -31,38 +31,60 @@ import Link from 'next/link';
 import { ThemeToggle } from '@/components/design-system';
 import SiteLogo from '@/components/brand/SiteLogo';
 import { NotificationCenter } from '@/components/ui/NotificationCenter';
+import { hasPermission, type Permission } from '@/lib/rbac';
 
 interface HeaderProps {
 	onMenuClick?: () => void;
 	pageTitle?: string;
 }
 
-const quickActions = [
+type QuickAction = {
+	icon: React.ReactNode;
+	label: string;
+	href: string;
+	color: string;
+	requiredPermission?: Permission;
+	allowedRoles?: string[];
+};
+
+const quickActionDefinitions = [
   {
     icon: <Ship style={{ width: 20, height: 20 }} />,
     label: 'New Shipment',
     href: '/dashboard/shipments/new',
     color: '#3B82F6',
+		requiredPermission: 'shipments:manage',
   },
   {
     icon: <Package style={{ width: 20, height: 20 }} />,
     label: 'New Container',
     href: '/dashboard/containers/new',
     color: '#10B981',
+		allowedRoles: ['admin'],
   },
   {
     icon: <FileText style={{ width: 20, height: 20 }} />,
     label: 'New Invoice',
     href: '/dashboard/invoices/new',
     color: '#F59E0B',
+		requiredPermission: 'invoices:manage',
   },
-];
+] satisfies QuickAction[];
 
 export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 	const { data: session } = useSession();
   const router = useRouter();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [quickActionEl, setQuickActionEl] = useState<null | HTMLElement>(null);
+	const userRole = session?.user?.role;
+	const quickActions = useMemo(
+		() => quickActionDefinitions.filter(
+			(action) =>
+				(!action.requiredPermission || hasPermission(userRole, action.requiredPermission)) &&
+				(!action.allowedRoles || (userRole ? action.allowedRoles.includes(userRole) : false))
+		),
+		[userRole]
+	);
 
 	const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -73,6 +95,10 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 	};
   
   const handleQuickActionOpen = (event: React.MouseEvent<HTMLElement>) => {
+		if (quickActions.length === 0) {
+			return;
+		}
+
     setQuickActionEl(event.currentTarget);
   };
 
@@ -163,22 +189,23 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 
 				{/* Right Actions */}
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-          {/* Quick Actions (FAB) */}
-          <Tooltip title="Quick Actions">
-            <IconButton
-              onClick={handleQuickActionOpen}
-              sx={{
-                color: 'var(--accent-gold)',
+					{quickActions.length > 0 && (
+						<Tooltip title="Quick Actions">
+							<IconButton
+								onClick={handleQuickActionOpen}
+								sx={{
+									color: 'var(--accent-gold)',
 									p: 0.75,
 									mr: 0.25,
-                '&:hover': {
-                  bgcolor: 'rgba(var(--accent-gold-rgb), 0.1)',
-                },
-              }}
-            >
-              <AddIcon sx={{ fontSize: 22 }} />
-            </IconButton>
-          </Tooltip>
+									'&:hover': {
+										bgcolor: 'rgba(var(--accent-gold-rgb), 0.1)',
+									},
+								}}
+							>
+								<AddIcon sx={{ fontSize: 22 }} />
+							</IconButton>
+						</Tooltip>
+					)}
 
           {/* Keyboard Shortcuts */}
           <Tooltip title="Keyboard Shortcuts (?)">
@@ -356,51 +383,53 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 				</Menu>
         
         {/* Quick Actions Menu */}
-        <Menu
-          anchorEl={quickActionEl}
-          open={Boolean(quickActionEl)}
-          onClose={handleQuickActionClose}
-          PaperProps={{
-            sx: {
-              mt: 1.5,
-              minWidth: 200,
-              bgcolor: 'var(--panel)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid var(--border)',
-              borderRadius: 2,
-              boxShadow: '0 8px 32px rgba(var(--text-primary-rgb),0.12)',
-            }
-          }}
-          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        >
-          <Box sx={{ px: 2, py: 1.5, pb: 1 }}>
-            <Typography variant="subtitle2" color="text.secondary" fontWeight={600} textTransform="uppercase" fontSize="0.7rem">
-              Create New
-            </Typography>
-          </Box>
-          {quickActions.map((action) => (
-            <MenuItem
-              key={action.label}
-              onClick={() => handleQuickActionClick(action.href)}
-              sx={{
-                py: 1.5,
-                color: 'var(--text-primary)',
-                '&:hover': {
-                  bgcolor: 'rgba(var(--border-rgb), 0.4)',
-                }
-              }}
-            >
-              <ListItemIcon sx={{ color: action.color, minWidth: 36 }}>
-                {action.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={action.label} 
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
-              />
-            </MenuItem>
-          ))}
-        </Menu>
+				{quickActions.length > 0 && (
+					<Menu
+						anchorEl={quickActionEl}
+						open={Boolean(quickActionEl)}
+						onClose={handleQuickActionClose}
+						PaperProps={{
+							sx: {
+								mt: 1.5,
+								minWidth: 200,
+								bgcolor: 'var(--panel)',
+								backdropFilter: 'blur(10px)',
+								border: '1px solid var(--border)',
+								borderRadius: 2,
+								boxShadow: '0 8px 32px rgba(var(--text-primary-rgb),0.12)',
+							}
+						}}
+						transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+						anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+					>
+						<Box sx={{ px: 2, py: 1.5, pb: 1 }}>
+							<Typography variant="subtitle2" color="text.secondary" fontWeight={600} textTransform="uppercase" fontSize="0.7rem">
+								Create New
+							</Typography>
+						</Box>
+						{quickActions.map((action) => (
+							<MenuItem
+								key={action.label}
+								onClick={() => handleQuickActionClick(action.href)}
+								sx={{
+									py: 1.5,
+									color: 'var(--text-primary)',
+									'&:hover': {
+										bgcolor: 'rgba(var(--border-rgb), 0.4)',
+									}
+								}}
+							>
+								<ListItemIcon sx={{ color: action.color, minWidth: 36 }}>
+									{action.icon}
+								</ListItemIcon>
+								<ListItemText 
+									primary={action.label} 
+									primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
+								/>
+							</MenuItem>
+						))}
+					</Menu>
+				)}
 			</Toolbar>
 		</AppBar>
 	);
