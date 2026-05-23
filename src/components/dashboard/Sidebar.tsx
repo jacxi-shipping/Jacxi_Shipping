@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandMore, ChevronRight } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography, Collapse, IconButton } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
@@ -148,17 +148,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 	const userRole = appUser?.role;
 	const visibleAdminItems = filterNavigationItems(adminNavigation, userRole);
 	const hasActiveAdminItem = visibleAdminItems.some((item) => isNavigationItemActive(pathname, item.href));
-	const [adminCollapsedPreference, setAdminCollapsedPreference] = useState(true);
+	const [adminCollapsedPreference, setAdminCollapsedPreference] = useState(false);
 
 	const drawerWidth = 260;
 	const adminCollapsed = hasActiveAdminItem ? false : adminCollapsedPreference;
 
 	useEffect(() => {
-		const storedValue = window.localStorage.getItem(ADMIN_SECTION_STORAGE_KEY);
-
-		if (storedValue !== null) {
-			setAdminCollapsedPreference(storedValue === 'true');
-		}
+		setAdminCollapsedPreference(window.localStorage.getItem(ADMIN_SECTION_STORAGE_KEY) === 'true');
 	}, []);
 
 	const toggleAdminCollapsed = () => {
@@ -401,7 +397,7 @@ function CollapsibleAdminSection({
 					}}
 					aria-label={collapsed ? 'Expand admin navigation' : 'Collapse admin navigation'}
 				>
-					{collapsed ? <ChevronRight sx={{ fontSize: 14 }} /> : <ExpandMore sx={{ fontSize: 14 }} />}
+					{collapsed ? <ExpandMore sx={{ fontSize: 14 }} /> : <ExpandLess sx={{ fontSize: 14 }} />}
 				</IconButton>
 			</Box>
 			<Collapse in={!collapsed}>
