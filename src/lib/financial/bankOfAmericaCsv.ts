@@ -79,6 +79,19 @@ function findColumnIndex(headers: string[], candidates: string[]) {
   return headers.findIndex((header) => candidates.includes(header));
 }
 
+function findHeaderRowIndex(rows: string[][]) {
+  return rows.findIndex((row) => {
+    const normalizedHeaders = row.map((header) => normalizeHeader(sanitizeValue(header)));
+    const hasDateColumn = findColumnIndex(normalizedHeaders, DATE_HEADERS) !== -1;
+    const hasAmountColumn =
+      findColumnIndex(normalizedHeaders, SIGNED_AMOUNT_HEADERS) !== -1 ||
+      findColumnIndex(normalizedHeaders, DEBIT_HEADERS) !== -1 ||
+      findColumnIndex(normalizedHeaders, CREDIT_HEADERS) !== -1;
+
+    return hasDateColumn && hasAmountColumn;
+  });
+}
+
 function sanitizeValue(value: string | undefined) {
   return value?.trim() || '';
 }
@@ -151,6 +164,17 @@ function buildDescription(primaryValues: string[], secondaryValues: string[]) {
   };
 }
 
+function isBalanceMarkerRow(description: string, amountValue: string) {
+  const normalizedDescription = description.trim().toLowerCase();
+  const normalizedAmount = amountValue.trim();
+
+  if (normalizedAmount) {
+    return false;
+  }
+
+  return normalizedDescription.startsWith('beginning balance') || normalizedDescription.startsWith('ending balance');
+}
+
 export function parseBankOfAmericaCsv(csvText: string): ParsedBankOfAmericaTransaction[] {
   const rows = parseCsv(csvText);
 
@@ -158,7 +182,12 @@ export function parseBankOfAmericaCsv(csvText: string): ParsedBankOfAmericaTrans
     throw new Error('CSV must include a header row and at least one transaction row');
   }
 
-  const rawHeaders = rows[0].map((header) => sanitizeValue(header));
+  const headerRowIndex = findHeaderRowIndex(rows);
+  if (headerRowIndex === -1) {
+    throw new Error('CSV is missing a supported date column');
+  }
+
+  const rawHeaders = rows[headerRowIndex].map((header) => sanitizeValue(header));
   const normalizedHeaders = rawHeaders.map(normalizeHeader);
 
   const dateIndex = findColumnIndex(normalizedHeaders, DATE_HEADERS);
@@ -174,34 +203,12 @@ export function parseBankOfAmericaCsv(csvText: string): ParsedBankOfAmericaTrans
     throw new Error('CSV is missing a supported amount column');
   }
 
-  return rows.slice(1).map((row, index) => {
-    const rowNumber = index + 2;
+  return rows.slice(headerRowIndex + 1).reduce<ParsedBankOfAmericaTransaction[]>((transactions, row, index) => {
+    const rowNumber = headerRowIndex + index + 2;
     const rawRow = rawHeaders.reduce<Record<string, string>>((accumulator, header, headerIndex) => {
       accumulator[header] = sanitizeValue(row[headerIndex]);
       return accumulator;
     }, {});
-
-    const transactionDate = parseDate(row[dateIndex], rowNumber);
-
-    let signedAmount = 0;
-    if (amountIndex !== -1 && sanitizeValue(row[amountIndex])) {
-      signedAmount = parseSignedAmount(row[amountIndex], rowNumber);
-    } else {
-      const debitValue = debitIndex === -1 ? '' : sanitizeValue(row[debitIndex]);
-      const creditValue = creditIndex === -1 ? '' : sanitizeValue(row[creditIndex]);
-
-      if (!debitValue && !creditValue) {
-        throw new Error(`Row ${rowNumber}: missing amount`);
-      }
-
-      if (debitValue) {
-        signedAmount -= Math.abs(parseSignedAmount(debitValue, rowNumber));
-      }
-
-      if (creditValue) {
-        signedAmount += Math.abs(parseSignedAmount(creditValue, rowNumber));
-      }
-    }
 
     const descriptionIndexes = normalizedHeaders
       .map((header, headerIndex) => ({ header, headerIndex }))
@@ -218,10 +225,37 @@ export function parseBankOfAmericaCsv(csvText: string): ParsedBankOfAmericaTrans
       secondaryDescriptionIndexes.map((headerIndex) => row[headerIndex] || '')
     );
 
+    const amountValue = amountIndex === -1 ? '' : sanitizeValue(row[amountIndex]);
+    const debitValue = debitIndex === -1 ? '' : sanitizeValue(row[debitIndex]);
+    const creditValue = creditIndex === -1 ? '' : sanitizeValue(row[creditIndex]);
+
+    if (!amountValue && !debitValue && !creditValue && isBalanceMarkerRow(description, amountValue)) {
+      return transactions;
+    }
+
+    const transactionDate = parseDate(row[dateIndex], rowNumber);
+
+    let signedAmount = 0;
+    if (amountValue) {
+      signedAmount = parseSignedAmount(row[amountIndex], rowNumber);
+    } else {
+      if (!debitValue && !creditValue) {
+        throw new Error(`Row ${rowNumber}: missing amount`);
+      }
+
+      if (debitValue) {
+        signedAmount -= Math.abs(parseSignedAmount(debitValue, rowNumber));
+      }
+
+      if (creditValue) {
+        signedAmount += Math.abs(parseSignedAmount(creditValue, rowNumber));
+      }
+    }
+
     const referenceIndex = findColumnIndex(normalizedHeaders, REFERENCE_HEADERS);
     const reference = referenceIndex === -1 ? undefined : sanitizeValue(row[referenceIndex]) || undefined;
 
-    return {
+    transactions.push({
       transactionDate,
       description,
       amount: Math.abs(signedAmount),
@@ -229,6 +263,8 @@ export function parseBankOfAmericaCsv(csvText: string): ParsedBankOfAmericaTrans
       reference,
       notes,
       rawRow,
-    } satisfies ParsedBankOfAmericaTransaction;
-  });
+    } satisfies ParsedBankOfAmericaTransaction);
+
+    return transactions;
+  }, []);
 }
