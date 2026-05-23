@@ -74,6 +74,7 @@ model User {
   receivedNotifications Notification[] @relation("NotificationRecipient")
   sentNotifications     Notification[] @relation("NotificationSender")
   partnerPortalMemberships PartnerPortalMembership[]
+  plaidItems     PlaidItem[]
 
   @@index([loginCode])
 }
@@ -593,7 +594,6 @@ model UserInvoice {
   userId        String
   containerId   String? // Optional: container-level invoices
   shipmentId    String? // Per-shipment invoice (auto-created on shipment creation)
-
   // Invoice Details
   status    UserInvoiceStatus @default(PENDING)
   issueDate DateTime          @default(now())
@@ -634,6 +634,44 @@ model UserInvoice {
   @@index([issueDate])
   @@index([dueDate])
   @@index([createdAt]) // ⚡ Bolt: Added index to optimize frequent sorting by createdAt
+}
+
+model PlaidItem {
+  id                    String                   @id @default(cuid())
+  userId                String
+  itemId                String                   @unique
+  accessTokenCiphertext String
+  institutionId         String?
+  institutionName       String?
+  lastCursor            String?
+  lastSyncAt            DateTime?
+  selectedAccounts      Json?
+  status                String                   @default("ACTIVE")
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncedTransactions    PlaidSyncedTransaction[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model PlaidSyncedTransaction {
+  id                 String    @id @default(cuid())
+  plaidItemId        String
+  plaidTransactionId String    @unique
+  accountId          String
+  ledgerEntryId      String?
+  isRemoved          Boolean   @default(false)
+  transactionDate    DateTime
+  amount             Float
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  plaidItem          PlaidItem @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+
+  @@index([plaidItemId])
+  @@index([ledgerEntryId])
+  @@index([isRemoved])
 }
 
 model ShipmentCharge {

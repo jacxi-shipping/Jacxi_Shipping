@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { isRemovedBankImportMetadata } from '@/lib/financial/bankImportSources';
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -23,8 +24,9 @@ export async function recalculateUserLedgerBalances(db: DbClient, userId: string
     // The overall balance impact is already captured by the main CREDIT payment entry,
     // so these per-shipment entries must be excluded to prevent double-counting.
     const isPaymentAllocation = meta.isPaymentAllocation === true;
+    const isRemovedBankImport = isRemovedBankImportMetadata(entry.metadata);
 
-    if (!isPaymentAllocation) {
+    if (!isPaymentAllocation && !isRemovedBankImport) {
       runningBalance = applyLedgerDelta(runningBalance, entry.type, entry.amount);
     }
     if (entry.balance !== runningBalance) {

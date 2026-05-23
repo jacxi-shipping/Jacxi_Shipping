@@ -7,6 +7,7 @@ import { createAuditLog } from '@/lib/audit';
 import { hasPermission } from '@/lib/rbac';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { syncShipmentChargeFromLedgerEntry } from '@/lib/billing/shipment-charges';
+import { isBankImportMetadata, isRemovedBankImportMetadata } from '@/lib/financial/bankImportSources';
 
 const transactionInfoTypeSchema = z.enum(['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT']);
 const transactionInfoTypes = ['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT'] as const;
@@ -29,11 +30,6 @@ function isExpenseEntry(metadata: unknown): boolean {
 function isShipmentPurchasePriceEntry(metadata: unknown): boolean {
   if (!metadata || typeof metadata !== 'object') return false;
   return (metadata as Record<string, unknown>).isShipmentPurchasePrice === true;
-}
-
-function isBankImportEntry(metadata: unknown): boolean {
-  if (!metadata || typeof metadata !== 'object') return false;
-  return (metadata as Record<string, unknown>).importSource === 'BANK_OF_AMERICA_CSV';
 }
 
 // Schema for creating a ledger entry
@@ -187,7 +183,9 @@ export async function GET(request: NextRequest) {
       const isPaymentAllocation = isPaymentAllocationEntry(entry.metadata);
       if (isPaymentAllocation) return false;
 
-      const isBankImport = isBankImportEntry(entry.metadata);
+      if (isRemovedBankImportMetadata(entry.metadata)) return false;
+
+      const isBankImport = isBankImportMetadata(entry.metadata);
       if (source === 'BANK_IMPORT' && !isBankImport) return false;
       if (source === 'MANUAL' && isBankImport) return false;
 
@@ -198,7 +196,9 @@ export async function GET(request: NextRequest) {
       const isPaymentAllocation = isPaymentAllocationEntry(entry.metadata);
       if (isPaymentAllocation) return false;
 
-      const isBankImport = isBankImportEntry(entry.metadata);
+      if (isRemovedBankImportMetadata(entry.metadata)) return false;
+
+      const isBankImport = isBankImportMetadata(entry.metadata);
       if (source === 'BANK_IMPORT' && !isBankImport) return false;
       if (source === 'MANUAL' && isBankImport) return false;
 

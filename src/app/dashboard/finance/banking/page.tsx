@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { usePlaidLink } from 'react-plaid-link';
 import {
   Box,
   Dialog,
@@ -11,7 +12,7 @@ import {
   DialogTitle,
   TextField,
 } from '@mui/material';
-import { ArrowRightLeft, ExternalLink, Landmark, ReceiptText, Upload } from 'lucide-react';
+import { ArrowRightLeft, ExternalLink, Landmark, Link2, ReceiptText, RefreshCcw, Upload } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, TableSkeleton, toast } from '@/components/design-system';
@@ -65,6 +66,24 @@ interface FilteredBankSummary {
   netChange: number;
 }
 
+interface PlaidAccountSummary {
+  accountId: string;
+  name: string;
+  mask?: string | null;
+  subtype?: string | null;
+  type: string;
+}
+
+interface PlaidItemSummary {
+  id: string;
+  itemId: string;
+  institutionId?: string | null;
+  institutionName?: string | null;
+  lastSyncAt?: string | null;
+  selectedAccounts?: PlaidAccountSummary[] | null;
+  createdAt: string;
+}
+
 const emptySummary: FilteredBankSummary = {
   entryCount: 0,
   totalDebit: 0,
@@ -76,6 +95,12 @@ export default function BankingFinancePage() {
   const { data: session, status } = useSession();
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [summary, setSummary] = useState<FilteredBankSummary>(emptySummary);
+  const [plaidItems, setPlaidItems] = useState<PlaidItemSummary[]>([]);
+  const [plaidConfigured, setPlaidConfigured] = useState(true);
+  const [loadingPlaid, setLoadingPlaid] = useState(true);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [preparingPlaid, setPreparingPlaid] = useState(false);
+  const [syncingPlaid, setSyncingPlaid] = useState(false);
   const [loading, setLoading] = useState(true);
   const [openImportDialog, setOpenImportDialog] = useState(false);
   const [previewingImport, setPreviewingImport] = useState(false);
@@ -99,13 +124,42 @@ export default function BankingFinancePage() {
     });
   };
 
+  const fetchPlaidItems = async () => {
+    try {
+      setLoadingPlaid(true);
+      const response = await fetch('/api/plaid/items');
+      const data = await response.json();
+
+      if (response.status === 503) {
+        setPlaidConfigured(false);
+        setPlaidItems([]);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load connected bank accounts');
+      }
+
+      setPlaidConfigured(true);
+      setPlaidItems(data.items || []);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to load connected bank accounts');
+    } finally {
+      setLoadingPlaid(false);
+    }
+  };
+
   const fetchBankingData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/ledger?source=BANK_IMPORT&page=1&limit=500');
-      const data = await response.json();
+      const [ledgerResponse] = await Promise.all([
+        fetch('/api/ledger?source=BANK_IMPORT&page=1&limit=500'),
+        fetchPlaidItems(),
+      ]);
+      const data = await ledgerResponse.json();
 
-      if (!response.ok) {
+      if (!ledgerResponse.ok) {
         throw new Error(data.error || 'Failed to load bank ledger');
       }
 
@@ -128,6 +182,99 @@ export default function BankingFinancePage() {
     if (status !== 'authenticated') return;
     void fetchBankingData();
   }, [status]);
+
+  const handlePlaidSuccess = async (publicToken: string, metadata: { institution: { institution_id: string | null; name: string | null } | null; accounts: Array<{ id: string; name: string; mask: string | null; subtype: string | null; type: string }> }) => {
+    try {
+      setPreparingPlaid(true);
+      const response = await fetch('/api/plaid/exchange-public-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          publicToken,
+          institution: metadata.institution,
+          accounts: metadata.accounts,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to link bank account');
+      }
+
+      toast.success('Bank account linked', {
+        description: data.sync?.importedCount > 0
+          ? `${data.sync.importedCount} transaction${data.sync.importedCount === 1 ? '' : 's'} imported from ${data.institutionName || 'Plaid'}`
+          : undefined,
+      });
+      setLinkToken(null);
+      await fetchBankingData();
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to link bank account');
+    } finally {
+      setPreparingPlaid(false);
+    }
+  };
+
+  const { open: openPlaidLink, ready: plaidReady } = usePlaidLink({
+    token: linkToken,
+    onSuccess: handlePlaidSuccess,
+    onExit: () => {
+      setLinkToken(null);
+      setPreparingPlaid(false);
+    },
+  });
+
+  useEffect(() => {
+    if (linkToken && plaidReady) {
+      openPlaidLink();
+    }
+  }, [linkToken, plaidReady, openPlaidLink]);
+
+  const handlePreparePlaid = async () => {
+    try {
+      setPreparingPlaid(true);
+      const response = await fetch('/api/plaid/link-token', { method: 'POST' });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to initialize bank connection');
+      }
+
+      setLinkToken(data.linkToken);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to initialize bank connection');
+      setPreparingPlaid(false);
+    }
+  };
+
+  const handleSyncPlaid = async () => {
+    try {
+      setSyncingPlaid(true);
+      const response = await fetch('/api/plaid/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to sync connected bank accounts');
+      }
+
+      const importedCount = (data.results || []).reduce((sum: number, item: { importedCount?: number }) => sum + (item.importedCount || 0), 0);
+      toast.success('Bank sync complete', {
+        description: importedCount > 0 ? `${importedCount} new transaction${importedCount === 1 ? '' : 's'} imported` : 'No new transactions were available',
+      });
+      await fetchBankingData();
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sync connected bank accounts');
+    } finally {
+      setSyncingPlaid(false);
+    }
+  };
 
   const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setImportFile(event.target.files?.[0] || null);
@@ -327,6 +474,22 @@ export default function BankingFinancePage() {
                   My Ledger
                 </Button>
               </Link>
+              <Button
+                variant="outline"
+                icon={<Link2 className="w-4 h-4" />}
+                onClick={handlePreparePlaid}
+                disabled={!plaidConfigured || preparingPlaid || syncingPlaid}
+              >
+                {preparingPlaid ? 'Opening Plaid...' : 'Connect Bank'}
+              </Button>
+              <Button
+                variant="outline"
+                icon={<RefreshCcw className="w-4 h-4" />}
+                onClick={handleSyncPlaid}
+                disabled={!plaidConfigured || syncingPlaid || plaidItems.length === 0}
+              >
+                {syncingPlaid ? 'Syncing...' : 'Sync Now'}
+              </Button>
               <Button variant="primary" icon={<Upload className="w-4 h-4" />} onClick={() => setOpenImportDialog(true)}>
                 Import Bank CSV
               </Button>
@@ -334,8 +497,63 @@ export default function BankingFinancePage() {
           }
         >
           <Box sx={{ mb: 2, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Bank imports now post into <strong>{session?.user?.name || session?.user?.email || 'your account'}</strong> instead of a company ledger. Use this page to preview the statement, reconcile the ending balance, and review imported rows.
+            Bank imports now post into <strong>{session?.user?.name || session?.user?.email || 'your account'}</strong> instead of a company ledger. Use Plaid to auto-sync a Bank of America account or keep using CSV uploads when needed.
           </Box>
+
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              borderRadius: 2,
+              border: '1px solid var(--border)',
+              background: plaidConfigured ? 'rgba(16, 185, 129, 0.06)' : 'rgba(234, 179, 8, 0.08)',
+              color: 'var(--text-secondary)',
+              fontSize: '0.82rem',
+            }}
+          >
+            {plaidConfigured
+              ? `Connected bank accounts: ${loadingPlaid ? 'Loading...' : plaidItems.length}. Background auto-sync is available through the protected cron endpoint once Plaid credentials and CRON_SECRET are configured in deployment.`
+              : 'Plaid is not configured yet. Add PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV, and PLAID_ENCRYPTION_KEY to enable automatic Bank of America sync.'}
+          </Box>
+
+          <DashboardPanel
+            title="Connected Accounts"
+            description="Linked bank accounts that can auto-sync into this ledger"
+          >
+            {loadingPlaid ? (
+              <Box sx={{ py: 2, color: 'var(--text-secondary)' }}>Loading connected accounts...</Box>
+            ) : plaidItems.length === 0 ? (
+              <Box sx={{ py: 2, color: 'var(--text-secondary)' }}>
+                No connected bank account yet. Use <strong>Connect Bank</strong> to link Bank of America through Plaid.
+              </Box>
+            ) : (
+              <Box sx={{ display: 'grid', gap: 1.5, mb: 2 }}>
+                {plaidItems.map((item) => (
+                  <Box
+                    key={item.id}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: '1px solid var(--border)',
+                      background: 'var(--panel)',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                      <Box>
+                        <Box sx={{ fontWeight: 700 }}>{item.institutionName || 'Connected Bank'}</Box>
+                        <Box sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                          Last sync: {item.lastSyncAt ? new Date(item.lastSyncAt).toLocaleString() : 'Not synced yet'}
+                        </Box>
+                      </Box>
+                      <Box sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        {item.selectedAccounts?.map((account) => `${account.name}${account.mask ? ` • ${account.mask}` : ''}`).join(', ') || 'Accounts not captured yet'}
+                      </Box>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </DashboardPanel>
 
           <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4 mb-4">
             <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Imported Rows" value={summary.entryCount} variant="default" />
