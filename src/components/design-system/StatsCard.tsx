@@ -80,6 +80,23 @@ export default function StatsCard({
 
 	const colors = variantConfig[variant];
 	const sizes = sizeConfig[size];
+	const isNeutralTrend = trend?.value === 0;
+	const trendColor = isNeutralTrend
+		? 'var(--text-secondary)'
+		: trend?.isPositive
+			? 'var(--text-primary)'
+			: 'var(--error)';
+	const trendBorderColor = isNeutralTrend
+		? 'var(--border)'
+		: trend?.isPositive
+			? 'var(--border)'
+			: 'var(--error)';
+	const trendBackground = isNeutralTrend
+		? 'var(--panel)'
+		: trend?.isPositive
+			? 'var(--background)'
+			: 'rgba(var(--error-rgb), 0.12)';
+	const trendPrefix = isNeutralTrend ? '' : trend?.isPositive ? '+' : '−';
 
 	return (
 		<Fade in={isVisible} timeout={600}>
@@ -171,13 +188,13 @@ export default function StatsCard({
 							px: 1,
 							py: 0.5,
 							borderRadius: 1,
-							color: trend.isPositive ? 'var(--text-primary)' : 'var(--error)',
-							border: `1px solid ${trend.isPositive ? 'var(--border)' : 'var(--error)'}`,
-							background: trend.isPositive ? 'var(--background)' : 'rgba(var(--error-rgb), 0.12)',
+							color: trendColor,
+							border: `1px solid ${trendBorderColor}`,
+							background: trendBackground,
 							flexShrink: 0,
 						}}
 					>
-						{trend.isPositive ? '+' : '−'}
+						{trendPrefix}
 						{Math.abs(trend.value)}%
 					</Box>
 				)}

@@ -283,6 +283,17 @@ async function getDashboardData(
         inTransit: counts.inTransit,
     }));
 
+    const weekBoundary = new Date(startDate);
+    weekBoundary.setDate(startDate.getDate() + 7);
+
+    const priorCount = shipmentsInRange.filter((shipment) => shipment.createdAt < weekBoundary).length;
+    const currentCount = shipmentsInRange.filter((shipment) => shipment.createdAt >= weekBoundary).length;
+    const shipmentTrendValue = Math.round(((currentCount - priorCount) / Math.max(priorCount, 1)) * 100);
+    const shipmentTrend = {
+        value: shipmentTrendValue,
+        isPositive: currentCount > priorCount,
+    };
+
     const buildShipmentLabel = (shipment: (typeof shipmentWorkflowRecords)[number]) => {
         const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
             .filter(Boolean)
@@ -409,6 +420,7 @@ async function getDashboardData(
         pendingRevenue: pendingInvoices._sum.total || 0,
         shipmentStats,
         shipmentTrends,
+        shipmentTrend,
         containerUtilization: containerUtilization.map((container) => ({
             containerNumber: container.containerNumber,
             utilization: container.currentCount,
@@ -502,6 +514,7 @@ export default async function DashboardPage() {
                 activeShipmentsCount={data.activeShipmentsCount}
                 activeContainersCount={data.activeContainersCount}
                 pendingRevenue={formatMoney(data.pendingRevenue)}
+                shipmentTrend={data.shipmentTrend}
                 canManageDispatches={data.canManageDispatches}
                 activeDispatchesCount={data.activeDispatchesCount}
             />

@@ -6,6 +6,7 @@ type DashboardKpiGridProps = {
   activeShipmentsCount: number;
   activeContainersCount: number;
   pendingRevenue: string;
+  shipmentTrend?: { value: number; isPositive: boolean };
   canManageDispatches: boolean;
   activeDispatchesCount: number;
 };
@@ -14,6 +15,7 @@ export default function DashboardKpiGrid({
   activeShipmentsCount,
   activeContainersCount,
   pendingRevenue,
+  shipmentTrend,
   canManageDispatches,
   activeDispatchesCount,
 }: DashboardKpiGridProps) {
@@ -26,7 +28,7 @@ export default function DashboardKpiGrid({
           icon={<Package className="w-5 h-5" />}
           variant="default"
           subtitle="On hand or moving"
-          trend={{ value: 0, isPositive: true }}
+          trend={shipmentTrend}
         />
         <StatsCard
           title="Active Containers"
