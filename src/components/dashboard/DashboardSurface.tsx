@@ -11,14 +11,14 @@ export function DashboardSurface({ children, className, noPadding = false }: Das
 	return (
 		<div
 			className={cn(
-				'relative mx-auto flex w-full max-w-[1380px] flex-col gap-3 px-4 pt-4 pb-4 sm:px-5 lg:px-8',
+				'relative mx-auto flex w-full max-w-[1380px] flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 lg:px-8',
 				'text-[var(--text-primary)]',
 				'min-w-0 overflow-hidden',
 				'animate-fade-in-up', // Added global animation
 				noPadding && 'px-0 sm:px-0',
 				className,
 			)}
-			style={{ backgroundColor: 'var(--background)', maxWidth: '100%' }}
+			style={{ backgroundColor: 'var(--background)' }}
 		>
 			{children}
 		</div>
@@ -172,5 +172,5 @@ interface DashboardGridProps {
 }
 
 export function DashboardGrid({ children, className }: DashboardGridProps) {
-	return <div className={cn('grid gap-4', className)}>{children}</div>;
+	return <div className={cn('grid gap-6 items-stretch', className)}>{children}</div>;
 }

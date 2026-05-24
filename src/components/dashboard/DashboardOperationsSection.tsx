@@ -46,8 +46,8 @@ export default function DashboardOperationsSection({
   recentDispatches,
 }: DashboardOperationsSectionProps) {
   return (
-    <DashboardGrid className="grid-cols-1 lg:grid-cols-3">
-      <div className="lg:col-span-2" id="shipment-calculator">
+    <DashboardGrid className="grid-cols-1 xl:grid-cols-3">
+      <div className="xl:col-span-2" id="shipment-calculator">
         <ShipmentCalculator />
       </div>
 

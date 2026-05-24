@@ -530,12 +530,12 @@ export default async function DashboardPage() {
                 exceptions={data.agingMetrics.exceptions}
             />
 
-            <DashboardAiBrief aiEnabled={aiEnabled} payload={aiBriefPayload} />
-
             <DashboardChartsSection
                 shipmentTrends={data.shipmentTrends}
                 containerUtilization={data.containerUtilization}
             />
+
+            <DashboardAiBrief aiEnabled={aiEnabled} payload={aiBriefPayload} />
 
             <DashboardOperationsSection
                 role={role}

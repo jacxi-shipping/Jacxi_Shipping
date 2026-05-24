@@ -113,11 +113,15 @@ export default function StatsCard({
 				alignItems: 'center',
 				gap: 1.5,
 				position: 'relative',
+				zIndex: 1,
 				overflow: 'hidden',
 				minWidth: 0,
 				width: '100%',
 				boxSizing: 'border-box',
 				boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+				'&:hover': {
+					zIndex: 2,
+				},
 				}}
 			>
 				<Box
