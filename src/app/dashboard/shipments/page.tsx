@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Box } from '@mui/material';
 import { SearchFilters } from '@/components/dashboard/SmartSearch';
 import { DashboardSurface } from '@/components/dashboard/DashboardSurface';
-import { Breadcrumbs, toast, StatusBadge } from '@/components/design-system';
+import { toast, StatusBadge } from '@/components/design-system';
 import ShipmentsResultsPanel from '@/components/shipments/ShipmentsResultsPanel';
 import ShipmentsSearchPanel from '@/components/shipments/ShipmentsSearchPanel';
 import type { Shipment, ShipmentTableRow } from '@/components/shipments/shipment-list-types';
@@ -271,11 +271,8 @@ export default function ShipmentsListPage() {
 
 	return (
 		<DashboardSurface className="overflow-hidden">
-			<Box sx={{ px: 2, pt: 2 }}>
-				<Breadcrumbs />
-			</Box>
-
 			<ShipmentsSearchPanel
+				showBreadcrumbs
 				onSearch={handleSearch}
 				canManageShipments={canManageShipments}
 				isAdmin={isAdmin}

@@ -191,6 +191,9 @@ export default function StatsCard({
 				</Box>
 				{trend && (
 					<Box
+						aria-label={`Trend: ${trendPrefix}${Math.abs(trend.value)}% ${
+							isNeutralTrend ? 'no change' : trend.isPositive ? 'increase' : 'decrease'
+						}`}
 						sx={{
 							fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
 							fontWeight: 700,

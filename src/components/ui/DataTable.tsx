@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Edit, Columns, Eye } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Edit, Columns, Eye, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@mui/material';
+import { EmptyState } from '@/components/design-system';
 
 export interface Column<T> {
   key: string;
@@ -28,6 +29,8 @@ interface DataTableProps<T> {
   onExport?: (selectedRows: T[]) => void;
   bulkStatusOptions?: { value: string; label: string }[];
   onBulkStatusChange?: (selectedIds: string[], status: string) => void;
+  currentPage?: number;
+  totalPages?: number;
   getRowClassName?: (row: T, rowIndex: number) => string | undefined;
   className?: string;
 }
@@ -51,6 +54,8 @@ export function DataTable<T extends Record<string, any>>({
   onExport,
   bulkStatusOptions = [],
   onBulkStatusChange,
+  currentPage,
+  totalPages,
   getRowClassName,
   className,
 }: DataTableProps<T>) {
@@ -382,9 +387,13 @@ export function DataTable<T extends Record<string, any>>({
               <tr>
                 <td
                   colSpan={visibleColumns.length + (selectable ? 1 : 0) + (hasActionsColumn ? 1 : 0)}
-                  className="px-4 py-8 text-center text-sm text-[var(--text-secondary)]"
+                  className="px-4 py-8"
                 >
-                  No data available
+                  <EmptyState
+                    icon={<Search />}
+                    title="No results found"
+                    description="Try adjusting your search or filters"
+                  />
                 </td>
               </tr>
             ) : (
@@ -482,7 +491,12 @@ export function DataTable<T extends Record<string, any>>({
       {/* Footer info */}
       {data.length > 0 && (
         <div className="flex items-center justify-between text-sm text-[var(--text-secondary)]">
-          <span>Showing {sortedData.length} results</span>
+          <span>
+            Showing {sortedData.length} results
+            {typeof currentPage === 'number' && typeof totalPages === 'number' ? (
+              <> | Page {currentPage} of {totalPages}</>
+            ) : null}
+          </span>
           {selectedIds.size > 0 && <span>{selectedIds.size} selected</span>}
         </div>
       )}

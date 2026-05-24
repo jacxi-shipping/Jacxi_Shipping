@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore, AdminPanelSettings, MoreHoriz } from '@mui/icons-material';
-import { useSession } from 'next-auth/react';
-import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography, Collapse, IconButton } from '@mui/material';
+import { signOut, useSession } from 'next-auth/react';
+import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography, Collapse, IconButton, Avatar, Button } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
 
 type NavigationItem = {
@@ -515,6 +515,8 @@ function SidebarContent({
 	type AppUser = Session['user'] & { role?: string };
 	const appUser = session?.user as AppUser | undefined;
 	const userRole = appUser?.role;
+	const userName = appUser?.name || 'User';
+	const userInitial = userName.charAt(0).toUpperCase();
 	const [navBadges, setNavBadges] = useState<NavBadges | null>(null);
 
 	useEffect(() => {
@@ -591,6 +593,71 @@ function SidebarContent({
 				{/* Other */}
 				<NavSection title="Other" items={otherNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
+			</Box>
+			<Box
+				sx={{
+					borderTop: '1px solid var(--border)',
+					px: 1.5,
+					py: 1.5,
+					background: 'rgba(var(--panel-rgb), 0.92)',
+				}}
+			>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.25, minWidth: 0 }}>
+					<Avatar
+						sx={{
+							width: 32,
+							height: 32,
+							bgcolor: 'var(--accent-gold)',
+							fontSize: '0.875rem',
+							fontWeight: 600,
+							color: 'var(--background)',
+							flexShrink: 0,
+						}}
+					>
+						{userInitial}
+					</Avatar>
+					<Box sx={{ minWidth: 0 }}>
+						<Typography
+							sx={{
+								fontSize: '0.875rem',
+								fontWeight: 600,
+								color: 'var(--text-primary)',
+								overflow: 'hidden',
+								textOverflow: 'ellipsis',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{userName}
+						</Typography>
+						<Typography
+							sx={{
+								fontSize: '0.75rem',
+								color: 'var(--text-secondary)',
+								textTransform: 'capitalize',
+							}}
+						>
+							{userRole || 'user'}
+						</Typography>
+					</Box>
+				</Box>
+				<Button
+					fullWidth
+					size="small"
+					variant="outlined"
+					onClick={() => signOut({ callbackUrl: '/login' })}
+					sx={{
+						borderColor: 'var(--border)',
+						color: 'var(--text-primary)',
+						textTransform: 'none',
+						fontWeight: 600,
+						'&:hover': {
+							borderColor: 'var(--accent-gold)',
+							backgroundColor: 'rgba(var(--accent-gold-rgb), 0.08)',
+						},
+					}}
+				>
+					Sign Out
+				</Button>
 			</Box>
 		</Box>
 	);

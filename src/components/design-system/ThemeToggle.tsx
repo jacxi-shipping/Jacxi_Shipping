@@ -47,10 +47,12 @@ export function ThemeToggle() {
     
     if (newTheme === 'dark') {
       root.classList.add('dark-mode');
+      root.classList.add('dark');
       root.classList.remove('light-mode');
     } else {
       root.classList.add('light-mode');
       root.classList.remove('dark-mode');
+      root.classList.remove('dark');
     }
   };
 

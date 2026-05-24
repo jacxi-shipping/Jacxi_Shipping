@@ -132,6 +132,8 @@ export default function ShipmentsResultsPanel({
 								onExport={onBulkExport}
 								bulkStatusOptions={bulkStatusOptions}
 								onBulkStatusChange={onBulkStatusChange}
+								currentPage={currentPage}
+								totalPages={totalPages}
 							/>
 						</Box>
 					) : null}

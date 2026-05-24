@@ -8,7 +8,7 @@ import { Box, Typography, Menu, MenuItem, IconButton, Divider } from '@mui/mater
 import { Package, Ship, MapPin, TrendingUp, Calendar, FileText, DollarSign, Receipt, MoreVertical, Eye, Copy, Trash2, Download } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
-import { PageHeader, StatsCard, Button, EmptyState, FormField, Breadcrumbs, toast, SkeletonCard, DashboardPageSkeleton, CompactSkeleton, StatusBadge } from '@/components/design-system';
+import { PageHeader, StatsCard, Button, EmptyState, FormField, Select, toast, SkeletonCard, DashboardPageSkeleton, CompactSkeleton, StatusBadge } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { exportToCSVWithHeaders } from '@/lib/export';
 
@@ -32,17 +32,6 @@ interface Container {
     documents: number;
   };
 }
-
-const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  CREATED: { bg: 'rgba(156, 163, 175, 0.15)', text: 'rgb(156, 163, 175)', border: 'rgba(156, 163, 175, 0.3)' },
-  WAITING_FOR_LOADING: { bg: 'rgba(251, 191, 36, 0.15)', text: 'rgb(251, 191, 36)', border: 'rgba(251, 191, 36, 0.3)' },
-  LOADED: { bg: 'rgba(59, 130, 246, 0.15)', text: 'rgb(59, 130, 246)', border: 'rgba(59, 130, 246, 0.3)' },
-  IN_TRANSIT: { bg: 'rgba(99, 102, 241, 0.15)', text: 'rgb(99, 102, 241)', border: 'rgba(99, 102, 241, 0.3)' },
-  ARRIVED_PORT: { bg: 'rgba(34, 197, 94, 0.15)', text: 'rgb(34, 197, 94)', border: 'rgba(34, 197, 94, 0.3)' },
-  CUSTOMS_CLEARANCE: { bg: 'rgba(249, 115, 22, 0.15)', text: 'rgb(249, 115, 22)', border: 'rgba(249, 115, 22, 0.3)' },
-  RELEASED: { bg: 'rgba(20, 184, 166, 0.15)', text: 'rgb(20, 184, 166)', border: 'rgba(20, 184, 166, 0.3)' },
-  CLOSED: { bg: 'rgba(107, 114, 128, 0.15)', text: 'rgb(107, 114, 128)', border: 'rgba(107, 114, 128, 0.3)' },
-};
 
 const statusLabels: Record<string, string> = {
   CREATED: 'Created',
@@ -280,6 +269,10 @@ export default function ContainersPage() {
     value,
     label,
   }));
+  const statusFilterOptions = [
+    { value: 'all', label: 'All Status' },
+    ...containerStatusOptions,
+  ];
 
   const containerColumns: Column<Container>[] = [
     { key: 'containerNumber', header: 'Container', sortable: true },
@@ -342,12 +335,8 @@ export default function ContainersPage() {
   return (
     <ProtectedRoute>
       <DashboardSurface>
-        {/* Breadcrumbs */}
-        <Box sx={{ px: 2, pt: 2 }}>
-          <Breadcrumbs />
-        </Box>
-        
         <PageHeader
+          showBreadcrumbs
           title="Containers"
           description="Manage shipping containers and tracking"
           actions={
@@ -422,44 +411,21 @@ export default function ContainersPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Package style={{ fontSize: 20, color: 'var(--text-secondary)' }} />}
                 />
+                <button type="submit" className="sr-only">
+                  Search containers
+                </button>
               </form>
             </Box>
             <Box sx={{ minWidth: { xs: '100%', md: 200 } }}>
-              <Typography
-                component="label"
-                sx={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: 'var(--text-primary)',
-                  mb: 1,
-                }}
-              >
-                Status Filter
-              </Typography>
-              <select
+              <Select
+                label="Status Filter"
                 value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
+                onChange={(value) => {
+                  setStatusFilter(String(value));
                   setPage(1);
                 }}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(var(--border-rgb), 0.9)',
-                  backgroundColor: 'var(--background)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.875rem',
-                }}
-              >
-                <option value="all">All Status</option>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                options={statusFilterOptions}
+              />
             </Box>
           </Box>
         </DashboardPanel>
@@ -492,6 +458,8 @@ export default function ContainersPage() {
               onExport={isAdmin ? handleBulkExport : undefined}
               bulkStatusOptions={containerStatusOptions}
               onBulkStatusChange={isAdmin ? handleBulkStatusUpdate : undefined}
+              currentPage={page}
+              totalPages={totalPages}
             />
           ) : (
             <>
@@ -527,21 +495,7 @@ export default function ContainersPage() {
                         )}
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            px: 1.5,
-                            py: 0.5,
-                            borderRadius: 1,
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            ...statusColors[container.status],
-                            border: `1px solid ${statusColors[container.status].border}`,
-                            bgcolor: statusColors[container.status].bg,
-                            color: statusColors[container.status].text,
-                          }}
-                        >
-                          {statusLabels[container.status]}
-                        </Box>
+                        <StatusBadge status={container.status} size="sm" />
                         <IconButton
                           size="small"
                           onClick={(e) => handleMenuOpen(e, container)}

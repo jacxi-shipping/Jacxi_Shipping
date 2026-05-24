@@ -68,7 +68,10 @@ export function BottomNavigation() {
                 }
               >
                 <Icon className="h-5 w-5 flex-shrink-0" />
-                <span className="w-full truncate text-center text-xs font-medium">
+                <span className={cn(
+                  'w-full truncate text-center text-xs font-medium',
+                  isActive && 'text-[var(--accent-gold)]'
+                )}>
                   {item.label}
                 </span>
               </div>
