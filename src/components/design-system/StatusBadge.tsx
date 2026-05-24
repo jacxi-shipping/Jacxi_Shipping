@@ -1,5 +1,6 @@
 "use client";
 
+import { Anchor, AlertTriangle, CheckCircle2, Clock, Truck, XCircle } from 'lucide-react';
 import { Box, Typography } from '@mui/material';
 import { ReactNode } from 'react';
 
@@ -54,7 +55,33 @@ export interface StatusBadgeProps {
   variant?: 'default' | 'dot' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   icon?: ReactNode;
+  showIcon?: boolean;
   className?: string;
+}
+
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'DELIVERED':
+    case 'PAID':
+    case 'ON_HAND':
+      return <CheckCircle2 width={10} height={10} />;
+    case 'PENDING':
+    case 'DISPATCHING':
+      return <Clock width={10} height={10} />;
+    case 'OVERDUE':
+    case 'DELAYED':
+      return <AlertTriangle width={10} height={10} />;
+    case 'IN_TRANSIT':
+    case 'IN_TRANSIT_TO_DESTINATION':
+      return <Truck width={10} height={10} />;
+    case 'AT_PORT':
+    case 'ARRIVED_PORT':
+      return <Anchor width={10} height={10} />;
+    case 'CANCELLED':
+      return <XCircle width={10} height={10} />;
+    default:
+      return null;
+  }
 }
 
 // Status color mappings with enhanced contrast
@@ -236,11 +263,13 @@ export default function StatusBadge({
   variant = 'default',
   size = 'md',
   icon,
+  showIcon = false,
   className,
 }: StatusBadgeProps) {
   const normalizedStatus = status.toUpperCase().replace(/\s+/g, '_');
   const colors = statusColors[normalizedStatus] || statusColors.DEFAULT;
   const config = sizeConfig[size];
+  const resolvedIcon = showIcon ? getStatusIcon(normalizedStatus) : icon;
 
   // Default variant (filled background)
   if (variant === 'default') {
@@ -271,7 +300,7 @@ export default function StatusBadge({
           },
         }}
       >
-        {icon && (
+        {resolvedIcon && (
           <Box 
             sx={{ 
               display: 'flex', 
@@ -280,7 +309,7 @@ export default function StatusBadge({
               lineHeight: 1,
             }}
           >
-            {icon}
+            {resolvedIcon}
           </Box>
         )}
         <Typography
@@ -324,7 +353,7 @@ export default function StatusBadge({
             boxShadow: `0 0 0 2px ${colors.bg}`,
           }}
         />
-        {icon && (
+        {resolvedIcon && (
           <Box 
             sx={{ 
               display: 'flex', 
@@ -333,7 +362,7 @@ export default function StatusBadge({
               lineHeight: 1,
             }}
           >
-            {icon}
+            {resolvedIcon}
           </Box>
         )}
         <Typography
@@ -380,7 +409,7 @@ export default function StatusBadge({
           },
         }}
       >
-        {icon && (
+        {resolvedIcon && (
           <Box 
             sx={{ 
               display: 'flex', 
@@ -389,7 +418,7 @@ export default function StatusBadge({
               lineHeight: 1,
             }}
           >
-            {icon}
+            {resolvedIcon}
           </Box>
         )}
         <Typography

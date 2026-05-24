@@ -56,7 +56,7 @@ export default function DashboardOperationsSection({
           <DashboardPanel title="Quick Actions" noBodyPadding>
             <div className="divide-y divide-border">
               {hasPermission(role, 'shipments:manage') && (
-                <Link href="/dashboard/shipments/new" className="group block p-4 transition-colors hover:bg-background/50">
+                <Link href="/dashboard/shipments/new" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500 transition-colors group-hover:bg-blue-500 group-hover:text-white">
                       <Package className="w-5 h-5" />
@@ -70,7 +70,7 @@ export default function DashboardOperationsSection({
               )}
 
               {hasPermission(role, 'containers:manage') && (
-                <Link href="/dashboard/containers/new" className="group block p-4 transition-colors hover:bg-background/50">
+                <Link href="/dashboard/containers/new" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-500 transition-colors group-hover:bg-indigo-500 group-hover:text-white">
                       <Ship className="w-5 h-5" />
@@ -84,7 +84,7 @@ export default function DashboardOperationsSection({
               )}
 
               {canManageDispatches && (
-                <Link href="/dashboard/dispatches" className="group block p-4 transition-colors hover:bg-background/50">
+                <Link href="/dashboard/dispatches" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
                       <Truck className="w-5 h-5" />
@@ -97,7 +97,7 @@ export default function DashboardOperationsSection({
                 </Link>
               )}
 
-              <Link href="/dashboard/finance" className="group block p-4 transition-colors hover:bg-background/50">
+              <Link href="/dashboard/finance" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
                 <div className="flex items-center gap-3">
                   <div className="rounded-lg bg-green-500/10 p-2 text-green-500 transition-colors group-hover:bg-green-500 group-hover:text-white">
                     <DollarSign className="w-5 h-5" />
@@ -109,7 +109,7 @@ export default function DashboardOperationsSection({
                 </div>
               </Link>
 
-              <Link href="/dashboard/shipments" className="group block p-4 transition-colors hover:bg-background/50">
+              <Link href="/dashboard/shipments" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
                 <div className="flex items-center gap-3">
                   <div className="rounded-lg bg-amber-500/10 p-2 text-amber-500 transition-colors group-hover:bg-amber-500 group-hover:text-white">
                     <Activity className="w-5 h-5" />

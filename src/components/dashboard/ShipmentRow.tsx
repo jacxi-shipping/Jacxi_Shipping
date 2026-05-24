@@ -1,7 +1,8 @@
 "use client";
 
 import Link from 'next/link';
-import { Visibility, Edit, LocalShipping, CreditCard, LocationOn, CalendarToday } from '@mui/icons-material';
+import { useRouter } from 'next/navigation';
+import { Edit, LocalShipping, CreditCard, LocationOn, CalendarToday } from '@mui/icons-material';
 import { Box, Typography, LinearProgress, Chip } from '@mui/material';
 import { StatusBadge, Button } from '@/components/design-system';
 
@@ -82,11 +83,46 @@ export default function ShipmentRow({
 	showCustomer = false,
 	delay = 0,
 }: ShipmentRowProps) {
+	const router = useRouter();
 	const vehicleInfo = [vehicleMake, vehicleModel, vehicleYear].filter(Boolean).join(' ') || vehicleType;
 	const paidAmount = Math.max(0, purchasePricePaid || 0);
 	const totalPurchasePrice = Math.max(0, purchasePrice || 0);
 	const remainingAmount = Math.max(0, totalPurchasePrice - paidAmount);
 	const isPurchasePaidOff = totalPurchasePrice > 0 && remainingAmount <= 0;
+	const shipmentHref = `/dashboard/shipments/${id}`;
+	const editHref = `/dashboard/shipments/${id}/edit`;
+    const statusRow = (
+		<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, minWidth: 0, mt: 0.5 }}>
+			<StatusBadge 
+				status={status} 
+				variant="default" 
+				size="sm"
+				showIcon
+			/>
+			{yardReceived && (
+				<Chip
+					label={yardReceivedAt ? `Yard Received ${new Date(yardReceivedAt).toLocaleDateString()}` : 'Yard Received'}
+					size="small"
+					sx={{
+						height: 24,
+						fontSize: '0.7rem',
+						fontWeight: 700,
+						bgcolor: 'rgba(34, 197, 94, 0.12)',
+						color: 'rgb(21, 128, 61)',
+						border: '1px solid rgba(34, 197, 94, 0.28)',
+					}}
+				/>
+			)}
+			{paymentStatus && (
+				<StatusBadge 
+					status={paymentStatus} 
+					variant="default" 
+					size="sm"
+					icon={<CreditCard sx={{ fontSize: 12 }} />}
+				/>
+			)}
+		</Box>
+	);
 
 	// ⚡ Bolt: Removed `useState` and `useEffect` for visibility and replaced `<Slide>` with a pure CSS animation
 	// from `globals.css` (`className="animate-fade-in-up"`) applying the delay using inline styles.
@@ -95,11 +131,21 @@ export default function ShipmentRow({
 			<Box
 				component="article"
 				className="animate-fade-in-up"
+				tabIndex={0}
+				role="link"
+				onClick={() => router.push(shipmentHref)}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						event.preventDefault();
+						router.push(shipmentHref);
+					}
+				}}
 				sx={{
 					animationDelay: `${delay}s`,
 					animationFillMode: 'both',
 					background: 'var(--panel)',
 					border: '1px solid rgba(var(--panel-rgb), 0.9)',
+					borderLeft: '3px solid transparent',
 					borderRadius: 2,
 					boxShadow: '0 18px 32px rgba(var(--text-primary-rgb), 0.08)',
 					padding: { xs: 1.25, sm: 1.5, md: 1.75 },
@@ -107,22 +153,39 @@ export default function ShipmentRow({
 					gridTemplateColumns: {
 						xs: '1fr',
 						md: purchasePrice != null
-							? 'minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto'
-							: 'minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) auto',
+							? 'minmax(0, 1.6fr) minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 1fr) auto'
+							: 'minmax(0, 1.6fr) minmax(0, 1.15fr) minmax(0, 1fr) auto',
 					},
 					gap: { xs: 1.25, md: 1.5 },
 					alignItems: 'center',
+						minHeight: { xs: '120px', md: 'auto' },
 					minWidth: 0,
 					width: '100%',
 					boxSizing: 'border-box',
+					cursor: 'pointer',
+					textDecoration: 'none',
+					color: 'inherit',
+					transition: 'all 200ms ease',
+					outline: 'none',
+					'&:hover': {
+						borderColor: 'rgba(var(--accent-gold-rgb), 0.35)',
+						borderLeft: '3px solid var(--accent-gold)',
+						boxShadow: '0 8px 24px rgba(var(--text-primary-rgb), 0.10)',
+						transform: 'translateY(-1px)',
+					},
+					'&:focus-visible': {
+						borderColor: 'rgba(var(--accent-gold-rgb), 0.45)',
+						borderLeft: '3px solid var(--accent-gold)',
+						boxShadow: '0 0 0 3px rgba(var(--accent-gold-rgb), 0.14)',
+					},
 				}}
 			>
 				{/* Column 1: Vehicle Info & Status */}
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0, overflow: 'hidden' }}>
 					<Typography
 						sx={{
-							fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.9rem' },
-							fontWeight: 600,
+							fontSize: { xs: '0.85rem', sm: '0.9rem', md: '0.95rem' },
+							fontWeight: 700,
 							color: 'var(--text-primary)',
 							overflow: 'hidden',
 							textOverflow: 'ellipsis',
@@ -132,42 +195,30 @@ export default function ShipmentRow({
 						{vehicleInfo}
 					</Typography>
 					{vehicleVIN && (
-						<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)' }}>
-							VIN: {vehicleVIN}
-						</Typography>
+						<Box
+							sx={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 0.5,
+								width: 'fit-content',
+								px: 0.75,
+								py: 0.2,
+								borderRadius: '999px',
+								bgcolor: 'rgba(var(--border-rgb), 0.3)',
+							}}
+						>
+							<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)' }}>
+								VIN:
+							</Typography>
+							<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+								{vehicleVIN}
+							</Typography>
+						</Box>
 					)}
 					<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)' }}>
 						Created: {new Date(createdAt).toLocaleDateString()}
 					</Typography>
-				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, minWidth: 0, mt: 0.5 }}>
-					<StatusBadge 
-						status={status} 
-						variant="default" 
-						size="sm"
-					/>
-					{yardReceived && (
-						<Chip
-							label={yardReceivedAt ? `Yard Received ${new Date(yardReceivedAt).toLocaleDateString()}` : 'Yard Received'}
-							size="small"
-							sx={{
-								height: 24,
-								fontSize: '0.7rem',
-								fontWeight: 700,
-								bgcolor: 'rgba(34, 197, 94, 0.12)',
-								color: 'rgb(21, 128, 61)',
-								border: '1px solid rgba(34, 197, 94, 0.28)',
-							}}
-						/>
-					)}
-					{paymentStatus && (
-						<StatusBadge 
-							status={paymentStatus} 
-							variant="default" 
-							size="sm"
-							icon={<CreditCard sx={{ fontSize: 12 }} />}
-						/>
-					)}
-				</Box>
+				<Box sx={{ display: { xs: 'none', md: 'flex' } }}>{statusRow}</Box>
 				</Box>
 
 				{/* Column 2: Vehicle Type */}
@@ -216,21 +267,18 @@ export default function ShipmentRow({
 							</Typography>
 							<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
 								<LocalShipping sx={{ fontSize: { xs: 14, sm: 16 }, color: 'var(--accent-gold)' }} />
-								<Link href={`/dashboard/transits/${transit.id}`} style={{ textDecoration: 'none' }}>
-									<Typography
-										sx={{
-											fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
-											fontWeight: 600,
-											color: 'var(--accent-gold)',
-											overflow: 'hidden',
-											textOverflow: 'ellipsis',
-											whiteSpace: 'nowrap',
-											'&:hover': { textDecoration: 'underline' },
-										}}
-									>
-										{transit.referenceNumber}
-									</Typography>
-								</Link>
+								<Typography
+									sx={{
+										fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
+										fontWeight: 600,
+										color: 'var(--accent-gold)',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+										whiteSpace: 'nowrap',
+									}}
+								>
+									{transit.referenceNumber}
+								</Typography>
 							</Box>
 							<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)', mt: 0.2 }}>
 								Final-mile delivery in progress
@@ -250,21 +298,18 @@ export default function ShipmentRow({
 							{/* Container Number */}
 							<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
 								<LocalShipping sx={{ fontSize: { xs: 14, sm: 16 }, color: 'var(--accent-gold)' }} />
-								<Link href={`/dashboard/containers/${containerId}`} style={{ textDecoration: 'none' }}>
-									<Typography
-										sx={{
-											fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
-											fontWeight: 600,
-											color: 'var(--accent-gold)',
-											overflow: 'hidden',
-											textOverflow: 'ellipsis',
-											whiteSpace: 'nowrap',
-											'&:hover': { textDecoration: 'underline' },
-										}}
-									>
-										{container.containerNumber}
-									</Typography>
-								</Link>
+								<Typography
+									sx={{
+										fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
+										fontWeight: 600,
+										color: 'var(--accent-gold)',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+										whiteSpace: 'nowrap',
+									}}
+								>
+									{container.containerNumber}
+								</Typography>
 							</Box>
 
 							{/* Progress Bar */}
@@ -353,21 +398,18 @@ export default function ShipmentRow({
 							</Typography>
 							<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
 								<LocalShipping sx={{ fontSize: { xs: 14, sm: 16 }, color: 'var(--accent-gold)' }} />
-								<Link href={`/dashboard/dispatches/${dispatch.id}`} style={{ textDecoration: 'none' }}>
-									<Typography
-										sx={{
-											fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
-											fontWeight: 600,
-											color: 'var(--accent-gold)',
-											overflow: 'hidden',
-											textOverflow: 'ellipsis',
-											whiteSpace: 'nowrap',
-											'&:hover': { textDecoration: 'underline' },
-										}}
-									>
-										{dispatch.referenceNumber}
-									</Typography>
-								</Link>
+								<Typography
+									sx={{
+										fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
+										fontWeight: 600,
+										color: 'var(--accent-gold)',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+										whiteSpace: 'nowrap',
+									}}
+								>
+									{dispatch.referenceNumber}
+								</Typography>
 							</Box>
 							<Typography sx={{ fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' }, color: 'var(--text-secondary)', mt: 0.2 }}>
 								{dispatch.origin || 'USA Yard'} to {dispatch.destination || 'Port of Loading'}
@@ -393,37 +435,93 @@ export default function ShipmentRow({
 					)}
 				</Box>
 
-				{/* Column 4: Actions */}
 				<Box
 					sx={{
-						display: 'flex',
-						flexDirection: { xs: 'row', md: 'column' },
-						gap: 0.75,
-						justifyContent: { xs: 'flex-end', md: 'center' },
-						alignItems: { xs: 'center', md: 'flex-end' },
+						display: { xs: 'none', md: 'flex' },
+						justifyContent: 'flex-end',
+						alignItems: 'center',
 						flexShrink: 0,
 					}}
 				>
-				<Link href={`/dashboard/shipments/${id}`} style={{ textDecoration: 'none' }}>
 					<Button
-						variant="outline"
-						size="sm"
-						icon={<Visibility sx={{ fontSize: 14 }} />}
-						iconPosition="start"
-					>
-						View
-					</Button>
-				</Link>
-				<Link href={`/dashboard/shipments/${id}/edit`} style={{ textDecoration: 'none' }}>
-					<Button
+						component={Link}
+						href={editHref}
 						variant="ghost"
 						size="sm"
 						icon={<Edit sx={{ fontSize: 14 }} />}
 						iconPosition="start"
+						onClick={(event) => {
+							event.stopPropagation();
+						}}
+						sx={{
+							borderRadius: '999px',
+							minWidth: 'auto',
+							minHeight: { xs: '44px', md: 'auto' },
+							px: 1.25,
+							color: 'var(--accent-gold)',
+							'&:hover': {
+								bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)',
+								color: 'var(--accent-gold)',
+							},
+						}}
 					>
 						Edit
 					</Button>
-				</Link>
+				</Box>
+
+				<Box
+					sx={{
+						display: { xs: 'flex', md: 'none' },
+						gridColumn: '1 / -1',
+						justifyContent: 'space-between',
+						alignItems: 'center',
+						gap: 1,
+						pt: 0.5,
+						borderTop: '1px solid rgba(var(--border-rgb), 0.45)',
+					}}
+				>
+					<Box sx={{ minWidth: 0, overflow: 'hidden' }}>{statusRow}</Box>
+					<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+						<Button
+							component={Link}
+							href={shipmentHref}
+							variant="outline"
+							size="sm"
+							onClick={(event) => {
+								event.stopPropagation();
+							}}
+							sx={{
+								minHeight: { xs: '44px', md: 'auto' },
+								borderRadius: '999px',
+								px: 1.5,
+							}}
+						>
+							View
+						</Button>
+						<Button
+							component={Link}
+							href={editHref}
+							variant="ghost"
+							size="sm"
+							icon={<Edit sx={{ fontSize: 14 }} />}
+							iconPosition="start"
+							onClick={(event) => {
+								event.stopPropagation();
+							}}
+							sx={{
+								minHeight: { xs: '44px', md: 'auto' },
+								borderRadius: '999px',
+								px: 1.25,
+								color: 'var(--accent-gold)',
+								'&:hover': {
+									bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)',
+									color: 'var(--accent-gold)',
+								},
+							}}
+						>
+							Edit
+						</Button>
+					</Box>
 				</Box>
 			</Box>
 	);

@@ -20,7 +20,7 @@ export default function DashboardKpiGrid({
   activeDispatchesCount,
 }: DashboardKpiGridProps) {
   return (
-    <div id="stats-grid">
+    <div id="kpi-grid" className="animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
       <DashboardGrid className={canManageDispatches ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'}>
         <StatsCard
           title="Active Shipments"

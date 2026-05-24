@@ -2,7 +2,6 @@
 
 import { Box, Typography, Fade } from '@mui/material';
 import { ReactNode, useState, useEffect } from 'react';
-import { colors } from '@/lib/design-tokens';
 
 /**
  * StatsCard Component
@@ -102,10 +101,12 @@ export default function StatsCard({
 		<Fade in={isVisible} timeout={600}>
 			<Box
 				component="article"
+				className="hover-lift"
 				sx={{
 				height: '100%',
 				borderRadius: 2,
 				border: '1px solid var(--border)',
+				borderLeft: variant === 'default' ? '3px solid var(--accent-gold)' : undefined,
 				background: 'var(--panel)',
 				padding: sizes.padding,
 			display: 'flex',
@@ -116,19 +117,14 @@ export default function StatsCard({
 				minWidth: 0,
 				width: '100%',
 				boxSizing: 'border-box',
-				transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
 				boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-				'&:hover': {
-					transform: 'translateY(-4px)',
-					boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-				},
 				}}
 			>
 				<Box
 					sx={{
 						width: sizes.iconSize,
 						height: sizes.iconSize,
-						borderRadius: 2,
+						borderRadius: 3,
 						border: '1px solid var(--border)',
 						background: colors.iconBg,
 						display: 'flex',
@@ -136,6 +132,19 @@ export default function StatsCard({
 						justifyContent: 'center',
 						flexShrink: 0,
 						color: colors.iconColor,
+						position: 'relative',
+						overflow: 'hidden',
+						'&::after': {
+							content: '""',
+							position: 'absolute',
+							inset: 0,
+							background: 'linear-gradient(135deg, rgba(var(--accent-gold-rgb), 0.08), transparent 72%)',
+							pointerEvents: 'none',
+						},
+						'& > *': {
+							position: 'relative',
+							zIndex: 1,
+						},
 					}}
 				>
 					{icon}
@@ -184,10 +193,10 @@ export default function StatsCard({
 					<Box
 						sx={{
 							fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
-							fontWeight: 600,
+							fontWeight: 700,
 							px: 1,
 							py: 0.5,
-							borderRadius: 1,
+							borderRadius: '999px',
 							color: trendColor,
 							border: `1px solid ${trendBorderColor}`,
 							background: trendBackground,

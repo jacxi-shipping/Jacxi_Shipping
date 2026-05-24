@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Add } from '@mui/icons-material';
+import { Add, Inventory2 } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import SmartSearch, { SearchFilters } from '@/components/dashboard/SmartSearch';
 import { DashboardPanel } from '@/components/dashboard/DashboardSurface';
@@ -20,8 +20,13 @@ export default function ShipmentsSearchPanel({
 }: ShipmentsSearchPanelProps) {
 	return (
 		<DashboardPanel
-			title="Search"
-			description="Filter shipments instantly"
+			title={
+				<Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+					<Inventory2 sx={{ fontSize: 18, color: 'var(--accent-gold)' }} />
+					<span>Shipments</span>
+				</Box>
+			}
+			description="Search, filter, and manage your shipments"
 			noBodyPadding
 			className="overflow-hidden"
 			actions={

@@ -11,7 +11,7 @@ export function DashboardSurface({ children, className, noPadding = false }: Das
 	return (
 		<div
 			className={cn(
-				'relative mx-auto flex w-full max-w-[1380px] flex-col gap-3 px-3 py-4 sm:px-5 lg:px-8',
+				'relative mx-auto flex w-full max-w-[1380px] flex-col gap-3 px-4 pt-4 pb-4 sm:px-5 lg:px-8',
 				'text-[var(--text-primary)]',
 				'min-w-0 overflow-hidden',
 				'animate-fade-in-up', // Added global animation
@@ -46,7 +46,7 @@ export function DashboardHeader({ title, description, meta, actions, className }
 			className={cn(
 				'flex flex-col gap-3 rounded-2xl border px-4 py-4 text-[var(--text-primary)]',
 				'sm:flex-row sm:items-center sm:justify-between',
-				'glass-premium', // Added global style
+				'glass-gold',
 				className,
 			)}
 			style={{
@@ -90,8 +90,8 @@ export function DashboardHeader({ title, description, meta, actions, className }
 }
 
 interface DashboardPanelProps {
-	title?: string;
-	description?: string;
+	title?: ReactNode;
+	description?: ReactNode;
 	children: ReactNode;
 	actions?: ReactNode;
 	className?: string;
@@ -125,7 +125,8 @@ export function DashboardPanel({
 			style={{
 				borderColor: 'var(--border)',
 				backgroundColor: 'var(--panel)',
-				boxShadow: '0 16px 40px rgba(var(--text-primary-rgb),0.08)',
+				borderTop: '2px solid rgba(var(--accent-gold-rgb), 0.3)',
+				boxShadow: '0 20px 48px rgba(var(--text-primary-rgb), 0.10)',
 				maxWidth: '100%',
 			}}
 		>
@@ -171,5 +172,5 @@ interface DashboardGridProps {
 }
 
 export function DashboardGrid({ children, className }: DashboardGridProps) {
-	return <div className={cn('grid gap-3', className)}>{children}</div>;
+	return <div className={cn('grid gap-4', className)}>{children}</div>;
 }

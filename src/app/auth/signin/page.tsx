@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Visibility, VisibilityOff, Email, Lock, ArrowForward } from '@mui/icons-material';
+import SiteLogo from '@/components/brand/SiteLogo';
+import { Button as DSButton } from '@/components/design-system';
 import { 
 	Button, 
 	TextField, 
@@ -17,6 +19,39 @@ import {
 	Typography,
 	Paper
 } from '@mui/material';
+
+const textFieldStyles = {
+	'& .MuiOutlinedInput-root': {
+		bgcolor: 'var(--background)',
+		borderRadius: 3,
+		color: 'var(--text-primary)',
+		'& fieldset': {
+			borderColor: 'rgba(var(--panel-rgb), 0.9)',
+			transition: 'all 200ms ease',
+		},
+		'&:hover fieldset': {
+			borderColor: 'rgba(var(--accent-gold-rgb), 0.22)',
+		},
+		'&.Mui-focused': {
+			boxShadow: '0 0 0 3px rgba(var(--accent-gold-rgb), 0.12)',
+		},
+		'&.Mui-focused fieldset': {
+			borderColor: 'var(--accent-gold)',
+			borderWidth: 2,
+		},
+		'& input': {
+			color: 'var(--text-primary)',
+			'&::placeholder': {
+				color: 'var(--text-secondary)',
+				opacity: 1,
+			},
+			'&:-webkit-autofill': {
+				WebkitBoxShadow: '0 0 0 100px var(--background) inset',
+				WebkitTextFillColor: 'var(--text-primary)',
+			},
+		},
+	},
+} as const;
 
 export default function SignInPage() {
 	const { t } = useTranslation();
@@ -82,8 +117,32 @@ export default function SignInPage() {
 				justifyContent: 'center',
 				py: { xs: 6, sm: 10 },
 				px: { xs: 2, sm: 3, lg: 4 },
+				position: 'relative',
+				overflow: 'hidden',
 			}}
 		>
+			<motion.div
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={{ duration: 1.2 }}
+				style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+			>
+				<Box
+					sx={{
+						position: 'absolute',
+						inset: 0,
+						background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(var(--accent-gold-rgb), 0.08) 0%, transparent 60%)',
+					}}
+				/>
+				<Box
+					sx={{
+						position: 'absolute',
+						inset: 0,
+						background: 'radial-gradient(ellipse 55% 45% at 100% 100%, rgba(var(--accent-gold-rgb), 0.04) 0%, transparent 70%)',
+					}}
+				/>
+			</motion.div>
+
 			{/* Main Content */}
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
@@ -97,9 +156,10 @@ export default function SignInPage() {
 					sx={{
 						position: 'relative',
 						borderRadius: 4,
-						background: 'var(--panel)',
-						border: '1px solid rgba(var(--panel-rgb), 0.9)',
-						boxShadow: '0 25px 60px rgba(var(--text-primary-rgb), 0.12)',
+						backdropFilter: 'blur(20px)',
+						background: 'rgba(var(--panel-rgb), 0.92)',
+						border: '1px solid rgba(var(--accent-gold-rgb), 0.15)',
+						boxShadow: '0 32px 80px rgba(var(--text-primary-rgb), 0.16), 0 0 0 1px rgba(var(--accent-gold-rgb), 0.08)',
 						p: { xs: 4, sm: 5 },
 						overflow: 'hidden',
 					}}
@@ -107,12 +167,17 @@ export default function SignInPage() {
 					<Box sx={{ position: 'relative', zIndex: 1 }}>
 						{/* Header */}
 						<Box sx={{ textAlign: 'center', mb: 3 }}>
+							<Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+								<SiteLogo variant="dashboard" className="w-[120px]" priority />
+							</Box>
 							<Typography
 								variant="h3"
 								sx={{
 									fontSize: { xs: '1.875rem', sm: '2.25rem' },
 									fontWeight: 700,
-									color: 'var(--text-primary)',
+									background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--accent-gold) 100%)',
+									WebkitBackgroundClip: 'text',
+									WebkitTextFillColor: 'transparent',
 									mb: 1,
 								}}
 							>
@@ -179,34 +244,7 @@ export default function SignInPage() {
 											</InputAdornment>
 										),
 									}}
-									sx={{
-										'& .MuiOutlinedInput-root': {
-											bgcolor: 'var(--background)',
-											borderRadius: 2,
-											color: 'var(--text-primary)',
-											'& fieldset': {
-												borderColor: 'rgba(var(--panel-rgb), 0.9)',
-											},
-											'&:hover fieldset': {
-												borderColor: 'var(--panel)',
-											},
-											'&.Mui-focused fieldset': {
-												borderColor: 'var(--accent-gold)',
-												borderWidth: 2,
-											},
-											'& input': {
-												color: 'var(--text-primary)',
-												'&::placeholder': {
-													color: 'var(--text-secondary)',
-													opacity: 1,
-												},
-												'&:-webkit-autofill': {
-													WebkitBoxShadow: '0 0 0 100px var(--background) inset',
-													WebkitTextFillColor: 'var(--text-primary)',
-												},
-											},
-										},
-									}}
+									sx={textFieldStyles}
 								/>
 							</Box>
 
@@ -261,34 +299,7 @@ export default function SignInPage() {
 											</InputAdornment>
 										),
 									}}
-									sx={{
-										'& .MuiOutlinedInput-root': {
-											bgcolor: 'var(--background)',
-											borderRadius: 2,
-											color: 'var(--text-primary)',
-											'& fieldset': {
-												borderColor: 'rgba(var(--panel-rgb), 0.9)',
-											},
-											'&:hover fieldset': {
-												borderColor: 'var(--panel)',
-											},
-											'&.Mui-focused fieldset': {
-												borderColor: 'var(--accent-gold)',
-												borderWidth: 2,
-											},
-											'& input': {
-												color: 'var(--text-primary)',
-												'&::placeholder': {
-													color: 'var(--text-secondary)',
-													opacity: 1,
-												},
-												'&:-webkit-autofill': {
-													WebkitBoxShadow: '0 0 0 100px var(--background) inset',
-													WebkitTextFillColor: 'var(--text-primary)',
-												},
-											},
-										},
-									}}
+									sx={textFieldStyles}
 								/>
 							</Box>
 
@@ -301,17 +312,19 @@ export default function SignInPage() {
 								endIcon={!isLoading && <ArrowForward />}
 								sx={{
 									width: '100%',
-								bgcolor: 'var(--accent-gold)',
-								color: 'var(--background)',
+									background: 'linear-gradient(135deg, var(--accent-gold) 0%, #B8960C 100%)',
+									color: 'var(--background)',
 									fontWeight: 600,
 									py: 1.5,
 									fontSize: '1rem',
+									boxShadow: '0 4px 14px rgba(var(--accent-gold-rgb), 0.25)',
 									'&:hover': {
-									bgcolor: 'var(--accent-gold)',
+										background: 'linear-gradient(135deg, var(--accent-gold) 0%, #B8960C 100%)',
+										boxShadow: '0 4px 14px rgba(var(--accent-gold-rgb), 0.35)',
 									},
 									'&:disabled': {
-									bgcolor: 'rgba(var(--accent-gold-rgb), 0.5)',
-									color: 'rgba(var(--background-rgb), 0.85)',
+										background: 'linear-gradient(135deg, rgba(var(--accent-gold-rgb), 0.55) 0%, rgba(184, 150, 12, 0.55) 100%)',
+										color: 'rgba(var(--background-rgb), 0.85)',
 									},
 								}}
 							>
@@ -355,26 +368,21 @@ export default function SignInPage() {
 							<Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)', mb: 1 }}>
 								Have a login code?
 							</Typography>
-							<Typography
-								component="button"
-								type="button"
+							<DSButton
+								variant="outline"
+								size="sm"
 								onClick={() => router.push(simpleLoginHref)}
 								sx={{
-									background: 'none',
-									border: 'none',
-									color: 'var(--accent-gold)',
-									fontWeight: 500,
-									cursor: 'pointer',
-									fontSize: '0.875rem',
-									textDecoration: 'underline',
-									transition: 'color 0.2s ease',
+									borderColor: 'rgba(var(--accent-gold-rgb), 0.22)',
+									color: 'var(--text-primary)',
 									'&:hover': {
-										color: 'var(--accent-gold)',
+										borderColor: 'var(--accent-gold)',
+										bgcolor: 'rgba(var(--accent-gold-rgb), 0.06)',
 									},
 								}}
 							>
 								Login with 8-character code
-							</Typography>
+							</DSButton>
 						</Box>
 					</Box>
 				</Paper>

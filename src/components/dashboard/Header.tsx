@@ -126,9 +126,19 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 			elevation={0}
 			color="inherit"
 			sx={{
+				position: 'sticky',
 				bgcolor: 'var(--panel)',
 				borderBottom: '1px solid var(--border)',
 				boxShadow: '0 8px 16px rgba(var(--text-primary-rgb),0.06)',
+				'&::after': {
+					content: '""',
+					position: 'absolute',
+					bottom: 0,
+					left: 0,
+					right: 0,
+					height: '1px',
+					background: 'linear-gradient(90deg, transparent, rgba(var(--accent-gold-rgb), 0.3), transparent)',
+				},
 			}}
 		>
 			<Toolbar
@@ -199,6 +209,7 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 									mr: 0.25,
 									'&:hover': {
 										bgcolor: 'rgba(var(--accent-gold-rgb), 0.1)',
+										boxShadow: '0 0 0 1px rgba(var(--accent-gold-rgb), 0.2)',
 									},
 								}}
 							>

@@ -53,7 +53,7 @@ export default function DashboardLayout({
 								sx={{
 									flexGrow: 1,
 									minWidth: 0,
-									height: { xs: 'calc(100vh - 56px - 64px)', lg: 'calc(100vh - 56px)' },
+									height: { xs: 'calc(100vh - 56px - 68px)', lg: 'calc(100vh - 56px)' },
 									bgcolor: 'var(--background)',
 									backgroundImage: 'none',
 									overflow: 'auto',
@@ -64,7 +64,7 @@ export default function DashboardLayout({
 									},
 									scrollbarWidth: 'none',
 									msOverflowStyle: 'none',
-									pb: { xs: 2, lg: 0 },
+									pb: { xs: '68px', lg: 0 },
 								}}
 							>
 								{children}

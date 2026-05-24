@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore, AdminPanelSettings, MoreHoriz } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography, Collapse, IconButton } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
@@ -189,9 +189,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 					'& .MuiDrawer-paper': {
 						width: drawerWidth,
 						boxSizing: 'border-box',
-						backgroundColor: 'var(--panel)',
+						background: 'linear-gradient(180deg, var(--panel) 0%, rgba(var(--panel-rgb), 0.97) 100%)',
 						color: 'var(--text-primary)',
 						borderRight: '1px solid var(--border)',
+						borderTop: '2px solid rgba(var(--accent-gold-rgb), 0.15)',
 						boxShadow: '0 10px 30px rgba(var(--text-primary-rgb),0.12)',
 						mt: '48px',
 					},
@@ -216,9 +217,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 					'& .MuiDrawer-paper': {
 						width: drawerWidth,
 						boxSizing: 'border-box',
-						backgroundColor: 'var(--panel)',
+						background: 'linear-gradient(180deg, var(--panel) 0%, rgba(var(--panel-rgb), 0.97) 100%)',
 						color: 'var(--text-primary)',
 						borderRight: '1px solid var(--border)',
+						borderTop: '2px solid rgba(var(--accent-gold-rgb), 0.15)',
 						boxShadow: 'inset -1px 0 0 var(--border)',
 						position: 'relative',
 						height: '100%',
@@ -276,11 +278,12 @@ function NavItem({ item, isActive, badge, badgeColor, onNavClick }: NavItemProps
 				my: 0.25,
 				py: 0.75,
 				minHeight: 0,
-				transition: 'all 0.2s ease',
+				transition: 'all 150ms ease',
 				color: active ? 'var(--accent-gold)' : 'var(--text-primary)',
-				bgcolor: active ? 'rgba(var(--accent-gold-rgb), 0.12)' : 'transparent',
+				bgcolor: active ? 'rgba(var(--accent-gold-rgb), 0.15)' : 'transparent',
+				boxShadow: active ? 'inset 0 0 0 1px rgba(var(--accent-gold-rgb), 0.2)' : 'none',
 				'&:hover': {
-					bgcolor: 'rgba(var(--border-rgb), 0.4)',
+					bgcolor: 'rgba(var(--accent-gold-rgb), 0.06)',
 					color: 'var(--text-primary)',
 				},
 				'&::before': active
@@ -290,9 +293,10 @@ function NavItem({ item, isActive, badge, badgeColor, onNavClick }: NavItemProps
 							left: 0,
 							top: 4,
 							bottom: 4,
-							width: 3,
+							width: 4,
 							borderRadius: '0 2px 2px 0',
 							backgroundColor: 'var(--accent-gold)',
+							boxShadow: '2px 0 8px rgba(var(--accent-gold-rgb), 0.4)',
 					  }
 					: {},
 			}}
@@ -303,7 +307,7 @@ function NavItem({ item, isActive, badge, badgeColor, onNavClick }: NavItemProps
 					color: active ? 'var(--accent-gold)' : 'var(--text-primary)',
 				}}
 			>
-				<Icon sx={{ fontSize: 18 }} />
+				<Icon sx={{ fontSize: 18, filter: active ? 'drop-shadow(0 0 4px rgba(var(--accent-gold-rgb), 0.5))' : 'none' }} />
 			</ListItemIcon>
 			<ListItemText
 				primary={item.name}
@@ -317,11 +321,11 @@ function NavItem({ item, isActive, badge, badgeColor, onNavClick }: NavItemProps
 				<Box
 					component="span"
 					sx={{
-						borderRadius: '10px',
+						borderRadius: '999px',
 						px: 0.75,
 						py: 0.125,
 						fontSize: '0.625rem',
-						fontWeight: 700,
+						fontWeight: 800,
 						lineHeight: 1.6,
 						minWidth: '18px',
 						textAlign: 'center',
@@ -353,6 +357,13 @@ type NavSectionProps = {
 
 const ADMIN_SECTION_STORAGE_KEY = 'sidebar_admin_collapsed';
 
+const sectionIcons: Partial<Record<string, typeof Inventory2>> = {
+	Shipments: Inventory2,
+	Finance: AccountBalance,
+	Admin: AdminPanelSettings,
+	Other: MoreHoriz,
+};
+
 function isNavigationItemActive(pathname: string, href: string) {
 	if (href === '/dashboard') {
 		return pathname === '/dashboard';
@@ -370,6 +381,8 @@ function filterNavigationItems(items: NavigationItem[], role?: string) {
 }
 
 function NavSection({ title, items, role, isActive, badgeMap, onNavClick }: NavSectionProps) {
+	const SectionIcon = title ? sectionIcons[title] : undefined;
+
 	return (
 		<Box sx={{ mb: 0.5 }}>
 			{title && (
@@ -382,8 +395,12 @@ function NavSection({ title, items, role, isActive, badgeMap, onNavClick }: NavS
 							color: 'var(--text-secondary)',
 							textTransform: 'uppercase',
 							letterSpacing: 0.5,
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 0.5,
 						}}
 					>
+						{SectionIcon && <SectionIcon sx={{ fontSize: 12 }} />}
 						{title}
 					</Typography>
 				</Box>
@@ -417,6 +434,7 @@ function CollapsibleAdminSection({
 	onToggleCollapsed: () => void;
 }) {
 	const visibleItems = filterNavigationItems(items, role);
+	const SectionIcon = sectionIcons.Admin;
 
 	return (
 		<Box sx={{ mb: 0.5 }}>
@@ -440,8 +458,12 @@ function CollapsibleAdminSection({
 						color: 'var(--text-secondary)',
 						textTransform: 'uppercase',
 						letterSpacing: 0.5,
+						display: 'inline-flex',
+						alignItems: 'center',
+						gap: 0.5,
 					}}
 				>
+					{SectionIcon && <SectionIcon sx={{ fontSize: 12 }} />}
 					Admin
 				</Typography>
 				<IconButton
@@ -567,7 +589,7 @@ function SidebarContent({
 				<CollapsibleAdminSection items={adminNavigation} role={userRole} isActive={isActive} badgeMap={badgeMap} onNavClick={onNavClick} collapsed={adminCollapsed} onToggleCollapsed={onToggleAdminCollapsed} />
 
 				{/* Other */}
-				<NavSection items={otherNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
+				<NavSection title="Other" items={otherNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 			</Box>
 		</Box>

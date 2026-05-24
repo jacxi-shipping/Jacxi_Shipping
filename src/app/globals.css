@@ -216,6 +216,26 @@ body {
 	color: var(--text-primary);
 }
 
+.glass-gold {
+  border: 1px solid rgba(var(--accent-gold-rgb), 0.15);
+  background: rgba(var(--panel-rgb), 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hover-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(var(--text-primary-rgb), 0.12);
+}
+
+.gold-glow-border {
+  box-shadow: 0 0 0 1px rgba(var(--accent-gold-rgb), 0.25), 0 8px 24px rgba(var(--accent-gold-rgb), 0.08);
+}
+
 /* Palette overrides for legacy Tailwind utility classes */
 :where(.text-gray-900, .text-gray-800, .text-gray-700, .text-neutral-900, .text-neutral-800, .text-neutral-700) {
 	color: var(--text-primary) !important;

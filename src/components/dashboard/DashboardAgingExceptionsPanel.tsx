@@ -34,6 +34,18 @@ export default function DashboardAgingExceptionsPanel({
   totalExceptions,
   exceptions,
 }: DashboardAgingExceptionsPanelProps) {
+  const getSeverityColor = (ageDays: number) => {
+    if (ageDays > 14) {
+      return 'var(--error)';
+    }
+
+    if (ageDays > 7) {
+      return 'var(--warning)';
+    }
+
+    return 'var(--text-primary)';
+  };
+
   return (
     <DashboardPanel
       title="Stage Aging Exceptions"
@@ -90,10 +102,18 @@ export default function DashboardAgingExceptionsPanel({
         ) : (
           <div className="space-y-2">
             {exceptions.map((item) => (
+            (() => {
+            const severityColor = getSeverityColor(item.ageDays);
+
+            return (
               <Link
                 key={item.id}
                 href={item.href}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background px-3 py-3 transition-colors hover:bg-background/70"
+            className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background px-3 py-3 hover:bg-background/70"
+            style={{
+              borderLeft: `3px solid ${severityColor}`,
+              transition: 'all 200ms ease',
+            }}
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-primary">{item.title}</p>
@@ -102,9 +122,18 @@ export default function DashboardAgingExceptionsPanel({
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warning)]">{item.severityLabel}</p>
-                  <p className="text-sm font-semibold text-primary">{item.ageDays}d</p>
+              <p className="text-sm font-semibold" style={{ color: severityColor }}>{item.ageDays}d</p>
                 </div>
+            <style jsx>{`
+              a:hover {
+              border-color: rgba(var(--accent-gold-rgb), 0.4);
+              box-shadow: 0 4px 12px rgba(var(--text-primary-rgb), 0.08);
+              transform: translateX(2px);
+              }
+            `}</style>
               </Link>
+            );
+            })()
             ))}
           </div>
         )}

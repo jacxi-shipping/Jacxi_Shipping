@@ -61,7 +61,30 @@ export default function ShipmentsResultsPanel({
 }: ShipmentsResultsPanelProps) {
 	return (
 		<DashboardPanel
-			title="Results"
+			title={
+				<Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+					<span>Results</span>
+					<Box
+						component="span"
+						sx={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							px: 1,
+							py: 0.25,
+							borderRadius: '999px',
+							bgcolor: 'rgba(var(--accent-gold-rgb), 0.12)',
+							color: 'var(--accent-gold)',
+							border: '1px solid rgba(var(--accent-gold-rgb), 0.25)',
+							fontSize: '0.72rem',
+							fontWeight: 700,
+							lineHeight: 1.2,
+						}}
+					>
+						{shipments.length}
+					</Box>
+				</Box>
+			}
 			description={
 				shipments.length
 					? `Showing ${shipments.length} shipment${shipments.length !== 1 ? 's' : ''}`
@@ -154,13 +177,26 @@ export default function ShipmentsResultsPanel({
 								iconPosition="start"
 								onClick={onPreviousPage}
 								disabled={currentPage === 1}
-								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }}
+								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '40px', borderRadius: '999px' }}
 							>
 								Previous
 							</Button>
-							<Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.72rem', md: '0.75rem' }, color: 'var(--text-secondary)' }}>
-								Page {currentPage} of {totalPages}
-							</Typography>
+							<Box
+								sx={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									px: 1.25,
+									py: 0.5,
+									borderRadius: '999px',
+									bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)',
+									border: '1px solid rgba(var(--accent-gold-rgb), 0.2)',
+								}}
+							>
+								<Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.72rem', md: '0.75rem' }, color: 'var(--accent-gold)', fontWeight: 700 }}>
+									Page {currentPage} of {totalPages}
+								</Typography>
+							</Box>
 							<Button
 								variant="outline"
 								size="sm"
@@ -168,7 +204,7 @@ export default function ShipmentsResultsPanel({
 								iconPosition="end"
 								onClick={onNextPage}
 								disabled={currentPage === totalPages}
-								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '44px' }}
+								sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: '40px', borderRadius: '999px' }}
 							>
 								Next
 							</Button>

@@ -13,6 +13,7 @@ interface EmptyStateProps {
 export default function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 	return (
 		<Box
+			className="animate-fade-in-up"
 			sx={{
 				minHeight: 240,
 				display: 'flex',
@@ -26,8 +27,16 @@ export default function EmptyState({ icon, title, description, action }: EmptySt
 		>
 			<Box
 				sx={{
-					color: 'var(--text-secondary)',
-					opacity: 0.4,
+					width: 72,
+					height: 72,
+					borderRadius: '50%',
+					background: 'rgba(var(--accent-gold-rgb), 0.08)',
+					border: '1px solid rgba(var(--accent-gold-rgb), 0.2)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					color: 'var(--accent-gold)',
+					opacity: 0.7,
 					'& svg': {
 						fontSize: { xs: 42, sm: 48, md: 56 },
 					},
@@ -37,8 +46,8 @@ export default function EmptyState({ icon, title, description, action }: EmptySt
 			</Box>
 			<Typography
 				sx={{
-					fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' },
-					fontWeight: 500,
+					fontSize: { xs: '0.98rem', sm: '1rem', md: '1.05rem' },
+					fontWeight: 600,
 					color: 'var(--text-primary)',
 				}}
 			>

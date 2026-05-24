@@ -18,10 +18,15 @@ export function BottomNavigation() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-[var(--panel)] border-t border-[var(--border)] safe-area-inset-bottom"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="fixed bottom-0 left-0 right-0 z-50 lg:hidden safe-area-inset-bottom"
+      style={{
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        backdropFilter: 'blur(16px)',
+        background: 'rgba(var(--panel-rgb), 0.92)',
+        borderTop: '1px solid rgba(var(--accent-gold-rgb), 0.2)',
+      }}
     >
-      <div className="flex items-center justify-around h-16">
+      <div className="flex items-center justify-around h-[68px] px-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           const Icon = item.icon;
@@ -31,19 +36,44 @@ export function BottomNavigation() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors',
+                'relative flex flex-1 items-center justify-center h-full min-w-0 px-2 transition-all duration-200',
                 'min-w-0 px-2',
                 isActive
                   ? 'text-[var(--accent-gold)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               )}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="text-xs font-medium truncate w-full text-center">
-                {item.label}
-              </span>
               {isActive && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[var(--accent-gold)] rounded-full" />
+                <div
+                  className="absolute left-1/2 top-2 h-1 w-1 -translate-x-1/2 rounded-full"
+                  style={{
+                    background: 'var(--accent-gold)',
+                    boxShadow: '0 0 6px rgba(var(--accent-gold-rgb), 0.6)',
+                  }}
+                />
+              )}
+              <div
+                className={cn(
+                  'flex flex-col items-center justify-center gap-1',
+                  isActive && 'px-3 py-1'
+                )}
+                style={
+                  isActive
+                    ? {
+                      background: 'rgba(var(--accent-gold-rgb), 0.12)',
+                      borderRadius: '12px',
+                      padding: '4px 12px',
+                    }
+                    : undefined
+                }
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                <span className="w-full truncate text-center text-xs font-medium">
+                  {item.label}
+                </span>
+              </div>
+              {isActive && (
+                <div className="sr-only">Current section</div>
               )}
             </Link>
           );
