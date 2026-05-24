@@ -3,7 +3,6 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { usePlaidLink } from 'react-plaid-link';
 import {
   Box,
   Dialog,
@@ -66,7 +65,7 @@ interface FilteredBankSummary {
   netChange: number;
 }
 
-interface PlaidAccountSummary {
+interface BankAccountSummary {
   accountId: string;
   name: string;
   mask?: string | null;
@@ -74,13 +73,13 @@ interface PlaidAccountSummary {
   type: string;
 }
 
-interface PlaidItemSummary {
+interface BankItemSummary {
   id: string;
   itemId: string;
   institutionId?: string | null;
   institutionName?: string | null;
   lastSyncAt?: string | null;
-  selectedAccounts?: PlaidAccountSummary[] | null;
+  selectedAccounts?: BankAccountSummary[] | null;
   createdAt: string;
 }
 
@@ -95,12 +94,11 @@ export default function BankingFinancePage() {
   const { data: session, status } = useSession();
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [summary, setSummary] = useState<FilteredBankSummary>(emptySummary);
-  const [plaidItems, setPlaidItems] = useState<PlaidItemSummary[]>([]);
-  const [plaidConfigured, setPlaidConfigured] = useState(true);
-  const [loadingPlaid, setLoadingPlaid] = useState(true);
-  const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [preparingPlaid, setPreparingPlaid] = useState(false);
-  const [syncingPlaid, setSyncingPlaid] = useState(false);
+  const [bankItems, setBankItems] = useState<BankItemSummary[]>([]);
+  const [bankProviderConfigured, setBankProviderConfigured] = useState(true);
+  const [loadingBankItems, setLoadingBankItems] = useState(true);
+  const [preparingBankConnection, setPreparingBankConnection] = useState(false);
+  const [syncingBankItems, setSyncingBankItems] = useState(false);
   const [loading, setLoading] = useState(true);
   const [openImportDialog, setOpenImportDialog] = useState(false);
   const [previewingImport, setPreviewingImport] = useState(false);
@@ -124,15 +122,15 @@ export default function BankingFinancePage() {
     });
   };
 
-  const fetchPlaidItems = async () => {
+  const fetchBankItems = async () => {
     try {
-      setLoadingPlaid(true);
-      const response = await fetch('/api/plaid/items');
+      setLoadingBankItems(true);
+      const response = await fetch('/api/finicity/items');
       const data = await response.json();
 
       if (response.status === 503) {
-        setPlaidConfigured(false);
-        setPlaidItems([]);
+        setBankProviderConfigured(false);
+        setBankItems([]);
         return;
       }
 
@@ -140,13 +138,13 @@ export default function BankingFinancePage() {
         throw new Error(data.error || 'Failed to load connected bank accounts');
       }
 
-      setPlaidConfigured(true);
-      setPlaidItems(data.items || []);
+      setBankProviderConfigured(true);
+      setBankItems(data.items || []);
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : 'Failed to load connected bank accounts');
     } finally {
-      setLoadingPlaid(false);
+      setLoadingBankItems(false);
     }
   };
 
@@ -155,7 +153,7 @@ export default function BankingFinancePage() {
       setLoading(true);
       const [ledgerResponse] = await Promise.all([
         fetch('/api/ledger?source=BANK_IMPORT&page=1&limit=500'),
-        fetchPlaidItems(),
+        fetchBankItems(),
       ]);
       const data = await ledgerResponse.json();
 
@@ -183,79 +181,36 @@ export default function BankingFinancePage() {
     void fetchBankingData();
   }, [status]);
 
-  const handlePlaidSuccess = async (publicToken: string, metadata: { institution: { institution_id: string | null; name: string | null } | null; accounts: Array<{ id: string; name: string; mask: string | null; subtype: string | null; type: string }> }) => {
+  const handlePrepareBankConnection = async () => {
     try {
-      setPreparingPlaid(true);
-      const response = await fetch('/api/plaid/exchange-public-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          publicToken,
-          institution: metadata.institution,
-          accounts: metadata.accounts,
-        }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to link bank account');
-      }
-
-      toast.success('Bank account linked', {
-        description: data.sync?.importedCount > 0
-          ? `${data.sync.importedCount} transaction${data.sync.importedCount === 1 ? '' : 's'} imported from ${data.institutionName || 'Plaid'}`
-          : undefined,
-      });
-      setLinkToken(null);
-      await fetchBankingData();
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to link bank account');
-    } finally {
-      setPreparingPlaid(false);
-    }
-  };
-
-  const { open: openPlaidLink, ready: plaidReady } = usePlaidLink({
-    token: linkToken,
-    onSuccess: handlePlaidSuccess,
-    onExit: () => {
-      setLinkToken(null);
-      setPreparingPlaid(false);
-    },
-  });
-
-  useEffect(() => {
-    if (linkToken && plaidReady) {
-      openPlaidLink();
-    }
-  }, [linkToken, plaidReady, openPlaidLink]);
-
-  const handlePreparePlaid = async () => {
-    try {
-      setPreparingPlaid(true);
-      const response = await fetch('/api/plaid/link-token', { method: 'POST' });
+      setPreparingBankConnection(true);
+      const response = await fetch('/api/finicity/connect-url', { method: 'POST' });
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to initialize bank connection');
       }
 
-      setLinkToken(data.linkToken);
+      if (!data.connectUrl || typeof data.connectUrl !== 'string') {
+        throw new Error('Finicity did not return a connect URL');
+      }
+
+      window.location.assign(data.connectUrl);
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : 'Failed to initialize bank connection');
-      setPreparingPlaid(false);
+    } finally {
+      setPreparingBankConnection(false);
     }
   };
 
-  const handleSyncPlaid = async () => {
+  const handleSyncBankItems = async () => {
     try {
-      setSyncingPlaid(true);
-      const response = await fetch('/api/plaid/sync', {
+      setSyncingBankItems(true);
+      const response = await fetch('/api/finicity/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ refresh: true }),
       });
       const data = await response.json();
 
@@ -272,7 +227,7 @@ export default function BankingFinancePage() {
       console.error(error);
       toast.error(error instanceof Error ? error.message : 'Failed to sync connected bank accounts');
     } finally {
-      setSyncingPlaid(false);
+      setSyncingBankItems(false);
     }
   };
 
@@ -477,18 +432,18 @@ export default function BankingFinancePage() {
               <Button
                 variant="outline"
                 icon={<Link2 className="w-4 h-4" />}
-                onClick={handlePreparePlaid}
-                disabled={!plaidConfigured || preparingPlaid || syncingPlaid}
+                onClick={handlePrepareBankConnection}
+                disabled={!bankProviderConfigured || preparingBankConnection || syncingBankItems}
               >
-                {preparingPlaid ? 'Opening Plaid...' : 'Connect Bank'}
+                {preparingBankConnection ? 'Opening Finicity...' : 'Connect Bank'}
               </Button>
               <Button
                 variant="outline"
                 icon={<RefreshCcw className="w-4 h-4" />}
-                onClick={handleSyncPlaid}
-                disabled={!plaidConfigured || syncingPlaid || plaidItems.length === 0}
+                onClick={handleSyncBankItems}
+                disabled={!bankProviderConfigured || syncingBankItems || bankItems.length === 0}
               >
-                {syncingPlaid ? 'Syncing...' : 'Sync Now'}
+                {syncingBankItems ? 'Syncing...' : 'Sync Now'}
               </Button>
               <Button variant="primary" icon={<Upload className="w-4 h-4" />} onClick={() => setOpenImportDialog(true)}>
                 Import Bank CSV
@@ -497,7 +452,7 @@ export default function BankingFinancePage() {
           }
         >
           <Box sx={{ mb: 2, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Bank imports now post into <strong>{session?.user?.name || session?.user?.email || 'your account'}</strong> instead of a company ledger. Use Plaid to auto-sync a Bank of America account or keep using CSV uploads when needed.
+            Bank imports now post into <strong>{session?.user?.name || session?.user?.email || 'your account'}</strong> instead of a company ledger. Use Finicity to auto-sync a Bank of America account or keep using CSV uploads when needed.
           </Box>
 
           <Box
@@ -506,29 +461,29 @@ export default function BankingFinancePage() {
               p: 1.5,
               borderRadius: 2,
               border: '1px solid var(--border)',
-              background: plaidConfigured ? 'rgba(16, 185, 129, 0.06)' : 'rgba(234, 179, 8, 0.08)',
+              background: bankProviderConfigured ? 'rgba(16, 185, 129, 0.06)' : 'rgba(234, 179, 8, 0.08)',
               color: 'var(--text-secondary)',
               fontSize: '0.82rem',
             }}
           >
-            {plaidConfigured
-              ? `Connected bank accounts: ${loadingPlaid ? 'Loading...' : plaidItems.length}. Background auto-sync is available through the protected cron endpoint once Plaid credentials and CRON_SECRET are configured in deployment.`
-              : 'Plaid is not configured yet. Add PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV, and PLAID_ENCRYPTION_KEY to enable automatic Bank of America sync.'}
+            {bankProviderConfigured
+              ? `Connected bank accounts: ${loadingBankItems ? 'Loading...' : bankItems.length}. Background auto-sync is available through the protected cron endpoint once Finicity credentials and CRON_SECRET are configured in deployment.`
+              : 'Finicity is not configured yet. Add FINICITY_PARTNER_ID, FINICITY_PARTNER_SECRET, FINICITY_APP_KEY, and FINICITY_ENCRYPTION_KEY to enable automatic Bank of America sync.'}
           </Box>
 
           <DashboardPanel
             title="Connected Accounts"
             description="Linked bank accounts that can auto-sync into this ledger"
           >
-            {loadingPlaid ? (
+            {loadingBankItems ? (
               <Box sx={{ py: 2, color: 'var(--text-secondary)' }}>Loading connected accounts...</Box>
-            ) : plaidItems.length === 0 ? (
+            ) : bankItems.length === 0 ? (
               <Box sx={{ py: 2, color: 'var(--text-secondary)' }}>
-                No connected bank account yet. Use <strong>Connect Bank</strong> to link Bank of America through Plaid.
+                No connected bank account yet. Use <strong>Connect Bank</strong> to link Bank of America through Finicity.
               </Box>
             ) : (
               <Box sx={{ display: 'grid', gap: 1.5, mb: 2 }}>
-                {plaidItems.map((item) => (
+                {bankItems.map((item) => (
                   <Box
                     key={item.id}
                     sx={{

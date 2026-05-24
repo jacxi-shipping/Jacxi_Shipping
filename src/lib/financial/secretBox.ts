@@ -5,10 +5,13 @@ const IV_BYTE_LENGTH = 12;
 const TAG_BYTE_LENGTH = 16;
 
 function getEncryptionKey() {
-  const secret = process.env.PLAID_ENCRYPTION_KEY?.trim();
+  const secret =
+    process.env.BANK_PROVIDER_ENCRYPTION_KEY?.trim() ||
+    process.env.FINICITY_ENCRYPTION_KEY?.trim() ||
+    process.env.PLAID_ENCRYPTION_KEY?.trim();
 
   if (!secret) {
-    throw new Error('PLAID_ENCRYPTION_KEY is not configured');
+    throw new Error('BANK_PROVIDER_ENCRYPTION_KEY, FINICITY_ENCRYPTION_KEY, or PLAID_ENCRYPTION_KEY must be configured');
   }
 
   return createHash('sha256').update(secret).digest();

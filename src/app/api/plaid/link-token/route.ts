@@ -3,6 +3,17 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getPlaidClient, getPlaidWebhookUrl, isPlaidConfigured, PLAID_COUNTRY_CODES, PLAID_PRODUCTS } from '@/lib/financial/plaid';
 
+type PlaidApiError = {
+  response?: {
+    data?: {
+      error_code?: string;
+      error_message?: string;
+      error_type?: string;
+      request_id?: string;
+    };
+  };
+};
+
 export async function POST() {
   const session = await auth();
 
@@ -41,6 +52,17 @@ export async function POST() {
     });
   } catch (error) {
     console.error('Error creating Plaid link token:', error);
-    return NextResponse.json({ error: 'Failed to initialize Plaid Link' }, { status: 500 });
+
+    const plaidError = (error as PlaidApiError).response?.data;
+
+    return NextResponse.json(
+      {
+        error: plaidError?.error_message || 'Failed to initialize Plaid Link',
+        code: plaidError?.error_code || null,
+        type: plaidError?.error_type || null,
+        requestId: plaidError?.request_id || null,
+      },
+      { status: 500 }
+    );
   }
 }

@@ -1,4 +1,4 @@
-const BANK_IMPORT_SOURCES = ['BANK_OF_AMERICA_CSV', 'PLAID_TRANSACTIONS'] as const;
+const BANK_IMPORT_SOURCES = ['BANK_OF_AMERICA_CSV', 'PLAID_TRANSACTIONS', 'FINICITY_TRANSACTIONS'] as const;
 
 export type BankImportSource = (typeof BANK_IMPORT_SOURCES)[number];
 
@@ -20,5 +20,6 @@ export function isRemovedBankImportMetadata(metadata: unknown) {
     return false;
   }
 
-  return typeof (metadata as Record<string, unknown>).plaidRemovedAt === 'string';
+  const data = metadata as Record<string, unknown>;
+  return typeof data.plaidRemovedAt === 'string' || typeof data.bankSyncRemovedAt === 'string';
 }

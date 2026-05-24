@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateCronRequest } from '@/lib/cron-auth';
-import { isPlaidConfigured } from '@/lib/financial/plaid';
-import { syncAllPlaidItems } from '@/lib/financial/plaidSync';
+import { isFinicityConfigured } from '@/lib/financial/finicity';
+import { syncAllFinicityItems } from '@/lib/financial/finicitySync';
 
 export async function POST(request: NextRequest) {
   if (!validateCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (!isPlaidConfigured()) {
-    return NextResponse.json({ error: 'Plaid is not configured' }, { status: 503 });
+  if (!isFinicityConfigured()) {
+    return NextResponse.json({ error: 'Finicity is not configured' }, { status: 503 });
   }
 
   try {
-    const results = await syncAllPlaidItems();
+    const results = await syncAllFinicityItems();
     return NextResponse.json({ syncedItems: results.length, results });
   } catch (error) {
-    console.error('Error syncing Plaid items from cron:', error);
+    console.error('Error syncing Finicity items from cron:', error);
     return NextResponse.json({ error: 'Failed to sync bank transactions' }, { status: 500 });
   }
 }
