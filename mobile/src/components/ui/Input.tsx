@@ -1,0 +1,131 @@
+import React, { useState } from 'react';
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  TextInputProps,
+  TouchableOpacity,
+  useColorScheme,
+} from 'react-native';
+import { Colors } from '../../constants/colors';
+import { Typography } from '../../constants/typography';
+import { Spacing, BorderRadius } from '../../constants/spacing';
+import Animated, {
+  useAnimatedStyle,
+  withTiming,
+  interpolateColor,
+} from 'react-native-reanimated';
+
+interface InputProps extends TextInputProps {
+  label?: string;
+  error?: string;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  containerStyle?: any;
+}
+
+export const Input: React.FC<InputProps> = ({
+  label,
+  error,
+  leftIcon,
+  rightIcon,
+  containerStyle,
+  secureTextEntry,
+  ...props
+}) => {
+  const colorScheme = useColorScheme();
+  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const [isFocused, setIsFocused] = useState(false);
+  const [isSecure, setIsSecure] = useState(secureTextEntry);
+
+  const borderColor = error
+    ? colors.error
+    : isFocused
+    ? colors.accent
+    : colors.border;
+
+  return (
+    <View style={[styles.container, containerStyle]}>
+      {label && <Text style={[styles.label, { color: colors.textPrimary }]}>{label}</Text>}
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            backgroundColor: colors.panel,
+            borderColor,
+            borderWidth: 1.5,
+          },
+        ]}
+      >
+        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        <TextInput
+          {...props}
+          secureTextEntry={isSecure}
+          onFocus={(e) => {
+            setIsFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            props.onBlur?.(e);
+          }}
+          style={[
+            styles.input,
+            {
+              color: colors.textPrimary,
+              flex: 1,
+            },
+          ]}
+          placeholderTextColor={colors.textTertiary}
+        />
+        {secureTextEntry && (
+          <TouchableOpacity
+            onPress={() => setIsSecure(!isSecure)}
+            style={styles.rightIcon}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+              {isSecure ? 'SHOW' : 'HIDE'}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {rightIcon && !secureTextEntry && (
+          <View style={styles.rightIcon}>{rightIcon}</View>
+        )}
+      </View>
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: Spacing.base,
+  },
+  label: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    marginBottom: Spacing.sm,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.base,
+    paddingHorizontal: Spacing.md,
+    height: 48,
+  },
+  input: {
+    fontSize: Typography.fontSize.base,
+    fontFamily: Typography.fontFamily.regular,
+  },
+  leftIcon: {
+    marginRight: Spacing.sm,
+  },
+  rightIcon: {
+    marginLeft: Spacing.sm,
+  },
+  error: {
+    fontSize: Typography.fontSize.xs,
+    marginTop: Spacing.xs,
+  },
+});
