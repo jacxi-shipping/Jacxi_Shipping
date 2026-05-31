@@ -346,6 +346,19 @@ export interface BankingLedgerEntry {
   metadata?: Record<string, unknown> | null;
   reference?: string | null;
   category?: string | null;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  shipment?: {
+    id: string;
+    vehicleVIN: string | null;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    price?: number | null;
+    paymentStatus?: string | null;
+  } | null;
 }
 
 export interface FilteredBankSummary {
@@ -384,6 +397,84 @@ export interface BankingLedgerResponse {
   filteredSummary: FilteredBankSummary;
 }
 
+export interface BankImportPreviewRow {
+  transactionDate: string;
+  description: string;
+  type: 'DEBIT' | 'CREDIT';
+  amount: number;
+  reference: string | null;
+  notes: string | null;
+  isDuplicate: boolean;
+  duplicateReason: 'ALREADY_IMPORTED' | 'DUPLICATE_IN_FILE' | null;
+}
+
+export interface BankImportPreview {
+  totalCount: number;
+  duplicateCount: number;
+  importableCount: number;
+  importableNetChange: number;
+  currentBalance: number;
+  projectedEndingBalance: number;
+  statementEndingBalance: number | null;
+  reconciliationDifference: number | null;
+  reconciliationStatus: 'NOT_PROVIDED' | 'MATCH' | 'VARIANCE';
+  rows: BankImportPreviewRow[];
+}
+
+export interface BankImportPreviewResponse {
+  preview: BankImportPreview;
+  category: string;
+  sourceLabel: string;
+}
+
+export interface BankImportResult {
+  importedCount: number;
+  skippedCount: number;
+  totalCount: number;
+  category: string;
+  sourceLabel: string;
+  currentBalance: number;
+  projectedEndingBalance: number;
+  statementEndingBalance: number | null;
+  reconciliationDifference: number | null;
+  reconciliationStatus: 'NOT_PROVIDED' | 'MATCH' | 'VARIANCE';
+}
+
+export type DueAgingBucketKey = 'current' | 'aging30' | 'aging60' | 'aging90';
+
+export interface DueAgingShipmentDetail {
+  id: string;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  amountDue: number;
+  createdAt: string;
+  ageInDays: number;
+  price: number | null;
+}
+
+export interface DueAgingBucketSummary {
+  count: number;
+  total: number;
+  percentage: number;
+  label: string;
+}
+
+export interface DueAgingReportData {
+  reportType: 'due-aging';
+  generatedAt: string;
+  summary: {
+    totalShipments: number;
+    totalAmountDue: number;
+    buckets: Record<DueAgingBucketKey, DueAgingBucketSummary>;
+  };
+  details: Record<DueAgingBucketKey, DueAgingShipmentDetail[]>;
+}
+
 export type FinancialReportType = 'summary' | 'user-wise' | 'shipment-wise';
 
 export interface FinancialUserBalance {
@@ -404,6 +495,54 @@ export interface FinancialUserReport {
     paid: number;
     due: number;
   };
+  recentLedgerEntries: Array<{
+    id: string;
+    description: string;
+    type: 'DEBIT' | 'CREDIT';
+    amount: number;
+    balance: number;
+    transactionDate: string;
+    notes?: string | null;
+  }>;
+  recentShipments: Array<{
+    id: string;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    price: number | null;
+    paymentStatus: string;
+    paymentMode?: string | null;
+    createdAt: string;
+  }>;
+}
+
+export interface FinancialLinkedCompanyLedgerEntry {
+  id: string;
+  companyId: string;
+  description: string;
+  notes?: string | null;
+  company?: {
+    id: string;
+    name: string;
+    code: string | null;
+  } | null;
+}
+
+export interface FinancialShipmentExpense {
+  id: string;
+  description: string;
+  amount: number;
+  type: string;
+  date: string;
+  linkedCompanyLedgerEntry?: FinancialLinkedCompanyLedgerEntry | null;
+}
+
+export interface FinancialShipmentLedgerEntry {
+  id: string;
+  description: string;
+  type: 'DEBIT' | 'CREDIT';
+  amount: number;
+  balance: number;
+  transactionDate: string;
 }
 
 export interface FinancialShipmentReport {
@@ -411,6 +550,7 @@ export interface FinancialShipmentReport {
   vehicle: string;
   price: number | null;
   paymentStatus: string;
+  paymentMode?: string | null;
   totalCharged: number;
   totalPaid: number;
   amountDue: number;
@@ -423,6 +563,8 @@ export interface FinancialShipmentReport {
     name: string;
   };
   createdAt?: string;
+  expenses?: FinancialShipmentExpense[];
+  ledgerEntries?: FinancialShipmentLedgerEntry[];
 }
 
 export interface FinancialReportData {

@@ -79,10 +79,17 @@ const DashboardScreen: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('Shipments' as any)}
+            onPress={() => navigation.navigate('Containers')}
           >
-            <Text style={styles.actionIcon}>📋</Text>
-            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>All</Text>
+            <Text style={styles.actionIcon}>🚢</Text>
+            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Containers</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('Documents')}
+          >
+            <Text style={styles.actionIcon}>📄</Text>
+            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Documents</Text>
           </TouchableOpacity>
         </View>
 
@@ -154,16 +161,16 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
     marginBottom: Spacing.xl,
   },
   actionButton: {
-    flex: 1,
+    width: '48%',
     alignItems: 'center',
     padding: Spacing.base,
     borderRadius: 12,
     borderWidth: 1,
-    marginHorizontal: Spacing.xs,
   },
   actionIcon: {
     fontSize: 32,

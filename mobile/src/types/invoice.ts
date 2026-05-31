@@ -33,18 +33,24 @@ export interface Invoice {
 }
 
 export interface InvoiceFilters {
-  status?: InvoiceStatus[];
+  status?: InvoiceStatus;
   customerId?: string;
+  shipmentId?: string;
+  containerId?: string;
   dateFrom?: string;
   dateTo?: string;
   search?: string;
 }
 
 export interface InvoiceListResponse {
-  data: Invoice[];
-  total: number;
-  page: number;
-  pageSize: number;
+  invoices: Invoice[];
+  pagination: {
+    total: number;
+    totalAll: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
 }
 
 export interface Payment {

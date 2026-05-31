@@ -6,6 +6,7 @@ import { useShipment } from '../../hooks/useShipments';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { Card } from '../../components/ui/Card';
+import { ShipmentDocumentsCard } from '../../components/shared/ShipmentDocumentsCard';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { TrackingTimeline } from '../../components/customer/TrackingTimeline';
 import { Divider } from '../../components/ui/Divider';
@@ -78,6 +79,8 @@ const ShipmentDetailScreen: React.FC = () => {
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Tracking History</Text>
           <TrackingTimeline tracking={shipment.tracking} currentStatus={shipment.status} />
         </Card>
+
+        <ShipmentDocumentsCard shipmentId={shipment.id} />
       </ScrollView>
     </SafeAreaView>
   );

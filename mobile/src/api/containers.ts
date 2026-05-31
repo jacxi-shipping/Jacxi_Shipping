@@ -1,5 +1,5 @@
 import client from './client';
-import { Container, ContainerFilters, ContainerListResponse } from '../types/container';
+import { Container, ContainerDetail, ContainerFilters, ContainerListResponse } from '../types/container';
 import { PaginationParams } from '../types/api';
 
 export const containersApi = {
@@ -10,15 +10,16 @@ export const containersApi = {
     const response = await client.get<ContainerListResponse>('/api/containers', {
       params: {
         ...filters,
-        ...pagination,
+        page: pagination?.page,
+        limit: pagination?.pageSize,
       },
     });
     return response.data;
   },
 
-  async getContainer(id: string): Promise<Container> {
-    const response = await client.get<Container>(`/api/containers/${id}`);
-    return response.data;
+  async getContainer(id: string): Promise<ContainerDetail> {
+    const response = await client.get<{ container: ContainerDetail }>(`/api/containers/${id}`);
+    return response.data.container;
   },
 
   async createContainer(data: Partial<Container>): Promise<Container> {

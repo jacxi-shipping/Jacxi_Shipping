@@ -1,47 +1,255 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ModuleLanding } from '../../components/shared/ModuleLanding';
+import { useQuery } from '@tanstack/react-query';
+import { invoicesApi } from '../../api/invoices';
+import { API_URL } from '../../api/client';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { ErrorState } from '../../components/shared/ErrorState';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
+import { StatusBadge } from '../../components/shared/StatusBadge';
+import { Colors } from '../../constants/colors';
+import { BorderRadius, Spacing } from '../../constants/spacing';
+import { Typography } from '../../constants/typography';
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+
+const quickActions = [
+  { title: 'Invoices', description: 'Review all invoices and billing status.', icon: 'IV', screen: 'Invoices' },
+  { title: 'Banking', description: 'Open connected bank workflows and reconciliation.', icon: 'BK', screen: 'Banking' },
+  { title: 'Company Ledgers', description: 'Inspect company-level balances and charges.', icon: 'CL', screen: 'CompanyLedgers' },
+  { title: 'Reports', description: 'Jump into financial reporting and aging.', icon: 'RP', screen: 'FinanceReports' },
+] as const;
 
 const FinanceScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const colorScheme = useColorScheme();
+  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const [updatingInvoiceId, setUpdatingInvoiceId] = useState<string | null>(null);
+
+  const invoicesQuery = useQuery({
+    queryKey: ['finance-workspace-invoices'],
+    queryFn: () => invoicesApi.getInvoices({}, { pageSize: 50 }),
+  });
+
+  const invoices = invoicesQuery.data?.invoices || [];
+  const actionQueue = useMemo(
+    () => invoices.filter((invoice) => invoice.status === 'OVERDUE' || invoice.status === 'PENDING' || invoice.status === 'SENT').slice(0, 8),
+    [invoices],
+  );
+  const summary = useMemo(
+    () => ({
+      visible: invoices.length,
+      overdue: invoices.filter((invoice) => invoice.status === 'OVERDUE').length,
+      dueAmount: invoices.reduce((sum, invoice) => sum + invoice.amountDue, 0),
+      paidAmount: invoices.reduce((sum, invoice) => sum + invoice.amountPaid, 0),
+    }),
+    [invoices],
+  );
+
+  const handleMarkPaid = async (invoiceId: string) => {
+    try {
+      setUpdatingInvoiceId(invoiceId);
+      await invoicesApi.markAsPaid(invoiceId, { method: 'mobile-admin' });
+      await invoicesQuery.refetch();
+      Alert.alert('Invoice updated', 'The invoice was marked as paid.');
+    } catch (error: any) {
+      Alert.alert('Unable to update invoice', error?.message || 'The invoice could not be marked as paid.');
+    } finally {
+      setUpdatingInvoiceId(null);
+    }
+  };
+
+  if (invoicesQuery.isLoading) return <LoadingSpinner fullScreen />;
+  if (invoicesQuery.error) return <ErrorState message={(invoicesQuery.error as any).message} onRetry={invoicesQuery.refetch} />;
 
   return (
-    <ModuleLanding
-      eyebrow="FINANCE"
-      title="Finance"
-      subtitle="A mobile finance workspace that mirrors the web dashboard structure and branches into billing, banking, and ledger work."
-      heroIcon="$$"
-      heroTitle="Finance workspace"
-      heroDescription="This replaces the old placeholder with a real finance entry surface for admins, matching the higher-level module organization used on the web app."
-      actions={[
-        {
-          title: 'Invoices',
-          description: 'Manage invoice status, payment follow-up, and billing workflow.',
-          icon: 'IV',
-          onPress: () => navigation.navigate('Invoices'),
-        },
-        {
-          title: 'Banking',
-          description: 'Open bank connectivity and finance operations related to account syncing.',
-          icon: 'BK',
-          onPress: () => navigation.navigate('Banking'),
-        },
-        {
-          title: 'Company Ledgers',
-          description: 'Access company-level balances and ledger-oriented finance workflow.',
-          icon: 'CL',
-          onPress: () => navigation.navigate('CompanyLedgers'),
-        },
-        {
-          title: 'Reports',
-          description: 'Review summary, user-wise, and shipment-wise financial reports.',
-          icon: 'RP',
-          onPress: () => navigation.navigate('FinanceReports'),
-        },
-      ]}
-      footerDescription="This screen now branches into live finance submodules for banking, company ledgers, invoices, and reporting instead of ending at a shell."
-    />
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}>
+      <ModuleSummaryHeader
+        eyebrow="FINANCE"
+        title="Finance"
+        subtitle="A live finance workspace with payment queue, overdue invoice actions, and direct paths into banking, ledgers, and reporting."
+        stats={[
+          { label: 'Visible Invoices', value: String(summary.visible) },
+          { label: 'Overdue', value: String(summary.overdue) },
+          { label: 'Amount Due', value: formatCurrency(summary.dueAmount) },
+          { label: 'Paid', value: formatCurrency(summary.paidAmount) },
+        ]}
+      />
+
+      <Card style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Quick Actions</Text>
+        <View style={styles.actionGrid}>
+          {quickActions.map((action) => (
+            <TouchableOpacity
+              key={action.title}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate(action.screen)}
+              style={StyleSheet.flatten([styles.actionTile, { backgroundColor: colors.panel, borderColor: colors.border }])}
+            >
+              <View style={StyleSheet.flatten([styles.actionBadge, { backgroundColor: `${colors.accent}14`, borderColor: `${colors.accent}30` }])}>
+                <Text style={styles.actionBadgeText}>{action.icon}</Text>
+              </View>
+              <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>{action.title}</Text>
+              <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>{action.description}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Card>
+
+      <Card style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Payment Queue</Text>
+        <Text style={[styles.sectionText, { color: colors.textSecondary }]}>Mark overdue or pending invoices as paid and open invoice PDFs directly from the finance workspace.</Text>
+
+        {actionQueue.length === 0 ? (
+          <Text style={[styles.sectionText, { color: colors.textSecondary }]}>No overdue or pending invoices need action right now.</Text>
+        ) : (
+          actionQueue.map((invoice, index) => (
+            <View
+              key={invoice.id}
+              style={StyleSheet.flatten([
+                styles.queueRow,
+                index === actionQueue.length - 1 ? styles.queueRowLast : null,
+                { borderBottomColor: colors.border },
+              ])}
+            >
+              <View style={styles.queueRowTop}>
+                <View style={styles.queueTextWrap}>
+                  <Text style={[styles.queueTitle, { color: colors.textPrimary }]}>{invoice.invoiceNumber}</Text>
+                  <Text style={[styles.queueMeta, { color: colors.textSecondary }]}>
+                    {invoice.customerName || invoice.customerEmail || 'Unknown customer'}
+                    {invoice.shipmentId ? ` • Shipment ${invoice.shipmentId.slice(0, 8)}` : ''}
+                  </Text>
+                </View>
+                <StatusBadge status={invoice.status} type="invoice" />
+              </View>
+
+              <Text style={[styles.queueAmounts, { color: colors.textPrimary }]}>Due {formatCurrency(invoice.amountDue)} • Total {formatCurrency(invoice.total)}</Text>
+
+              <View style={styles.queueActions}>
+                <Button
+                  title="Mark Paid"
+                  onPress={() => void handleMarkPaid(invoice.id)}
+                  loading={updatingInvoiceId === invoice.id}
+                  disabled={invoice.status === 'PAID' || invoice.status === 'CANCELLED'}
+                  style={styles.queueActionButton}
+                />
+                <Button
+                  title="Open PDF"
+                  variant="secondary"
+                  onPress={() => void Linking.openURL(`${API_URL}/api/invoices/${invoice.id}/pdf`)}
+                  style={styles.queueActionButton}
+                />
+              </View>
+            </View>
+          ))
+        )}
+      </Card>
+
+      <Card style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Reporting</Text>
+        <Text style={[styles.sectionText, { color: colors.textSecondary }]}>Jump into aging and financial reports when invoice triage is done.</Text>
+        <View style={styles.queueActions}>
+          <Button title="Reports" variant="secondary" onPress={() => navigation.navigate('FinanceReports')} style={styles.queueActionButton} />
+          <Button title="Aging" variant="ghost" onPress={() => navigation.navigate('AgingReport')} style={styles.queueActionButton} />
+        </View>
+      </Card>
+    </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  content: {
+    padding: Spacing.base,
+    paddingBottom: Spacing['4xl'],
+  },
+  sectionCard: {
+    marginBottom: Spacing.base,
+  },
+  sectionTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.sm,
+  },
+  sectionText: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
+    marginBottom: Spacing.base,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  actionTile: {
+    width: '48%',
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.base,
+  },
+  actionBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginBottom: Spacing.sm,
+  },
+  actionBadgeText: {
+    fontSize: 16,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  actionTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.xs,
+  },
+  actionDescription: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
+  },
+  queueRow: {
+    borderBottomWidth: 1,
+    paddingVertical: Spacing.sm,
+  },
+  queueRowLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  queueRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  queueTextWrap: {
+    flex: 1,
+  },
+  queueTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.xs,
+  },
+  queueMeta: {
+    fontSize: Typography.fontSize.xs,
+    lineHeight: 18,
+  },
+  queueAmounts: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.sm,
+  },
+  queueActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  queueActionButton: {
+    flex: 1,
+  },
+});
 
 export default FinanceScreen;

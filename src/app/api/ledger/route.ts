@@ -27,6 +27,15 @@ function isExpenseEntry(metadata: unknown): boolean {
   return (metadata as Record<string, unknown>).isExpense === true;
 }
 
+function getMetadataString(metadata: unknown, key: string): string | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : null;
+}
+
 function isShipmentPurchasePriceEntry(metadata: unknown): boolean {
   if (!metadata || typeof metadata !== 'object') return false;
   return (metadata as Record<string, unknown>).isShipmentPurchasePrice === true;
@@ -60,6 +69,8 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const type = searchParams.get('type');
     const source = searchParams.get('source');
+    const finicityCustomerId = searchParams.get('finicityCustomerId');
+    const finicityAccountId = searchParams.get('finicityAccountId');
     const transactionInfoType = searchParams.get('transactionInfoType');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -189,6 +200,14 @@ export async function GET(request: NextRequest) {
       if (source === 'BANK_IMPORT' && !isBankImport) return false;
       if (source === 'MANUAL' && isBankImport) return false;
 
+      if (finicityCustomerId && getMetadataString(entry.metadata, 'finicityCustomerId') !== finicityCustomerId) {
+        return false;
+      }
+
+      if (finicityAccountId && getMetadataString(entry.metadata, 'finicityAccountId') !== finicityAccountId) {
+        return false;
+      }
+
       return true;
     });
 
@@ -201,6 +220,14 @@ export async function GET(request: NextRequest) {
       const isBankImport = isBankImportMetadata(entry.metadata);
       if (source === 'BANK_IMPORT' && !isBankImport) return false;
       if (source === 'MANUAL' && isBankImport) return false;
+
+      if (finicityCustomerId && getMetadataString(entry.metadata, 'finicityCustomerId') !== finicityCustomerId) {
+        return false;
+      }
+
+      if (finicityAccountId && getMetadataString(entry.metadata, 'finicityAccountId') !== finicityAccountId) {
+        return false;
+      }
 
       return true;
     });

@@ -9,6 +9,9 @@ import TrackingScreen from '../screens/customer/TrackingScreen';
 import InvoicesScreen from '../screens/customer/InvoicesScreen';
 import NotificationsScreen from '../screens/customer/NotificationsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
+import DocumentsScreen from '../screens/admin/DocumentsScreen';
+import ContainersScreen from '../screens/admin/ContainersScreen';
+import ContainerDetailScreen from '../screens/admin/ContainerDetailScreen';
 
 export type CustomerTabParamList = {
   Dashboard: undefined;
@@ -22,6 +25,9 @@ export type CustomerStackParamList = {
   Home: undefined;
   ShipmentDetail: { id: string };
   Notifications: undefined;
+  Documents: undefined;
+  Containers: undefined;
+  ContainerDetail: { id: string };
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -54,6 +60,9 @@ export const CustomerNavigator = () => {
       <Stack.Screen name="Home" component={CustomerTabs} />
       <Stack.Screen name="ShipmentDetail" component={ShipmentDetailScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Documents" component={DocumentsScreen} />
+      <Stack.Screen name="Containers" component={ContainersScreen} />
+      <Stack.Screen name="ContainerDetail" component={ContainerDetailScreen} />
     </Stack.Navigator>
   );
 };

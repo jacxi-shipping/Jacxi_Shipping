@@ -36,6 +36,7 @@ const SettingsScreen: React.FC = () => {
       | 'Invoices'
       | 'Finance'
       | 'FinanceReports'
+      | 'AgingReport'
       | 'Banking'
       | 'CompanyLedgers'
       | 'Documents'
@@ -43,6 +44,7 @@ const SettingsScreen: React.FC = () => {
       | 'Users'
       | 'PartnerPortals'
       | 'Transits'
+        | 'SystemTools'
       | 'Notifications'
       | 'Settings'
   ) => {
@@ -82,6 +84,7 @@ const SettingsScreen: React.FC = () => {
           items: [
             { title: 'Finance', description: 'Financial overview and reporting entry point.', icon: '$$', onPress: () => openStack('Finance') },
             { title: 'Reports', description: 'Summary, user-wise, and shipment-wise financial reporting.', icon: 'RP', onPress: () => openStack('FinanceReports') },
+            { title: 'Aging', description: 'Overdue shipment balances grouped by age bucket.', icon: 'AG', onPress: () => openStack('AgingReport') },
             { title: 'Banking', description: 'Connected bank workflows and reconciliation entry point.', icon: 'BK', onPress: () => openStack('Banking') },
             { title: 'Company Ledgers', description: 'Company-level balances and ledger workflows.', icon: 'CL', onPress: () => openStack('CompanyLedgers') },
             { title: 'Invoices', description: 'Invoice management and payment status.', icon: 'IV', onPress: () => openStack('Invoices') },
@@ -95,6 +98,14 @@ const SettingsScreen: React.FC = () => {
             { title: 'Partner Portals', description: 'Partner workspace coordination and handoff management.', icon: 'PP', onPress: () => openStack('PartnerPortals') },
             { title: 'Analytics', description: 'Operational performance and trends.', icon: 'AN', onPress: () => openStack('Analytics') },
             { title: 'Notifications', description: 'Messages and workflow alerts.', icon: 'NT', onPress: () => openStack('Notifications') },
+          ],
+        },
+        {
+          title: 'System & Tooling',
+          caption: 'Settings health, voice-agent readiness, and AI observability.',
+          items: [
+            { title: 'System Tools', description: 'Review settings, call-agent readiness, and recent AI logs.', icon: 'ST', onPress: () => openStack('SystemTools') },
+            { title: 'Workspace Home', description: 'Return to the top-level admin workspace.', icon: '::', onPress: () => openTab('Workspace') },
           ],
         },
       ]}

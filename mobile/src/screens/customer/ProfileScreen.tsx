@@ -33,10 +33,14 @@ const ProfileScreen: React.FC = () => {
     navigation.navigate('Notifications');
   };
 
+  const openStack = (screen: 'Documents' | 'Containers') => {
+    navigation.navigate(screen);
+  };
+
   return (
     <WorkspaceHub
       title="Customer Workspace"
-      subtitle="A mobile shell organized like the customer portal, with shipment, finance, and account tools grouped together."
+      subtitle="A mobile shell organized like the customer portal, with shipment, finance, document, and container tools grouped together."
       roleLabel={user.role}
       name={user.name}
       email={user.email}
@@ -50,6 +54,14 @@ const ProfileScreen: React.FC = () => {
             { title: 'Shipments', description: 'Browse your active and completed shipments.', icon: '<>', onPress: () => openTab('Shipments') },
             { title: 'Tracking', description: 'Track containers and shipment progress.', icon: '>>', onPress: () => openTab('Tracking') },
             { title: 'Invoices', description: 'Review balances and payment status.', icon: '$$', onPress: () => openTab('Invoices') },
+          ],
+        },
+        {
+          title: 'Workspace Tools',
+          caption: 'Supporting documents and container context for your shipments.',
+          items: [
+            { title: 'Documents', description: 'Open invoices, bills of lading, and uploaded paperwork.', icon: 'DO', onPress: () => openStack('Documents') },
+            { title: 'Containers', description: 'See the containers currently carrying your shipments.', icon: 'BX', onPress: () => openStack('Containers') },
           ],
         },
         {

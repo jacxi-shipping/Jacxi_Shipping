@@ -1,9 +1,13 @@
 import client from './client';
 import {
+  BankImportPreviewResponse,
+  BankImportResult,
   BankItemSummary,
+  BankingLedgerEntry,
   BankingLedgerResponse,
   CompanyLedgerEntry,
   CompanyLedgerSummary,
+  DueAgingReportData,
   FilteredBankSummary,
   FinanceCompanyDetail,
   FinanceCompanySummary,
@@ -28,6 +32,19 @@ export interface CompanyLedgerResponse {
 export interface BankItemsResponse {
   configured: boolean;
   items: BankItemSummary[];
+}
+
+export interface UpdateLedgerEntryInput {
+  description?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PickedDocumentAsset {
+  uri: string;
+  name?: string;
+  mimeType?: string | null;
+  file?: unknown;
 }
 
 export const financeApi = {
@@ -71,15 +88,25 @@ export const financeApi = {
     }
   },
 
-  async getBankingLedger(): Promise<BankingLedgerResponse> {
+  async getBankingLedger(params?: {
+    type?: 'DEBIT' | 'CREDIT';
+    finicityCustomerId?: string;
+    finicityAccountId?: string;
+  }): Promise<BankingLedgerResponse> {
     const response = await client.get<BankingLedgerResponse>('/api/ledger', {
       params: {
         source: 'BANK_IMPORT',
         page: 1,
         limit: 200,
+        ...params,
       },
     });
 
+    return response.data;
+  },
+
+  async updateLedgerEntry(id: string, input: UpdateLedgerEntryInput): Promise<{ entry: BankingLedgerEntry }> {
+    const response = await client.patch<{ entry: BankingLedgerEntry }>(`/api/ledger/${id}`, input);
     return response.data;
   },
 
@@ -102,6 +129,58 @@ export const financeApi = {
       params,
     });
 
+    return response.data;
+  },
+
+  async getDueAgingReport(params?: { userId?: string }): Promise<DueAgingReportData> {
+    const response = await client.get<DueAgingReportData>('/api/reports/due-aging', {
+      params,
+    });
+
+    return response.data;
+  },
+
+  async previewBankCsv(asset: PickedDocumentAsset, params?: { category?: string; sourceLabel?: string; statementEndingBalance?: string }): Promise<BankImportPreviewResponse> {
+    const formData = new FormData();
+    formData.append('action', 'preview');
+    formData.append('category', params?.category || 'Bank Statement');
+    formData.append('sourceLabel', params?.sourceLabel || 'Bank of America CSV');
+    formData.append('statementEndingBalance', params?.statementEndingBalance || '');
+
+    const webFile = asset.file;
+    if (webFile) {
+      formData.append('file', webFile as Blob, asset.name || 'bank-import.csv');
+    } else {
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.name || 'bank-import.csv',
+        type: asset.mimeType || 'text/csv',
+      } as any);
+    }
+
+    const response = await client.post<BankImportPreviewResponse>('/api/ledger/import-bank-csv', formData);
+    return response.data;
+  },
+
+  async importBankCsv(asset: PickedDocumentAsset, params?: { category?: string; sourceLabel?: string; statementEndingBalance?: string }): Promise<BankImportResult> {
+    const formData = new FormData();
+    formData.append('action', 'import');
+    formData.append('category', params?.category || 'Bank Statement');
+    formData.append('sourceLabel', params?.sourceLabel || 'Bank of America CSV');
+    formData.append('statementEndingBalance', params?.statementEndingBalance || '');
+
+    const webFile = asset.file;
+    if (webFile) {
+      formData.append('file', webFile as Blob, asset.name || 'bank-import.csv');
+    } else {
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.name || 'bank-import.csv',
+        type: asset.mimeType || 'text/csv',
+      } as any);
+    }
+
+    const response = await client.post<BankImportResult>('/api/ledger/import-bank-csv', formData);
     return response.data;
   },
 };

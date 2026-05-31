@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useForm, Controller } from 'react-hook-form';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -16,6 +17,7 @@ import { Shipment } from '../../types/shipment';
 const TrackingScreen: React.FC = () => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [error, setError] = useState('');
@@ -60,6 +62,15 @@ const TrackingScreen: React.FC = () => {
           <Button title="Track" onPress={handleSubmit(onSubmit)} loading={loading} fullWidth />
         </Card>
 
+        <Card style={styles.workspaceCard}>
+          <Text style={[styles.workspaceTitle, { color: colors.textPrimary }]}>Container Workspace</Text>
+          <Text style={[styles.workspaceDescription, { color: colors.textSecondary }]}>Open your container list to see vessel progress, capacity, and linked shipment counts without entering a tracking number each time.</Text>
+          <View style={styles.workspaceActions}>
+            <Button title="My Containers" onPress={() => navigation.navigate('Containers')} style={styles.workspaceButton} />
+            <Button title="Documents" variant="secondary" onPress={() => navigation.navigate('Documents')} style={styles.workspaceButton} />
+          </View>
+        </Card>
+
         {error && (
           <Card style={styles.error}>
             <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
@@ -89,6 +100,11 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.base },
   title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.sm },
   description: { fontSize: Typography.fontSize.base, marginBottom: Spacing.xl },
+  workspaceCard: { marginTop: Spacing.base },
+  workspaceTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
+  workspaceDescription: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.base },
+  workspaceActions: { flexDirection: 'row', gap: Spacing.sm },
+  workspaceButton: { flex: 1 },
   error: { marginTop: Spacing.base },
   errorText: { fontSize: Typography.fontSize.base, textAlign: 'center' },
   result: { marginTop: Spacing.base },

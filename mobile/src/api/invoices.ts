@@ -10,7 +10,11 @@ export const invoicesApi = {
     const response = await client.get<InvoiceListResponse>('/api/invoices', {
       params: {
         ...filters,
-        ...pagination,
+        limit: pagination?.pageSize,
+        offset:
+          pagination?.pageSize && pagination?.page
+            ? (pagination.page - 1) * pagination.pageSize
+            : undefined,
       },
     });
     return response.data;
@@ -35,13 +39,22 @@ export const invoicesApi = {
     await client.delete(`/api/invoices/${id}`);
   },
 
-  async markAsPaid(id: string, payment: Partial<Payment>): Promise<Invoice> {
-    const response = await client.post<Invoice>(`/api/invoices/${id}/pay`, payment);
+  async markAsPaid(
+    id: string,
+    payment?: Partial<Pick<Payment, 'method' | 'reference' | 'notes'>>,
+  ): Promise<Invoice> {
+    const response = await client.patch<Invoice>(`/api/invoices/${id}`, {
+      status: 'PAID',
+      paidDate: new Date().toISOString(),
+      paymentMethod: payment?.method,
+      paymentReference: payment?.reference,
+      notes: payment?.notes,
+    });
     return response.data;
   },
 
   async downloadInvoice(id: string): Promise<Blob> {
-    const response = await client.get(`/api/invoices/${id}/download`, {
+    const response = await client.get(`/api/invoices/${id}/pdf`, {
       responseType: 'blob',
     });
     return response.data;

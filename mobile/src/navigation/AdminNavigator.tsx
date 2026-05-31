@@ -32,6 +32,8 @@ import UserEditScreen from '../screens/admin/UserEditScreen';
 import PartnerPortalCreateScreen from '../screens/admin/PartnerPortalCreateScreen';
 import PartnerPortalEditScreen from '../screens/admin/PartnerPortalEditScreen';
 import FinanceReportsScreen from '../screens/admin/FinanceReportsScreen';
+import SystemToolsScreen from '../screens/admin/SystemToolsScreen';
+import { AgingReportScreen } from '../screens/admin';
 
 export type AdminTabParamList = {
   Dashboard: undefined;
@@ -55,6 +57,7 @@ export type AdminStackParamList = {
   Invoices: undefined;
   Finance: undefined;
   FinanceReports: undefined;
+  AgingReport: undefined;
   Banking: undefined;
   CompanyLedgers: undefined;
   CompanyLedgerDetail: { id: string };
@@ -67,6 +70,7 @@ export type AdminStackParamList = {
   PartnerPortalEdit: { id: string };
   PartnerPortalActivity: { portalId: string; portalName?: string };
   Transits: undefined;
+  SystemTools: undefined;
   Notifications: undefined;
   Settings: undefined;
 };
@@ -115,6 +119,7 @@ export const AdminNavigator = () => {
       <Stack.Screen name="Invoices" component={InvoicesScreen} />
       <Stack.Screen name="Finance" component={FinanceScreen} />
       <Stack.Screen name="FinanceReports" component={FinanceReportsScreen} />
+      <Stack.Screen name="AgingReport" component={AgingReportScreen} />
       <Stack.Screen name="Banking" component={BankingScreen} />
       <Stack.Screen name="CompanyLedgers" component={CompanyLedgersScreen} />
       <Stack.Screen name="CompanyLedgerDetail" component={CompanyLedgerDetailScreen} />
@@ -127,6 +132,7 @@ export const AdminNavigator = () => {
       <Stack.Screen name="PartnerPortalEdit" component={PartnerPortalEditScreen} />
       <Stack.Screen name="PartnerPortalActivity" component={PartnerPortalActivityScreen} />
       <Stack.Screen name="Transits" component={TransitsScreen} />
+      <Stack.Screen name="SystemTools" component={SystemToolsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>

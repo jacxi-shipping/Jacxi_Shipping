@@ -17,7 +17,7 @@ const InvoicesScreen: React.FC = () => {
   if (isLoading) return <LoadingSpinner fullScreen />;
   if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
 
-  const invoices = data?.data || [];
+  const invoices = data?.invoices || [];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>

@@ -24,12 +24,53 @@ const roleOptions = [
   { label: 'Customer Service', value: 'customer_service' },
 ];
 
+const keypadMap: Record<string, string> = {
+  A: '2',
+  B: '2',
+  C: '2',
+  D: '3',
+  E: '3',
+  F: '3',
+  G: '4',
+  H: '4',
+  I: '4',
+  J: '5',
+  K: '5',
+  L: '5',
+  M: '6',
+  N: '6',
+  O: '6',
+  P: '7',
+  Q: '7',
+  R: '7',
+  S: '7',
+  T: '8',
+  U: '8',
+  V: '8',
+  W: '9',
+  X: '9',
+  Y: '9',
+  Z: '9',
+};
+
+const formatLoginCode = (value: string) => value.replace(/(.{4})/, '$1 ').trim();
+
+const toVoiceAccessCode = (value: string) =>
+  value
+    .toUpperCase()
+    .split('')
+    .map((character) => (/\d/.test(character) ? character : keypadMap[character] || ''))
+    .join('');
+
 const UserEditScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const [saving, setSaving] = useState(false);
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [loginCode, setLoginCode] = useState<string | null>(null);
+  const [customLoginCode, setCustomLoginCode] = useState('');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -59,6 +100,7 @@ const UserEditScreen: React.FC = () => {
       city: user.city || '',
       country: user.country || '',
     });
+    setLoginCode(user.loginCode || null);
   }, [user]);
 
   const roleLabel = useMemo(
@@ -68,6 +110,66 @@ const UserEditScreen: React.FC = () => {
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const voiceAccessCode = useMemo(() => (loginCode ? toVoiceAccessCode(loginCode) : ''), [loginCode]);
+
+  const syncLoginCode = async (nextCode?: string) => {
+    try {
+      setCodeBusy(true);
+      const response = await usersApi.setLoginCode(route.params.id, nextCode);
+      setLoginCode(response.loginCode);
+      setCustomLoginCode(response.loginCode);
+      void refetch();
+      Alert.alert('Login code updated', 'The user can now sign in with the latest login code.');
+    } catch (codeError: any) {
+      Alert.alert('Unable to update login code', codeError?.message || 'The login code could not be updated.');
+    } finally {
+      setCodeBusy(false);
+    }
+  };
+
+  const handleGenerateLoginCode = async () => {
+    await syncLoginCode();
+  };
+
+  const handleSetCustomCode = async () => {
+    const normalizedCode = customLoginCode.trim().toUpperCase();
+
+    if (!/^[A-Z0-9]{8}$/.test(normalizedCode)) {
+      Alert.alert('Invalid login code', 'Custom login codes must be exactly 8 letters or numbers.');
+      return;
+    }
+
+    await syncLoginCode(normalizedCode);
+  };
+
+  const handleClearLoginCode = () => {
+    Alert.alert(
+      'Remove login code?',
+      'The user will no longer be able to sign in with a login code until a new one is issued.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setCodeBusy(true);
+              await usersApi.clearLoginCode(route.params.id);
+              setLoginCode(null);
+              setCustomLoginCode('');
+              void refetch();
+              Alert.alert('Login code removed', 'The user no longer has an active login code.');
+            } catch (codeError: any) {
+              Alert.alert('Unable to remove login code', codeError?.message || 'The login code could not be removed.');
+            } finally {
+              setCodeBusy(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleSubmit = async () => {
@@ -146,6 +248,50 @@ const UserEditScreen: React.FC = () => {
           <Input label="Country" value={form.country} onChangeText={(value) => updateField('country', value)} placeholder="Optional country" />
         </Card>
 
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Login Code Management</Text>
+          <Text style={[styles.sectionCaption, { color: colors.textSecondary }]}>Issue, regenerate, or remove the 8-character login code used by simple login and phone support flows.</Text>
+
+          {loginCode ? (
+            <View style={styles.loginCodeBlock}>
+              <View style={StyleSheet.flatten([styles.codeCard, { backgroundColor: colors.background, borderColor: `${colors.accent}35` }])}>
+                <Text style={[styles.codeLabel, { color: colors.textSecondary }]}>Current Login Code</Text>
+                <Text style={[styles.codeValue, { color: colors.textPrimary }]}>{formatLoginCode(loginCode)}</Text>
+              </View>
+
+              <View style={StyleSheet.flatten([styles.codeCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                <Text style={[styles.codeLabel, { color: colors.textSecondary }]}>Voice Keypad Code</Text>
+                <Text style={[styles.codeValue, { color: colors.textPrimary }]}>{formatLoginCode(voiceAccessCode)}</Text>
+                <Text style={[styles.codeHelper, { color: colors.textSecondary }]}>Use this numeric keypad version when the call agent asks for phone-digit access.</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={StyleSheet.flatten([styles.emptyCodeState, { backgroundColor: colors.background, borderColor: colors.border }])}>
+              <Text style={[styles.emptyCodeTitle, { color: colors.textPrimary }]}>No login code issued</Text>
+              <Text style={[styles.emptyCodeText, { color: colors.textSecondary }]}>Generate a code to enable the mobile login-code flow and phone support access for this user.</Text>
+            </View>
+          )}
+
+          <Input
+            label="Custom Login Code"
+            value={customLoginCode}
+            onChangeText={(value) => setCustomLoginCode(value.toUpperCase())}
+            placeholder="ABCDEFG1"
+            autoCapitalize="characters"
+            autoComplete="off"
+            maxLength={8}
+          />
+
+          <View style={styles.codeActionRow}>
+            <Button title={loginCode ? 'Regenerate Code' : 'Generate Code'} onPress={handleGenerateLoginCode} loading={codeBusy} style={styles.codeActionButton} />
+            <Button title="Set Custom" variant="secondary" onPress={handleSetCustomCode} disabled={codeBusy} style={styles.codeActionButton} />
+          </View>
+
+          {loginCode ? (
+            <Button title="Remove Login Code" variant="danger" onPress={handleClearLoginCode} disabled={codeBusy} fullWidth />
+          ) : null}
+        </Card>
+
         <Button title="Save Changes" onPress={handleSubmit} loading={saving} fullWidth />
       </ScrollView>
     </SafeAreaView>
@@ -189,6 +335,55 @@ const styles = StyleSheet.create({
   roleChipText: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
+  },
+  loginCodeBlock: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  codeCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.base,
+  },
+  codeLabel: {
+    fontSize: Typography.fontSize.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
+  },
+  codeValue: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: 2,
+    marginBottom: Spacing.xs,
+  },
+  codeHelper: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
+  },
+  emptyCodeState: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.base,
+    marginBottom: Spacing.base,
+  },
+  emptyCodeTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.xs,
+  },
+  emptyCodeText: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
+  },
+  codeActionRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  codeActionButton: {
+    flex: 1,
   },
 });
 

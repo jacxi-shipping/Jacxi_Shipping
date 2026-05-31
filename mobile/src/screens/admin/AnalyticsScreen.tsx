@@ -1,19 +1,104 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EmptyState } from '../../components/shared/EmptyState';
+import { useQuery } from '@tanstack/react-query';
+import { analyticsApi } from '../../api/analytics';
+import { Card } from '../../components/ui/Card';
+import { ErrorState } from '../../components/shared/ErrorState';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Colors } from '../../constants/colors';
+import { Spacing } from '../../constants/spacing';
+import { Typography } from '../../constants/typography';
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+
+const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\w/g, (match) => match.toUpperCase());
 
 const AnalyticsScreen: React.FC = () => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const query = useQuery({
+    queryKey: ['analytics-overview'],
+    queryFn: () => analyticsApi.getOverview(),
+  });
+
+  if (query.isLoading) return <LoadingSpinner fullScreen />;
+  if (query.error) return <ErrorState message={(query.error as any).message} onRetry={query.refetch} />;
+
+  const analytics = query.data;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <EmptyState icon="📊" title="Analytics" description="Analytics and reports coming soon" />
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Analytics</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Operational and financial analytics from the live dashboard backend, tuned for quick mobile review.</Text>
+
+        <View style={styles.metricGrid}>
+          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.totalShipments}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text></Card>
+          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.activeDispatches}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Dispatches</Text></Card>
+          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(analytics?.summary.totalRevenue || 0)}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Revenue</Text></Card>
+          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.overdueInvoices}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Overdue</Text></Card>
+        </View>
+
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Status Breakdown</Text>
+          {analytics?.shipmentsByStatus.slice(0, 6).map((item, index) => (
+            <View key={`${item.status}-${index}`} style={StyleSheet.flatten([styles.row, index === analytics.shipmentsByStatus.slice(0, 6).length - 1 ? styles.rowLast : null, { borderBottomColor: colors.border }])}>
+              <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{titleCase(item.status)}</Text>
+              <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>{item.count} shipments</Text>
+            </View>
+          ))}
+        </Card>
+
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Top Customers</Text>
+          {analytics?.topCustomers.length === 0 ? (
+            <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>No customer analytics available.</Text>
+          ) : (
+            analytics?.topCustomers.map((customer, index) => (
+              <View key={customer.userId} style={StyleSheet.flatten([styles.row, index === analytics.topCustomers.length - 1 ? styles.rowLast : null, { borderBottomColor: colors.border }])}>
+                <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{customer.name}</Text>
+                <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>{customer.shipmentCount} shipments • {formatCurrency(customer.revenue)}</Text>
+              </View>
+            ))
+          )}
+        </Card>
+
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Outstanding Invoices</Text>
+          {analytics?.outstandingInvoices.length === 0 ? (
+            <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>No overdue invoices in the current analytics snapshot.</Text>
+          ) : (
+            analytics?.outstandingInvoices.map((invoice, index) => (
+              <View key={invoice.id} style={StyleSheet.flatten([styles.row, index === analytics.outstandingInvoices.length - 1 ? styles.rowLast : null, { borderBottomColor: colors.border }])}>
+                <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{invoice.invoiceNumber}</Text>
+                <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>{formatCurrency(invoice.totalUSD)} • {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'No due date'}</Text>
+              </View>
+            ))
+          )}
+          <Text style={[styles.updatedText, { color: colors.textSecondary }]}>Updated {analytics?.lastUpdated ? new Date(analytics.lastUpdated).toLocaleString() : 'just now'}</Text>
+        </Card>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({ container: { flex: 1 } });
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
+  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
+  subtitle: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.base },
+  metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.base },
+  metricCard: { width: '48%', paddingVertical: Spacing.base },
+  metricValue: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, textAlign: 'center' },
+  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
+  sectionCard: { marginBottom: Spacing.base },
+  sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.sm },
+  row: { borderBottomWidth: 1, paddingVertical: Spacing.sm },
+  rowLast: { borderBottomWidth: 0, paddingBottom: 0 },
+  rowTitle: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },
+  rowMeta: { fontSize: Typography.fontSize.xs, lineHeight: 18 },
+  updatedText: { fontSize: Typography.fontSize.xs, marginTop: Spacing.sm },
+});
 export default AnalyticsScreen;

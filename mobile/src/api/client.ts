@@ -20,7 +20,7 @@ function resolveApiUrl() {
   return configuredUrl;
 }
 
-const API_URL = resolveApiUrl();
+export const API_URL = resolveApiUrl();
 
 const TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
