@@ -1,9 +1,26 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { ApiError } from '../types/api';
+import * as secureStorage from '../utils/secureStorage';
 
-const API_URL = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+function resolveApiUrl() {
+  const configuredUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    configuredUrl.includes('localhost:3000') &&
+    window.location.hostname.endsWith('.app.github.dev')
+  ) {
+    const forwardedBackendHost = window.location.hostname.replace(/-\d+\.app\.github\.dev$/, '-3000.app.github.dev');
+    return `https://${forwardedBackendHost}`;
+  }
+
+  return configuredUrl;
+}
+
+const API_URL = resolveApiUrl();
 
 const TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
@@ -18,7 +35,6 @@ export class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      withCredentials: true,
     });
 
     this.setupInterceptors();
@@ -27,9 +43,9 @@ export class ApiClient {
   private setupInterceptors() {
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        const token = await SecureStore.getItemAsync(TOKEN_KEY);
+        const token = await secureStorage.getItem(TOKEN_KEY);
         if (token && config.headers) {
-          config.headers.Authorization = `******;
+          config.headers.Authorization = 'Bearer ' + token;
         }
         return config;
       },
@@ -45,24 +61,24 @@ export class ApiClient {
           originalRequest._retry = true;
 
           try {
-            const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+            const refreshToken = await secureStorage.getItem(REFRESH_TOKEN_KEY);
             if (refreshToken) {
-              const response = await axios.post(`${API_URL}/api/auth/refresh`, {
+              const response = await axios.post(API_URL + '/api/auth/refresh', {
                 refreshToken,
               });
 
               const { token } = response.data;
-              await SecureStore.setItemAsync(TOKEN_KEY, token);
+              await secureStorage.setItem(TOKEN_KEY, token);
 
               if (originalRequest.headers) {
-                originalRequest.headers.Authorization = `******;
+                originalRequest.headers.Authorization = 'Bearer ' + token;
               }
 
               return this.client(originalRequest);
             }
           } catch (refreshError) {
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
-            await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+            await secureStorage.deleteItem(TOKEN_KEY);
+            await secureStorage.deleteItem(REFRESH_TOKEN_KEY);
             return Promise.reject(refreshError);
           }
         }
@@ -101,16 +117,16 @@ export class ApiClient {
   }
 
   public async setToken(token: string) {
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
+    await secureStorage.setItem(TOKEN_KEY, token);
   }
 
   public async getToken(): Promise<string | null> {
-    return await SecureStore.getItemAsync(TOKEN_KEY);
+    return await secureStorage.getItem(TOKEN_KEY);
   }
 
   public async removeToken() {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    await secureStorage.deleteItem(TOKEN_KEY);
+    await secureStorage.deleteItem(REFRESH_TOKEN_KEY);
   }
 }
 

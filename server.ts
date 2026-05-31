@@ -7,9 +7,58 @@ import { WebSocketServer } from 'ws';
 
 import { handleVoiceLiveSocket } from './src/lib/voice/live-bridge';
 
+const allowedApiOrigins = new Set([
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+  'http://localhost:19006',
+  'http://127.0.0.1:19006',
+]);
+
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOST || '0.0.0.0';
 const port = Number(process.env.PORT || 3000);
+
+function isAllowedApiOrigin(origin: string) {
+  if (allowedApiOrigins.has(origin)) {
+    return true;
+  }
+
+  const codespaceName = process.env.CODESPACE_NAME;
+  const forwardingDomain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+
+  if (!codespaceName || !forwardingDomain) {
+    return false;
+  }
+
+  const escapedCodespaceName = codespaceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedForwardingDomain = forwardingDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`^https://${escapedCodespaceName}-(8081|19006)\\.${escapedForwardingDomain}$`);
+
+  return pattern.test(origin);
+}
+
+function applyApiCors(req: Parameters<typeof createServer>[0], res: Parameters<Parameters<typeof createServer>[1]>[1]): boolean {
+  const origin = req.headers.origin;
+  const pathname = req.url ? parse(req.url).pathname : null;
+
+  if (!origin || !pathname?.startsWith('/api/') || !isAllowedApiOrigin(origin)) {
+    return false;
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Vary', 'Origin');
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
+
+  return false;
+}
 
 export async function startServer() {
   const app = next({ dev, hostname, port });
@@ -21,6 +70,10 @@ export async function startServer() {
 
   const liveBridgeServer = new WebSocketServer({ noServer: true });
   const server = createServer((req, res) => {
+    if (applyApiCors(req, res)) {
+      return;
+    }
+
     const parsedUrl = parse(req.url || '/', true);
     void handle(req, res, parsedUrl);
   });

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
 import { User, AuthSession } from '../types/auth';
 import { authApi } from '../api/auth';
+import * as secureStorage from '../utils/secureStorage';
 
 interface AuthState {
   user: User | null;
@@ -26,7 +26,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email: string, password: string) => {
     try {
-      set({ isLoading: true, error: null });
+      set({ error: null });
       const response = await authApi.login({ email, password });
       
       const session: AuthSession = {
@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         expiresAt: response.expiresAt,
       };
       
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
+      await secureStorage.setItem(SESSION_KEY, JSON.stringify(session));
       
       set({
         user: response.user,
@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   loginWithCode: async (loginCode: string) => {
     try {
-      set({ isLoading: true, error: null });
+      set({ error: null });
       const response = await authApi.loginWithCode({ loginCode });
       
       const session: AuthSession = {
@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         expiresAt: response.expiresAt,
       };
       
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
+      await secureStorage.setItem(SESSION_KEY, JSON.stringify(session));
       
       set({
         user: response.user,
@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      await SecureStore.deleteItemAsync(SESSION_KEY);
+      await secureStorage.deleteItem(SESSION_KEY);
       set({
         user: null,
         isAuthenticated: false,
@@ -99,7 +99,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   loadSession: async () => {
     try {
       set({ isLoading: true });
-      const sessionData = await SecureStore.getItemAsync(SESSION_KEY);
+      const sessionData = await secureStorage.getItem(SESSION_KEY);
       
       if (sessionData) {
         const session: AuthSession = JSON.parse(sessionData);
@@ -112,7 +112,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             isLoading: false,
           });
         } catch (error) {
-          await SecureStore.deleteItemAsync(SESSION_KEY);
+          await secureStorage.deleteItem(SESSION_KEY);
           set({
             user: null,
             isAuthenticated: false,
