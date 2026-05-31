@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { Card } from '../ui/Card';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
-import { Spacing } from '../../constants/spacing';
+import { BorderRadius, Spacing } from '../../constants/spacing';
 
 interface StatsChartProps {
   title: string;
@@ -21,13 +21,13 @@ export const StatsChart: React.FC<StatsChartProps> = ({ title, data }) => {
       <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
       <View style={styles.chart}>
         {data.map((item, index) => (
-          <View key={index} style={styles.item}>
+          <View key={index} style={[styles.item, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
             <View style={styles.itemHeader}>
               <View style={[styles.dot, { backgroundColor: item.color }]} />
-              <Text style={[styles.label, { color: colors.textPrimary }]}>{item.label}</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>{item.label}</Text>
+              <Text style={[styles.value, { color: colors.textPrimary }]}>{item.value}</Text>
             </View>
-            <Text style={[styles.value, { color: colors.textPrimary }]}>{item.value}</Text>
-            <View style={styles.barContainer}>
+            <View style={[styles.barContainer, { backgroundColor: colors.borderLight }]}>
               <View
                 style={[
                   styles.bar,
@@ -50,20 +50,23 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.base,
   },
   title: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 0.4,
     marginBottom: Spacing.base,
   },
   chart: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   item: {
-    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
   },
   itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   dot: {
     width: 8,
@@ -72,17 +75,18 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   label: {
-    fontSize: Typography.fontSize.sm,
     flex: 1,
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   value: {
-    fontSize: Typography.fontSize.base,
+    fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
-    marginBottom: Spacing.xs,
   },
   barContainer: {
-    height: 8,
-    backgroundColor: Colors.light.borderLight,
+    height: 6,
     borderRadius: 4,
     overflow: 'hidden',
   },

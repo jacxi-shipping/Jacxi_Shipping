@@ -5,7 +5,7 @@ import { StatusBadge } from './StatusBadge';
 import { Shipment } from '../../types/shipment';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
-import { Spacing } from '../../constants/spacing';
+import { BorderRadius, Spacing } from '../../constants/spacing';
 import { format } from 'date-fns';
 
 interface ShipmentCardProps {
@@ -21,17 +21,19 @@ export const ShipmentCard: React.FC<ShipmentCardProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const vehicleTitle = [shipment.vehicle.year, shipment.vehicle.make, shipment.vehicle.model].filter(Boolean).join(' ');
 
   return (
     <Card pressable onPress={onPress} style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={[styles.vin, { color: colors.textPrimary }]}>
-            {shipment.vehicle.vin}
+          <Text style={[styles.title, { color: colors.textPrimary }]}> 
+            {vehicleTitle || shipment.vehicle.vin}
           </Text>
-          <Text style={[styles.vehicle, { color: colors.textSecondary }]}>
-            {shipment.vehicle.year} {shipment.vehicle.make} {shipment.vehicle.model}
-          </Text>
+          <View style={[styles.vinPill, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+            <Text style={[styles.vinLabel, { color: colors.textSecondary }]}>VIN</Text>
+            <Text style={[styles.vinValue, { color: colors.textPrimary }]}>{shipment.vehicle.vin}</Text>
+          </View>
         </View>
         <StatusBadge status={shipment.status} type="shipment" />
       </View>
@@ -42,7 +44,7 @@ export const ShipmentCard: React.FC<ShipmentCardProps> = ({
         </Text>
       )}
 
-      <View style={styles.route}>
+      <View style={[styles.route, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
         <View style={styles.location}>
           <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>From</Text>
           <Text style={[styles.locationText, { color: colors.textPrimary }]} numberOfLines={1}>
@@ -79,13 +81,30 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: Spacing.sm,
   },
-  vin: {
-    fontSize: Typography.fontSize.lg,
+  title: {
+    fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
-  vehicle: {
-    fontSize: Typography.fontSize.sm,
+  vinPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    gap: Spacing.xs,
+  },
+  vinLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+  },
+  vinValue: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.medium,
   },
   customer: {
     fontSize: Typography.fontSize.sm,
@@ -94,6 +113,9 @@ const styles = StyleSheet.create({
   route: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
@@ -103,6 +125,9 @@ const styles = StyleSheet.create({
   locationLabel: {
     fontSize: Typography.fontSize.xs,
     marginBottom: Spacing.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
   },
   locationText: {
     fontSize: Typography.fontSize.sm,

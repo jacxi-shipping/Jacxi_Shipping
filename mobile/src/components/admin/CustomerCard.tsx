@@ -5,7 +5,7 @@ import { Avatar } from '../ui/Avatar';
 import { Customer } from '../../types/user';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
-import { Spacing } from '../../constants/spacing';
+import { BorderRadius, Spacing } from '../../constants/spacing';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -26,17 +26,17 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onPress })
         </View>
       </View>
       <View style={styles.stats}>
-        <View style={styles.stat}>
+        <View style={[styles.stat, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Shipments</Text>
           <Text style={[styles.statValue, { color: colors.textPrimary }]}>
             {customer.totalShipments}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Shipments</Text>
         </View>
-        <View style={styles.stat}>
+        <View style={[styles.stat, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Balance</Text>
           <Text style={[styles.statValue, { color: customer.balance > 0 ? colors.error : colors.success }]}>
             ${Math.abs(customer.balance).toLocaleString()}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Balance</Text>
         </View>
       </View>
     </Card>
@@ -66,16 +66,23 @@ const styles = StyleSheet.create({
   },
   stats: {
     flexDirection: 'row',
+    gap: Spacing.sm,
   },
   stat: {
     flex: 1,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
   },
   statValue: {
-    fontSize: Typography.fontSize.xl,
+    fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.xs,
   },
   statLabel: {
     fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase',
   },
 });

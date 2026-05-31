@@ -3,7 +3,7 @@ export const Colors = {
     accent: '#D4AF37',
     accentLight: '#E5C158',
     accentDark: '#B89230',
-    accentSoft: 'rgba(212, 175, 55, 0.12)',
+    accentSoft: 'rgba(212, 175, 55, 0.14)',
     
     background: '#F9FAFB',
     panel: '#FFFFFF',
@@ -11,9 +11,9 @@ export const Colors = {
     border: '#E5E7EB',
     borderLight: '#F3F4F6',
     
-    textPrimary: '#1C1C1E',
-    textSecondary: '#5F6368',
-    textTertiary: '#98989D',
+    textPrimary: '#111827',
+    textSecondary: '#6B7280',
+    textTertiary: '#9CA3AF',
     
     success: '#10B981',
     successLight: '#D1FAE5',
@@ -23,7 +23,7 @@ export const Colors = {
     errorLight: '#FEE2E2',
     info: '#3B82F6',
     infoLight: '#DBEAFE',
-    shadow: 'rgba(28, 28, 30, 0.08)',
+    shadow: 'rgba(17, 24, 39, 0.1)',
     
     overlay: 'rgba(0, 0, 0, 0.5)',
     shimmer: 'rgba(255, 255, 255, 0.8)',
@@ -35,14 +35,14 @@ export const Colors = {
     accentSoft: 'rgba(212, 175, 55, 0.18)',
     
     background: '#0A0A0A',
-    panel: '#1C1C1E',
-    surfaceMuted: '#151517',
-    border: '#2C2C2E',
-    borderLight: '#3A3A3C',
+    panel: '#1A1A1A',
+    surfaceMuted: '#141414',
+    border: '#2A2A2A',
+    borderLight: '#333333',
     
-    textPrimary: '#F5F5F7',
-    textSecondary: '#98989D',
-    textTertiary: '#636366',
+    textPrimary: '#E5E5E5',
+    textSecondary: '#A0A0A0',
+    textTertiary: '#737373',
     
     success: '#10B981',
     successLight: '#064E3B',
@@ -52,7 +52,7 @@ export const Colors = {
     errorLight: '#7F1D1D',
     info: '#3B82F6',
     infoLight: '#1E3A8A',
-    shadow: 'rgba(0, 0, 0, 0.35)',
+    shadow: 'rgba(0, 0, 0, 0.28)',
     
     overlay: 'rgba(0, 0, 0, 0.7)',
     shimmer: 'rgba(255, 255, 255, 0.1)',

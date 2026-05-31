@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { Card } from '../ui/Card';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
-import { Spacing } from '../../constants/spacing';
+import { BorderRadius, Spacing } from '../../constants/spacing';
 
 interface DashboardKPIProps {
   title: string;
@@ -27,19 +27,32 @@ export const DashboardKPI: React.FC<DashboardKPIProps> = ({ title, value, icon, 
           <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
           <Text style={[styles.value, { color: colors.textPrimary }]}>{value}</Text>
           {trend && (
-            <Text
+            <View
               style={[
-                styles.trend,
-                { color: trend.isPositive ? colors.success : colors.error },
+                styles.trendPill,
+                {
+                  backgroundColor: trend.isPositive ? `${colors.success}14` : `${colors.error}14`,
+                  borderColor: trend.isPositive ? `${colors.success}30` : `${colors.error}30`,
+                },
               ]}
             >
-              {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
-            </Text>
+              <Text style={[styles.trend, { color: trend.isPositive ? colors.success : colors.error }]}>
+                {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
+              </Text>
+            </View>
           )}
         </View>
         {icon && (
-          <View style={[styles.iconContainer, { backgroundColor: `${colors.accent}20` }]}>
-            <Text style={styles.icon}>{icon}</Text>
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderColor: `${colors.accent}30`,
+              },
+            ]}
+          >
+            <Text style={[styles.icon, { color: colors.accent }]}>{icon}</Text>
           </View>
         )}
       </View>
@@ -50,7 +63,7 @@ export const DashboardKPI: React.FC<DashboardKPIProps> = ({ title, value, icon, 
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    marginRight: Spacing.md,
+    minHeight: 132,
   },
   content: {
     flexDirection: 'row',
@@ -59,28 +72,41 @@ const styles = StyleSheet.create({
   },
   left: {
     flex: 1,
+    paddingRight: Spacing.sm,
   },
   title: {
-    fontSize: Typography.fontSize.sm,
-    marginBottom: Spacing.xs,
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1.2,
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
   },
   value: {
-    fontSize: Typography.fontSize['3xl'],
+    fontSize: Typography.fontSize['2xl'],
     fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  trendPill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
   },
   trend: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
   },
   icon: {
-    fontSize: 24,
+    fontSize: 22,
+    fontWeight: Typography.fontWeight.bold,
   },
 });

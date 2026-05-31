@@ -53,9 +53,15 @@ const UsersScreen: React.FC = () => {
                 <Text style={[styles.rolePillText, { color: colors.accent }]}>{titleCase(item.role)}</Text>
               </View>
             </View>
-            <View style={styles.cardFooter}>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>Shipments: {item._count?.shipments ?? 0}</Text>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>Created: {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Unknown'}</Text>
+            <View style={styles.metaRow}>
+              <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Shipments</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item._count?.shipments ?? 0}</Text>
+              </View>
+              <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Created</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Unknown'}</Text>
+              </View>
             </View>
           </Card>
         )}
@@ -98,7 +104,7 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   name: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   email: {
@@ -113,13 +119,28 @@ const styles = StyleSheet.create({
   },
   rolePillText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
   },
-  cardFooter: {
-    gap: Spacing.xs,
+  metaRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
   },
-  meta: {
+  metaChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+  },
+  metaLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  metaValue: {
     fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
   },
 });
 

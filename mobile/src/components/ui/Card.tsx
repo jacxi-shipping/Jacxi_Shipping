@@ -29,7 +29,7 @@ export const Card: React.FC<CardProps> = ({ children, style, pressable = false, 
 
   const handlePressIn = () => {
     if (pressable) {
-      scale.value = withSpring(0.97);
+      scale.value = withSpring(0.985);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -42,18 +42,18 @@ export const Card: React.FC<CardProps> = ({ children, style, pressable = false, 
 
   const cardStyle: ViewStyle = {
     backgroundColor: colors.panel,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.base,
     borderWidth: 1,
     borderColor: colors.border,
     shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: 4,
     },
-    shadowOpacity: colorScheme === 'dark' ? 0.28 : 0.12,
-    shadowRadius: 18,
-    elevation: 5,
+    shadowOpacity: colorScheme === 'dark' ? 0.22 : 0.08,
+    shadowRadius: 12,
+    elevation: 2,
   };
 
   if (pressable && onPress) {

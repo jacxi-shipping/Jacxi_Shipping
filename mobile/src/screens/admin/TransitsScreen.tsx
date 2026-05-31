@@ -55,7 +55,20 @@ const TransitsScreen: React.FC = () => {
               </View>
             </View>
             <Text style={[styles.meta, { color: colors.textSecondary }]}>Current company: {item.currentCompany?.name || 'No active company'}</Text>
-            <Text style={[styles.meta, { color: colors.textSecondary }]}>Shipments: {item._count.shipments} • Events: {item._count.events} • Expenses: {item._count.expenses}</Text>
+            <View style={styles.metricsGrid}>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{item._count.shipments}</Text>
+              </View>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Events</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{item._count.events}</Text>
+              </View>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Expenses</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{item._count.expenses}</Text>
+              </View>
+            </View>
           </Card>
         )}
         ListHeaderComponent={
@@ -93,7 +106,7 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   reference: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   route: {
@@ -108,11 +121,34 @@ const styles = StyleSheet.create({
   },
   statusPillText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
   },
   meta: {
     fontSize: Typography.fontSize.sm,
     marginBottom: Spacing.xs,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  metricChip: {
+    width: '48%',
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+  },
+  metricLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  metricValue: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
   },
 });
 

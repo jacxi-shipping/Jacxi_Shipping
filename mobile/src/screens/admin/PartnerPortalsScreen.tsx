@@ -52,10 +52,19 @@ const PartnerPortalsScreen: React.FC = () => {
                 <Text style={[styles.statePillText, { color: colors.accent }]}>{item.isActive ? 'Active' : 'Paused'}</Text>
               </View>
             </View>
-            <View style={styles.metricsRow}>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>Members: {item._count?.memberships || 0}</Text>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>Customers: {item._count?.customers || 0}</Text>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>Shipments: {item._count?.shipmentAssignments || 0}</Text>
+            <View style={styles.metricsGrid}>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Members</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item._count?.memberships || 0}</Text>
+              </View>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Customers</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item._count?.customers || 0}</Text>
+              </View>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Shipments</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item._count?.shipmentAssignments || 0}</Text>
+              </View>
             </View>
           </Card>
         )}
@@ -98,7 +107,7 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   name: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   code: {
@@ -113,13 +122,29 @@ const styles = StyleSheet.create({
   },
   statePillText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
   },
-  metricsRow: {
-    gap: Spacing.xs,
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
-  meta: {
+  metricChip: {
+    width: '48%',
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+  },
+  metaLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  metaValue: {
     fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
   },
 });
 

@@ -57,10 +57,19 @@ const CompanyLedgersScreen: React.FC = () => {
                 <Text style={[styles.statePillText, { color: colors.accent }]}>{item.isActive ? 'Active' : 'Inactive'}</Text>
               </View>
             </View>
-            <Text style={[styles.balance, { color: colors.textPrimary }]}>{formatCurrency(item.currentBalance)}</Text>
+            <View style={[styles.balanceCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+              <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Net Balance</Text>
+              <Text style={[styles.balance, { color: colors.textPrimary }]}>{formatCurrency(item.currentBalance)}</Text>
+            </View>
             <View style={styles.footerRow}>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>Debit {formatCurrency(item.totalDebit)}</Text>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>Credit {formatCurrency(item.totalCredit)}</Text>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Debit</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(item.totalDebit)}</Text>
+              </View>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Credit</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(item.totalCredit)}</Text>
+              </View>
             </View>
           </Card>
         )}
@@ -99,7 +108,7 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   name: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   statePill: {
@@ -111,15 +120,45 @@ const styles = StyleSheet.create({
   },
   statePillText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  balanceCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  balanceLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
   },
   balance: {
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.sm,
   },
   footerRow: {
-    gap: Spacing.xs,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  metricChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+  },
+  metricLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  metricValue: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
   },
   meta: {
     fontSize: Typography.fontSize.sm,
