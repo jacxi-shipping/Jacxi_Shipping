@@ -75,7 +75,11 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
                   },
                 ]}
               > 
-                <AppIcon name={getTabIconName(route.name)} size={18} color={isFocused ? '#111111' : colors.textSecondary} />
+                <AppIcon
+                  name={getTabIconName(route.name)}
+                  size={18}
+                  color={isFocused ? colors.accentContrast : colors.textSecondary}
+                />
               </View>
               <Text style={[styles.label, { color: isFocused ? colors.accent : colors.textSecondary }]}>
                 {typeof label === 'string' ? label : ''}

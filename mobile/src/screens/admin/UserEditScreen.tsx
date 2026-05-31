@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Input } from '../../components/ui/Input';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { AdminStackParamList } from '../../navigation/AdminNavigator';
@@ -66,8 +66,7 @@ const toVoiceAccessCode = (value: string) =>
 const UserEditScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [saving, setSaving] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
   const [loginCode, setLoginCode] = useState<string | null>(null);

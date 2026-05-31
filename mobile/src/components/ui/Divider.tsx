@@ -1,15 +1,14 @@
 import React from 'react';
-import { View, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { View, StyleSheet } from 'react-native';
 import { Spacing } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface DividerProps {
   spacing?: number;
 }
 
 export const Divider: React.FC<DividerProps> = ({ spacing = Spacing.base }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <View

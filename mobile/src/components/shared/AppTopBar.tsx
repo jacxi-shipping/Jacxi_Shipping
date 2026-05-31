@@ -211,7 +211,9 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
               <AppIcon name="notifications" size={20} color={colors.textPrimary} />
               {unreadCount > 0 ? (
                 <View style={[styles.badge, { backgroundColor: colors.accent }]}> 
-                  <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>
+                  <Text style={[styles.badgeText, { color: colors.accentContrast }]}>
+                    {unreadCount > 99 ? '99+' : String(unreadCount)}
+                  </Text>
                 </View>
               ) : null}
             </TouchableOpacity>
@@ -380,7 +382,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   badgeText: {
-    color: '#111111',
     fontSize: 9,
     fontWeight: Typography.fontWeight.bold,
   },

@@ -1,6 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface LoadingSpinnerProps {
   size?: 'small' | 'large';
@@ -13,8 +13,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   color,
   fullScreen = false,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const spinnerColor = color || colors.accent;
 
   if (fullScreen) {

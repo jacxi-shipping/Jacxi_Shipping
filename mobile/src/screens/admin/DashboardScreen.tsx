@@ -108,8 +108,8 @@ const DashboardScreen: React.FC = () => {
             activeOpacity={0.85}
             onPress={() => navigation.navigate('ShipmentCreate')}
           >
-            <AppIcon name="add" size={20} color="#1C1C1E" />
-            <Text style={styles.actionText}>New Shipment</Text>
+            <AppIcon name="add" size={20} color={colors.accentContrast} />
+            <Text style={[styles.actionText, { color: colors.accentContrast }]}>New Shipment</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border }]}
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     borderRadius: 16,
   },
-  actionText: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, color: '#1C1C1E', marginLeft: Spacing.sm },
+  actionText: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginLeft: Spacing.sm },
   section: { marginTop: Spacing.base },
   sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.base },
   viewAllWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.base },

@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import Animated, {
   useAnimatedStyle,
@@ -8,6 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { triggerImpact } from '../../utils/haptics';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -30,8 +30,7 @@ export const Card: React.FC<CardProps> = ({
   elevation = 'card',
   accentBorder = false,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors, isDark } = useAppTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -58,13 +57,13 @@ export const Card: React.FC<CardProps> = ({
     },
     card: {
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: colorScheme === 'dark' ? 0.22 : 0.08,
+      shadowOpacity: isDark ? 0.22 : 0.08,
       shadowRadius: 16,
       elevation: 3,
     },
     elevated: {
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: colorScheme === 'dark' ? 0.30 : 0.12,
+      shadowOpacity: isDark ? 0.30 : 0.12,
       shadowRadius: 28,
       elevation: 6,
     },

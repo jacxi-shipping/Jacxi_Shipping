@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoices } from '../../hooks/useInvoices';
 import { ErrorState } from '../../components/shared/ErrorState';
@@ -9,7 +9,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { InvoiceCard } from '../../components/customer/InvoiceCard';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 
@@ -25,8 +25,7 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
 
 const InvoicesScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<(typeof statusOptions)[number]['value']>('all');
 

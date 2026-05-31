@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { useShipment } from '../../hooks/useShipments';
@@ -11,7 +11,7 @@ import { ShipmentDocumentsCard } from '../../components/shared/ShipmentDocuments
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { TrackingTimeline } from '../../components/customer/TrackingTimeline';
 import { Divider } from '../../components/ui/Divider';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { CustomerStackParamList } from '../../navigation/CustomerNavigator';
@@ -20,8 +20,7 @@ import { format } from 'date-fns';
 type RouteProps = RouteProp<CustomerStackParamList, 'ShipmentDetail'>;
 
 const ShipmentDetailScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const route = useRoute<RouteProps>();
   const { data: shipment, isLoading, error, refetch } = useShipment(route.params.id);
 

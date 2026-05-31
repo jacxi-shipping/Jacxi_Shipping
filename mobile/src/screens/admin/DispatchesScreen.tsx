@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { dispatchesApi } from '../../api/dispatches';
@@ -10,7 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Input } from '../../components/ui/Input';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { ContainerStatus } from '../../types/container';
@@ -32,8 +32,7 @@ const formatCurrency = (amount?: number | null) =>
 const eligibleContainerStatuses: ContainerStatus[] = ['CREATED', 'WAITING_FOR_LOADING', 'LOADED', 'IN_TRANSIT'];
 
 const DispatchesScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | DispatchStatus>('all');
   const [activeDispatchId, setActiveDispatchId] = useState<string | null>(null);

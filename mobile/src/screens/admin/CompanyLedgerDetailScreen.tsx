@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { AdminStackParamList } from '../../navigation/AdminNavigator';
@@ -32,8 +32,7 @@ const titleCase = (value: string) =>
 const CompanyLedgerDetailScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const companyQuery = useQuery({
     queryKey: ['finance-company', route.params.id],

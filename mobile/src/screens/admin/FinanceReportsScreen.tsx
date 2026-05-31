@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { endOfMonth, format, startOfMonth, startOfQuarter, subDays } from 'date-fns';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +12,7 @@ import { DateField } from '../../components/ui/DateField';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { AdminUserSummary, FinancialReportType, FinancialShipmentReport, FinancialUserReport } from '../../types/admin';
@@ -62,8 +62,7 @@ const getPresetDateRange = (preset: Exclude<FinanceDatePreset, 'custom' | null>)
 
 const FinanceReportsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [reportType, setReportType] = useState<FinancialReportType>('summary');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');

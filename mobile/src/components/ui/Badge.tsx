@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme, ViewStyle } from 'react-native';
-import { Colors, ShipmentStatusColors, InvoiceStatusColors } from '../../constants/colors';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface BadgeProps {
   label: string;
@@ -12,8 +12,7 @@ interface BadgeProps {
 }
 
 export const Badge: React.FC<BadgeProps> = ({ label, variant = 'default', size = 'md', style }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const getVariantColor = () => {
     switch (variant) {

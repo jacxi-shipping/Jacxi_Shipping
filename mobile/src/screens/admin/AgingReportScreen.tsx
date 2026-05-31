@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
 import { Input } from '../../components/ui/Input';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { AdminUserSummary, DueAgingBucketKey } from '../../types/admin';
@@ -24,8 +24,7 @@ const formatCurrency = (amount: number) =>
 
 const AgingReportScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [selectedBucket, setSelectedBucket] = useState<DueAgingBucketKey>('current');
   const [userSearch, setUserSearch] = useState('');
   const [filterUserId, setFilterUserId] = useState<string | null>(null);

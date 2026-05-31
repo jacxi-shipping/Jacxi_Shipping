@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface DateFieldProps {
   label?: string;
@@ -58,8 +58,7 @@ export const DateField: React.FC<DateFieldProps> = ({
   maximumDate,
   containerStyle,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [showPicker, setShowPicker] = useState(false);
   const pickerValue = useMemo(() => parseDateString(value) || new Date(), [value]);
   const minDate = useMemo(() => parseDateString(minimumDate || undefined) || undefined, [minimumDate]);

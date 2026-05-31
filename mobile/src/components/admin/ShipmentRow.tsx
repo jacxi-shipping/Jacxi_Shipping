@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { StatusBadge } from '../shared/StatusBadge';
 import { Shipment } from '../../types/shipment';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { format } from 'date-fns';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface ShipmentRowProps {
   shipment: Shipment;
@@ -13,8 +13,7 @@ interface ShipmentRowProps {
 }
 
 export const ShipmentRow: React.FC<ShipmentRowProps> = ({ shipment, onPress }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <TouchableOpacity

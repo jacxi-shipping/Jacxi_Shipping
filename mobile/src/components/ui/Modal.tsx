@@ -5,10 +5,8 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  useColorScheme,
   Dimensions,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import Animated, {
@@ -17,6 +15,7 @@ import Animated, {
   SlideInDown,
   SlideOutDown,
 } from 'react-native-reanimated';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface ModalProps {
   visible: boolean;
@@ -33,11 +32,16 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   showCloseButton = true,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors, colorScheme } = useAppTheme();
 
   return (
-    <RNModal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <RNModal
+      key={colorScheme}
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+    >
       <Animated.View
         entering={FadeIn.duration(200)}
         exiting={FadeOut.duration(200)}
@@ -94,7 +98,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
   },
   title: {
     fontSize: Typography.fontSize.xl,

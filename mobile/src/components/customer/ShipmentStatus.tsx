@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { StatusBadge } from '../shared/StatusBadge';
 import { ShipmentStatus } from '../../types/shipment';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface ShipmentStatusProps {
   status: ShipmentStatus;
@@ -12,8 +12,7 @@ interface ShipmentStatusProps {
 }
 
 export const ShipmentStatus: React.FC<ShipmentStatusProps> = ({ status, estimatedDelivery }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const getStatusMessage = () => {
     switch (status) {

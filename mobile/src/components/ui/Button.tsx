@@ -6,9 +6,7 @@ import {
   StyleSheet,
   ViewStyle,
   TextStyle,
-  useColorScheme,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import Animated, {
@@ -17,6 +15,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { triggerImpact } from '../../utils/haptics';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -43,8 +42,7 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -154,13 +152,13 @@ export const Button: React.FC<ButtonProps> = ({
 
     const variantStyles: Record<string, TextStyle> = {
       primary: {
-        color: '#1C1C1E',
+        color: colors.textPrimary,
       },
       secondary: {
         color: colors.textPrimary,
       },
       danger: {
-        color: '#FFFFFF',
+        color: colors.panel,
       },
       ghost: {
         color: colors.accent,
@@ -187,7 +185,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' ? '#1C1C1E' : colors.accent}
+          color={variant === 'primary' ? colors.textPrimary : colors.accent}
         />
       ) : (
         <Text style={[getTextStyle(), textStyle]}>{title}</Text>

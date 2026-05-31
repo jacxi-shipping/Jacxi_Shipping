@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import Animated, {
   useAnimatedStyle,
@@ -11,6 +10,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface SkeletonProps {
   width?: number | string;
@@ -25,8 +25,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   borderRadius = BorderRadius.base,
   style,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const translateX = useSharedValue(-1);
 
   useEffect(() => {

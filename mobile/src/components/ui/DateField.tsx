@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface DateFieldProps {
   label?: string;
@@ -23,8 +23,7 @@ export const DateField: React.FC<DateFieldProps> = ({
   maximumDate,
   containerStyle,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <View style={[styles.container, containerStyle]}>

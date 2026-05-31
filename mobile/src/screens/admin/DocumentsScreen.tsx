@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
@@ -13,7 +13,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useShipments } from '../../hooks/useShipments';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 
@@ -39,8 +39,7 @@ const formatFileSize = (bytes: number) => {
 const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\w/g, (match) => match.toUpperCase());
 
 const DocumentsScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const { user, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<(typeof categoryOptions)[number]['value']>('all');

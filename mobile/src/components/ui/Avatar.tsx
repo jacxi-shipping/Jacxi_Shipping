@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Typography } from '../../constants/typography';
-import { BorderRadius } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface AvatarProps {
   name?: string;
@@ -11,8 +10,7 @@ interface AvatarProps {
 }
 
 export const Avatar: React.FC<AvatarProps> = ({ name, imageUrl, size = 40 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const getInitials = (name?: string) => {
     if (!name) return '?';
@@ -55,7 +53,7 @@ export const Avatar: React.FC<AvatarProps> = ({ name, imageUrl, size = 40 }) => 
             styles.initials,
             {
               fontSize: size * 0.4,
-              color: '#1C1C1E',
+              color: colors.textPrimary,
             },
           ]}
         >

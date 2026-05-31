@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { ShipmentTracking } from '../../types/shipment';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
-import { Spacing, BorderRadius } from '../../constants/spacing';
+import { Spacing } from '../../constants/spacing';
 import { format } from 'date-fns';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface TrackingTimelineProps {
   tracking: ShipmentTracking[];
@@ -12,8 +12,7 @@ interface TrackingTimelineProps {
 }
 
 export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ tracking, currentStatus }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const sortedTracking = [...tracking].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../../api/analytics';
@@ -8,7 +8,7 @@ import { SectionHeader } from '../../components/shared/SectionHeader';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 
@@ -18,8 +18,7 @@ const formatCurrency = (amount: number) =>
 const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\w/g, (match) => match.toUpperCase());
 
 const AnalyticsScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const query = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => analyticsApi.getOverview(),

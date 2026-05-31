@@ -3,6 +3,7 @@ export const Colors = {
     accent: '#D4AF37',
     accentLight: '#E5C158',
     accentDark: '#B89230',
+    accentContrast: '#111111',
     accentSoft: 'rgba(212, 175, 55, 0.14)',
     
     background: '#F9FAFB',
@@ -36,6 +37,7 @@ export const Colors = {
     accent: '#D4AF37',
     accentLight: '#E5C158',
     accentDark: '#B89230',
+    accentContrast: '#111111',
     accentSoft: 'rgba(212, 175, 55, 0.18)',
     
     background: '#0A0A0A',

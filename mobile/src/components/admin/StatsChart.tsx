@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../ui/Card';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface StatsChartProps {
   title: string;
@@ -11,8 +11,7 @@ interface StatsChartProps {
 }
 
 export const StatsChart: React.FC<StatsChartProps> = ({ title, data }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
 

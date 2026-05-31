@@ -6,11 +6,10 @@ import {
   StyleSheet,
   TextInputProps,
   TouchableOpacity,
-  useColorScheme,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -29,8 +28,7 @@ export const Input: React.FC<InputProps> = ({
   secureTextEntry,
   ...props
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isSecure, setIsSecure] = useState(secureTextEntry);
 

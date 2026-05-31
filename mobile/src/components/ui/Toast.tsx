@@ -1,15 +1,12 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { View, Text, StyleSheet } from 'react-native';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import Animated, {
   SlideInDown,
   SlideOutUp,
-  useAnimatedStyle,
-  withTiming,
-  useSharedValue,
 } from 'react-native-reanimated';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface ToastProps {
   message: string;
@@ -26,8 +23,7 @@ export const Toast: React.FC<ToastProps> = ({
   duration = 3000,
   onHide,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   useEffect(() => {
     if (visible && duration > 0) {
@@ -90,7 +86,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   message: {
-    color: '#FFFFFF',
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.medium,
     textAlign: 'center',
