@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, useColorScheme, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useShipments } from '../../hooks/useShipments';
 import { DashboardKPI } from '../../components/admin/DashboardKPI';
 import { ShipmentRow } from '../../components/admin/ShipmentRow';
 import { StatsChart } from '../../components/admin/StatsChart';
+import { AppIcon } from '../../components/shared/AppIcon';
 import { AppTopBar } from '../../components/shared/AppTopBar';
 import { SectionHeader } from '../../components/shared/SectionHeader';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
-import { Colors, ShipmentStatusColors } from '../../constants/colors';
+import { ShipmentStatusColors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { useNavigation } from '@react-navigation/native';
@@ -20,8 +22,7 @@ import { AdminStackParamList } from '../../navigation/AdminNavigator';
 type NavigationProp = NativeStackNavigationProp<AdminStackParamList>;
 
 const DashboardScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   
@@ -74,14 +75,14 @@ const DashboardScreen: React.FC = () => {
           <DashboardKPI
             title="Active Shipments"
             value={activeShipments}
-            icon="📦"
+            icon="shipments"
             subtitle="On hand or moving"
             variant="default"
           />
           <DashboardKPI
             title="In Transit"
             value={inTransit}
-            icon="🚢"
+            icon="transits"
             variant="info"
           />
         </View>
@@ -89,13 +90,13 @@ const DashboardScreen: React.FC = () => {
           <DashboardKPI
             title="At Port"
             value={atPort}
-            icon="⚓"
+            icon="port"
             variant="warning"
           />
           <DashboardKPI
             title="Delivered"
             value={delivered}
-            icon="✅"
+            icon="delivered"
             variant="success"
           />
         </View>
@@ -107,7 +108,7 @@ const DashboardScreen: React.FC = () => {
             activeOpacity={0.85}
             onPress={() => navigation.navigate('ShipmentCreate')}
           >
-            <Text style={styles.actionIcon}>+</Text>
+            <AppIcon name="add" size={20} color="#1C1C1E" />
             <Text style={styles.actionText}>New Shipment</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -115,7 +116,7 @@ const DashboardScreen: React.FC = () => {
             activeOpacity={0.85}
             onPress={() => navigation.navigate('Containers')}
           >
-            <Text style={[styles.actionIcon, { color: colors.textPrimary }]}>🚢</Text>
+            <AppIcon name="containers" size={20} color={colors.textPrimary} />
             <Text style={[styles.actionText, { color: colors.textPrimary }]}>Containers</Text>
           </TouchableOpacity>
         </View>
@@ -134,7 +135,10 @@ const DashboardScreen: React.FC = () => {
             />
           ))}
           <TouchableOpacity onPress={() => openTab('Shipments')}>
-            <Text style={[styles.viewAll, { color: colors.accent }]}>View All →</Text>
+            <View style={styles.viewAllWrap}>
+              <Text style={[styles.viewAll, { color: colors.accent }]}>View All</Text>
+              <AppIcon name="forward" size={16} color={colors.accent} />
+            </View>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -155,11 +159,11 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     borderRadius: 16,
   },
-  actionIcon: { fontSize: 20, marginRight: Spacing.sm, color: '#1C1C1E' },
-  actionText: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, color: '#1C1C1E' },
+  actionText: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, color: '#1C1C1E', marginLeft: Spacing.sm },
   section: { marginTop: Spacing.base },
   sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.base },
-  viewAll: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.medium, textAlign: 'center', marginTop: Spacing.base },
+  viewAllWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.base },
+  viewAll: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.medium, textAlign: 'center' },
 });
 
 export default DashboardScreen;

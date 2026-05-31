@@ -4,9 +4,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 export type AppIconName =
   | 'brand'
   | 'back'
+  | 'forward'
   | 'login'
   | 'loginCode'
   | 'resetPassword'
+  | 'add'
   | 'menu'
   | 'notifications'
   | 'theme'
@@ -24,6 +26,8 @@ export type AppIconName =
   | 'finance'
   | 'reports'
   | 'aging'
+  | 'port'
+  | 'delivered'
   | 'banking'
   | 'ledgers'
   | 'invoices'
@@ -35,9 +39,11 @@ export type AppIconName =
 const iconMap: Record<AppIconName, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
   brand: 'anchor',
   back: 'chevron-left',
+  forward: 'chevron-right',
   login: 'shield-account-outline',
   loginCode: 'form-textbox-password',
   resetPassword: 'lock-reset',
+  add: 'plus',
   menu: 'dots-grid',
   notifications: 'bell-outline',
   theme: 'theme-light-dark',
@@ -55,9 +61,11 @@ const iconMap: Record<AppIconName, React.ComponentProps<typeof MaterialCommunity
   finance: 'cash-multiple',
   reports: 'chart-line',
   aging: 'calendar-clock-outline',
+  port: 'anchor',
+  delivered: 'check-circle-outline',
   banking: 'bank-outline',
   ledgers: 'book-open-page-variant-outline',
-  invoices: 'receipt-text-outline',
+  invoices: 'file-document-outline',
   users: 'account-cog-outline',
   partnerPortals: 'domain',
   analytics: 'chart-timeline-variant',
@@ -81,6 +89,10 @@ export function getTabIconName(routeName: string): AppIconName {
     default:
       return 'workspace';
   }
+}
+
+export function isAppIconName(value: string): value is AppIconName {
+  return value in iconMap;
 }
 
 type AppIconProps = {

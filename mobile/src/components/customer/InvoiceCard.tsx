@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../ui/Card';
 import { StatusBadge } from '../shared/StatusBadge';
 import { Invoice } from '../../types/invoice';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { format } from 'date-fns';
@@ -15,8 +15,7 @@ interface InvoiceCardProps {
 }
 
 export const InvoiceCard: React.FC<InvoiceCardProps> = ({ invoice, onPress, footer }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <Card pressable={Boolean(onPress)} onPress={onPress} style={styles.card}>

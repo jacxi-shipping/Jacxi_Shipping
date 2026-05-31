@@ -85,7 +85,7 @@ const PartnerPortalsScreen: React.FC = () => {
           </View>
         }
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="PP" title="No Partner Portals" description="Create the first portal to begin partner workspace handoffs." />}
+        ListEmptyComponent={<EmptyState icon="workspace" title="No Partner Portals" description="Create the first portal to begin partner workspace handoffs." />}
         onRefresh={refetch}
         refreshing={isLoading}
       />

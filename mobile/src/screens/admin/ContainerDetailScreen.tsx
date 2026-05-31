@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 
@@ -24,8 +24,7 @@ const buildShipmentLabel = (shipment: { vehicleMake: string | null; vehicleModel
 
 const ContainerDetailScreen: React.FC = () => {
   const route = useRoute<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const containerId = route.params?.id as string;
 
   const query = useQuery({
@@ -34,15 +33,15 @@ const ContainerDetailScreen: React.FC = () => {
     enabled: !!containerId,
   });
 
-  if (query.isLoading) return <LoadingSpinner fullScreen />;
-  if (query.error) return <ErrorState message={(query.error as any).message} onRetry={query.refetch} />;
-
   const container = query.data;
   const documentTypes = useMemo(
     () => ['all', ...Array.from(new Set(container?.documents.map((document) => document.type) || []))],
     [container?.documents],
   );
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('all');
+
+  if (query.isLoading) return <LoadingSpinner fullScreen />;
+  if (query.error) return <ErrorState message={(query.error as any).message} onRetry={query.refetch} />;
 
   if (!container) {
     return <ErrorState message="Container not found." onRetry={query.refetch} />;

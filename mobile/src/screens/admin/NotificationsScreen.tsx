@@ -73,7 +73,7 @@ const NotificationsScreen: React.FC = () => {
             </View>
           </View>
         }
-        ListEmptyComponent={<EmptyState icon="🔔" title="No Notifications" />}
+        ListEmptyComponent={<EmptyState icon="notifications" title="No Notifications" />}
         onRefresh={refetch}
         refreshing={isLoading}
       />

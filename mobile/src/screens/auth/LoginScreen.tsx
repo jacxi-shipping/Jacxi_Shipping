@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Toast } from '../../components/ui/Toast';
 import { AuthScreenShell } from '../../components/shared/AuthScreenShell';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,6 +32,7 @@ type LoginScreenProps = {
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { login } = useAuth();
+  const { colors } = useAppTheme();
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -101,7 +103,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         />
 
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.link}>Forgot Password?</Text>
+          <Text style={[styles.link, { color: colors.accent }]}>Forgot Password?</Text>
         </TouchableOpacity>
 
         <Button
@@ -113,9 +115,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         />
 
         <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         <Button
@@ -143,7 +145,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: -Spacing.sm,
     marginBottom: Spacing.lg,
-    color: '#D4AF37',
   },
   button: {
     marginTop: Spacing.lg,
@@ -156,12 +157,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#D1D5DB',
   },
   dividerText: {
     marginHorizontal: Spacing.md,
     fontSize: Typography.fontSize.sm,
-    color: '#6B7280',
   },
 });
 

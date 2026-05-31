@@ -11,12 +11,12 @@ import {
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
-import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { triggerImpact } from '../../utils/haptics';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -53,7 +53,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const handlePressIn = () => {
     scale.value = withSpring(0.97);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void triggerImpact('light');
   };
 
   const handlePressOut = () => {
@@ -62,7 +62,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const handlePress = () => {
     if (!disabled && !loading) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      void triggerImpact('medium');
       onPress();
     }
   };

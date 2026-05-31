@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { Avatar } from '../../components/ui/Avatar';
 import { Divider } from '../../components/ui/Divider';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { AdminStackParamList } from '../../navigation/AdminNavigator';
@@ -18,8 +18,7 @@ import { AdminStackParamList } from '../../navigation/AdminNavigator';
 type RouteProps = RouteProp<AdminStackParamList, 'CustomerDetail'>;
 
 const CustomerDetailScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const route = useRoute<RouteProps>();
   
   const { data: customer, isLoading, error, refetch } = useQuery({
@@ -30,6 +29,12 @@ const CustomerDetailScreen: React.FC = () => {
   if (isLoading) return <LoadingSpinner fullScreen />;
   if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
   if (!customer) return <ErrorState message="Customer not found" />;
+
+  const addressLines = [
+    customer.address?.street,
+    [customer.address?.city, customer.address?.state, customer.address?.zipCode].filter(Boolean).join(' ').trim(),
+    customer.address?.country,
+  ].filter(Boolean) as string[];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -67,11 +72,7 @@ const CustomerDetailScreen: React.FC = () => {
           <Card>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Address</Text>
             <Divider />
-            <Text style={[styles.addressText, { color: colors.textSecondary }]}>
-              {customer.address.street && `${customer.address.street}\n`}
-              {customer.address.city}, {customer.address.state} {customer.address.zipCode}
-              {customer.address.country && `\n${customer.address.country}`}
-            </Text>
+            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{addressLines.join('\n')}</Text>
           </Card>
         )}
       </ScrollView>

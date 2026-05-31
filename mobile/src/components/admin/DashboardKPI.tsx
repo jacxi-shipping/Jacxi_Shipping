@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../ui/Card';
 import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
+import { AppIcon, AppIconName } from '../shared/AppIcon';
 
 /** Mirrors web StatsCard variants */
 export type KPIVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'secondary';
@@ -11,8 +13,7 @@ export type KPIVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 
 interface DashboardKPIProps {
   title: string;
   value: string | number;
-  /** Two-letter icon text or emoji; replaces the old `icon` emoji field */
-  icon?: string;
+  icon?: AppIconName;
   subtitle?: string;
   trend?: {
     value: number;
@@ -49,8 +50,7 @@ export const DashboardKPI: React.FC<DashboardKPIProps> = ({
   variant = 'default',
   onPress,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const { iconColor, iconBg } = useVariantColors(variant, colors);
 
   // Web StatsCard uses a left accent border only for 'default' variant
@@ -96,7 +96,7 @@ export const DashboardKPI: React.FC<DashboardKPIProps> = ({
               },
             ]}
           >
-            <Text style={[styles.icon, { color: iconColor }]}>{icon}</Text>
+            <AppIcon name={icon} size={20} color={iconColor} />
           </View>
         ) : null}
       </View>
@@ -152,8 +152,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 20,
   },
 });

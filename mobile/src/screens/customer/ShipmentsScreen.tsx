@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, useColorScheme } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShipments } from '../../hooks/useShipments';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -8,7 +8,7 @@ import { EmptyState } from '../../components/shared/EmptyState';
 import { AppTopBar } from '../../components/shared/AppTopBar';
 import { ShipmentCard } from '../../components/shared/ShipmentCard';
 import { Input } from '../../components/ui/Input';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Spacing } from '../../constants/spacing';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,8 +17,7 @@ import { CustomerStackParamList } from '../../navigation/CustomerNavigator';
 type NavigationProp = NativeStackNavigationProp<CustomerStackParamList>;
 
 const ShipmentsScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
   const [search, setSearch] = useState('');
   
@@ -57,7 +56,7 @@ const ShipmentsScreen: React.FC = () => {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
-            <EmptyState icon="📦" title="No Shipments Found" description="Your shipments will appear here" />
+            <EmptyState icon="shipments" title="No Shipments Found" description="Your shipments will appear here" />
           }
           onRefresh={refetch}
           refreshing={isLoading}

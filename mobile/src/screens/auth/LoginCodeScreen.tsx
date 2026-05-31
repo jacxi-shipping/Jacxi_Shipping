@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Toast } from '../../components/ui/Toast';
 import { AuthScreenShell } from '../../components/shared/AuthScreenShell';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +26,7 @@ type LoginCodeScreenProps = {
 
 const LoginCodeScreen: React.FC<LoginCodeScreenProps> = () => {
   const { loginWithCode } = useAuth();
+  const { colors } = useAppTheme();
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -78,7 +80,7 @@ const LoginCodeScreen: React.FC<LoginCodeScreenProps> = () => {
           )}
         />
 
-        <Text style={styles.helper}>Codes are case-insensitive and can include letters or numbers.</Text>
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>Codes are case-insensitive and can include letters or numbers.</Text>
 
         <Button
           title="Sign In"
@@ -105,7 +107,6 @@ const styles = StyleSheet.create({
   },
   helper: {
     fontSize: Typography.fontSize.sm,
-    color: '#6B7280',
     marginBottom: Spacing.base,
   },
   button: {

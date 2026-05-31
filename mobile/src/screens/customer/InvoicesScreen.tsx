@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, FlatList, useColorScheme } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoices } from '../../hooks/useInvoices';
 import { AppTopBar } from '../../components/shared/AppTopBar';
@@ -7,12 +7,11 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { InvoiceCard } from '../../components/customer/InvoiceCard';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Spacing } from '../../constants/spacing';
 
 const InvoicesScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const { data, isLoading, error, refetch } = useInvoices({}, { pageSize: 20 });
 
   if (isLoading) return <LoadingSpinner fullScreen />;
@@ -29,7 +28,7 @@ const InvoicesScreen: React.FC = () => {
         contentContainerStyle={styles.list}
         ListHeaderComponent={<AppTopBar section="Invoices" detail="Balances, due dates, and payment status" />}
         ListEmptyComponent={
-          <EmptyState icon="💵" title="No Invoices" description="Your invoices will appear here" />
+          <EmptyState icon="invoices" title="No Invoices" description="Your invoices will appear here" />
         }
         onRefresh={refetch}
         refreshing={isLoading}

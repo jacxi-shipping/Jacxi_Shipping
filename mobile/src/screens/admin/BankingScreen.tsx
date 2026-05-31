@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
 import { Input } from '../../components/ui/Input';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { BankingLedgerEntry, BankImportPreview } from '../../types/admin';
@@ -50,8 +50,7 @@ const buildShipmentLabel = (entry: BankingLedgerEntry) => {
 
 const BankingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [syncing, setSyncing] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [updatingEntry, setUpdatingEntry] = useState(false);
@@ -339,10 +338,6 @@ const BankingScreen: React.FC = () => {
     }
   };
 
-  if (!reviewStateHydrated || !importDraftHydrated || bankItemsQuery.isLoading || ledgerQuery.isLoading) return <LoadingSpinner fullScreen />;
-  if (bankItemsQuery.error) return <ErrorState message={(bankItemsQuery.error as any).message} onRetry={refetchAll} />;
-  if (ledgerQuery.error) return <ErrorState message={(ledgerQuery.error as any).message} onRetry={refetchAll} />;
-
   const bankingConfigured = bankItemsQuery.data?.configured !== false;
   const ledger = ledgerQuery.data;
   const contextLabel = selectedBankItem
@@ -446,6 +441,10 @@ const BankingScreen: React.FC = () => {
   useEffect(() => {
     setNoteDraft(activeReviewDraft ?? selectedEntry?.notes ?? '');
   }, [activeReviewDraft, selectedEntry?.id, selectedEntry?.notes]);
+
+  if (!reviewStateHydrated || !importDraftHydrated || bankItemsQuery.isLoading || ledgerQuery.isLoading) return <LoadingSpinner fullScreen />;
+  if (bankItemsQuery.error) return <ErrorState message={(bankItemsQuery.error as any).message} onRetry={refetchAll} />;
+  if (ledgerQuery.error) return <ErrorState message={(ledgerQuery.error as any).message} onRetry={refetchAll} />;
 
   const handleNoteDraftChange = (value: string) => {
     setNoteDraft(value);
@@ -821,12 +820,12 @@ const BankingScreen: React.FC = () => {
                       style={StyleSheet.flatten([
                         styles.statusPill,
                         {
-                          backgroundColor: status === 'REVIEWED' ? 'rgba(16, 185, 129, 0.12)' : status === 'FOLLOW_UP' ? 'rgba(245, 158, 11, 0.14)' : `${colors.border}66`,
-                          borderColor: status === 'REVIEWED' ? 'rgba(16, 185, 129, 0.28)' : status === 'FOLLOW_UP' ? 'rgba(245, 158, 11, 0.3)' : colors.border,
+                          backgroundColor: status === 'REVIEWED' ? `${colors.success}1f` : status === 'FOLLOW_UP' ? `${colors.warning}24` : `${colors.border}66`,
+                          borderColor: status === 'REVIEWED' ? `${colors.success}47` : status === 'FOLLOW_UP' ? `${colors.warning}4d` : colors.border,
                         },
                       ])}
                     >
-                      <Text style={[styles.statusPillText, { color: status === 'REVIEWED' ? '#10B981' : status === 'FOLLOW_UP' ? '#F59E0B' : colors.textSecondary }]}>{titleCase(status)}</Text>
+                      <Text style={[styles.statusPillText, { color: status === 'REVIEWED' ? colors.success : status === 'FOLLOW_UP' ? colors.warning : colors.textSecondary }]}>{titleCase(status)}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>

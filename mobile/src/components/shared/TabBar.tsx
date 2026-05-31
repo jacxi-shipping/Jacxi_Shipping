@@ -1,14 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { AppIcon, getTabIconName } from './AppIcon';
+import { triggerImpact } from '../../utils/haptics';
 
 export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const { colors } = useAppTheme();
@@ -43,7 +42,7 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
           });
 
           if (!isFocused && !event.defaultPrevented) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            void triggerImpact('light');
             navigation.navigate(route.name);
           }
         };

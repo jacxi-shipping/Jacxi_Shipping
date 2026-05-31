@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Toast } from '../../components/ui/Toast';
 import { AuthScreenShell } from '../../components/shared/AuthScreenShell';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,6 +25,7 @@ type ForgotPasswordScreenProps = {
 };
 
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
+  const { colors } = useAppTheme();
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -85,7 +87,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
           )}
         />
 
-        <Text style={styles.helper}>The reset link is sent to the email connected to your Jacxi account.</Text>
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>The reset link is sent to the email connected to your Jacxi account.</Text>
 
         <Button
           title="Send Reset Link"
@@ -112,7 +114,6 @@ const styles = StyleSheet.create({
   },
   helper: {
     fontSize: Typography.fontSize.sm,
-    color: '#6B7280',
     marginBottom: Spacing.base,
   },
   button: {

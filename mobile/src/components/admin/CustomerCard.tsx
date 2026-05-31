@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
 import { Customer } from '../../types/user';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 
@@ -13,8 +13,7 @@ interface CustomerCardProps {
 }
 
 export const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onPress }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <Card pressable onPress={onPress} style={styles.card}>

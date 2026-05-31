@@ -59,7 +59,7 @@ const PartnerPortalActivityScreen: React.FC = () => {
           />
         }
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="NT" title="No Activity" description="No audit activity matched this portal yet." />}
+        ListEmptyComponent={<EmptyState icon="notifications" title="No Activity" description="No audit activity matched this portal yet." />}
         onRefresh={refetch}
         refreshing={isLoading}
       />

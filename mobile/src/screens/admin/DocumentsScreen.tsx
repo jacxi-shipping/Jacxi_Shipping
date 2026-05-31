@@ -247,7 +247,7 @@ const DocumentsScreen: React.FC = () => {
         ) : null}
 
         {documents.length === 0 ? (
-          <EmptyState icon="📄" title="No Documents" description="Documents matching the current filters will appear here." />
+          <EmptyState icon="documents" title="No Documents" description="Documents matching the current filters will appear here." />
         ) : (
           documents.map((document) => (
             <Card key={document.id} style={styles.documentCard}>

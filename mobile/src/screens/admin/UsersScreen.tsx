@@ -82,7 +82,7 @@ const UsersScreen: React.FC = () => {
           </View>
         }
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="US" title="No Users" description="No internal users matched this module yet." />}
+        ListEmptyComponent={<EmptyState icon="users" title="No Users" description="No internal users matched this module yet." />}
         onRefresh={refetch}
         refreshing={isLoading}
       />

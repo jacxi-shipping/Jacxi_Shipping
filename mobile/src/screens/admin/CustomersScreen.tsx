@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, StyleSheet, useColorScheme } from 'react-native';
+import { FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { customersApi } from '../../api/customers';
@@ -9,7 +9,7 @@ import { SectionHeader } from '../../components/shared/SectionHeader';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Spacing } from '../../constants/spacing';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,8 +18,7 @@ import { AdminStackParamList } from '../../navigation/AdminNavigator';
 type NavigationProp = NativeStackNavigationProp<AdminStackParamList>;
 
 const CustomersScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
   
   const { data, isLoading, error, refetch } = useQuery({
@@ -51,7 +50,7 @@ const CustomersScreen: React.FC = () => {
             />
           </>
         }
-        ListEmptyComponent={<EmptyState icon="👥" title="No Customers" />}
+        ListEmptyComponent={<EmptyState icon="customers" title="No Customers" />}
         onRefresh={refetch}
         refreshing={isLoading}
       />

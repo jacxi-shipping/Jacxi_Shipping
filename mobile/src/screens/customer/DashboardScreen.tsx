@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, useColorScheme, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useShipments } from '../../hooks/useShipments';
@@ -7,9 +7,10 @@ import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { AppIcon } from '../../components/shared/AppIcon';
 import { AppTopBar } from '../../components/shared/AppTopBar';
 import { ShipmentCard } from '../../components/shared/ShipmentCard';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { useNavigation } from '@react-navigation/native';
@@ -19,8 +20,7 @@ import { CustomerStackParamList } from '../../navigation/CustomerNavigator';
 type NavigationProp = NativeStackNavigationProp<CustomerStackParamList>;
 
 const DashboardScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   
@@ -71,28 +71,28 @@ const DashboardScreen: React.FC = () => {
             style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
             onPress={() => openTab('Tracking')}
           >
-            <Text style={styles.actionIcon}>📦</Text>
+            <AppIcon name="tracking" size={28} color={colors.accent} />
             <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Track</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
             onPress={() => openTab('Invoices')}
           >
-            <Text style={styles.actionIcon}>💵</Text>
+            <AppIcon name="invoices" size={28} color={colors.accent} />
             <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Invoices</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
             onPress={() => navigation.navigate('Containers')}
           >
-            <Text style={styles.actionIcon}>🚢</Text>
+            <AppIcon name="containers" size={28} color={colors.accent} />
             <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Containers</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
             onPress={() => navigation.navigate('Documents')}
           >
-            <Text style={styles.actionIcon}>📄</Text>
+            <AppIcon name="documents" size={28} color={colors.accent} />
             <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Documents</Text>
           </TouchableOpacity>
         </View>
@@ -107,7 +107,7 @@ const DashboardScreen: React.FC = () => {
 
           {shipments.length === 0 ? (
             <EmptyState
-              icon="📦"
+              icon="shipments"
               title="No Active Shipments"
               description="Your active shipments will appear here"
             />
@@ -171,7 +171,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   actionIcon: {
-    fontSize: 32,
     marginBottom: Spacing.sm,
   },
   actionLabel: {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useForm, Controller } from 'react-hook-form';
@@ -9,15 +9,14 @@ import { Card } from '../../components/ui/Card';
 import { AppTopBar } from '../../components/shared/AppTopBar';
 import { TrackingTimeline } from '../../components/customer/TrackingTimeline';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { trackingApi } from '../../api/tracking';
 import { Shipment } from '../../types/shipment';
 
 const TrackingScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
   const [shipment, setShipment] = useState<Shipment | null>(null);

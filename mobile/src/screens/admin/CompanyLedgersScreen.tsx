@@ -87,7 +87,7 @@ const CompanyLedgersScreen: React.FC = () => {
           />
         }
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="CL" title="No Companies" description="No finance companies are available for ledger drill-down yet." />}
+        ListEmptyComponent={<EmptyState icon="ledgers" title="No Companies" description="No finance companies are available for ledger drill-down yet." />}
         onRefresh={refetch}
         refreshing={isLoading}
       />

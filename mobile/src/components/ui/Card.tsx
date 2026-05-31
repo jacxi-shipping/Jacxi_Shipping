@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import { triggerImpact } from '../../utils/haptics';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -41,7 +41,7 @@ export const Card: React.FC<CardProps> = ({
   const handlePressIn = () => {
     if (pressable) {
       scale.value = withSpring(0.985, { damping: 20, stiffness: 300 });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void triggerImpact('light');
     }
   };
 

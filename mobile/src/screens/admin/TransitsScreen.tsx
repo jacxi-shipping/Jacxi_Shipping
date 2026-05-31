@@ -85,7 +85,7 @@ const TransitsScreen: React.FC = () => {
           />
         }
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="TR" title="No Transits" description="No transit workflows have been created yet." />}
+        ListEmptyComponent={<EmptyState icon="transits" title="No Transits" description="No transit workflows have been created yet." />}
         onRefresh={refetch}
         refreshing={isLoading}
       />

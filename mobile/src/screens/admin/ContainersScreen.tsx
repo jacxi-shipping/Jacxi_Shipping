@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { AppTopBar } from '../../components/shared/AppTopBar';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Input } from '../../components/ui/Input';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Container } from '../../types/container';
@@ -20,8 +20,7 @@ const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().repl
 const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString() : 'Not scheduled');
 
 const ContainersScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
   
@@ -29,9 +28,6 @@ const ContainersScreen: React.FC = () => {
     queryKey: ['containers', search],
     queryFn: () => containersApi.getContainers(search ? { search } : {}, { pageSize: 20 }),
   });
-
-  if (isLoading) return <LoadingSpinner fullScreen />;
-  if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
 
   const containers = data?.containers || [];
   const summary = useMemo(
@@ -42,6 +38,9 @@ const ContainersScreen: React.FC = () => {
     }),
     [containers, data?.pagination.totalCount],
   );
+
+  if (isLoading) return <LoadingSpinner fullScreen />;
+  if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -104,7 +103,7 @@ const ContainersScreen: React.FC = () => {
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="🚢" title="No Containers" description="Containers tied to your shipments will appear here." />}
+        ListEmptyComponent={<EmptyState icon="containers" title="No Containers" description="Containers tied to your shipments will appear here." />}
         onRefresh={refetch}
         refreshing={isLoading}
       />
