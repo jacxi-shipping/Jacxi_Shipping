@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   loginCodeCard: {
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
   },
   loginCodeLabel: {

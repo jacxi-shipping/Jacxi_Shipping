@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { Badge } from '../ui/Badge';
 import { ShipmentStatus } from '../../types/shipment';
 import { InvoiceStatus } from '../../types/invoice';
 import { Colors, ShipmentStatusColors, InvoiceStatusColors } from '../../constants/colors';
@@ -8,11 +7,11 @@ import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 
 interface StatusBadgeProps {
-  status: ShipmentStatus | InvoiceStatus;
-  type: 'shipment' | 'invoice';
+  status: ShipmentStatus | InvoiceStatus | string;
+  type?: 'shipment' | 'invoice' | 'generic';
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'generic' }) => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -20,11 +19,28 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type }) => {
     return status.replace(/_/g, ' ');
   };
 
-  const getStatusColor = () => {
-    if (type === 'shipment') {
+  const getStatusColor = (): string => {
+    if (type === 'shipment' && status in ShipmentStatusColors) {
       return ShipmentStatusColors[status as ShipmentStatus];
     }
-    return InvoiceStatusColors[status as InvoiceStatus];
+    if (type === 'invoice' && status in InvoiceStatusColors) {
+      return InvoiceStatusColors[status as InvoiceStatus];
+    }
+    // Fallback for generic statuses
+    const lower = status.toLowerCase();
+    if (lower.includes('delivered') || lower.includes('paid') || lower.includes('on_hand') || lower.includes('released') || lower.includes('success')) {
+      return colors.success;
+    }
+    if (lower.includes('transit') || lower.includes('dispatching') || lower.includes('info')) {
+      return colors.info;
+    }
+    if (lower.includes('port') || lower.includes('pending') || lower.includes('warning') || lower.includes('customs')) {
+      return colors.warning;
+    }
+    if (lower.includes('cancel') || lower.includes('error') || lower.includes('delayed') || lower.includes('overdue')) {
+      return colors.error;
+    }
+    return colors.textSecondary;
   };
 
   const color = getStatusColor();
@@ -34,7 +50,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type }) => {
       style={[
         styles.badge,
         {
-          backgroundColor: `${color}20`,
+          backgroundColor: `${color}18`,
+          borderColor: `${color}45`,
         },
       ]}
     >
@@ -42,9 +59,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type }) => {
       <Text
         style={[
           styles.label,
-          {
-            color,
-          },
+          { color },
         ]}
       >
         {getStatusLabel()}
@@ -58,8 +73,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
     alignSelf: 'flex-start',
   },
   dot: {
@@ -72,5 +88,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

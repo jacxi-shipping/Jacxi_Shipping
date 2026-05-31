@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   bucketCard: {
     width: '48%',
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
     minHeight: 118,
   },

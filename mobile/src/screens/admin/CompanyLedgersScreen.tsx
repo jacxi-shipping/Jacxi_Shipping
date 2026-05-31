@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
   },
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   metricChip: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.sm,
   },
   metricLabel: {

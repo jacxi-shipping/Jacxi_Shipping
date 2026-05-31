@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   publicBadgeText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   documentDescription: { fontSize: Typography.fontSize.sm, marginTop: Spacing.sm, lineHeight: 20 },
   contextRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
-  contextChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm },
+  contextChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.xl, padding: Spacing.sm },
   contextLabel: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   contextValue: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold },
   openLink: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, marginTop: Spacing.sm },

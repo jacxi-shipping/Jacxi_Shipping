@@ -16,9 +16,20 @@ interface CardProps {
   style?: ViewStyle;
   pressable?: boolean;
   onPress?: () => void;
+  /** Visual elevation level: 'flat' | 'card' | 'elevated'. Default: 'card' */
+  elevation?: 'flat' | 'card' | 'elevated';
+  /** Add a 3px left accent border (gold) — mirrors web StatsCard default variant */
+  accentBorder?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({ children, style, pressable = false, onPress }) => {
+export const Card: React.FC<CardProps> = ({
+  children,
+  style,
+  pressable = false,
+  onPress,
+  elevation = 'card',
+  accentBorder = false,
+}) => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const scale = useSharedValue(1);
@@ -29,31 +40,45 @@ export const Card: React.FC<CardProps> = ({ children, style, pressable = false, 
 
   const handlePressIn = () => {
     if (pressable) {
-      scale.value = withSpring(0.985);
+      scale.value = withSpring(0.985, { damping: 20, stiffness: 300 });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
   const handlePressOut = () => {
     if (pressable) {
-      scale.value = withSpring(1);
+      scale.value = withSpring(1, { damping: 20, stiffness: 300 });
     }
+  };
+
+  const shadowByElevation: Record<string, ViewStyle> = {
+    flat: {
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    card: {
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: colorScheme === 'dark' ? 0.22 : 0.08,
+      shadowRadius: 16,
+      elevation: 3,
+    },
+    elevated: {
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: colorScheme === 'dark' ? 0.30 : 0.12,
+      shadowRadius: 28,
+      elevation: 6,
+    },
   };
 
   const cardStyle: ViewStyle = {
     backgroundColor: colors.panel,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,        // 16px — matches web rounded-2xl cards
     padding: Spacing.base,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: accentBorder ? 0 : 1,
+    borderLeftWidth: accentBorder ? 3 : 1,
+    borderColor: accentBorder ? colors.accent : colors.border,
     shadowColor: colors.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: colorScheme === 'dark' ? 0.22 : 0.08,
-    shadowRadius: 12,
-    elevation: 2,
+    ...shadowByElevation[elevation],
   };
 
   if (pressable && onPress) {

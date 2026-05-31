@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
   metricCard: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
   },
   metricValue: {

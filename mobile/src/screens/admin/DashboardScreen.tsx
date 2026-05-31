@@ -7,6 +7,7 @@ import { DashboardKPI } from '../../components/admin/DashboardKPI';
 import { ShipmentRow } from '../../components/admin/ShipmentRow';
 import { StatsChart } from '../../components/admin/StatsChart';
 import { AppTopBar } from '../../components/shared/AppTopBar';
+import { SectionHeader } from '../../components/shared/SectionHeader';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { Colors, ShipmentStatusColors } from '../../constants/colors';
@@ -34,15 +35,18 @@ const DashboardScreen: React.FC = () => {
   if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
 
   const shipments = shipmentsData?.data || [];
-  const activeShipments = shipments.filter(s => 
+  const activeShipments = shipments.filter(s =>
     !['DELIVERED', 'CANCELLED'].includes(s.status)
   ).length;
+  const inTransit = shipments.filter(s => s.status.includes('TRANSIT')).length;
+  const atPort = shipments.filter(s => s.status === 'AT_PORT').length;
+  const delivered = shipments.filter(s => s.status === 'DELIVERED').length;
 
   const statusDistribution = [
-    { label: 'On Hand', value: shipments.filter(s => s.status === 'ON_HAND').length, color: ShipmentStatusColors.ON_HAND },
-    { label: 'In Transit', value: shipments.filter(s => s.status.includes('TRANSIT')).length, color: ShipmentStatusColors.IN_TRANSIT },
-    { label: 'At Port', value: shipments.filter(s => s.status === 'AT_PORT').length, color: ShipmentStatusColors.AT_PORT },
-    { label: 'Delivered', value: shipments.filter(s => s.status === 'DELIVERED').length, color: ShipmentStatusColors.DELIVERED },
+    { label: 'On Hand',    value: shipments.filter(s => s.status === 'ON_HAND').length, color: ShipmentStatusColors.ON_HAND },
+    { label: 'In Transit', value: inTransit, color: ShipmentStatusColors.IN_TRANSIT },
+    { label: 'At Port',    value: atPort,    color: ShipmentStatusColors.AT_PORT },
+    { label: 'Delivered',  value: delivered, color: ShipmentStatusColors.DELIVERED },
   ];
 
   return (
@@ -53,20 +57,54 @@ const DashboardScreen: React.FC = () => {
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.accent} />
         }
       >
-        <AppTopBar section="Admin Dashboard" detail="Operations, shipment volume, and quick actions" />
+        <AppTopBar section="Dashboard" detail={`Welcome back, ${user?.name ?? 'Admin'}`} />
 
-        <Text style={[styles.greeting, { color: colors.textPrimary }]}>
-          Welcome back, {user?.name}
-        </Text>
+        {/* Page header – mirrors web DashboardHeader */}
+        <SectionHeader
+          title="Operations Overview"
+          description="Shipment volume, KPIs, and quick actions"
+          meta={[
+            { label: 'Active', value: activeShipments },
+            { label: 'Total',  value: shipmentsData?.total ?? 0 },
+          ]}
+        />
 
-        <View style={styles.kpis}>
-          <DashboardKPI title="Active Shipments" value={activeShipments} icon="📦" />
-          <DashboardKPI title="Total Shipments" value={shipmentsData?.total || 0} icon="📊" />
+        {/* KPI Grid – mirrors web DashboardKpiGrid (4 StatsCards) */}
+        <View style={styles.kpiRow}>
+          <DashboardKPI
+            title="Active Shipments"
+            value={activeShipments}
+            icon="📦"
+            subtitle="On hand or moving"
+            variant="default"
+          />
+          <DashboardKPI
+            title="In Transit"
+            value={inTransit}
+            icon="🚢"
+            variant="info"
+          />
+        </View>
+        <View style={styles.kpiRow}>
+          <DashboardKPI
+            title="At Port"
+            value={atPort}
+            icon="⚓"
+            variant="warning"
+          />
+          <DashboardKPI
+            title="Delivered"
+            value={delivered}
+            icon="✅"
+            variant="success"
+          />
         </View>
 
+        {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.accent }]}
+            activeOpacity={0.85}
             onPress={() => navigation.navigate('ShipmentCreate')}
           >
             <Text style={styles.actionIcon}>+</Text>
@@ -74,6 +112,7 @@ const DashboardScreen: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border }]}
+            activeOpacity={0.85}
             onPress={() => navigation.navigate('Containers')}
           >
             <Text style={[styles.actionIcon, { color: colors.textPrimary }]}>🚢</Text>
@@ -81,8 +120,10 @@ const DashboardScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Status Chart */}
         <StatsChart title="Status Distribution" data={statusDistribution} />
 
+        {/* Recent Shipments */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Shipments</Text>
           {shipments.slice(0, 5).map((shipment) => (
@@ -103,15 +144,21 @@ const DashboardScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: Spacing.base },
-  greeting: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xl },
-  kpis: { flexDirection: 'row', marginBottom: Spacing.base, gap: Spacing.sm },
-  quickActions: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.xl },
-  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: Spacing.base, borderRadius: 12 },
-  actionIcon: { fontSize: 24, marginRight: Spacing.sm, color: '#1C1C1E' },
+  content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
+  kpiRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
+  quickActions: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.base,
+    borderRadius: 16,
+  },
+  actionIcon: { fontSize: 20, marginRight: Spacing.sm, color: '#1C1C1E' },
   actionText: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, color: '#1C1C1E' },
   section: { marginTop: Spacing.base },
-  sectionTitle: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.base },
+  sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.base },
   viewAll: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.medium, textAlign: 'center', marginTop: Spacing.base },
 });
 

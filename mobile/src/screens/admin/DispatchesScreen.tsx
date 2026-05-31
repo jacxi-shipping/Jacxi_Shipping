@@ -208,7 +208,7 @@ const DispatchesScreen: React.FC = () => {
                   <Text style={[styles.statusPillText, { color: colors.accent }]}>{titleCase(dispatch.status)}</Text>
                 </View>
               </View>
-              <Text style={[styles.routeText, { color: colors.textSecondary }]}>{dispatch.origin} -> {dispatch.destination}</Text>
+              <Text style={[styles.routeText, { color: colors.textSecondary }]}>{dispatch.origin} {'>'} {dispatch.destination}</Text>
               <View style={styles.metaGrid}>
                 <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
                   <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Company</Text>
@@ -332,13 +332,13 @@ const styles = StyleSheet.create({
   reference: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold },
   routeText: { fontSize: Typography.fontSize.sm, marginBottom: Spacing.sm },
   metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  metaChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm },
+  metaChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.xl, padding: Spacing.sm },
   metaLabel: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   metaValue: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold },
   notes: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginTop: Spacing.sm },
   actionBar: { marginTop: Spacing.base },
   actionButton: { alignSelf: 'flex-start' },
-  workflowPanel: { borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.base, marginTop: Spacing.base },
+  workflowPanel: { borderWidth: 1, borderRadius: BorderRadius.xl, padding: Spacing.base, marginTop: Spacing.base },
   panelTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },
   panelText: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.xs },
   containerChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.sm, marginBottom: Spacing.base },

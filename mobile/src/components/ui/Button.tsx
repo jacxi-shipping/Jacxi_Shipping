@@ -69,7 +69,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      borderRadius: BorderRadius.lg,
+      borderRadius: BorderRadius.xl,
       alignItems: 'center',
       justifyContent: 'center',
       flexDirection: 'row',

@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     width: '48%',
     alignItems: 'center',
     padding: Spacing.base,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
   },
   actionIcon: {

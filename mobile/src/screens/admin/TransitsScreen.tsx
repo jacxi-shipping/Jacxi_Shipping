@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   metricChip: {
     width: '48%',
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.sm,
   },
   metricLabel: {

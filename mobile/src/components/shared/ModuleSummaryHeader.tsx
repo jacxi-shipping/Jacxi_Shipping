@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   statChip: {
     minWidth: 110,
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
   },

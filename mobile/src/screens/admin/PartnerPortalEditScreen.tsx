@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   toggleCard: {
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
   },
   toggleTitle: {

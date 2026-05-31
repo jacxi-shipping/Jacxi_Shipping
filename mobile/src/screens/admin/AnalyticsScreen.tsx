@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../../api/analytics';
 import { AppTopBar } from '../../components/shared/AppTopBar';
+import { SectionHeader } from '../../components/shared/SectionHeader';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -33,6 +34,15 @@ const AnalyticsScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="Analytics" detail="Operations, revenue, and customer performance" showBack />
+
+        <SectionHeader
+          title="Analytics"
+          description="Operations, revenue, and customer performance"
+          meta={[
+            { label: 'Shipments', value: analytics?.summary.totalShipments ?? 0 },
+            { label: 'Overdue', value: analytics?.summary.overdueInvoices ?? 0, intent: 'warning' },
+          ]}
+        />
 
         <View style={styles.metricGrid}>
           <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.totalShipments}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text></Card>

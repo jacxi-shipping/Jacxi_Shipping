@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoices } from '../../hooks/useInvoices';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { AppTopBar } from '../../components/shared/AppTopBar';
+import { SectionHeader } from '../../components/shared/SectionHeader';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -55,6 +56,16 @@ const InvoicesScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="Invoices" detail="Outstanding balances, filters, and billing health" showBack />
+
+        <SectionHeader
+          title="Invoices"
+          description="Outstanding balances, filters, and billing health"
+          meta={[
+            { label: 'Total', value: summary.total },
+            { label: 'Overdue', value: summary.overdueCount, intent: 'warning' },
+          ]}
+        />
+
         <Input value={search} onChangeText={setSearch} placeholder="Search by invoice, customer, or shipment" />
 
         <View style={styles.filterRow}>

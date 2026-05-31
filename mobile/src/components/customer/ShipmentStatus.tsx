@@ -56,7 +56,7 @@ export const ShipmentStatus: React.FC<ShipmentStatusProps> = ({ status, estimate
 const styles = StyleSheet.create({
   container: {
     padding: Spacing.base,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
     marginBottom: Spacing.base,
   },

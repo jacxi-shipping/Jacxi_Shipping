@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   metricChip: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.base,
   },

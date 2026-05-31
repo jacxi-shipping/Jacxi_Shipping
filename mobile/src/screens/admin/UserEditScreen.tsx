@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   },
   codeCard: {
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
   },
   codeLabel: {
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   emptyCodeState: {
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
     marginBottom: Spacing.base,
   },

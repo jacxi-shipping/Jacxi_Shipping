@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   actionTile: {
     width: '48%',
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
     minHeight: 176,
   },

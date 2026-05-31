@@ -5,28 +5,72 @@ import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 
+/** Mirrors web StatsCard variants */
+export type KPIVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'secondary';
+
 interface DashboardKPIProps {
   title: string;
   value: string | number;
+  /** Two-letter icon text or emoji; replaces the old `icon` emoji field */
   icon?: string;
+  subtitle?: string;
   trend?: {
     value: number;
     isPositive: boolean;
   };
+  /** Controls the icon background colour and accent border. Matches web StatsCard. */
+  variant?: KPIVariant;
   onPress?: () => void;
 }
 
-export const DashboardKPI: React.FC<DashboardKPIProps> = ({ title, value, icon, trend, onPress }) => {
+function useVariantColors(variant: KPIVariant, colors: typeof Colors.light) {
+  switch (variant) {
+    case 'success':
+      return { iconColor: colors.success, iconBg: `${colors.success}26` };
+    case 'warning':
+      return { iconColor: colors.warning, iconBg: `${colors.warning}26` };
+    case 'error':
+      return { iconColor: colors.error, iconBg: `${colors.error}26` };
+    case 'info':
+      return { iconColor: colors.info, iconBg: `${colors.info}26` };
+    case 'secondary':
+      return { iconColor: colors.textSecondary, iconBg: `${colors.textSecondary}1A` };
+    default: // 'default' — gold accent, matches web
+      return { iconColor: colors.accent, iconBg: `${colors.accent}26` };
+  }
+}
+
+export const DashboardKPI: React.FC<DashboardKPIProps> = ({
+  title,
+  value,
+  icon,
+  subtitle,
+  trend,
+  variant = 'default',
+  onPress,
+}) => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { iconColor, iconBg } = useVariantColors(variant, colors);
+
+  // Web StatsCard uses a left accent border only for 'default' variant
+  const accentBorder = variant === 'default';
 
   return (
-    <Card pressable={!!onPress} onPress={onPress} style={styles.card}>
+    <Card
+      pressable={!!onPress}
+      onPress={onPress}
+      accentBorder={accentBorder}
+      style={styles.card}
+    >
       <View style={styles.content}>
         <View style={styles.left}>
           <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
           <Text style={[styles.value, { color: colors.textPrimary }]}>{value}</Text>
-          {trend && (
+          {subtitle ? (
+            <Text style={[styles.subtitle, { color: colors.textTertiary }]}>{subtitle}</Text>
+          ) : null}
+          {trend ? (
             <View
               style={[
                 styles.trendPill,
@@ -40,21 +84,21 @@ export const DashboardKPI: React.FC<DashboardKPIProps> = ({ title, value, icon, 
                 {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
-        {icon && (
+        {icon ? (
           <View
             style={[
               styles.iconContainer,
               {
-                backgroundColor: colors.surfaceMuted,
-                borderColor: `${colors.accent}30`,
+                backgroundColor: iconBg,
+                borderColor: `${iconColor}33`,
               },
             ]}
           >
-            <Text style={[styles.icon, { color: colors.accent }]}>{icon}</Text>
+            <Text style={[styles.icon, { color: iconColor }]}>{icon}</Text>
           </View>
-        )}
+        ) : null}
       </View>
     </Card>
   );
@@ -63,7 +107,7 @@ export const DashboardKPI: React.FC<DashboardKPIProps> = ({ title, value, icon, 
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    minHeight: 132,
+    minHeight: 120,
   },
   content: {
     flexDirection: 'row',
@@ -84,6 +128,10 @@ const styles = StyleSheet.create({
   value: {
     fontSize: Typography.fontSize['2xl'],
     fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.xs,
+  },
+  subtitle: {
+    fontSize: Typography.fontSize.xs,
     marginBottom: Spacing.sm,
   },
   trendPill: {
@@ -91,7 +139,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: 4,
   },
   trend: {
     fontSize: Typography.fontSize.xs,
@@ -101,12 +149,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: BorderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   icon: {
-    fontSize: 22,
-    fontWeight: Typography.fontWeight.bold,
+    fontSize: 20,
   },
 });

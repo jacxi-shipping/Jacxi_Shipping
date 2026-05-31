@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   number: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.semibold },
   type: { fontSize: Typography.fontSize.sm },
   metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
-  metaChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm },
+  metaChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.xl, padding: Spacing.sm },
   metaLabel: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   metaValue: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold },
   statusPill: {

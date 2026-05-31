@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { customersApi } from '../../api/customers';
 import { CustomerCard } from '../../components/admin/CustomerCard';
 import { AppTopBar } from '../../components/shared/AppTopBar';
+import { SectionHeader } from '../../components/shared/SectionHeader';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -40,7 +41,16 @@ const CustomersScreen: React.FC = () => {
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        ListHeaderComponent={<AppTopBar section="Customers" detail="Customer accounts and shipment relationships" />}
+        ListHeaderComponent={
+          <>
+            <AppTopBar section="Customers" detail="Customer accounts and shipment relationships" />
+            <SectionHeader
+              title="Customers"
+              description="Customer accounts and shipment relationships"
+              meta={[{ label: 'Total', value: customers.length }]}
+            />
+          </>
+        }
         ListEmptyComponent={<EmptyState icon="👥" title="No Customers" />}
         onRefresh={refetch}
         refreshing={isLoading}

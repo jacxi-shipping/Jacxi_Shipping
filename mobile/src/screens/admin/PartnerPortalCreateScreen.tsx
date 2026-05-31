@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   },
   optionCard: {
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
   },
   optionTitle: {
