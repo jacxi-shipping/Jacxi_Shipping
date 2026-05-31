@@ -5,14 +5,18 @@ import { TouchableOpacity } from 'react-native-gesture-handler';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
-import Animated, {
-  useAnimatedStyle,
-  withSpring,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+
+const tabIcons: Record<string, string> = {
+  Dashboard: '[]',
+  Shipments: '<>',
+  Customers: 'OO',
+  Tracking: '>>',
+  Invoices: '$$',
+  Workspace: '::',
+};
 
 export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const colorScheme = useColorScheme();
@@ -61,10 +65,15 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
                 styles.tabContent,
                 isFocused && [
                   styles.tabContentActive,
-                  { backgroundColor: `${colors.accent}15` },
+                  { backgroundColor: `${colors.accent}16`, borderColor: `${colors.accent}35` },
                 ],
               ]}
             >
+              <View style={[styles.iconBadge, isFocused && { backgroundColor: colors.accent }]}> 
+                <Text style={[styles.iconText, { color: isFocused ? '#111111' : colors.textSecondary }]}>
+                  {tabIcons[route.name] || '::'}
+                </Text>
+              </View>
               <Text style={[styles.label, { color: isFocused ? colors.accent : colors.textSecondary }]}>
                 {typeof label === 'string' ? label : ''}
               </Text>
@@ -81,18 +90,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopWidth: 1,
     paddingTop: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
+    paddingBottom: Spacing.xs,
   },
   tabContent: {
-    paddingVertical: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    minWidth: 70,
   },
   tabContentActive: {
     borderRadius: BorderRadius.full,
+  },
+  iconBadge: {
+    minWidth: 28,
+    paddingHorizontal: Spacing.xs,
+    height: 24,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
+  iconText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: 0.8,
   },
   label: {
     fontSize: Typography.fontSize.xs,

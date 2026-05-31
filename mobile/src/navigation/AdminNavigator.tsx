@@ -17,12 +17,27 @@ import DocumentsScreen from '../screens/admin/DocumentsScreen';
 import AnalyticsScreen from '../screens/admin/AnalyticsScreen';
 import NotificationsScreen from '../screens/admin/NotificationsScreen';
 import SettingsScreen from '../screens/admin/SettingsScreen';
+import UsersScreen from '../screens/admin/UsersScreen';
+import PartnerPortalsScreen from '../screens/admin/PartnerPortalsScreen';
+import BankingScreen from '../screens/admin/BankingScreen';
+import CompanyLedgersScreen from '../screens/admin/CompanyLedgersScreen';
+import TransitsScreen from '../screens/admin/TransitsScreen';
+import UserDetailScreen from '../screens/admin/UserDetailScreen';
+import PartnerPortalDetailScreen from '../screens/admin/PartnerPortalDetailScreen';
+import PartnerPortalActivityScreen from '../screens/admin/PartnerPortalActivityScreen';
+import TransitDetailScreen from '../screens/admin/TransitDetailScreen';
+import CompanyLedgerDetailScreen from '../screens/admin/CompanyLedgerDetailScreen';
+import UserCreateScreen from '../screens/admin/UserCreateScreen';
+import UserEditScreen from '../screens/admin/UserEditScreen';
+import PartnerPortalCreateScreen from '../screens/admin/PartnerPortalCreateScreen';
+import PartnerPortalEditScreen from '../screens/admin/PartnerPortalEditScreen';
+import FinanceReportsScreen from '../screens/admin/FinanceReportsScreen';
 
 export type AdminTabParamList = {
   Dashboard: undefined;
   Shipments: undefined;
   Customers: undefined;
-  More: undefined;
+  Workspace: undefined;
 };
 
 export type AdminStackParamList = {
@@ -30,13 +45,28 @@ export type AdminStackParamList = {
   ShipmentDetail: { id: string };
   ShipmentCreate: undefined;
   CustomerDetail: { id: string };
+  UserCreate: undefined;
+  UserDetail: { id: string };
+  UserEdit: { id: string };
   ContainerDetail: { id: string };
+  TransitDetail: { id: string };
   Containers: undefined;
   Dispatches: undefined;
   Invoices: undefined;
   Finance: undefined;
+  FinanceReports: undefined;
+  Banking: undefined;
+  CompanyLedgers: undefined;
+  CompanyLedgerDetail: { id: string };
   Documents: undefined;
   Analytics: undefined;
+  Users: undefined;
+  PartnerPortals: undefined;
+  PartnerPortalCreate: undefined;
+  PartnerPortalDetail: { id: string };
+  PartnerPortalEdit: { id: string };
+  PartnerPortalActivity: { portalId: string; portalName?: string };
+  Transits: undefined;
   Notifications: undefined;
   Settings: undefined;
 };
@@ -44,7 +74,7 @@ export type AdminStackParamList = {
 const Tab = createBottomTabNavigator<AdminTabParamList>();
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
-const MoreScreen = () => {
+const WorkspaceScreen = () => {
   return <SettingsScreen />;
 };
 
@@ -59,7 +89,7 @@ const AdminTabs = () => {
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Shipments" component={ShipmentsScreen} />
       <Tab.Screen name="Customers" component={CustomersScreen} />
-      <Tab.Screen name="More" component={MoreScreen} />
+      <Tab.Screen name="Workspace" component={WorkspaceScreen} />
     </Tab.Navigator>
   );
 };
@@ -75,13 +105,28 @@ export const AdminNavigator = () => {
       <Stack.Screen name="ShipmentDetail" component={ShipmentDetailScreen} />
       <Stack.Screen name="ShipmentCreate" component={ShipmentCreateScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+      <Stack.Screen name="UserCreate" component={UserCreateScreen} />
+      <Stack.Screen name="UserDetail" component={UserDetailScreen} />
+      <Stack.Screen name="UserEdit" component={UserEditScreen} />
       <Stack.Screen name="Containers" component={ContainersScreen} />
       <Stack.Screen name="ContainerDetail" component={ContainerDetailScreen} />
+      <Stack.Screen name="TransitDetail" component={TransitDetailScreen} />
       <Stack.Screen name="Dispatches" component={DispatchesScreen} />
       <Stack.Screen name="Invoices" component={InvoicesScreen} />
       <Stack.Screen name="Finance" component={FinanceScreen} />
+      <Stack.Screen name="FinanceReports" component={FinanceReportsScreen} />
+      <Stack.Screen name="Banking" component={BankingScreen} />
+      <Stack.Screen name="CompanyLedgers" component={CompanyLedgersScreen} />
+      <Stack.Screen name="CompanyLedgerDetail" component={CompanyLedgerDetailScreen} />
       <Stack.Screen name="Documents" component={DocumentsScreen} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+      <Stack.Screen name="Users" component={UsersScreen} />
+      <Stack.Screen name="PartnerPortalCreate" component={PartnerPortalCreateScreen} />
+      <Stack.Screen name="PartnerPortals" component={PartnerPortalsScreen} />
+      <Stack.Screen name="PartnerPortalDetail" component={PartnerPortalDetailScreen} />
+      <Stack.Screen name="PartnerPortalEdit" component={PartnerPortalEditScreen} />
+      <Stack.Screen name="PartnerPortalActivity" component={PartnerPortalActivityScreen} />
+      <Stack.Screen name="Transits" component={TransitsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>

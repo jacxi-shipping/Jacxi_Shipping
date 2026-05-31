@@ -1,19 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
-import { Card } from '../../components/ui/Card';
-import { Avatar } from '../../components/ui/Avatar';
-import { Divider } from '../../components/ui/Divider';
 import { Button } from '../../components/ui/Button';
-import { Colors } from '../../constants/colors';
+import { WorkspaceHub } from '../../components/shared/WorkspaceHub';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
+import { Colors } from '../../constants/colors';
 
 const ProfileScreen: React.FC = () => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { user, logout } = useAuth();
+  const navigation = useNavigation<any>();
 
   const handleLogout = () => {
     Alert.alert(
@@ -28,63 +25,65 @@ const ProfileScreen: React.FC = () => {
 
   if (!user) return null;
 
+  const openTab = (screen: 'Dashboard' | 'Shipments' | 'Tracking' | 'Invoices' | 'Workspace') => {
+    navigation.navigate('Home', { screen });
+  };
+
+  const openNotifications = () => {
+    navigation.navigate('Notifications');
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Avatar name={user.name} size={80} />
-          </View>
-          <Text style={[styles.name, { color: colors.textPrimary }]}>{user.name}</Text>
-          <Text style={[styles.email, { color: colors.textSecondary }]}>{user.email}</Text>
-          {user.loginCode && (
-            <View style={styles.loginCode}>
-              <Text style={[styles.loginCodeLabel, { color: colors.textSecondary }]}>Login Code</Text>
-              <Text style={[styles.loginCodeValue, { color: colors.accent }]}>{user.loginCode}</Text>
-            </View>
-          )}
-        </Card>
-
-        <Card>
-          <TouchableOpacity style={styles.option}>
-            <Text style={[styles.optionText, { color: colors.textPrimary }]}>📱 App Settings</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-          <Divider spacing={0} />
-          <TouchableOpacity style={styles.option}>
-            <Text style={[styles.optionText, { color: colors.textPrimary }]}>🔔 Notifications</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-          <Divider spacing={0} />
-          <TouchableOpacity style={styles.option}>
-            <Text style={[styles.optionText, { color: colors.textPrimary }]}>📄 Terms & Privacy</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-        </Card>
-
-        <Button title="Logout" onPress={handleLogout} variant="danger" fullWidth style={styles.logoutButton} />
-        
-        <Text style={[styles.version, { color: colors.textTertiary }]}>Version 1.0.0</Text>
-      </ScrollView>
-    </SafeAreaView>
+    <WorkspaceHub
+      title="Customer Workspace"
+      subtitle="A mobile shell organized like the customer portal, with shipment, finance, and account tools grouped together."
+      roleLabel={user.role}
+      name={user.name}
+      email={user.email}
+      loginCode={user.loginCode}
+      sections={[
+        {
+          title: 'Main',
+          caption: 'Your primary customer views.',
+          items: [
+            { title: 'Dashboard', description: 'Current shipments, alerts, and next steps.', icon: '[]', onPress: () => openTab('Dashboard') },
+            { title: 'Shipments', description: 'Browse your active and completed shipments.', icon: '<>', onPress: () => openTab('Shipments') },
+            { title: 'Tracking', description: 'Track containers and shipment progress.', icon: '>>', onPress: () => openTab('Tracking') },
+            { title: 'Invoices', description: 'Review balances and payment status.', icon: '$$', onPress: () => openTab('Invoices') },
+          ],
+        },
+        {
+          title: 'Account',
+          caption: 'Alerts and account access tools.',
+          items: [
+            { title: 'Notifications', description: 'Stay on top of shipment and billing updates.', icon: 'NT', onPress: openNotifications },
+            { title: 'Workspace Home', description: 'Return to this account overview at any time.', icon: '::', onPress: () => openTab('Workspace') },
+          ],
+        },
+      ]}
+      footer={
+        <View style={styles.footer}>
+          <Button title="Logout" onPress={handleLogout} variant="danger" fullWidth style={styles.logoutButton} />
+          <Text style={styles.version}>Version 1.0.0</Text>
+        </View>
+      }
+    />
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: Spacing.base },
-  profileCard: { alignItems: 'center', marginBottom: Spacing.base },
-  avatarContainer: { marginBottom: Spacing.base },
-  name: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
-  email: { fontSize: Typography.fontSize.base, marginBottom: Spacing.base },
-  loginCode: { alignItems: 'center' },
-  loginCodeLabel: { fontSize: Typography.fontSize.xs, marginBottom: Spacing.xs },
-  loginCodeValue: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold },
-  option: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.base },
-  optionText: { fontSize: Typography.fontSize.base },
-  arrow: { fontSize: 24, color: Colors.light.textTertiary },
-  logoutButton: { marginTop: Spacing.base },
-  version: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xl },
+  footer: {
+    paddingTop: Spacing.sm,
+  },
+  logoutButton: {
+    marginTop: Spacing.sm,
+  },
+  version: {
+    fontSize: Typography.fontSize.xs,
+    textAlign: 'center',
+    marginTop: Spacing.xl,
+    color: Colors.light.textTertiary,
+  },
 });
 
 export default ProfileScreen;

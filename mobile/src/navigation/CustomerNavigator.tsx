@@ -15,7 +15,7 @@ export type CustomerTabParamList = {
   Shipments: undefined;
   Tracking: undefined;
   Invoices: undefined;
-  Profile: undefined;
+  Workspace: undefined;
 };
 
 export type CustomerStackParamList = {
@@ -39,7 +39,7 @@ const CustomerTabs = () => {
       <Tab.Screen name="Shipments" component={ShipmentsScreen} />
       <Tab.Screen name="Tracking" component={TrackingScreen} />
       <Tab.Screen name="Invoices" component={InvoicesScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Workspace" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };
