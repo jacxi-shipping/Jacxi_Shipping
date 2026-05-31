@@ -151,6 +151,7 @@ const DocumentsScreen: React.FC = () => {
 
         {shipments.length > 0 ? (
           <View style={styles.shipmentSection}>
+            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Shipment Scope</Text>
             <Text style={[styles.shipmentSectionTitle, { color: colors.textPrimary }]}>Shipment Filter</Text>
             <View style={styles.filterRow}>
               <TouchableOpacity
@@ -191,6 +192,7 @@ const DocumentsScreen: React.FC = () => {
           </View>
         ) : null}
 
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Document Categories</Text>
         <View style={styles.filterRow}>
           {categoryOptions.map((option) => {
             const selected = option.value === category;
@@ -215,15 +217,15 @@ const DocumentsScreen: React.FC = () => {
         </View>
 
         <View style={styles.metricRow}>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.total}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Visible</Text>
           </Card>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.invoiceCount}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Invoices</Text>
           </Card>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.publicCount}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Public</Text>
           </Card>
@@ -231,6 +233,7 @@ const DocumentsScreen: React.FC = () => {
 
         {isAdmin ? (
           <Card style={styles.uploadCard}>
+            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Admin Upload</Text>
             <Text style={[styles.uploadTitle, { color: colors.textPrimary }]}>Upload Document</Text>
             <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Choose a file and upload it to the shared document library. The active shipment filter will be used as the shipment link when one is selected.</Text>
             {selectedUploadAsset ? (
@@ -264,10 +267,16 @@ const DocumentsScreen: React.FC = () => {
               {document.description ? (
                 <Text style={[styles.documentDescription, { color: colors.textSecondary }]}>{document.description}</Text>
               ) : null}
-              <Text style={[styles.documentContext, { color: colors.textSecondary }]}>
-                {document.user?.name || document.user?.email || document.uploadedBy}
-                {document.shipment?.id ? ` • Shipment ${document.shipment.id.slice(0, 8)}` : ''}
-              </Text>
+              <View style={styles.contextRow}>
+                <View style={[styles.contextChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                  <Text style={[styles.contextLabel, { color: colors.textSecondary }]}>Uploaded By</Text>
+                  <Text style={[styles.contextValue, { color: colors.textPrimary }]}>{document.user?.name || document.user?.email || document.uploadedBy}</Text>
+                </View>
+                <View style={[styles.contextChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                  <Text style={[styles.contextLabel, { color: colors.textSecondary }]}>Shipment</Text>
+                  <Text style={[styles.contextValue, { color: colors.textPrimary }]}>{document.shipment?.id ? document.shipment.id.slice(0, 8) : 'Unlinked'}</Text>
+                </View>
+              </View>
               <TouchableOpacity activeOpacity={0.85} onPress={() => void Linking.openURL(document.fileUrl)}>
                 <Text style={[styles.openLink, { color: colors.accent }]}>Open / Download</Text>
               </TouchableOpacity>
@@ -282,32 +291,34 @@ const DocumentsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
-  subtitle: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.base },
+  sectionEyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   shipmentSection: { marginBottom: Spacing.base },
-  shipmentSectionTitle: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.sm },
+  shipmentSectionTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.base },
   filterChip: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm },
   filterChipText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   uploadCard: { marginBottom: Spacing.base },
-  uploadTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
+  uploadTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },
   uploadText: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.sm },
   uploadMeta: { fontSize: Typography.fontSize.xs, marginBottom: Spacing.sm },
   uploadActions: { flexDirection: 'row', gap: Spacing.sm },
   uploadButton: { flex: 1 },
   metricRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.base },
-  metricCard: { flex: 1, paddingVertical: Spacing.base },
-  metricValue: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, textAlign: 'center' },
-  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
+  metricCard: { flex: 1, paddingVertical: Spacing.base, borderWidth: 1 },
+  metricValue: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.semibold, textAlign: 'center' },
+  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.8 },
   documentCard: { marginBottom: Spacing.sm },
   documentHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
   documentHeaderText: { flex: 1 },
-  documentName: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
+  documentName: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },
   documentMeta: { fontSize: Typography.fontSize.xs },
   publicBadge: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, alignSelf: 'flex-start' },
-  publicBadgeText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.bold },
+  publicBadgeText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   documentDescription: { fontSize: Typography.fontSize.sm, marginTop: Spacing.sm, lineHeight: 20 },
-  documentContext: { fontSize: Typography.fontSize.xs, marginTop: Spacing.sm },
+  contextRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
+  contextChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm },
+  contextLabel: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
+  contextValue: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold },
   openLink: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, marginTop: Spacing.sm },
 });
 export default DocumentsScreen;

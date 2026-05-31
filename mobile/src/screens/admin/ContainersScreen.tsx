@@ -48,16 +48,17 @@ const ContainersScreen: React.FC = () => {
       <View style={styles.pageHeader}>
         <AppTopBar section="Containers" detail="Capacity, movement status, and linked shipments" showBack />
         <Input value={search} onChangeText={setSearch} placeholder="Search by container, tracking, vessel, or booking" />
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Capacity Snapshot</Text>
         <View style={styles.metricRow}>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.total}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Visible</Text>
           </Card>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.inTransit}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>In Transit</Text>
           </Card>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.withDocuments}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>With Docs</Text>
           </Card>
@@ -76,12 +77,23 @@ const ContainersScreen: React.FC = () => {
             <Text style={[styles.type, { color: colors.textSecondary }]}>
               {item.shippingLine || 'Shipping line pending'} • {item.destinationPort || 'Destination pending'}
             </Text>
-            <Text style={[styles.meta, { color: colors.textSecondary }]}>
-              Capacity {item.currentCount}/{item.maxCapacity} • ETA {formatDate(item.estimatedArrival)}
-            </Text>
-            <View style={styles.footerRow}>
-              <Text style={[styles.footerMeta, { color: colors.textSecondary }]}>Tracking {item.trackingNumber || 'Not connected'}</Text>
-              <Text style={[styles.footerMeta, { color: colors.textSecondary }]}>{item._count?.shipments || 0} shipments</Text>
+            <View style={styles.metaGrid}>
+              <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Capacity</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item.currentCount}/{item.maxCapacity}</Text>
+              </View>
+              <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>ETA</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{formatDate(item.estimatedArrival)}</Text>
+              </View>
+              <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Tracking</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item.trackingNumber || 'Not connected'}</Text>
+              </View>
+              <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Shipments</Text>
+                <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item._count?.shipments || 0}</Text>
+              </View>
             </View>
             {(item._count?.documents || 0) > 0 ? (
               <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('ContainerDetail', { id: item.id })}>
@@ -103,27 +115,27 @@ const ContainersScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { padding: Spacing.base, paddingBottom: 0 },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
-  subtitle: { fontSize: Typography.fontSize.sm, marginBottom: Spacing.base },
+  sectionEyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginTop: Spacing.sm, marginBottom: Spacing.xs },
   list: { padding: Spacing.base, paddingTop: Spacing.sm },
   metricRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  metricCard: { flex: 1, paddingVertical: Spacing.base },
-  metricValue: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, textAlign: 'center' },
-  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
+  metricCard: { flex: 1, paddingVertical: Spacing.base, borderWidth: 1 },
+  metricValue: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.semibold, textAlign: 'center' },
+  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.8 },
   card: { marginBottom: Spacing.md },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xs },
-  number: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold },
+  number: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.semibold },
   type: { fontSize: Typography.fontSize.sm },
-  meta: { fontSize: Typography.fontSize.sm, marginTop: Spacing.xs },
-  footerRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.sm, gap: Spacing.sm },
-  footerMeta: { flex: 1, fontSize: Typography.fontSize.xs },
+  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
+  metaChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm },
+  metaLabel: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
+  metaValue: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold },
   statusPill: {
     borderWidth: 1,
     borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
   },
-  statusPillText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.bold },
+  statusPillText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   documentsHint: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, marginTop: Spacing.sm },
 });
 

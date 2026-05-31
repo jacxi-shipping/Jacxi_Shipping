@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
@@ -11,6 +11,8 @@ import { Spacing } from '../../constants/spacing';
 const SettingsScreen: React.FC = () => {
   const { user, logout } = useAuth();
   const navigation = useNavigation<any>();
+  const colorScheme = useColorScheme();
+  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
   const handleLogout = () => {
     Alert.alert(
@@ -112,7 +114,7 @@ const SettingsScreen: React.FC = () => {
       footer={
         <View style={styles.footer}>
           <Button title="Logout" onPress={handleLogout} variant="danger" fullWidth style={styles.logoutButton} />
-          <Text style={styles.version}>Version 1.0.0</Text>
+          <Text style={[styles.version, { color: colors.textTertiary }]}>Version 1.0.0</Text>
         </View>
       }
     />
@@ -130,7 +132,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     textAlign: 'center',
     marginTop: Spacing.xl,
-    color: Colors.light.textTertiary,
   },
 });
 

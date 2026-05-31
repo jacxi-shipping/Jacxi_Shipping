@@ -157,6 +157,7 @@ const DispatchesScreen: React.FC = () => {
         <AppTopBar section="Dispatches" detail="Batch workflow, handoff, and receive actions" showBack />
         <Input value={search} onChangeText={setSearch} placeholder="Search by reference, notes, or shipment VIN" />
 
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Dispatch Filters</Text>
         <View style={styles.filterRow}>
           {statusOptions.map((option) => {
             const selected = option.value === status;
@@ -180,15 +181,15 @@ const DispatchesScreen: React.FC = () => {
         </View>
 
         <View style={styles.metricRow}>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.total}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Visible</Text>
           </Card>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.active}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Active</Text>
           </Card>
-          <Card style={styles.metricCard}>
+          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.shipments}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text>
           </Card>
@@ -208,10 +209,24 @@ const DispatchesScreen: React.FC = () => {
                 </View>
               </View>
               <Text style={[styles.routeText, { color: colors.textSecondary }]}>{dispatch.origin} -> {dispatch.destination}</Text>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>
-                {dispatch.company?.name || 'Dispatch company pending'} • {dispatch._count.shipments} shipments • {dispatch._count.expenses} expenses
-              </Text>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>ETA {dispatch.estimatedArrival ? new Date(dispatch.estimatedArrival).toLocaleDateString() : 'Not scheduled'} • Cost {formatCurrency(dispatch.cost)}</Text>
+              <View style={styles.metaGrid}>
+                <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                  <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Company</Text>
+                  <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{dispatch.company?.name || 'Pending'}</Text>
+                </View>
+                <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                  <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>ETA</Text>
+                  <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{dispatch.estimatedArrival ? new Date(dispatch.estimatedArrival).toLocaleDateString() : 'Not scheduled'}</Text>
+                </View>
+                <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                  <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Shipments</Text>
+                  <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{dispatch._count.shipments}</Text>
+                </View>
+                <View style={[styles.metaChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                  <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Cost</Text>
+                  <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{formatCurrency(dispatch.cost)}</Text>
+                </View>
+              </View>
               {dispatch.notes ? <Text style={[styles.notes, { color: colors.textSecondary }]}>{dispatch.notes}</Text> : null}
 
               <View style={styles.actionBar}>
@@ -228,7 +243,7 @@ const DispatchesScreen: React.FC = () => {
               </View>
 
               {activeDispatchId === dispatch.id ? (
-                <View style={StyleSheet.flatten([styles.workflowPanel, { borderColor: colors.border, backgroundColor: colors.background }])}>
+                <View style={StyleSheet.flatten([styles.workflowPanel, { borderColor: colors.border, backgroundColor: colors.surfaceMuted }])}>
                   {activeDispatchQuery.isLoading ? (
                     <Text style={[styles.panelText, { color: colors.textSecondary }]}>Loading dispatch workflow...</Text>
                   ) : activeDispatchQuery.error ? (
@@ -304,25 +319,27 @@ const DispatchesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
-  subtitle: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.base },
+  sectionEyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginTop: Spacing.sm, marginBottom: Spacing.xs },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.base },
   filterChip: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm },
   filterChipText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   metricRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.base },
-  metricCard: { flex: 1, paddingVertical: Spacing.base },
-  metricValue: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, textAlign: 'center' },
-  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
+  metricCard: { flex: 1, paddingVertical: Spacing.base, borderWidth: 1 },
+  metricValue: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.semibold, textAlign: 'center' },
+  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.8 },
   dispatchCard: { marginBottom: Spacing.sm },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm, marginBottom: Spacing.xs },
-  reference: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold },
+  reference: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold },
   routeText: { fontSize: Typography.fontSize.sm, marginBottom: Spacing.sm },
-  meta: { fontSize: Typography.fontSize.xs, lineHeight: 18 },
+  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  metaChip: { width: '48%', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm },
+  metaLabel: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
+  metaValue: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold },
   notes: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginTop: Spacing.sm },
   actionBar: { marginTop: Spacing.base },
   actionButton: { alignSelf: 'flex-start' },
   workflowPanel: { borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.base, marginTop: Spacing.base },
-  panelTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
+  panelTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },
   panelText: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.xs },
   containerChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.sm, marginBottom: Spacing.base },
   containerChip: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm },
@@ -330,7 +347,7 @@ const styles = StyleSheet.create({
   workflowActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
   workflowButton: { flex: 1 },
   statusPill: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
-  statusPillText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.bold },
+  statusPillText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   emptyText: { fontSize: Typography.fontSize.sm },
 });
 export default DispatchesScreen;
