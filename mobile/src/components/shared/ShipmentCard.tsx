@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../ui/Card';
 import { StatusBadge } from './StatusBadge';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Shipment } from '../../types/shipment';
-import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { format } from 'date-fns';
@@ -19,8 +19,7 @@ export const ShipmentCard: React.FC<ShipmentCardProps> = ({
   onPress,
   showCustomer = false,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const vehicleTitle = [shipment.vehicle.year, shipment.vehicle.make, shipment.vehicle.model].filter(Boolean).join(' ');
 
   return (

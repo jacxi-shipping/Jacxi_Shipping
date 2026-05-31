@@ -62,7 +62,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         detail="Secure access to your shipping workspace"
         title="Welcome Back"
         description="Sign in to your account to continue with shipments, finance, and workspace tools."
-        icon="JX"
+        icon="login"
       >
         <Controller
           control={control}

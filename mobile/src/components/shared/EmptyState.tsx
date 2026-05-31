@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { View, Text, StyleSheet } from 'react-native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 
@@ -15,8 +15,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   description,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <View style={styles.container}>

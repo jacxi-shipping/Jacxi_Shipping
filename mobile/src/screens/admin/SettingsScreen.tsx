@@ -1,18 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
 import { WorkspaceHub } from '../../components/shared/WorkspaceHub';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 
 const SettingsScreen: React.FC = () => {
   const { user, logout } = useAuth();
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const handleLogout = () => {
     Alert.alert(
@@ -65,49 +64,49 @@ const SettingsScreen: React.FC = () => {
           title: 'Main',
           caption: 'Core dashboard surfaces used every day.',
           items: [
-            { title: 'Dashboard', description: 'Overview, KPIs, and recent activity.', icon: '[]', onPress: () => openTab('Dashboard') },
-            { title: 'Shipments', description: 'Review and manage shipment records.', icon: '<>', onPress: () => openTab('Shipments') },
-            { title: 'Customers', description: 'Access customer accounts and details.', icon: 'OO', onPress: () => openTab('Customers') },
+            { title: 'Dashboard', description: 'Overview, KPIs, and recent activity.', icon: 'dashboard', onPress: () => openTab('Dashboard') },
+            { title: 'Shipments', description: 'Review and manage shipment records.', icon: 'shipments', onPress: () => openTab('Shipments') },
+            { title: 'Customers', description: 'Access customer accounts and details.', icon: 'customers', onPress: () => openTab('Customers') },
           ],
         },
         {
           title: 'Operations',
           caption: 'Workflow and logistics tools grouped together.',
           items: [
-            { title: 'Containers', description: 'Container assignments and detail views.', icon: 'BX', onPress: () => openStack('Containers') },
-            { title: 'Dispatches', description: 'Dispatch workflow and routing status.', icon: 'DP', onPress: () => openStack('Dispatches') },
-            { title: 'Transits', description: 'Route legs, movement progress, and transit coordination.', icon: 'TR', onPress: () => openStack('Transits') },
-            { title: 'Documents', description: 'Shipment and compliance documents.', icon: 'DO', onPress: () => openStack('Documents') },
+            { title: 'Containers', description: 'Container assignments and detail views.', icon: 'containers', onPress: () => openStack('Containers') },
+            { title: 'Dispatches', description: 'Dispatch workflow and routing status.', icon: 'dispatches', onPress: () => openStack('Dispatches') },
+            { title: 'Transits', description: 'Route legs, movement progress, and transit coordination.', icon: 'transits', onPress: () => openStack('Transits') },
+            { title: 'Documents', description: 'Shipment and compliance documents.', icon: 'documents', onPress: () => openStack('Documents') },
           ],
         },
         {
           title: 'Finance',
           caption: 'Revenue, banking, and ledger tools in one cluster.',
           items: [
-            { title: 'Finance', description: 'Financial overview and reporting entry point.', icon: '$$', onPress: () => openStack('Finance') },
-            { title: 'Reports', description: 'Summary, user-wise, and shipment-wise financial reporting.', icon: 'RP', onPress: () => openStack('FinanceReports') },
-            { title: 'Aging', description: 'Overdue shipment balances grouped by age bucket.', icon: 'AG', onPress: () => openStack('AgingReport') },
-            { title: 'Banking', description: 'Connected bank workflows and reconciliation entry point.', icon: 'BK', onPress: () => openStack('Banking') },
-            { title: 'Company Ledgers', description: 'Company-level balances and ledger workflows.', icon: 'CL', onPress: () => openStack('CompanyLedgers') },
-            { title: 'Invoices', description: 'Invoice management and payment status.', icon: 'IV', onPress: () => openStack('Invoices') },
+            { title: 'Finance', description: 'Financial overview and reporting entry point.', icon: 'finance', onPress: () => openStack('Finance') },
+            { title: 'Reports', description: 'Summary, user-wise, and shipment-wise financial reporting.', icon: 'reports', onPress: () => openStack('FinanceReports') },
+            { title: 'Aging', description: 'Overdue shipment balances grouped by age bucket.', icon: 'aging', onPress: () => openStack('AgingReport') },
+            { title: 'Banking', description: 'Connected bank workflows and reconciliation entry point.', icon: 'banking', onPress: () => openStack('Banking') },
+            { title: 'Company Ledgers', description: 'Company-level balances and ledger workflows.', icon: 'ledgers', onPress: () => openStack('CompanyLedgers') },
+            { title: 'Invoices', description: 'Invoice management and payment status.', icon: 'invoices', onPress: () => openStack('Invoices') },
           ],
         },
         {
           title: 'Admin & Growth',
           caption: 'Internal operations, partner coordination, and oversight.',
           items: [
-            { title: 'Users', description: 'Internal account administration and staff oversight.', icon: 'US', onPress: () => openStack('Users') },
-            { title: 'Partner Portals', description: 'Partner workspace coordination and handoff management.', icon: 'PP', onPress: () => openStack('PartnerPortals') },
-            { title: 'Analytics', description: 'Operational performance and trends.', icon: 'AN', onPress: () => openStack('Analytics') },
-            { title: 'Notifications', description: 'Messages and workflow alerts.', icon: 'NT', onPress: () => openStack('Notifications') },
+            { title: 'Users', description: 'Internal account administration and staff oversight.', icon: 'users', onPress: () => openStack('Users') },
+            { title: 'Partner Portals', description: 'Partner workspace coordination and handoff management.', icon: 'partnerPortals', onPress: () => openStack('PartnerPortals') },
+            { title: 'Analytics', description: 'Operational performance and trends.', icon: 'analytics', onPress: () => openStack('Analytics') },
+            { title: 'Notifications', description: 'Messages and workflow alerts.', icon: 'notifications', onPress: () => openStack('Notifications') },
           ],
         },
         {
           title: 'System & Tooling',
           caption: 'Settings health, voice-agent readiness, and AI observability.',
           items: [
-            { title: 'System Tools', description: 'Review settings, call-agent readiness, and recent AI logs.', icon: 'ST', onPress: () => openStack('SystemTools') },
-            { title: 'Workspace Home', description: 'Return to the top-level admin workspace.', icon: '::', onPress: () => openTab('Workspace') },
+            { title: 'System Tools', description: 'Review settings, call-agent readiness, and recent AI logs.', icon: 'systemTools', onPress: () => openStack('SystemTools') },
+            { title: 'Workspace Home', description: 'Return to the top-level admin workspace.', icon: 'home', onPress: () => openTab('Workspace') },
           ],
         },
       ]}

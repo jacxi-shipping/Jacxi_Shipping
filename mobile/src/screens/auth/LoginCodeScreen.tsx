@@ -56,7 +56,7 @@ const LoginCodeScreen: React.FC<LoginCodeScreenProps> = () => {
         detail="Simple access for customers and staff"
         title="Use Your Access Code"
         description="Enter the 8-character login code issued for your workspace to sign in quickly from mobile."
-        icon="LK"
+        icon="loginCode"
         showBack
       >
         <Controller

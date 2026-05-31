@@ -22,10 +22,9 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  useColorScheme,
   ViewStyle,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 
@@ -51,8 +50,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   action,
   style,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const getMetaValueColor = (intent?: MetaStat['intent']) => {
     switch (intent) {

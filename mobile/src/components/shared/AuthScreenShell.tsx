@@ -4,23 +4,24 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   View,
-  useColorScheme,
+  Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppTopBar } from './AppTopBar';
 import { Card } from '../ui/Card';
-import { Colors } from '../../constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
+import { AppIcon, AppIconName } from './AppIcon';
 
 interface AuthScreenShellProps {
   section: string;
   detail: string;
   title: string;
   description: string;
-  icon: string;
+  icon: AppIconName;
   showBack?: boolean;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -36,8 +37,7 @@ export const AuthScreenShell: React.FC<AuthScreenShellProps> = ({
   children,
   footer,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
@@ -52,8 +52,14 @@ export const AuthScreenShell: React.FC<AuthScreenShellProps> = ({
           />
 
           <Card style={[styles.heroCard, { borderColor: `${colors.accent}35` }]}> 
+            <LinearGradient
+              colors={[`${colors.accent}26`, `${colors.accent}10`, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.heroGlow}
+            />
             <View style={[styles.heroBadge, { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}35` }]}> 
-              <Text style={[styles.heroBadgeText, { color: colors.accent }]}>{icon}</Text>
+              <AppIcon name={icon} size={26} color={colors.accent} />
             </View>
             <Text style={[styles.eyebrow, { color: colors.accent }]}>JACXI ACCESS</Text>
             <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
@@ -83,8 +89,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroCard: {
+    overflow: 'hidden',
     marginBottom: Spacing.base,
     alignItems: 'center',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 88,
   },
   heroBadge: {
     width: 56,
@@ -94,11 +108,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.base,
-  },
-  heroBadgeText: {
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
-    letterSpacing: 0.8,
   },
   eyebrow: {
     fontSize: Typography.fontSize.xs,

@@ -63,7 +63,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
         detail="Recover account access from mobile"
         title="Forgot Password?"
         description="Enter your email address and we'll send you a reset link so you can get back into your workspace."
-        icon="RS"
+        icon="resetPassword"
         showBack
       >
         <Controller

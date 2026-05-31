@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
 import { documentsApi } from '../../api/documents';
 import { useAuth } from '../../hooks/useAuth';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Colors } from '../../constants/colors';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { DocumentCategory, DocumentRecord } from '../../types/document';
@@ -30,8 +30,7 @@ interface ShipmentDocumentsCardProps {
 }
 
 export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ shipmentId }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
   const [selectedUploadAsset, setSelectedUploadAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);

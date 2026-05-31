@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { invoicesApi } from '../../api/invoices';
 import { API_URL } from '../../api/client';
+import { AppIcon, AppIconName } from '../../components/shared/AppIcon';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 
@@ -18,16 +19,15 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
 
 const quickActions = [
-  { title: 'Invoices', description: 'Review all invoices and billing status.', icon: 'IV', screen: 'Invoices' },
-  { title: 'Banking', description: 'Open connected bank workflows and reconciliation.', icon: 'BK', screen: 'Banking' },
-  { title: 'Company Ledgers', description: 'Inspect company-level balances and charges.', icon: 'CL', screen: 'CompanyLedgers' },
-  { title: 'Reports', description: 'Jump into financial reporting and aging.', icon: 'RP', screen: 'FinanceReports' },
+  { title: 'Invoices', description: 'Review all invoices and billing status.', icon: 'invoices' as AppIconName, screen: 'Invoices' },
+  { title: 'Banking', description: 'Open connected bank workflows and reconciliation.', icon: 'banking' as AppIconName, screen: 'Banking' },
+  { title: 'Company Ledgers', description: 'Inspect company-level balances and charges.', icon: 'ledgers' as AppIconName, screen: 'CompanyLedgers' },
+  { title: 'Reports', description: 'Jump into financial reporting and aging.', icon: 'reports' as AppIconName, screen: 'FinanceReports' },
 ] as const;
 
 const FinanceScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const [updatingInvoiceId, setUpdatingInvoiceId] = useState<string | null>(null);
 
   const invoicesQuery = useQuery({
@@ -94,7 +94,7 @@ const FinanceScreen: React.FC = () => {
               style={StyleSheet.flatten([styles.actionTile, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}
             >
               <View style={StyleSheet.flatten([styles.actionBadge, { backgroundColor: `${colors.accent}14`, borderColor: `${colors.accent}30` }])}>
-                <Text style={styles.actionBadgeText}>{action.icon}</Text>
+                <AppIcon name={action.icon} size={18} color={colors.accent} />
               </View>
               <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>{action.title}</Text>
               <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>{action.description}</Text>
@@ -214,10 +214,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     marginBottom: Spacing.sm,
-  },
-  actionBadgeText: {
-    fontSize: 16,
-    fontWeight: Typography.fontWeight.bold,
   },
   actionTitle: {
     fontSize: Typography.fontSize.base,

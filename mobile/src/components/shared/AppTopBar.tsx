@@ -1,15 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../hooks/useAuth';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { useNotifications } from '../../hooks/useNotifications';
-import { Colors } from '../../constants/colors';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { ThemePreference, useThemePreference } from '../../contexts/ThemePreferenceContext';
+import { AppIcon } from './AppIcon';
 
 interface AppTopBarProps {
   section: string;
@@ -39,8 +41,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
   hideWorkspace = false,
 }) => {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
   const { user, isAdmin, isAuthenticated, logout } = useAuth();
   const { preference, setPreference } = useThemePreference();
   const [menuVisible, setMenuVisible] = useState(false);
@@ -166,6 +167,12 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
           },
         ]}
       >
+        <LinearGradient
+          colors={['transparent', `${colors.accent}2A`, 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.headerAccent}
+        />
         <View style={styles.leading}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -178,9 +185,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
               },
             ]}
           >
-            <Text style={[styles.brandButtonText, { color: showBack ? colors.textPrimary : colors.accent }]}>
-              {showBack ? '←' : 'JX'}
-            </Text>
+            <AppIcon name={showBack ? 'back' : 'brand'} size={showBack ? 22 : 18} color={showBack ? colors.textPrimary : colors.accent} />
           </TouchableOpacity>
 
           <View style={styles.textWrap}>
@@ -203,7 +208,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
               onPress={openNotifications}
               style={[styles.actionButton, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}
             >
-              <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>NT</Text>
+              <AppIcon name="notifications" size={20} color={colors.textPrimary} />
               {unreadCount > 0 ? (
                 <View style={[styles.badge, { backgroundColor: colors.accent }]}> 
                   <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>
@@ -223,7 +228,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
             onPress={() => setMenuVisible(true)}
             style={[styles.actionButton, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}
           >
-            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>ME</Text>
+            <AppIcon name="menu" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -257,7 +262,10 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
                     ]}
                     onPress={() => void setPreference(option.value)}
                   >
-                    <Text style={[styles.themeChipText, { color: selected ? colors.accent : colors.textPrimary }]}>{option.label}</Text>
+                    <View style={styles.themeChipContent}>
+                      <AppIcon name="theme" size={14} color={selected ? colors.accent : colors.textSecondary} />
+                      <Text style={[styles.themeChipText, { color: selected ? colors.accent : colors.textPrimary }]}>{option.label}</Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -290,6 +298,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -306,6 +315,13 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 4,
   },
+  headerAccent: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 1,
+  },
   leading: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -314,16 +330,11 @@ const styles = StyleSheet.create({
   brandButton: {
     width: 42,
     height: 42,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.sm,
-  },
-  brandButtonText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
-    letterSpacing: 0.6,
   },
   textWrap: {
     flex: 1,
@@ -351,16 +362,11 @@ const styles = StyleSheet.create({
   actionButton: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  actionLabel: {
-    fontSize: 10,
-    fontWeight: Typography.fontWeight.bold,
-    letterSpacing: 0.6,
   },
   badge: {
     position: 'absolute',
@@ -417,6 +423,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.base,
     alignItems: 'center',
+  },
+  themeChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   themeChipText: {
     fontSize: Typography.fontSize.xs,

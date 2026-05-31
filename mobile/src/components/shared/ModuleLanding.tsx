@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '../ui/Card';
 import { AppTopBar } from './AppTopBar';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
+import { AppIcon, AppIconName } from './AppIcon';
 
 type ModuleAction = {
   title: string;
   description: string;
-  icon: string;
+  icon: AppIconName;
   onPress?: () => void;
 };
 
@@ -18,7 +20,7 @@ interface ModuleLandingProps {
   eyebrow: string;
   title: string;
   subtitle: string;
-  heroIcon: string;
+  heroIcon: AppIconName;
   heroTitle: string;
   heroDescription: string;
   actions: ModuleAction[];
@@ -37,8 +39,7 @@ export const ModuleLanding: React.FC<ModuleLandingProps> = ({
   footerTitle = 'Phase 1 parity',
   footerDescription = 'This screen now gives mobile users the same module entry point and information architecture the web dashboard already exposes.',
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -51,9 +52,15 @@ export const ModuleLanding: React.FC<ModuleLandingProps> = ({
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
         </View>
 
-        <Card style={[styles.heroCard, { borderColor: `${colors.accent}35` }]}>
-          <View style={[styles.heroBadge, { backgroundColor: `${colors.accent}16`, borderColor: `${colors.accent}35` }]}>
-            <Text style={styles.heroBadgeText}>{heroIcon}</Text>
+        <Card style={[styles.heroCard, { borderColor: `${colors.accent}35` }]}> 
+          <LinearGradient
+            colors={[`${colors.accent}2E`, `${colors.accent}10`, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.heroGlow}
+          />
+          <View style={[styles.heroBadge, { backgroundColor: `${colors.accent}16`, borderColor: `${colors.accent}35` }]}> 
+            <AppIcon name={heroIcon} size={28} color={colors.accent} />
           </View>
           <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>{heroTitle}</Text>
           <Text style={[styles.heroDescription, { color: colors.textSecondary }]}>{heroDescription}</Text>
@@ -73,7 +80,7 @@ export const ModuleLanding: React.FC<ModuleLandingProps> = ({
               onPress={action.onPress}
             >
               <View style={[styles.actionBadge, { backgroundColor: `${colors.accent}14`, borderColor: `${colors.accent}30` }]}>
-                <Text style={styles.actionBadgeText}>{action.icon}</Text>
+                <AppIcon name={action.icon} size={18} color={colors.accent} />
               </View>
               <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>{action.title}</Text>
               <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>{action.description}</Text>
@@ -117,7 +124,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   heroCard: {
+    overflow: 'hidden',
     marginBottom: Spacing.xl,
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 88,
   },
   heroBadge: {
     width: 56,
@@ -127,10 +142,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     marginBottom: Spacing.base,
-  },
-  heroBadgeText: {
-    fontSize: 22,
-    fontWeight: Typography.fontWeight.bold,
   },
   heroTitle: {
     fontSize: Typography.fontSize.xl,
@@ -168,10 +179,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     marginBottom: Spacing.sm,
-  },
-  actionBadgeText: {
-    fontSize: 16,
-    fontWeight: Typography.fontWeight.bold,
   },
   actionTitle: {
     fontSize: Typography.fontSize.base,

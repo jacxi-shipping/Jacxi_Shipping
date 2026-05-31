@@ -1,26 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import { Colors } from '../../constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
-import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-
-const tabIcons: Record<string, string> = {
-  Dashboard: 'DS',
-  Shipments: 'SH',
-  Customers: 'CU',
-  Tracking: 'TR',
-  Invoices: 'IV',
-  Workspace: 'WK',
-};
+import { AppIcon, getTabIconName } from './AppIcon';
 
 export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <SafeAreaView
@@ -28,6 +19,12 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
       <View style={[styles.container, { backgroundColor: colors.panel, borderColor: colors.border }]}> 
+      <LinearGradient
+        colors={['transparent', `${colors.accent}24`, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.topAccent}
+      />
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.tabBarLabel !== undefined
@@ -61,7 +58,7 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
             onPress={onPress}
             style={styles.tab}
           >
-            <Animated.View
+            <View
               style={[
                 styles.tabContent,
                 isFocused && [
@@ -79,14 +76,12 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
                   },
                 ]}
               > 
-                <Text style={[styles.iconText, { color: isFocused ? '#111111' : colors.textSecondary }]}>
-                  {tabIcons[route.name] || 'WK'}
-                </Text>
+                <AppIcon name={getTabIconName(route.name)} size={18} color={isFocused ? '#111111' : colors.textSecondary} />
               </View>
               <Text style={[styles.label, { color: isFocused ? colors.accent : colors.textSecondary }]}>
                 {typeof label === 'string' ? label : ''}
               </Text>
-            </Animated.View>
+            </View>
           </TouchableOpacity>
         );
       })}
@@ -101,11 +96,26 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   container: {
+    overflow: 'hidden',
     flexDirection: 'row',
     borderWidth: 1,
     borderRadius: BorderRadius['2xl'],
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  topAccent: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 1,
   },
   tab: {
     flex: 1,
@@ -127,19 +137,13 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
   },
   iconBadge: {
-    minWidth: 30,
-    paddingHorizontal: Spacing.xs,
-    height: 24,
+    width: 32,
+    height: 32,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xs,
     borderWidth: 1,
-  },
-  iconText: {
-    fontSize: 10,
-    fontWeight: Typography.fontWeight.bold,
-    letterSpacing: 0.6,
   },
   label: {
     fontSize: Typography.fontSize.xs,

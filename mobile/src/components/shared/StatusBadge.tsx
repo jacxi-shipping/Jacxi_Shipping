@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { ShipmentStatus } from '../../types/shipment';
 import { InvoiceStatus } from '../../types/invoice';
-import { Colors, ShipmentStatusColors, InvoiceStatusColors } from '../../constants/colors';
+import { ShipmentStatusColors, InvoiceStatusColors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 
@@ -12,8 +13,7 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'generic' }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   const getStatusLabel = () => {
     return status.replace(/_/g, ' ');

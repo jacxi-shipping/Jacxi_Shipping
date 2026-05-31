@@ -1,26 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
-import { Spacing } from '../../constants/spacing';
+import { BorderRadius, Spacing } from '../../constants/spacing';
+import { AppIcon, AppIconName } from './AppIcon';
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
   leftAction?: {
-    icon: string;
+    icon: AppIconName;
     onPress: () => void;
   };
   rightAction?: {
-    icon: string;
+    icon: AppIconName;
     onPress: () => void;
   };
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, subtitle, leftAction, rightAction }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <SafeAreaView
@@ -29,8 +29,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, leftAction, rig
     >
       <View style={styles.content}>
         {leftAction && (
-          <TouchableOpacity onPress={leftAction.onPress} style={styles.action}>
-            <Text style={[styles.icon, { color: colors.textPrimary }]}>{leftAction.icon}</Text>
+          <TouchableOpacity onPress={leftAction.onPress} style={[styles.action, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+            <AppIcon name={leftAction.icon} size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         )}
         <View style={styles.titleContainer}>
@@ -40,8 +40,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, leftAction, rig
           )}
         </View>
         {rightAction && (
-          <TouchableOpacity onPress={rightAction.onPress} style={styles.action}>
-            <Text style={[styles.icon, { color: colors.textPrimary }]}>{rightAction.icon}</Text>
+          <TouchableOpacity onPress={rightAction.onPress} style={[styles.action, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+            <AppIcon name={rightAction.icon} size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         )}
       </View>
@@ -75,10 +75,9 @@ const styles = StyleSheet.create({
   action: {
     width: 40,
     height: 40,
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  icon: {
-    fontSize: 24,
   },
 });

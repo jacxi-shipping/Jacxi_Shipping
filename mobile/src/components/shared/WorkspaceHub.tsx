@@ -5,20 +5,21 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
 import { AppTopBar } from './AppTopBar';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
+import { AppIcon, AppIconName } from './AppIcon';
 
 type WorkspaceHubItem = {
   title: string;
   description: string;
-  icon: string;
+  icon: AppIconName;
   onPress: () => void;
 };
 
@@ -49,8 +50,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
   sections,
   footer,
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { colors } = useAppTheme();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -63,7 +63,12 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
         </View>
 
         <Card style={[styles.heroCard, { borderColor: `${colors.accent}35` }]}> 
-          <View style={[styles.heroGlow, { backgroundColor: `${colors.accent}16` }]} />
+          <LinearGradient
+            colors={[`${colors.accent}2E`, `${colors.accent}10`, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.heroGlow}
+          />
           <View style={styles.heroContent}>
             <View style={styles.identityRow}>
               <Avatar name={name} size={68} />
@@ -102,7 +107,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                 >
                   <Card style={[styles.actionCard, { backgroundColor: colors.panel }]}> 
                     <View style={[styles.iconBadge, { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}30` }]}> 
-                      <Text style={styles.iconText}>{item.icon}</Text>
+                      <AppIcon name={item.icon} size={20} color={colors.accent} />
                     </View>
                     <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>{item.title}</Text>
                     <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>{item.description}</Text>
@@ -146,7 +151,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   heroGlow: {
-    height: 6,
+    height: 10,
     width: '100%',
   },
   heroContent: {
@@ -220,6 +225,7 @@ const styles = StyleSheet.create({
   actionCard: {
     minHeight: 118,
     justifyContent: 'space-between',
+    borderWidth: 1,
   },
   iconBadge: {
     width: 42,
@@ -229,11 +235,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     marginBottom: Spacing.sm,
-  },
-  iconText: {
-    fontSize: 13,
-    fontWeight: Typography.fontWeight.bold,
-    letterSpacing: 0.6,
   },
   actionTitle: {
     fontSize: Typography.fontSize.base,
