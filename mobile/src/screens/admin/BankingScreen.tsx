@@ -531,19 +531,26 @@ const BankingScreen: React.FC = () => {
           ]}
         />
 
-        <View style={styles.actionRow}>
-          <Button title="Connect Bank" onPress={handleConnect} loading={connecting} style={styles.actionButton} />
-          <Button title="Sync Accounts" onPress={handleSync} loading={syncing} variant="secondary" style={styles.actionButton} />
-        </View>
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Bank Controls</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Connection Actions</Text>
+          <Text style={[styles.sectionText, styles.sectionDescription, { color: colors.textSecondary }]}>Launch a new bank connection or sync imported activity before moving into review and reconciliation.</Text>
+          <View style={styles.actionRow}>
+            <Button title="Connect Bank" onPress={handleConnect} loading={connecting} style={styles.actionButton} />
+            <Button title="Sync Accounts" onPress={handleSync} loading={syncing} variant="secondary" style={styles.actionButton} />
+          </View>
+        </Card>
 
         {!bankingConfigured ? (
           <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Connectivity</Text>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Finicity Not Configured</Text>
             <Text style={[styles.sectionText, { color: colors.textSecondary }]}>The backend reported that live bank connectivity is not configured in this environment. Imported ledger history can still appear below when available.</Text>
           </Card>
         ) : null}
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Bank Items</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Connected Accounts</Text>
           {selectedBankItem ? (
             <View style={styles.accountContextRow}>
@@ -621,6 +628,7 @@ const BankingScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Import Workflow</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Bank CSV Import</Text>
           <Text style={[styles.sectionText, { color: colors.textSecondary }]}>Preview and import Bank of America CSV statements into the same banking ledger used by the web finance flow.</Text>
           <View style={styles.draftStateRow}>
@@ -663,22 +671,22 @@ const BankingScreen: React.FC = () => {
           {preview ? (
             <View style={styles.previewBlock}>
               <View style={styles.metricRow}>
-                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                   <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{preview.importableCount}</Text>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Importable</Text>
                 </View>
-                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                   <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{preview.duplicateCount}</Text>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Duplicates</Text>
                 </View>
               </View>
 
               <View style={styles.metricRow}>
-                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                   <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(preview.projectedEndingBalance)}</Text>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Projected Ending</Text>
                 </View>
-                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                   <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{preview.reconciliationDifference === null ? 'N/A' : formatCurrency(preview.reconciliationDifference)}</Text>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>{titleCase(preview.reconciliationStatus)}</Text>
                 </View>
@@ -710,6 +718,7 @@ const BankingScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Review Queue</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Reconciliation Queue</Text>
           {contextLabel ? (
             <View style={styles.queueContextRow}>
@@ -741,11 +750,11 @@ const BankingScreen: React.FC = () => {
             })}
           </View>
           <View style={styles.metricRow}>
-            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{reviewCounts.reviewed}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Reviewed</Text>
             </View>
-            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{reviewCounts.followUp}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Follow Up</Text>
             </View>
@@ -753,16 +762,17 @@ const BankingScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Ledger Activity</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Imported Ledger Activity</Text>
           {contextLabel ? (
             <Text style={[styles.sectionText, { color: colors.textSecondary }]}>Showing imported activity for the selected connected bank context.</Text>
           ) : null}
           <View style={styles.metricRow}>
-            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(ledger?.filteredSummary.totalDebit || 0)}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Debit</Text>
             </View>
-            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(ledger?.filteredSummary.totalCredit || 0)}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Credit</Text>
             </View>
@@ -827,6 +837,7 @@ const BankingScreen: React.FC = () => {
 
         {selectedEntry ? (
           <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Entry Review</Text>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Selected Entry Review</Text>
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Customer</Text>
@@ -888,6 +899,7 @@ const BankingScreen: React.FC = () => {
         ) : null}
 
         <Card>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Next Routes</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Related Finance Routes</Text>
           <View style={styles.linkRow}>
             <Button title="Company Ledgers" variant="secondary" onPress={() => navigation.navigate('CompanyLedgers')} style={styles.linkButton} />
@@ -905,7 +917,6 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginBottom: Spacing.base,
   },
   actionButton: {
     flex: 1,
@@ -914,6 +925,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionCard: { marginBottom: Spacing.base },
+  sectionEyebrow: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
   csvActionRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -1003,12 +1021,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.md,
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.sm,
   },
   sectionText: {
-    fontSize: Typography.fontSize.base,
-    lineHeight: 22,
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
+  },
+  sectionDescription: {
+    marginBottom: Spacing.base,
   },
   metricRow: {
     flexDirection: 'row',
@@ -1023,7 +1044,7 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   metricLabel: {
@@ -1063,7 +1084,7 @@ const styles = StyleSheet.create({
   },
   amountPillText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
   },
   localDraftPill: {
     alignSelf: 'flex-start',
@@ -1075,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   localDraftPillText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
   },
   statusPill: {
     alignSelf: 'flex-start',
@@ -1087,7 +1108,7 @@ const styles = StyleSheet.create({
   },
   statusPillText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
   },
   detailRow: {
     paddingVertical: Spacing.sm,
@@ -1110,7 +1131,7 @@ const styles = StyleSheet.create({
   },
   subsectionTitle: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginTop: Spacing.base,
     marginBottom: Spacing.sm,
   },

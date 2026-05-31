@@ -66,17 +66,18 @@ const SystemToolsScreen: React.FC = () => {
         <AppTopBar section="System Tools" detail="Admin settings, call-agent readiness, and AI activity" showBack />
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Config Snapshot</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Preferences Snapshot</Text>
           <View style={styles.metricRow}>
-            <View style={styles.metricItem}>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{titleCase(settings?.theme || 'default')}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Theme</Text>
             </View>
-            <View style={styles.metricItem}>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{(settings?.language || 'en').toUpperCase()}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Language</Text>
             </View>
-            <View style={styles.metricItem}>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{settings?.twoFactorEnabled ? 'On' : 'Off'}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>2FA</Text>
             </View>
@@ -85,6 +86,7 @@ const SystemToolsScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Call Routing</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Call Agent Readiness</Text>
           <View style={styles.badgeRow}>
             <View style={StyleSheet.flatten([styles.badge, { backgroundColor: `${colors.accent}14`, borderColor: `${colors.accent}30` }])}>
@@ -101,17 +103,18 @@ const SystemToolsScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Model Activity</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>AI Activity</Text>
           <View style={styles.metricRow}>
-            <View style={styles.metricItem}>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{aiSummary.total}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Recent Logs</Text>
             </View>
-            <View style={styles.metricItem}>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{aiSummary.success}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Success</Text>
             </View>
-            <View style={styles.metricItem}>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{aiSummary.fallback}</Text>
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Fallback</Text>
             </View>
@@ -142,19 +145,17 @@ const SystemToolsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
-  eyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.bold, letterSpacing: 1.1, marginBottom: Spacing.xs },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
-  subtitle: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.base },
+  eyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   sectionCard: { marginBottom: Spacing.base },
-  sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.base },
+  sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.sm },
   sectionText: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.sm },
   metricRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  metricItem: { flex: 1, padding: Spacing.sm, borderRadius: BorderRadius.base, backgroundColor: 'transparent' },
-  metricValue: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
-  metricLabel: { fontSize: Typography.fontSize.xs },
+  metricItem: { flex: 1, padding: Spacing.sm, borderRadius: BorderRadius.base, borderWidth: 1 },
+  metricValue: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },
+  metricLabel: { fontSize: Typography.fontSize.xs, textTransform: 'uppercase', letterSpacing: 0.8 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.base },
   badge: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.base, paddingVertical: Spacing.xs },
-  badgeText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.bold },
+  badgeText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   logRow: { borderBottomWidth: 1, paddingVertical: Spacing.sm },
   logRowLast: { borderBottomWidth: 0, paddingBottom: 0 },
   logFeature: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },

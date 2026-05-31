@@ -101,6 +101,7 @@ const AgingReportScreen: React.FC = () => {
         />
 
         <Card style={styles.filterCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Collections Filters</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>User Filter</Text>
           <Text style={[styles.filterHelpText, { color: colors.textSecondary }]}>Scope aging balances to a specific account when collections follow-up needs a tighter view.</Text>
           <Input
@@ -175,6 +176,7 @@ const AgingReportScreen: React.FC = () => {
         </View>
 
         <Card>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Bucket Drill-Down</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{data?.summary.buckets[selectedBucket].label || 'Bucket'} Details</Text>
           {selectedDetails.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No unpaid shipments are currently in this aging bucket.</Text>
@@ -210,8 +212,16 @@ const styles = StyleSheet.create({
   filterCard: {
     marginBottom: Spacing.base,
   },
+  sectionEyebrow: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
   filterHelpText: {
     fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
     marginBottom: Spacing.base,
   },
   filterRow: {
@@ -230,13 +240,17 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.semibold,
   },
   bucketGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
     marginBottom: Spacing.base,
   },
   bucketCard: {
+    width: '48%',
     borderWidth: 1,
     borderRadius: BorderRadius.lg,
     padding: Spacing.base,
+    minHeight: 118,
   },
   bucketLabel: {
     fontSize: Typography.fontSize.xs,
@@ -254,12 +268,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.md,
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
-    fontSize: Typography.fontSize.base,
-    lineHeight: 22,
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
   },
   rowItem: {
     paddingVertical: Spacing.sm,

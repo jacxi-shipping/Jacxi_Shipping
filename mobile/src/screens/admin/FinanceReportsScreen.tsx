@@ -188,6 +188,7 @@ const FinanceReportsScreen: React.FC = () => {
   const renderUserDrilldown = (user: FinancialUserReport) => (
     <Card key={user.userId} style={styles.sectionCard}>
       <TouchableOpacity activeOpacity={0.85} onPress={() => setSelectedUserId(user.userId)}>
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>User Ledger</Text>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{user.userName}</Text>
         <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>
           {user.email} • Balance {formatCurrency(user.currentBalance)}
@@ -195,11 +196,11 @@ const FinanceReportsScreen: React.FC = () => {
       </TouchableOpacity>
 
       <View style={styles.metricRow}>
-        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
           <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(user.totalDebit)}</Text>
           <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Debit</Text>
         </View>
-        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
           <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(user.totalCredit)}</Text>
           <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Credit</Text>
         </View>
@@ -212,17 +213,18 @@ const FinanceReportsScreen: React.FC = () => {
   const renderShipmentDrilldown = (shipment: FinancialShipmentReport) => (
     <Card key={shipment.shipmentId} style={styles.sectionCard}>
       <TouchableOpacity activeOpacity={0.85} onPress={() => setSelectedShipmentId(shipment.shipmentId)}>
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Shipment Ledger</Text>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{shipment.vehicle}</Text>
         <Text style={[styles.rowMeta, { color: colors.textSecondary }]}> 
           {titleCase(shipment.paymentStatus)} • Due {formatCurrency(shipment.amountDue)} • Profit {formatCurrency(shipment.profit)}
         </Text>
       </TouchableOpacity>
       <View style={styles.metricRow}>
-        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
           <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(shipment.totalCharged)}</Text>
           <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Charged</Text>
         </View>
-        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+        <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
           <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(shipment.totalPaid)}</Text>
           <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Paid</Text>
         </View>
@@ -242,9 +244,12 @@ const FinanceReportsScreen: React.FC = () => {
         />
 
         {data?.period ? (
-          <Text style={[styles.periodText, { color: colors.textSecondary }]}>
-            Period: {data.period.startDate} to {data.period.endDate}
-          </Text>
+          <Card style={styles.periodCard}>
+            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Active Window</Text>
+            <Text style={[styles.periodText, { color: colors.textPrimary }]}> 
+              {data.period.startDate} to {data.period.endDate}
+            </Text>
+          </Card>
         ) : null}
 
         <View style={styles.topActionRow}>
@@ -252,6 +257,7 @@ const FinanceReportsScreen: React.FC = () => {
         </View>
 
         <Card style={styles.filterCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Report Controls</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Report Filters</Text>
           <Text style={[styles.filterHelpText, { color: colors.textSecondary }]}>Match the web report controls with an optional date window and user scope.</Text>
           <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Quick Ranges</Text>
@@ -338,6 +344,7 @@ const FinanceReportsScreen: React.FC = () => {
           </View>
         </Card>
 
+        <Text style={[styles.sectionEyebrow, styles.reportModeLabel, { color: colors.textSecondary }]}>Report Mode</Text>
         <View style={styles.switcherRow}>
           {reportOptions.map((option) => {
             const selected = option.value === reportType;
@@ -363,13 +370,14 @@ const FinanceReportsScreen: React.FC = () => {
         {data?.reportType === 'summary' ? (
           <>
             <Card style={styles.sectionCard}>
+              <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Summary Ledger</Text>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Ledger Summary</Text>
               <View style={styles.metricRow}>
-                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                   <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(data.ledgerSummary?.totalDebit || 0)}</Text>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Debit</Text>
                 </View>
-                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                   <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(data.ledgerSummary?.totalCredit || 0)}</Text>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Credit</Text>
                 </View>
@@ -377,6 +385,7 @@ const FinanceReportsScreen: React.FC = () => {
             </Card>
 
             <Card style={styles.sectionCard}>
+              <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Status Mix</Text>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Shipment Summary</Text>
               {(data.shipmentSummary || []).map((item, index) => (
                 <View
@@ -394,6 +403,7 @@ const FinanceReportsScreen: React.FC = () => {
             </Card>
 
             <Card>
+              <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Account Snapshot</Text>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>User Balances</Text>
               {(data.userBalances || []).slice(0, 8).map((item, index) => (
                 <TouchableOpacity
@@ -420,6 +430,7 @@ const FinanceReportsScreen: React.FC = () => {
 
             {selectedUser ? (
               <Card>
+                <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Focused Account</Text>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Selected User Drill-Down</Text>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Account</Text>
@@ -462,13 +473,14 @@ const FinanceReportsScreen: React.FC = () => {
 
             {selectedShipment ? (
               <Card>
+                <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Focused Shipment</Text>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Selected Shipment Drill-Down</Text>
                 <View style={styles.metricRow}>
-                  <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                  <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                     <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(selectedShipment.totalExpenses)}</Text>
                     <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Expenses</Text>
                   </View>
-                  <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+                  <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                     <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{selectedShipment.profitMargin.toFixed(1)}%</Text>
                     <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Margin</Text>
                   </View>
@@ -519,9 +531,19 @@ const FinanceReportsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
-  periodText: {
-    fontSize: Typography.fontSize.sm,
+  periodCard: {
     marginBottom: Spacing.base,
+  },
+  sectionEyebrow: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  periodText: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
   },
   topActionRow: {
     flexDirection: 'row',
@@ -559,6 +581,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.base,
   },
+  reportModeLabel: {
+    marginBottom: Spacing.sm,
+  },
   switcherChip: {
     borderWidth: 1,
     borderRadius: BorderRadius.full,
@@ -572,8 +597,8 @@ const styles = StyleSheet.create({
   sectionCard: { marginBottom: Spacing.base },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.md,
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.sm,
   },
   metricRow: {
     flexDirection: 'row',
@@ -587,7 +612,7 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   metricLabel: {
@@ -633,7 +658,7 @@ const styles = StyleSheet.create({
   },
   subsectionTitle: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginTop: Spacing.base,
     marginBottom: Spacing.sm,
   },

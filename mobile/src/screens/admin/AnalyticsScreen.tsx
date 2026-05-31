@@ -35,13 +35,14 @@ const AnalyticsScreen: React.FC = () => {
         <AppTopBar section="Analytics" detail="Operations, revenue, and customer performance" showBack />
 
         <View style={styles.metricGrid}>
-          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.totalShipments}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text></Card>
-          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.activeDispatches}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Dispatches</Text></Card>
-          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(analytics?.summary.totalRevenue || 0)}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Revenue</Text></Card>
-          <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.overdueInvoices}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Overdue</Text></Card>
+          <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.totalShipments}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text></Card>
+          <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.activeDispatches}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Dispatches</Text></Card>
+          <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(analytics?.summary.totalRevenue || 0)}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Revenue</Text></Card>
+          <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.overdueInvoices}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Overdue</Text></Card>
         </View>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Ops Snapshot</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Status Breakdown</Text>
           {analytics?.shipmentsByStatus.slice(0, 6).map((item, index) => (
             <View key={`${item.status}-${index}`} style={StyleSheet.flatten([styles.row, index === analytics.shipmentsByStatus.slice(0, 6).length - 1 ? styles.rowLast : null, { borderBottomColor: colors.border }])}>
@@ -52,6 +53,7 @@ const AnalyticsScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Revenue Leaders</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Top Customers</Text>
           {analytics?.topCustomers.length === 0 ? (
             <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>No customer analytics available.</Text>
@@ -66,6 +68,7 @@ const AnalyticsScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Collections Signal</Text>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Outstanding Invoices</Text>
           {analytics?.outstandingInvoices.length === 0 ? (
             <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>No overdue invoices in the current analytics snapshot.</Text>
@@ -87,14 +90,13 @@ const AnalyticsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
-  subtitle: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.base },
+  sectionEyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.base },
-  metricCard: { width: '48%', paddingVertical: Spacing.base },
-  metricValue: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, textAlign: 'center' },
-  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
+  metricCard: { width: '48%', paddingVertical: Spacing.base, borderWidth: 1 },
+  metricValue: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, textAlign: 'center' },
+  metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.8 },
   sectionCard: { marginBottom: Spacing.base },
-  sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.sm },
+  sectionTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.sm },
   row: { borderBottomWidth: 1, paddingVertical: Spacing.sm },
   rowLast: { borderBottomWidth: 0, paddingBottom: 0 },
   rowTitle: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },

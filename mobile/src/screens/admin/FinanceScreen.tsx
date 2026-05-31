@@ -82,26 +82,32 @@ const FinanceScreen: React.FC = () => {
       />
 
       <Card style={styles.sectionCard}>
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Finance Workspaces</Text>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Quick Actions</Text>
+        <Text style={[styles.sectionText, { color: colors.textSecondary }]}>Jump into the finance areas that need active admin attention without dropping into old flat utility tiles.</Text>
         <View style={styles.actionGrid}>
           {quickActions.map((action) => (
             <TouchableOpacity
               key={action.title}
               activeOpacity={0.85}
               onPress={() => navigation.navigate(action.screen)}
-              style={StyleSheet.flatten([styles.actionTile, { backgroundColor: colors.panel, borderColor: colors.border }])}
+              style={StyleSheet.flatten([styles.actionTile, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}
             >
               <View style={StyleSheet.flatten([styles.actionBadge, { backgroundColor: `${colors.accent}14`, borderColor: `${colors.accent}30` }])}>
                 <Text style={styles.actionBadgeText}>{action.icon}</Text>
               </View>
               <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>{action.title}</Text>
               <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>{action.description}</Text>
+              <View style={styles.actionFooter}>
+                <Text style={[styles.actionFooterText, { color: colors.accent }]}>Open Workspace</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
       </Card>
 
       <Card style={styles.sectionCard}>
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Invoice Triage</Text>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Payment Queue</Text>
         <Text style={[styles.sectionText, { color: colors.textSecondary }]}>Mark overdue or pending invoices as paid and open invoice PDFs directly from the finance workspace.</Text>
 
@@ -151,6 +157,7 @@ const FinanceScreen: React.FC = () => {
       </Card>
 
       <Card style={styles.sectionCard}>
+        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Reporting Routes</Text>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Reporting</Text>
         <Text style={[styles.sectionText, { color: colors.textSecondary }]}>Jump into aging and financial reports when invoice triage is done.</Text>
         <View style={styles.queueActions}>
@@ -170,9 +177,16 @@ const styles = StyleSheet.create({
   sectionCard: {
     marginBottom: Spacing.base,
   },
+  sectionEyebrow: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.sm,
   },
   sectionText: {
@@ -190,6 +204,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: BorderRadius.lg,
     padding: Spacing.base,
+    minHeight: 176,
   },
   actionBadge: {
     width: 38,
@@ -206,12 +221,25 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   actionDescription: {
     fontSize: Typography.fontSize.sm,
     lineHeight: 20,
+    flex: 1,
+  },
+  actionFooter: {
+    marginTop: Spacing.base,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(107, 114, 128, 0.18)',
+  },
+  actionFooterText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   queueRow: {
     borderBottomWidth: 1,
@@ -232,7 +260,7 @@ const styles = StyleSheet.create({
   },
   queueTitle: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
   },
   queueMeta: {
