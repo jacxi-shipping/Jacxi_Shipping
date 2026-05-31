@@ -65,6 +65,7 @@ const CompanyLedgerDetailScreen: React.FC = () => {
           eyebrow="FINANCE / COMPANY LEDGERS"
           title={company.name}
           subtitle={`${titleCase(company.companyType)} company finance drill-down and recent ledger activity.`}
+          showBack
           stats={[
             { label: 'Balance', value: formatCurrency(summary.currentBalance) },
             { label: 'Debit', value: formatCurrency(summary.totalDebit) },

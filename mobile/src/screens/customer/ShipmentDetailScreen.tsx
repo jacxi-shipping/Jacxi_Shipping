@@ -5,6 +5,7 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { useShipment } from '../../hooks/useShipments';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { ShipmentDocumentsCard } from '../../components/shared/ShipmentDocumentsCard';
 import { StatusBadge } from '../../components/shared/StatusBadge';
@@ -31,6 +32,8 @@ const ShipmentDetailScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Shipment Details" detail={shipment.trackingNumber} showBack />
+
         <Card>
           <View style={styles.header}>
             <View style={styles.headerLeft}>

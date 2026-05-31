@@ -40,7 +40,7 @@ const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().repl
 const DocumentsScreen: React.FC = () => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<(typeof categoryOptions)[number]['value']>('all');
   const [shipmentId, setShipmentId] = useState<string | null>(null);
@@ -92,7 +92,7 @@ const DocumentsScreen: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    if (!selectedUploadAsset || user?.role !== 'admin') {
+    if (!selectedUploadAsset || !isAdmin) {
       return;
     }
 
@@ -141,7 +141,7 @@ const DocumentsScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Documents</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Browse uploaded documents, public files, and shipment-linked paperwork from the existing backend library. {user?.role === 'admin' ? 'Admins can also upload new files here.' : 'Customer access remains read-only.'}</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Browse uploaded documents, public files, and shipment-linked paperwork from the existing backend library. {isAdmin ? 'Admins can also upload new files here.' : 'Customer access remains read-only.'}</Text>
 
         <Input value={search} onChangeText={setSearch} placeholder="Search documents by name or description" />
 
@@ -225,7 +225,7 @@ const DocumentsScreen: React.FC = () => {
           </Card>
         </View>
 
-        {user?.role === 'admin' ? (
+        {isAdmin ? (
           <Card style={styles.uploadCard}>
             <Text style={[styles.uploadTitle, { color: colors.textPrimary }]}>Upload Document</Text>
             <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Choose a file and upload it to the shared document library. The active shipment filter will be used as the shipment link when one is selected.</Text>

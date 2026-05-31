@@ -69,44 +69,54 @@ export const Button: React.FC<ButtonProps> = ({
 
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      borderRadius: BorderRadius.base,
+      borderRadius: BorderRadius.lg,
       alignItems: 'center',
       justifyContent: 'center',
       flexDirection: 'row',
+      overflow: 'hidden',
     };
 
     const sizeStyles: Record<string, ViewStyle> = {
       sm: {
         paddingVertical: Spacing.sm,
         paddingHorizontal: Spacing.base,
-        height: 36,
+        minHeight: 38,
       },
       md: {
         paddingVertical: Spacing.md,
         paddingHorizontal: Spacing.lg,
-        height: 44,
+        minHeight: 46,
       },
       lg: {
         paddingVertical: Spacing.base,
         paddingHorizontal: Spacing.xl,
-        height: 52,
+        minHeight: 54,
       },
     };
 
     const variantStyles: Record<string, ViewStyle> = {
       primary: {
         backgroundColor: colors.accent,
+        borderWidth: 1,
+        borderColor: `${colors.accentDark}55`,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.16,
+        shadowRadius: 18,
+        elevation: 4,
       },
       secondary: {
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
+        backgroundColor: colors.panel,
+        borderWidth: 1,
         borderColor: colors.border,
       },
       danger: {
         backgroundColor: colors.error,
+        borderWidth: 1,
+        borderColor: `${colors.error}66`,
       },
       ghost: {
-        backgroundColor: 'transparent',
+        backgroundColor: colors.accentSoft,
       },
     };
 
@@ -114,7 +124,10 @@ export const Button: React.FC<ButtonProps> = ({
       return {
         ...baseStyle,
         ...sizeStyles[size],
-        backgroundColor: colors.border,
+        backgroundColor: colors.surfaceMuted,
+        borderWidth: 1,
+        borderColor: colors.border,
+        opacity: 0.65,
       };
     }
 
@@ -156,6 +169,7 @@ export const Button: React.FC<ButtonProps> = ({
 
     return {
       fontWeight: Typography.fontWeight.semibold,
+      letterSpacing: 0.2,
       ...sizeStyles[size],
       ...variantStyles[variant],
     };

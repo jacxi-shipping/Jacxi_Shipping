@@ -65,6 +65,7 @@ const UserDetailScreen: React.FC = () => {
           eyebrow="ADMIN / USERS"
           title={user.name || 'Internal User'}
           subtitle={user.email}
+          showBack
           stats={[
             { label: 'Role', value: titleCase(user.role) },
             { label: 'Shipments', value: String(user.shipments.length) },

@@ -59,6 +59,7 @@ const PartnerPortalDetailScreen: React.FC = () => {
           eyebrow="ADMIN / PARTNER PORTALS"
           title={portal.name}
           subtitle={portal.companyLabel || 'Partner workspace settings and recent access activity.'}
+          showBack
           stats={[
             { label: 'Code', value: portal.code || 'None' },
             { label: 'Domain', value: portal.customDomain ? 'Linked' : 'Default' },

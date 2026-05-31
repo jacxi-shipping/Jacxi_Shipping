@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoices } from '../../hooks/useInvoices';
 import { ErrorState } from '../../components/shared/ErrorState';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -53,6 +54,8 @@ const InvoicesScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Invoices" detail="Outstanding balances, filters, and billing health" />
+
         <Text style={[styles.title, { color: colors.textPrimary }]}>Invoices</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Review invoice status, outstanding balances, and customer billing context from the live invoice backend.</Text>
         <Input value={search} onChangeText={setSearch} placeholder="Search by invoice, customer, or shipment" />

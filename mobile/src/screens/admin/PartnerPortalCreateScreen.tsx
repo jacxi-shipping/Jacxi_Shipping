@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { partnerPortalsApi } from '../../api/partnerPortals';
 import { usersApi } from '../../api/users';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -87,6 +88,8 @@ const PartnerPortalCreateScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Create Partner Portal" detail="Partner workspace setup and ownership" showBack />
+
         <Text style={[styles.title, { color: colors.textPrimary }]}>Create Partner Portal</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Create a partner workspace from mobile using the same portal creation route used on web.</Text>
 

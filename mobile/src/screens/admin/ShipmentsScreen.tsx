@@ -5,6 +5,7 @@ import { useShipments } from '../../hooks/useShipments';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { ShipmentCard } from '../../components/shared/ShipmentCard';
 import { Input } from '../../components/ui/Input';
 import { Colors } from '../../constants/colors';
@@ -31,6 +32,8 @@ const ShipmentsScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.content}>
+        <AppTopBar section="Shipments" detail="Search, create, and manage shipment records" />
+
         <View style={styles.header}>
           <Input placeholder="Search shipments..." value={search} onChangeText={setSearch} containerStyle={styles.search} />
           <TouchableOpacity

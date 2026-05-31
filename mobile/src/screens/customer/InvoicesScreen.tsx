@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, FlatList, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoices } from '../../hooks/useInvoices';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -26,6 +27,7 @@ const InvoicesScreen: React.FC = () => {
         renderItem={({ item }) => <InvoiceCard invoice={item} onPress={() => {}} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={<AppTopBar section="Invoices" detail="Balances, due dates, and payment status" />}
         ListEmptyComponent={
           <EmptyState icon="💵" title="No Invoices" description="Your invoices will appear here" />
         }
@@ -38,7 +40,7 @@ const InvoicesScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  list: { padding: Spacing.base },
+  list: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
 });
 
 export default InvoicesScreen;

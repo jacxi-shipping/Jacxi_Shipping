@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
+import { AppTopBar } from './AppTopBar';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
@@ -54,6 +55,8 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AppTopBar section={title} detail={roleLabel} hideWorkspace />
+
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>JACXI WORKSPACE</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
@@ -75,7 +78,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
             </View>
 
             {loginCode ? (
-              <View style={[styles.loginCodeCard, { backgroundColor: colors.background, borderColor: colors.border }]}> 
+              <View style={[styles.loginCodeCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
                 <Text style={[styles.loginCodeLabel, { color: colors.textSecondary }]}>Portal access code</Text>
                 <Text style={[styles.loginCodeValue, { color: colors.textPrimary }]}>{loginCode}</Text>
               </View>
@@ -99,7 +102,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                   onPress={item.onPress}
                 >
                   <Card style={[styles.actionCard, { backgroundColor: colors.panel }]}> 
-                    <View style={[styles.iconBadge, { backgroundColor: `${colors.accent}14`, borderColor: `${colors.accent}30` }]}> 
+                    <View style={[styles.iconBadge, { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}30` }]}> 
                       <Text style={styles.iconText}>{item.icon}</Text>
                     </View>
                     <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>{item.title}</Text>
@@ -153,7 +156,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   heroContent: {
-    padding: Spacing.base,
+    padding: Spacing.lg,
     gap: Spacing.base,
   },
   identityRow: {
@@ -221,12 +224,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionCard: {
-    minHeight: 112,
+    minHeight: 118,
     justifyContent: 'space-between',
   },
   iconBadge: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -234,7 +237,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   iconText: {
-    fontSize: 18,
+    fontSize: 13,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: 0.6,
   },
   actionTitle: {
     fontSize: Typography.fontSize.base,

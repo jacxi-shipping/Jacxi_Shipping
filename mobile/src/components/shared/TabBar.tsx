@@ -10,12 +10,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 const tabIcons: Record<string, string> = {
-  Dashboard: '[]',
-  Shipments: '<>',
-  Customers: 'OO',
-  Tracking: '>>',
-  Invoices: '$$',
-  Workspace: '::',
+  Dashboard: 'DS',
+  Shipments: 'SH',
+  Customers: 'CU',
+  Tracking: 'TR',
+  Invoices: 'IV',
+  Workspace: 'WK',
 };
 
 export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
@@ -25,8 +25,9 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
   return (
     <SafeAreaView
       edges={['bottom']}
-      style={[styles.container, { backgroundColor: colors.panel, borderTopColor: colors.border }]}
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
+      <View style={[styles.container, { backgroundColor: colors.panel, borderColor: colors.border }]}> 
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.tabBarLabel !== undefined
@@ -65,13 +66,21 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
                 styles.tabContent,
                 isFocused && [
                   styles.tabContentActive,
-                  { backgroundColor: `${colors.accent}16`, borderColor: `${colors.accent}35` },
+                  { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}45` },
                 ],
               ]}
             >
-              <View style={[styles.iconBadge, isFocused && { backgroundColor: colors.accent }]}> 
+              <View
+                style={[
+                  styles.iconBadge,
+                  {
+                    backgroundColor: isFocused ? colors.accent : colors.surfaceMuted,
+                    borderColor: isFocused ? `${colors.accentDark}55` : colors.border,
+                  },
+                ]}
+              > 
                 <Text style={[styles.iconText, { color: isFocused ? '#111111' : colors.textSecondary }]}>
-                  {tabIcons[route.name] || '::'}
+                  {tabIcons[route.name] || 'WK'}
                 </Text>
               </View>
               <Text style={[styles.label, { color: isFocused ? colors.accent : colors.textSecondary }]}>
@@ -81,51 +90,60 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
           </TouchableOpacity>
         );
       })}
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.sm,
+  },
   container: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    paddingTop: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: BorderRadius['2xl'],
+    paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingBottom: Spacing.xs,
+    justifyContent: 'center',
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
     borderColor: 'transparent',
-    minWidth: 70,
+    minWidth: 68,
+    width: '100%',
   },
   tabContentActive: {
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.xl,
   },
   iconBadge: {
-    minWidth: 28,
+    minWidth: 30,
     paddingHorizontal: Spacing.xs,
     height: 24,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xs,
+    borderWidth: 1,
   },
   iconText: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 10,
     fontWeight: Typography.fontWeight.bold,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   label: {
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 0.2,
   },
 });

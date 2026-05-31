@@ -7,19 +7,14 @@ import { WebSocketServer } from 'ws';
 
 import { handleVoiceLiveSocket } from './src/lib/voice/live-bridge';
 
-const allowedApiOrigins = new Set([
-  'http://localhost:8081',
-  'http://127.0.0.1:8081',
-  'http://localhost:19006',
-  'http://127.0.0.1:19006',
-]);
+const EXPO_LOCAL_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:808\d|19006)$/;
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOST || '0.0.0.0';
 const port = Number(process.env.PORT || 3000);
 
 function isAllowedApiOrigin(origin: string) {
-  if (allowedApiOrigins.has(origin)) {
+  if (EXPO_LOCAL_ORIGIN_PATTERN.test(origin)) {
     return true;
   }
 
@@ -32,7 +27,7 @@ function isAllowedApiOrigin(origin: string) {
 
   const escapedCodespaceName = codespaceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const escapedForwardingDomain = forwardingDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`^https://${escapedCodespaceName}-(8081|19006)\\.${escapedForwardingDomain}$`);
+  const pattern = new RegExp(`^https://${escapedCodespaceName}-(808\\d|19006)\.${escapedForwardingDomain}$`);
 
   return pattern.test(origin);
 }

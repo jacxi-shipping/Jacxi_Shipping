@@ -6,6 +6,7 @@ import { useShipments } from '../../hooks/useShipments';
 import { DashboardKPI } from '../../components/admin/DashboardKPI';
 import { ShipmentRow } from '../../components/admin/ShipmentRow';
 import { StatsChart } from '../../components/admin/StatsChart';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { Colors, ShipmentStatusColors } from '../../constants/colors';
@@ -24,6 +25,10 @@ const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   
   const { data: shipmentsData, isLoading, error, refetch, isRefetching } = useShipments({}, { pageSize: 10 });
+
+  const openTab = (screen: 'Shipments') => {
+    navigation.navigate('Home', { screen });
+  };
 
   if (isLoading) return <LoadingSpinner fullScreen />;
   if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
@@ -48,6 +53,8 @@ const DashboardScreen: React.FC = () => {
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.accent} />
         }
       >
+        <AppTopBar section="Admin Dashboard" detail="Operations, shipment volume, and quick actions" />
+
         <Text style={[styles.greeting, { color: colors.textPrimary }]}>
           Welcome back, {user?.name}
         </Text>
@@ -85,7 +92,7 @@ const DashboardScreen: React.FC = () => {
               onPress={() => navigation.navigate('ShipmentDetail', { id: shipment.id })}
             />
           ))}
-          <TouchableOpacity onPress={() => navigation.navigate('Shipments' as any)}>
+          <TouchableOpacity onPress={() => openTab('Shipments')}>
             <Text style={[styles.viewAll, { color: colors.accent }]}>View All →</Text>
           </TouchableOpacity>
         </View>

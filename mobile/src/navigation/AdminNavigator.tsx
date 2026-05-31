@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigatorScreenParams } from '@react-navigation/native';
 import { TabBar } from '../components/shared/TabBar';
 import DashboardScreen from '../screens/admin/DashboardScreen';
 import ShipmentsScreen from '../screens/admin/ShipmentsScreen';
@@ -43,7 +44,7 @@ export type AdminTabParamList = {
 };
 
 export type AdminStackParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<AdminTabParamList> | undefined;
   ShipmentDetail: { id: string };
   ShipmentCreate: undefined;
   CustomerDetail: { id: string };

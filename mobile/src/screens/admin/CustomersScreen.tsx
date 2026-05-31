@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { customersApi } from '../../api/customers';
 import { CustomerCard } from '../../components/admin/CustomerCard';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -39,6 +40,7 @@ const CustomersScreen: React.FC = () => {
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={<AppTopBar section="Customers" detail="Customer accounts and shipment relationships" />}
         ListEmptyComponent={<EmptyState icon="👥" title="No Customers" />}
         onRefresh={refetch}
         refreshing={isLoading}

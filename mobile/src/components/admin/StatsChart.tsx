@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { Card } from '../ui/Card';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
@@ -33,7 +33,7 @@ export const StatsChart: React.FC<StatsChartProps> = ({ title, data }) => {
                   styles.bar,
                   {
                     backgroundColor: item.color,
-                    width: `${(item.value / total) * 100}%`,
+                    width: `${total > 0 ? (item.value / total) * 100 : 0}%`,
                   },
                 ]}
               />

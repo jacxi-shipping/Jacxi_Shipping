@@ -11,11 +11,6 @@ import {
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
-import Animated, {
-  useAnimatedStyle,
-  withTiming,
-  interpolateColor,
-} from 'react-native-reanimated';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -52,9 +47,9 @@ export const Input: React.FC<InputProps> = ({
         style={[
           styles.inputContainer,
           {
-            backgroundColor: colors.panel,
+            backgroundColor: isFocused ? colors.panel : colors.surfaceMuted,
             borderColor,
-            borderWidth: 1.5,
+            borderWidth: isFocused ? 2 : 1,
           },
         ]}
       >
@@ -106,13 +101,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
     marginBottom: Spacing.sm,
+    letterSpacing: 0.2,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: BorderRadius.base,
+    borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
-    height: 48,
+    minHeight: 50,
   },
   input: {
     fontSize: Typography.fontSize.base,
@@ -127,5 +123,6 @@ const styles = StyleSheet.create({
   error: {
     fontSize: Typography.fontSize.xs,
     marginTop: Spacing.xs,
+    marginLeft: Spacing.xs,
   },
 });

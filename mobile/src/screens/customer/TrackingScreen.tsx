@@ -6,6 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { TrackingTimeline } from '../../components/customer/TrackingTimeline';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Colors } from '../../constants/colors';
@@ -41,6 +42,8 @@ const TrackingScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Tracking" detail="Track vehicles, containers, and status updates" />
+
         <Text style={[styles.title, { color: colors.textPrimary }]}>Track Your Shipment</Text>
         <Text style={[styles.description, { color: colors.textSecondary }]}>
           Enter your tracking number or VIN to see real-time updates

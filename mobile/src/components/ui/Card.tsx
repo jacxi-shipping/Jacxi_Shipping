@@ -42,18 +42,18 @@ export const Card: React.FC<CardProps> = ({ children, style, pressable = false, 
 
   const cardStyle: ViewStyle = {
     backgroundColor: colors.panel,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.base,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 10,
     },
-    shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: colorScheme === 'dark' ? 0.28 : 0.12,
+    shadowRadius: 18,
+    elevation: 5,
   };
 
   if (pressable && onPress) {

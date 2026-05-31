@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { containersApi } from '../../api/containers';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -54,6 +55,8 @@ const ContainerDetailScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Container Details" detail={container.containerNumber} showBack />
+
         <Card style={styles.sectionCard}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Container Details</Text>
           <Text style={[styles.containerNumber, { color: colors.textPrimary }]}>{container.containerNumber}</Text>

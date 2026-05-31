@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotifications, useMarkNotificationAsRead } from '../../hooks/useNotifications';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -50,6 +51,7 @@ const NotificationsScreen: React.FC = () => {
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={<AppTopBar section="Notifications" detail="Recent system updates and workflow alerts" showBack hideNotifications />}
         ListEmptyComponent={<EmptyState icon="🔔" title="No Notifications" />}
         onRefresh={refetch}
         refreshing={isLoading}

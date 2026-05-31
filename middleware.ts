@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ALLOWED_API_ORIGINS = new Set([
-  'http://localhost:8081',
-  'http://127.0.0.1:8081',
-  'http://localhost:19006',
-  'http://127.0.0.1:19006',
-]);
+const EXPO_LOCAL_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:808\d|19006)$/;
+
+function isAllowedApiOrigin(origin: string) {
+  return EXPO_LOCAL_ORIGIN_PATTERN.test(origin);
+}
 
 function buildCorsHeaders(origin: string) {
   return {
@@ -19,7 +18,7 @@ function buildCorsHeaders(origin: string) {
 
 export function middleware(request: NextRequest) {
   const origin = request.headers.get('origin');
-  if (!origin || !ALLOWED_API_ORIGINS.has(origin)) {
+  if (!origin || !isAllowedApiOrigin(origin)) {
     return NextResponse.next();
   }
 

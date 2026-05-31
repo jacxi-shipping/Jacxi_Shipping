@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './src/hooks/useAuth';
+import { ThemePreferenceProvider, useThemePreference } from './src/contexts/ThemePreferenceContext';
 import { RootNavigator } from './src/navigation';
 import 'react-native-reanimated';
 
@@ -16,19 +17,28 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function App() {
+function AppContent() {
   const { loadSession } = useAuth();
+  const { colorScheme } = useThemePreference();
 
   useEffect(() => {
-    loadSession();
+    void loadSession();
   }, [loadSession]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style="auto" />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <RootNavigator />
       </QueryClientProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemePreferenceProvider>
+      <AppContent />
+    </ThemePreferenceProvider>
   );
 }

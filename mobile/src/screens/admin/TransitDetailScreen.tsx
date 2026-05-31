@@ -57,6 +57,7 @@ const TransitDetailScreen: React.FC = () => {
           eyebrow="OPERATIONS / TRANSITS"
           title={transit.referenceNumber}
           subtitle={`${transit.origin} to ${transit.destination}`}
+          showBack
           stats={[
             { label: 'Status', value: titleCase(transit.status) },
             { label: 'Shipments', value: String(transit._count.shipments) },

@@ -6,6 +6,7 @@ import { useCreateShipment } from '../../hooks/useShipments';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Toast } from '../../components/ui/Toast';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
@@ -39,6 +40,8 @@ const ShipmentCreateScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Create Shipment" detail="Vehicle, route, and customer setup" showBack />
+
         <Text style={[styles.title, { color: colors.textPrimary }]}>Create New Shipment</Text>
 
         <Card>

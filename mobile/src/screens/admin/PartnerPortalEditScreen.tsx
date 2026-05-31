@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { partnerPortalsApi } from '../../api/partnerPortals';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
@@ -94,6 +95,8 @@ const PartnerPortalEditScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Edit Partner Portal" detail={portal.name} showBack />
+
         <Text style={[styles.title, { color: colors.textPrimary }]}>Edit Partner Portal</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Update portal branding and workflow settings through the same portal settings route used on web.</Text>
 

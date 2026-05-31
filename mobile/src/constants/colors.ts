@@ -3,9 +3,11 @@ export const Colors = {
     accent: '#D4AF37',
     accentLight: '#E5C158',
     accentDark: '#B89230',
+    accentSoft: 'rgba(212, 175, 55, 0.12)',
     
     background: '#F9FAFB',
     panel: '#FFFFFF',
+    surfaceMuted: '#F3F4F6',
     border: '#E5E7EB',
     borderLight: '#F3F4F6',
     
@@ -21,6 +23,7 @@ export const Colors = {
     errorLight: '#FEE2E2',
     info: '#3B82F6',
     infoLight: '#DBEAFE',
+    shadow: 'rgba(28, 28, 30, 0.08)',
     
     overlay: 'rgba(0, 0, 0, 0.5)',
     shimmer: 'rgba(255, 255, 255, 0.8)',
@@ -29,9 +32,11 @@ export const Colors = {
     accent: '#D4AF37',
     accentLight: '#E5C158',
     accentDark: '#B89230',
+    accentSoft: 'rgba(212, 175, 55, 0.18)',
     
     background: '#0A0A0A',
     panel: '#1C1C1E',
+    surfaceMuted: '#151517',
     border: '#2C2C2E',
     borderLight: '#3A3A3C',
     
@@ -47,6 +52,7 @@ export const Colors = {
     errorLight: '#7F1D1D',
     info: '#3B82F6',
     infoLight: '#1E3A8A',
+    shadow: 'rgba(0, 0, 0, 0.35)',
     
     overlay: 'rgba(0, 0, 0, 0.7)',
     shimmer: 'rgba(255, 255, 255, 0.1)',

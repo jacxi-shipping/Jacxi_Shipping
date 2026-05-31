@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { ShipmentCard } from '../../components/shared/ShipmentCard';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
@@ -28,6 +29,10 @@ const DashboardScreen: React.FC = () => {
     { pageSize: 5 }
   );
 
+  const openTab = (screen: 'Shipments' | 'Tracking' | 'Invoices') => {
+    navigation.navigate('Home', { screen });
+  };
+
   if (isLoading) {
     return <LoadingSpinner fullScreen />;
   }
@@ -47,14 +52,13 @@ const DashboardScreen: React.FC = () => {
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.accent} />
         }
       >
+        <AppTopBar section="Dashboard" detail="Your shipments, invoices, and next actions" />
+
         <View style={styles.header}>
           <View>
             <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome back,</Text>
             <Text style={[styles.name, { color: colors.textPrimary }]}>{user?.name}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
-            <Text style={[styles.notificationIcon, { color: colors.accent }]}>🔔</Text>
-          </TouchableOpacity>
         </View>
 
         <Card style={styles.statsCard}>
@@ -65,14 +69,14 @@ const DashboardScreen: React.FC = () => {
         <View style={styles.quickActions}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('Tracking' as any)}
+            onPress={() => openTab('Tracking')}
           >
             <Text style={styles.actionIcon}>📦</Text>
             <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Track</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('Invoices' as any)}
+            onPress={() => openTab('Invoices')}
           >
             <Text style={styles.actionIcon}>💵</Text>
             <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Invoices</Text>
@@ -96,7 +100,7 @@ const DashboardScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Shipments</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Shipments' as any)}>
+            <TouchableOpacity onPress={() => openTab('Shipments')}>
               <Text style={[styles.sectionLink, { color: colors.accent }]}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -130,9 +134,6 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: Spacing.xl,
   },
   greeting: {
@@ -142,9 +143,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: Typography.fontSize['2xl'],
     fontWeight: Typography.fontWeight.bold,
-  },
-  notificationIcon: {
-    fontSize: 28,
   },
   statsCard: {
     marginBottom: Spacing.base,

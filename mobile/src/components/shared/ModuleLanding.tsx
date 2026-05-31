@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../ui/Card';
+import { AppTopBar } from './AppTopBar';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
@@ -42,6 +43,8 @@ export const ModuleLanding: React.FC<ModuleLandingProps> = ({
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AppTopBar section={title} detail={eyebrow} />
+
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>{eyebrow}</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>

@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { usersApi } from '../../api/users';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
@@ -205,6 +206,8 @@ const UserEditScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Edit User" detail={user.email} showBack />
+
         <Text style={[styles.title, { color: colors.textPrimary }]}>Edit User</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Update internal account details from mobile using the same admin user mutation route used on web.</Text>
 

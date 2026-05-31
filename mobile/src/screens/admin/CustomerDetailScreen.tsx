@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { customersApi } from '../../api/customers';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { Avatar } from '../../components/ui/Avatar';
 import { Divider } from '../../components/ui/Divider';
@@ -33,6 +34,8 @@ const CustomerDetailScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Customer Details" detail={customer.email} showBack />
+
         <Card style={styles.profileCard}>
           <Avatar name={customer.name} size={80} />
           <Text style={[styles.name, { color: colors.textPrimary }]}>{customer.name}</Text>
