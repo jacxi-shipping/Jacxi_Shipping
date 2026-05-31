@@ -65,6 +65,7 @@ const UsersScreen: React.FC = () => {
               eyebrow="ADMIN / USERS"
               title="Users"
               subtitle="Real internal-user list parity for the web Users module, with direct mobile access to role and account detail."
+              showBack
               stats={[
                 { label: 'Total Users', value: String(data?.total || 0) },
                 { label: 'Admins', value: String(data?.admins || 0) },

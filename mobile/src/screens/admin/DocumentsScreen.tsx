@@ -6,6 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { documentsApi } from '../../api/documents';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { ErrorState } from '../../components/shared/ErrorState';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -140,6 +141,11 @@ const DocumentsScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.content}>
+        <AppTopBar
+          section="Documents"
+          detail={isAdmin ? 'Shared library, shipment filters, and uploads' : 'Shared library and shipment-linked paperwork'}
+          showBack
+        />
         <Text style={[styles.title, { color: colors.textPrimary }]}>Documents</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Browse uploaded documents, public files, and shipment-linked paperwork from the existing backend library. {isAdmin ? 'Admins can also upload new files here.' : 'Customer access remains read-only.'}</Text>
 

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../../api/analytics';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -31,6 +32,7 @@ const AnalyticsScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Analytics" detail="Operations, revenue, and customer performance" showBack />
         <Text style={[styles.title, { color: colors.textPrimary }]}>Analytics</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Operational and financial analytics from the live dashboard backend, tuned for quick mobile review.</Text>
 

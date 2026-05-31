@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { settingsApi } from '../../api/settings';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -62,6 +63,7 @@ const SystemToolsScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="System Tools" detail="Admin settings, call-agent readiness, and AI activity" showBack />
         <Text style={[styles.eyebrow, { color: colors.accent }]}>ADMIN TOOLING</Text>
         <Text style={[styles.title, { color: colors.textPrimary }]}>System Tools</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Review personal admin settings, call-agent readiness, and the latest AI activity without leaving the mobile workspace.</Text>

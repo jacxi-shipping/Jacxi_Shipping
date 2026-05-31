@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { dispatchesApi } from '../../api/dispatches';
 import { containersApi } from '../../api/containers';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/shared/ErrorState';
@@ -153,6 +154,7 @@ const DispatchesScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppTopBar section="Dispatches" detail="Batch workflow, handoff, and receive actions" showBack />
         <Text style={[styles.title, { color: colors.textPrimary }]}>Dispatches</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Monitor dispatch workflow batches, linked shipment counts, and route progress from the live dispatch backend.</Text>
         <Input value={search} onChangeText={setSearch} placeholder="Search by reference, notes, or shipment VIN" />

@@ -51,6 +51,7 @@ const PartnerPortalActivityScreen: React.FC = () => {
             eyebrow="PARTNER PORTAL / ACTIVITY"
             title={portalName}
             subtitle="Membership, access-code, and partner workspace audit activity from the same backend feed used on web."
+            showBack
             stats={[
               { label: 'Events', value: String(activities.length) },
               { label: 'Scope', value: 'Audit Trail' },

@@ -92,6 +92,7 @@ const AgingReportScreen: React.FC = () => {
           eyebrow="FINANCE / REPORTS / AGING"
           title="Due Aging"
           subtitle="Track unpaid shipment balances by age bucket using the same aging report feed exposed on web."
+          showBack
           stats={[
             { label: 'Total Due', value: formatCurrency(data?.summary.totalAmountDue || 0) },
             { label: 'Open Shipments', value: String(data?.summary.totalShipments || 0) },

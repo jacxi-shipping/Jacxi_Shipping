@@ -63,6 +63,7 @@ const TransitsScreen: React.FC = () => {
             eyebrow="OPERATIONS / TRANSITS"
             title="Transits"
             subtitle="Real mobile list parity for transit routing, movement coordination, and detail drill-down."
+            showBack
             stats={[
               { label: 'Total Transits', value: String(transits.length) },
               { label: 'Active', value: String(activeCount) },

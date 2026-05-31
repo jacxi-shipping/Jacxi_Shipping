@@ -37,7 +37,7 @@ const FinanceScreen: React.FC = () => {
 
   const invoices = invoicesQuery.data?.invoices || [];
   const actionQueue = useMemo(
-    () => invoices.filter((invoice) => invoice.status === 'OVERDUE' || invoice.status === 'PENDING' || invoice.status === 'SENT').slice(0, 8),
+    () => invoices.filter((invoice) => invoice.status === 'OVERDUE' || invoice.status === 'PENDING').slice(0, 8),
     [invoices],
   );
   const summary = useMemo(
@@ -72,6 +72,7 @@ const FinanceScreen: React.FC = () => {
         eyebrow="FINANCE"
         title="Finance"
         subtitle="A live finance workspace with payment queue, overdue invoice actions, and direct paths into banking, ledgers, and reporting."
+        showBack
         stats={[
           { label: 'Visible Invoices', value: String(summary.visible) },
           { label: 'Overdue', value: String(summary.overdue) },

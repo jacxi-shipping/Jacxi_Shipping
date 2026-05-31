@@ -523,6 +523,7 @@ const BankingScreen: React.FC = () => {
           eyebrow="FINANCE / BANKING"
           title="Banking"
           subtitle="Connected accounts, imported bank activity, and reconciliation entry points from the existing finance backend."
+          showBack
           stats={[
             { label: 'Connections', value: String(bankItems.length) },
             { label: 'Needs Review', value: String(reviewCounts.pending) },

@@ -69,6 +69,7 @@ const CompanyLedgersScreen: React.FC = () => {
             eyebrow="FINANCE / COMPANY LEDGERS"
             title="Company Ledgers"
             subtitle="Company-specific finance drill-down entry points, backed by the same finance company APIs used on web."
+            showBack
             stats={[
               { label: 'Companies', value: String(companies.length) },
               { label: 'Net Balance', value: formatCurrency(totalBalance) },

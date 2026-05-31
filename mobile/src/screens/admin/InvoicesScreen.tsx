@@ -54,7 +54,7 @@ const InvoicesScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <AppTopBar section="Invoices" detail="Outstanding balances, filters, and billing health" />
+        <AppTopBar section="Invoices" detail="Outstanding balances, filters, and billing health" showBack />
 
         <Text style={[styles.title, { color: colors.textPrimary }]}>Invoices</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Review invoice status, outstanding balances, and customer billing context from the live invoice backend.</Text>

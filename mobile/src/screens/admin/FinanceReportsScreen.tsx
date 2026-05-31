@@ -237,6 +237,7 @@ const FinanceReportsScreen: React.FC = () => {
           eyebrow="FINANCE / REPORTS"
           title="Financial Reports"
           subtitle="Mobile access to the web financial report feeds for summary, user-wise, and shipment-wise reporting."
+          showBack
           stats={summaryStats}
         />
 
@@ -327,7 +328,13 @@ const FinanceReportsScreen: React.FC = () => {
           </View>
           <View style={styles.topActionRow}>
             <Button title="Clear Filters" variant="ghost" onPress={clearFilters} style={styles.topActionButton} />
-            <Button title={activeFilterUser ? `User: ${activeFilterUser.name || activeFilterUser.email}` : 'All Users'} variant="secondary" disabled style={styles.topActionButton} />
+            <Button
+              title={activeFilterUser ? `User: ${activeFilterUser.name || activeFilterUser.email}` : 'All Users'}
+              variant="secondary"
+              onPress={() => undefined}
+              disabled
+              style={styles.topActionButton}
+            />
           </View>
         </Card>
 

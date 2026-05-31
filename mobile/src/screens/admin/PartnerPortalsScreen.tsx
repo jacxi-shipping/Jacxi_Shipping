@@ -65,6 +65,7 @@ const PartnerPortalsScreen: React.FC = () => {
               eyebrow="ADMIN / PARTNER PORTALS"
               title="Partner Portals"
               subtitle="Real mobile list parity for partner workspaces, with direct access to portal settings and activity detail."
+              showBack
               stats={[
                 { label: 'Portals', value: String(portals.length) },
                 { label: 'Customers', value: String(totalCustomers) },
