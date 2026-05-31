@@ -47,8 +47,6 @@ const ContainersScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.pageHeader}>
         <AppTopBar section="Containers" detail="Capacity, movement status, and linked shipments" showBack />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Containers</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Track container capacity, movement status, and linked shipment context.</Text>
         <Input value={search} onChangeText={setSearch} placeholder="Search by container, tracking, vessel, or booking" />
         <View style={styles.metricRow}>
           <Card style={styles.metricCard}>

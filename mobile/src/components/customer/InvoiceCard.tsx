@@ -10,15 +10,16 @@ import { format } from 'date-fns';
 
 interface InvoiceCardProps {
   invoice: Invoice;
-  onPress: () => void;
+  onPress?: () => void;
+  footer?: React.ReactNode;
 }
 
-export const InvoiceCard: React.FC<InvoiceCardProps> = ({ invoice, onPress }) => {
+export const InvoiceCard: React.FC<InvoiceCardProps> = ({ invoice, onPress, footer }) => {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
   return (
-    <Card pressable onPress={onPress} style={styles.card}>
+    <Card pressable={Boolean(onPress)} onPress={onPress} style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={[styles.invoiceNumber, { color: colors.textPrimary }]}>
@@ -58,6 +59,8 @@ export const InvoiceCard: React.FC<InvoiceCardProps> = ({ invoice, onPress }) =>
           Due: {format(new Date(invoice.dueDate), 'MMM d, yyyy')}
         </Text>
       </View>
+
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </Card>
   );
 };
@@ -101,6 +104,9 @@ const styles = StyleSheet.create({
   dates: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  footer: {
+    marginTop: Spacing.md,
   },
   date: {
     fontSize: Typography.fontSize.xs,

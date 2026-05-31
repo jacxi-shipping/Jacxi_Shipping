@@ -55,9 +55,6 @@ const InvoicesScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="Invoices" detail="Outstanding balances, filters, and billing health" showBack />
-
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Invoices</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Review invoice status, outstanding balances, and customer billing context from the live invoice backend.</Text>
         <Input value={search} onChangeText={setSearch} placeholder="Search by invoice, customer, or shipment" />
 
         <View style={styles.filterRow}>
@@ -103,13 +100,16 @@ const InvoicesScreen: React.FC = () => {
           </Card>
         ) : (
           invoices.map((invoice) => (
-            <Card key={invoice.id} style={styles.invoiceCard}>
-              <InvoiceCard invoice={invoice} onPress={() => {}} />
-              <Text style={[styles.invoiceMeta, { color: colors.textSecondary }]}>
-                {invoice.customerName || invoice.customerEmail || 'Unknown customer'}
-                {invoice.shipmentId ? ` • Shipment ${invoice.shipmentId.slice(0, 8)}` : ''}
-              </Text>
-            </Card>
+            <InvoiceCard
+              key={invoice.id}
+              invoice={invoice}
+              footer={
+                <Text style={[styles.invoiceMeta, { color: colors.textSecondary }]}>
+                  {invoice.customerName || invoice.customerEmail || 'Unknown customer'}
+                  {invoice.shipmentId ? ` • Shipment ${invoice.shipmentId.slice(0, 8)}` : ''}
+                </Text>
+              }
+            />
           ))
         )}
       </ScrollView>
@@ -129,7 +129,6 @@ const styles = StyleSheet.create({
   metricCard: { flex: 1, paddingVertical: Spacing.base },
   metricValue: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, textAlign: 'center' },
   metricLabel: { fontSize: Typography.fontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
-  invoiceCard: { marginBottom: Spacing.sm },
   invoiceMeta: { fontSize: Typography.fontSize.xs, marginTop: Spacing.sm },
   emptyText: { fontSize: Typography.fontSize.sm },
 });

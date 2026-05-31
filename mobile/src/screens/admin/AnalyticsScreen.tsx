@@ -33,8 +33,6 @@ const AnalyticsScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="Analytics" detail="Operations, revenue, and customer performance" showBack />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Analytics</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Operational and financial analytics from the live dashboard backend, tuned for quick mobile review.</Text>
 
         <View style={styles.metricGrid}>
           <Card style={styles.metricCard}><Text style={[styles.metricValue, { color: colors.textPrimary }]}>{analytics?.summary.totalShipments}</Text><Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text></Card>

@@ -59,7 +59,6 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
 
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>JACXI WORKSPACE</Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
         </View>
 
@@ -135,11 +134,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
     letterSpacing: 1.2,
-    marginBottom: Spacing.xs,
-  },
-  title: {
-    fontSize: Typography.fontSize['3xl'],
-    fontWeight: Typography.fontWeight.bold,
     marginBottom: Spacing.xs,
   },
   subtitle: {

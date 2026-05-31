@@ -146,8 +146,6 @@ const DocumentsScreen: React.FC = () => {
           detail={isAdmin ? 'Shared library, shipment filters, and uploads' : 'Shared library and shipment-linked paperwork'}
           showBack
         />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Documents</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Browse uploaded documents, public files, and shipment-linked paperwork from the existing backend library. {isAdmin ? 'Admins can also upload new files here.' : 'Customer access remains read-only.'}</Text>
 
         <Input value={search} onChangeText={setSearch} placeholder="Search documents by name or description" />
 

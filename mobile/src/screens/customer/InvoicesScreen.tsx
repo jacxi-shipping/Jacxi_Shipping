@@ -24,7 +24,7 @@ const InvoicesScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <FlatList
         data={invoices}
-        renderItem={({ item }) => <InvoiceCard invoice={item} onPress={() => {}} />}
+        renderItem={({ item }) => <InvoiceCard invoice={item} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListHeaderComponent={<AppTopBar section="Invoices" detail="Balances, due dates, and payment status" />}

@@ -44,11 +44,6 @@ const TrackingScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="Tracking" detail="Track vehicles, containers, and status updates" />
 
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Track Your Shipment</Text>
-        <Text style={[styles.description, { color: colors.textSecondary }]}>
-          Enter your tracking number or VIN to see real-time updates
-        </Text>
-
         <Card>
           <Controller
             control={control}
@@ -101,8 +96,6 @@ const TrackingScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.sm },
-  description: { fontSize: Typography.fontSize.base, marginBottom: Spacing.xl },
   workspaceCard: { marginTop: Spacing.base },
   workspaceTitle: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, marginBottom: Spacing.xs },
   workspaceDescription: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.base },

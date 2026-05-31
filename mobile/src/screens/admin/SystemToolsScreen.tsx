@@ -64,9 +64,6 @@ const SystemToolsScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="System Tools" detail="Admin settings, call-agent readiness, and AI activity" showBack />
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>ADMIN TOOLING</Text>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>System Tools</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Review personal admin settings, call-agent readiness, and the latest AI activity without leaving the mobile workspace.</Text>
 
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Preferences Snapshot</Text>

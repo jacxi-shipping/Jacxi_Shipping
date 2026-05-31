@@ -155,8 +155,6 @@ const DispatchesScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="Dispatches" detail="Batch workflow, handoff, and receive actions" showBack />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Dispatches</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Monitor dispatch workflow batches, linked shipment counts, and route progress from the live dispatch backend.</Text>
         <Input value={search} onChangeText={setSearch} placeholder="Search by reference, notes, or shipment VIN" />
 
         <View style={styles.filterRow}>
