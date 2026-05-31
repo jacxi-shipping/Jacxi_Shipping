@@ -7,6 +7,7 @@ import { Shipment } from '../../types/shipment';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { format } from 'date-fns';
+import { AppIcon } from './AppIcon';
 
 interface ShipmentCardProps {
   shipment: Shipment;
@@ -50,7 +51,7 @@ export const ShipmentCard: React.FC<ShipmentCardProps> = ({
             {shipment.origin.city}, {shipment.origin.state}
           </Text>
         </View>
-        <Text style={[styles.arrow, { color: colors.accent }]}>→</Text>
+        <AppIcon name="forward" size={22} color={colors.accent} />
         <View style={styles.location}>
           <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>To</Text>
           <Text style={[styles.locationText, { color: colors.textPrimary }]} numberOfLines={1}>
@@ -131,11 +132,6 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
-  },
-  arrow: {
-    fontSize: Typography.fontSize['2xl'],
-    marginHorizontal: Spacing.sm,
-    fontWeight: Typography.fontWeight.bold,
   },
   updated: {
     fontSize: Typography.fontSize.xs,

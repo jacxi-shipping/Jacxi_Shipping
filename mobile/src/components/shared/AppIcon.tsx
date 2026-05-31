@@ -4,7 +4,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 export type AppIconName =
   | 'brand'
   | 'back'
+  | 'close'
   | 'forward'
+  | 'location'
   | 'login'
   | 'loginCode'
   | 'resetPassword'
@@ -39,7 +41,9 @@ export type AppIconName =
 const iconMap: Record<AppIconName, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
   brand: 'anchor',
   back: 'chevron-left',
+  close: 'close',
   forward: 'chevron-right',
+  location: 'map-marker-outline',
   login: 'shield-account-outline',
   loginCode: 'form-textbox-password',
   resetPassword: 'lock-reset',

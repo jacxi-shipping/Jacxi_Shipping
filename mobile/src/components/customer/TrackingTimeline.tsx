@@ -5,6 +5,7 @@ import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { format } from 'date-fns';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { AppIcon } from '../shared/AppIcon';
 
 interface TrackingTimelineProps {
   tracking: ShipmentTracking[];
@@ -50,9 +51,10 @@ export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ tracking, cu
                 </Text>
               )}
               {event.location && (
-                <Text style={[styles.location, { color: colors.textTertiary }]}>
-                  📍 {event.location}
-                </Text>
+                <View style={styles.locationRow}>
+                  <AppIcon name="location" size={14} color={colors.textTertiary} />
+                  <Text style={[styles.location, { color: colors.textTertiary }]}>{event.location}</Text>
+                </View>
               )}
               <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
                 {format(new Date(event.timestamp), 'MMM d, yyyy h:mm a')}
@@ -104,6 +106,11 @@ const styles = StyleSheet.create({
   },
   location: {
     fontSize: Typography.fontSize.sm,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.xs,
   },
   timestamp: {

@@ -10,6 +10,14 @@ function resolveApiUrl() {
   if (
     Platform.OS === 'web' &&
     typeof window !== 'undefined' &&
+    ['127.0.0.1', 'localhost'].includes(window.location.hostname)
+  ) {
+    return `http://${window.location.hostname}:3000`;
+  }
+
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
     configuredUrl.includes('localhost:3000') &&
     window.location.hostname.endsWith('.app.github.dev')
   ) {

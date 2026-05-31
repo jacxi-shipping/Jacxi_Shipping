@@ -5,6 +5,36 @@ import { isSystemHost, normalizeRequestHost } from "./lib/partner-portal-domains
 
 const { auth } = NextAuth(authConfig);
 
+const mobileWebOriginPatterns = [
+  /^http:\/\/127\.0\.0\.1:\d+$/,
+  /^http:\/\/localhost:\d+$/,
+];
+
+function getAllowedMobileWebOrigin(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  if (!origin) {
+    return null;
+  }
+
+  return mobileWebOriginPatterns.some((pattern) => pattern.test(origin)) ? origin : null;
+}
+
+function applyApiCorsHeaders(response: NextResponse, request: NextRequest, origin: string) {
+  const requestedHeaders = request.headers.get('access-control-request-headers');
+
+  response.headers.set('Access-Control-Allow-Origin', origin);
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
+  response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  response.headers.set(
+    'Access-Control-Allow-Headers',
+    requestedHeaders || 'Content-Type, Authorization',
+  );
+  response.headers.set('Access-Control-Max-Age', '86400');
+  response.headers.append('Vary', 'Origin');
+
+  return response;
+}
+
 function getRequestOrigin(request: NextRequest) {
   const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(/:$/, '') || 'http';
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
@@ -41,6 +71,15 @@ function isCustomDomainCandidatePath(pathname: string) {
 }
 
 export default auth(async (request) => {
+  const allowedMobileWebOrigin = getAllowedMobileWebOrigin(request);
+  if (request.nextUrl.pathname.startsWith('/api/') && allowedMobileWebOrigin) {
+    if (request.method === 'OPTIONS') {
+      return applyApiCorsHeaders(new NextResponse(null, { status: 204 }), request, allowedMobileWebOrigin);
+    }
+
+    return applyApiCorsHeaders(NextResponse.next(), request, allowedMobileWebOrigin);
+  }
+
   const host = normalizeRequestHost(
     request.headers.get('x-forwarded-host')
     || request.headers.get('host')
@@ -79,6 +118,7 @@ export default auth(async (request) => {
 export const config = {
   matcher: [
     '/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|.*\\..*).*)',
+    '/api/:path*',
     '/api/protected/:path*',
   ],
 };

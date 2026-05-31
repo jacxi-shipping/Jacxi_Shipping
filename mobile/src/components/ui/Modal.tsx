@@ -16,6 +16,7 @@ import Animated, {
   SlideOutDown,
 } from 'react-native-reanimated';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { AppIcon } from '../shared/AppIcon';
 
 interface ModalProps {
   visible: boolean;
@@ -66,7 +67,7 @@ export const Modal: React.FC<ModalProps> = ({
               )}
               {showCloseButton && (
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Text style={[styles.closeText, { color: colors.textSecondary }]}>✕</Text>
+                  <AppIcon name="close" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               )}
             </View>
