@@ -12,6 +12,9 @@ web-build/
 .env
 .env.local
 
+# EAS / Google Play service account key (never commit secrets)
+google-service-account.json
+
 # macOS
 .DS_Store
 
