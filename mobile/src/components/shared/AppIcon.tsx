@@ -6,6 +6,7 @@ export type AppIconName =
   | 'back'
   | 'close'
   | 'forward'
+  | 'search'
   | 'location'
   | 'login'
   | 'loginCode'
@@ -43,6 +44,7 @@ const iconMap: Record<AppIconName, React.ComponentProps<typeof MaterialCommunity
   back: 'chevron-left',
   close: 'close',
   forward: 'chevron-right',
+  search: 'magnify',
   location: 'map-marker-outline',
   login: 'shield-account-outline',
   loginCode: 'form-textbox-password',

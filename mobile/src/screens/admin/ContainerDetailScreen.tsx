@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { containersApi } from '../../api/containers';
 import { AppTopBar } from '../../components/shared/AppTopBar';
 import { Card } from '../../components/ui/Card';
+import { DetailTabStrip, DetailTabOption } from '../../components/shared/DetailTabs';
+import { EmptyState } from '../../components/shared/EmptyState';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -39,6 +41,7 @@ const ContainerDetailScreen: React.FC = () => {
     [container?.documents],
   );
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
   if (query.isLoading) return <LoadingSpinner fullScreen />;
   if (query.error) return <ErrorState message={(query.error as any).message} onRetry={query.refetch} />;
@@ -51,11 +54,26 @@ const ContainerDetailScreen: React.FC = () => {
     ? container.documents
     : container.documents.filter((document) => document.type === selectedDocumentType);
 
+  const tabs: DetailTabOption[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'shipments', label: `Shipments (${container.shipments.length})` },
+    { key: 'tracking', label: `Tracking (${container.trackingEvents.length})` },
+    { key: 'documents', label: `Documents (${container.documents.length})` },
+  ];
+
+  if (container.totals || (container.expenses?.length || 0) > 0 || (container.invoices?.length || 0) > 0) {
+    tabs.push({ key: 'financials', label: 'Financials' });
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <AppTopBar section="Container Details" detail={container.containerNumber} showBack />
 
+        <DetailTabStrip tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+
+        {activeTab === 'overview' ? (
+          <>
         <Card style={styles.sectionCard}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Container Details</Text>
           <Text style={[styles.containerNumber, { color: colors.textPrimary }]}>{container.containerNumber}</Text>
@@ -96,7 +114,10 @@ const ContainerDetailScreen: React.FC = () => {
             </View>
           </Card>
         ) : null}
+          </>
+        ) : null}
 
+        {activeTab === 'shipments' ? (
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Shipments</Text>
           {container.shipments.length === 0 ? (
@@ -120,7 +141,9 @@ const ContainerDetailScreen: React.FC = () => {
             ))
           )}
         </Card>
+        ) : null}
 
+        {activeTab === 'tracking' ? (
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Tracking Events</Text>
           {container.trackingEvents.length === 0 ? (
@@ -144,7 +167,9 @@ const ContainerDetailScreen: React.FC = () => {
             ))
           )}
         </Card>
+        ) : null}
 
+        {activeTab === 'documents' ? (
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Documents</Text>
           {documentTypes.length > 1 ? (
@@ -196,6 +221,72 @@ const ContainerDetailScreen: React.FC = () => {
             ))
           )}
         </Card>
+        ) : null}
+
+        {activeTab === 'financials' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Financials</Text>
+
+            {container.totals ? (
+              <View style={styles.metricRow}>
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(container.totals.expenses)}</Text>
+                  <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Expenses</Text>
+                </View>
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(container.totals.invoices)}</Text>
+                  <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Invoices</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {container.expenses && container.expenses.length > 0 ? (
+              <View style={styles.financialBlock}>
+                <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Expenses</Text>
+                {container.expenses.map((expense, index) => (
+                  <View
+                    key={expense.id}
+                    style={StyleSheet.flatten([
+                      styles.detailRow,
+                      index === container.expenses!.length - 1 ? styles.detailRowLast : null,
+                      { borderBottomColor: colors.border },
+                    ])}
+                  >
+                    <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{expense.description}</Text>
+                    <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>
+                      {formatCurrency(expense.amount)} • {expense.vendor || 'Vendor pending'} • {new Date(expense.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {container.invoices && container.invoices.length > 0 ? (
+              <View style={styles.financialBlock}>
+                <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Invoices</Text>
+                {container.invoices.map((invoice, index) => (
+                  <View
+                    key={invoice.id}
+                    style={StyleSheet.flatten([
+                      styles.detailRow,
+                      index === container.invoices!.length - 1 ? styles.detailRowLast : null,
+                      { borderBottomColor: colors.border },
+                    ])}
+                  >
+                    <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{invoice.invoiceNumber || invoice.id}</Text>
+                    <Text style={[styles.rowMeta, { color: colors.textSecondary }]}> 
+                      {formatCurrency(invoice.amount)} • {titleCase(invoice.status || 'pending')} • {invoice.date ? new Date(invoice.date).toLocaleDateString() : 'Date pending'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {!container.totals && (!container.expenses || container.expenses.length === 0) && (!container.invoices || container.invoices.length === 0) ? (
+              <EmptyState icon="finance" title="No Financial Data" description="Container totals, expenses, and invoices will appear here when available." />
+            ) : null}
+          </Card>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -222,6 +313,8 @@ const styles = StyleSheet.create({
   rowMeta: { fontSize: Typography.fontSize.xs, lineHeight: 18 },
   notes: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginTop: Spacing.sm },
   linkText: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, marginTop: Spacing.xs },
+  financialBlock: { marginTop: Spacing.base },
+  blockTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.sm },
 });
 
 export default ContainerDetailScreen;

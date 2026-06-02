@@ -75,6 +75,35 @@ export interface AiLogsResponse {
   count: number;
 }
 
+export interface AuditLogRecord {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  performedAt: string;
+  performedBy: string;
+  actor?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  target?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLogRecord[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+  };
+}
+
 export const settingsApi = {
   async getSettings(): Promise<UserSettingsResponse> {
     const response = await client.get<UserSettingsResponse>('/api/settings');
@@ -88,6 +117,13 @@ export const settingsApi = {
 
   async getAiLogs(limit = 20): Promise<AiLogsResponse> {
     const response = await client.get<AiLogsResponse>('/api/ai/logs', {
+      params: { limit },
+    });
+    return response.data;
+  },
+
+  async getAuditLogs(limit = 20): Promise<AuditLogsResponse> {
+    const response = await client.get<AuditLogsResponse>('/api/audit-logs', {
       params: { limit },
     });
     return response.data;

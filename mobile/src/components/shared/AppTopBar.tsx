@@ -90,6 +90,11 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
     if (isAdmin) {
       return [
         {
+          title: 'Search',
+          description: 'Find shipments across the workspace.',
+          onPress: () => navigation.navigate('Search'),
+        },
+        {
           title: 'Dashboard',
           description: 'Overview, KPIs, and operations health.',
           onPress: () => navigation.navigate('Home', { screen: 'Dashboard' }),
@@ -113,6 +118,11 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
     }
 
     return [
+      {
+        title: 'Search',
+        description: 'Find your shipments quickly.',
+        onPress: () => navigation.navigate('Search'),
+      },
       {
         title: 'Dashboard',
         description: 'Current shipments, alerts, and next steps.',

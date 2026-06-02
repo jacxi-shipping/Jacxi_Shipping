@@ -32,6 +32,7 @@ const SettingsScreen: React.FC = () => {
 
   const openStack = (
     screen:
+      | 'Search'
       | 'Containers'
       | 'Dispatches'
       | 'Invoices'
@@ -64,6 +65,7 @@ const SettingsScreen: React.FC = () => {
           title: 'Main',
           caption: 'Core dashboard surfaces used every day.',
           items: [
+            { title: 'Search', description: 'Find shipments across the workspace with smart query matching.', icon: 'search', onPress: () => openStack('Search') },
             { title: 'Dashboard', description: 'Overview, KPIs, and recent activity.', icon: 'dashboard', onPress: () => openTab('Dashboard') },
             { title: 'Shipments', description: 'Review and manage shipment records.', icon: 'shipments', onPress: () => openTab('Shipments') },
             { title: 'Customers', description: 'Access customer accounts and details.', icon: 'customers', onPress: () => openTab('Customers') },

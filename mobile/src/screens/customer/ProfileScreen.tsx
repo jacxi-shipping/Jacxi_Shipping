@@ -34,7 +34,7 @@ const ProfileScreen: React.FC = () => {
     navigation.navigate('Notifications');
   };
 
-  const openStack = (screen: 'Documents' | 'Containers') => {
+  const openStack = (screen: 'Search' | 'Documents' | 'Containers') => {
     navigation.navigate(screen);
   };
 
@@ -51,6 +51,7 @@ const ProfileScreen: React.FC = () => {
           title: 'Main',
           caption: 'Your primary customer views.',
           items: [
+            { title: 'Search', description: 'Quickly find your shipments using VIN, lot number, or vehicle details.', icon: 'search', onPress: () => openStack('Search') },
             { title: 'Dashboard', description: 'Current shipments, alerts, and next steps.', icon: 'dashboard', onPress: () => openTab('Dashboard') },
             { title: 'Shipments', description: 'Browse your active and completed shipments.', icon: 'shipments', onPress: () => openTab('Shipments') },
             { title: 'Tracking', description: 'Track containers and shipment progress.', icon: 'tracking', onPress: () => openTab('Tracking') },

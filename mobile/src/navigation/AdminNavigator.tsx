@@ -34,6 +34,7 @@ import PartnerPortalCreateScreen from '../screens/admin/PartnerPortalCreateScree
 import PartnerPortalEditScreen from '../screens/admin/PartnerPortalEditScreen';
 import FinanceReportsScreen from '../screens/admin/FinanceReportsScreen';
 import SystemToolsScreen from '../screens/admin/SystemToolsScreen';
+import SearchScreen from '../screens/shared/SearchScreen';
 import { AgingReportScreen } from '../screens/admin';
 
 export type AdminTabParamList = {
@@ -45,6 +46,7 @@ export type AdminTabParamList = {
 
 export type AdminStackParamList = {
   Home: NavigatorScreenParams<AdminTabParamList> | undefined;
+  Search: undefined;
   ShipmentDetail: { id: string };
   ShipmentCreate: undefined;
   CustomerDetail: { id: string };
@@ -107,6 +109,7 @@ export const AdminNavigator = () => {
       }}
     >
       <Stack.Screen name="Home" component={AdminTabs} />
+      <Stack.Screen name="Search" component={SearchScreen} />
       <Stack.Screen name="ShipmentDetail" component={ShipmentDetailScreen} />
       <Stack.Screen name="ShipmentCreate" component={ShipmentCreateScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />

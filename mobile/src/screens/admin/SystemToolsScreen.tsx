@@ -31,7 +31,12 @@ const SystemToolsScreen: React.FC = () => {
     queryFn: () => settingsApi.getAiLogs(20),
   });
 
-  if (settingsQuery.isLoading || callAgentQuery.isLoading || aiLogsQuery.isLoading) {
+  const auditLogsQuery = useQuery({
+    queryKey: ['audit-logs-preview'],
+    queryFn: () => settingsApi.getAuditLogs(20),
+  });
+
+  if (settingsQuery.isLoading || callAgentQuery.isLoading || aiLogsQuery.isLoading || auditLogsQuery.isLoading) {
     return <LoadingSpinner fullScreen />;
   }
 
@@ -47,9 +52,14 @@ const SystemToolsScreen: React.FC = () => {
     return <ErrorState message={(aiLogsQuery.error as any).message} onRetry={aiLogsQuery.refetch} />;
   }
 
+  if (auditLogsQuery.error) {
+    return <ErrorState message={(auditLogsQuery.error as any).message} onRetry={auditLogsQuery.refetch} />;
+  }
+
   const settings = settingsQuery.data?.settings;
   const callAgent = callAgentQuery.data;
   const logs = aiLogsQuery.data?.logs || [];
+  const auditLogs = auditLogsQuery.data?.logs || [];
   const aiSummary = useMemo(
     () => ({
       total: logs.length,
@@ -57,6 +67,16 @@ const SystemToolsScreen: React.FC = () => {
       fallback: logs.filter((log) => log.status === 'FALLBACK').length,
     }),
     [logs],
+  );
+
+  const auditSummary = useMemo(
+    () => ({
+      total: auditLogs.length,
+      create: auditLogs.filter((log) => log.action === 'CREATE').length,
+      update: auditLogs.filter((log) => log.action === 'UPDATE').length,
+      delete: auditLogs.filter((log) => log.action === 'DELETE').length,
+    }),
+    [auditLogs],
   );
 
   return (
@@ -132,6 +152,45 @@ const SystemToolsScreen: React.FC = () => {
               >
                 <Text style={[styles.logFeature, { color: colors.textPrimary }]}>{log.feature}</Text>
                 <Text style={[styles.logMeta, { color: colors.textSecondary }]}>{log.provider} • {log.status} • {new Date(log.createdAt).toLocaleString()}</Text>
+              </View>
+            ))
+          )}
+        </Card>
+
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Operational Oversight</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Audit Trail</Text>
+          <View style={styles.metricRow}>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{auditSummary.total}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Recent Logs</Text>
+            </View>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{auditSummary.create}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Creates</Text>
+            </View>
+            <View style={[styles.metricItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{auditSummary.update + auditSummary.delete}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Changes</Text>
+            </View>
+          </View>
+          {auditLogs.length === 0 ? (
+            <Text style={[styles.sectionText, { color: colors.textSecondary }]}>No audit logs were returned for this environment.</Text>
+          ) : (
+            auditLogs.slice(0, 6).map((log, index) => (
+              <View
+                key={log.id}
+                style={StyleSheet.flatten([
+                  styles.logRow,
+                  index === Math.min(auditLogs.length, 6) - 1 ? styles.logRowLast : null,
+                  { borderBottomColor: colors.border },
+                ])}
+              >
+                <Text style={[styles.logFeature, { color: colors.textPrimary }]}>
+                  {titleCase(log.action)} {titleCase(log.entityType || 'record')}
+                </Text>
+                <Text style={[styles.logMeta, { color: colors.textSecondary }]}>Actor: {log.actor?.name || log.actor?.email || 'System'}</Text>
+                <Text style={[styles.logMeta, { color: colors.textSecondary }]}>{new Date(log.performedAt).toLocaleString()}</Text>
               </View>
             ))
           )}
