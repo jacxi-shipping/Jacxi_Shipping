@@ -3,6 +3,7 @@ import { TransitStatus } from '@prisma/client';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getDevSeededTransitSummary } from '@/lib/dev-seeded-transit';
 import { hasPermission } from '@/lib/rbac';
 
 const createTransitSchema = z.object({
@@ -67,6 +68,14 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (transits.length === 0) {
+      const seededTransit = getDevSeededTransitSummary({ status, companyId, search });
+
+      if (seededTransit) {
+        return NextResponse.json({ transits: [seededTransit] });
+      }
+    }
 
     return NextResponse.json({
       transits: transits.map((transit) => ({

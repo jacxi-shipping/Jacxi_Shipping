@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getDevSeededTransitDetail } from '@/lib/dev-seeded-transit';
 import { routeDeps } from '@/lib/route-deps';
 import { ensureWorkflowMoveAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
 
@@ -68,6 +69,12 @@ export async function GET(
     });
 
     if (!transit) {
+      const seededTransit = getDevSeededTransitDetail(params.id);
+
+      if (seededTransit) {
+        return NextResponse.json(seededTransit);
+      }
+
       return NextResponse.json({ error: 'Transit not found' }, { status: 404 });
     }
 

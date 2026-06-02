@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { transitsApi } from '../../api/transits';
+import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DetailTabOption, DetailTabStrip } from '../../components/shared/DetailTabs';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -38,6 +39,7 @@ const buildShipmentLabel = (shipment: { vehicleMake: string | null; vehicleModel
 
 const TransitDetailScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
+  const navigation = useNavigation<any>();
   const { colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<string>('shipments');
 
@@ -73,6 +75,13 @@ const TransitDetailScreen: React.FC = () => {
           ]}
         />
 
+        <View style={styles.actionRow}>
+          {transit.currentCompany?.id ? (
+            <Button title="Company Ledger" onPress={() => navigation.navigate('CompanyLedgerDetail', { id: transit.currentCompany!.id })} style={styles.actionButton} />
+          ) : null}
+          <Button title="All Transits" variant="secondary" onPress={() => navigation.navigate('Transits')} style={styles.actionButton} />
+        </View>
+
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Transit Snapshot</Text>
           <View style={styles.metricsRow}>
@@ -86,10 +95,74 @@ const TransitDetailScreen: React.FC = () => {
             </View>
           </View>
           <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Current leg: {transit.currentEvent ? `${transit.currentEvent.origin} to ${transit.currentEvent.destination}` : `${transit.origin} to ${transit.destination}`}</Text>
+          {transit.dispatchDate ? <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Dispatched on {formatDate(transit.dispatchDate)}</Text> : null}
+          {transit.estimatedDelivery ? <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Estimated delivery {formatDate(transit.estimatedDelivery)}</Text> : null}
+          {transit.cost != null ? <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Agreed cost {formatCurrency(transit.cost)}</Text> : null}
           {transit.actualDelivery ? (
             <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Delivered on {formatDate(transit.actualDelivery)}</Text>
           ) : null}
         </Card>
+
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Current Company</Text>
+          {transit.currentCompany ? (
+            <>
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Company</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.currentCompany.name}</Text>
+              </View>
+              {transit.currentCompany.code ? (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Code</Text>
+                  <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.currentCompany.code}</Text>
+                </View>
+              ) : null}
+              {transit.currentCompany.phone ? (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Phone</Text>
+                  <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.currentCompany.phone}</Text>
+                </View>
+              ) : null}
+              {transit.currentCompany.email ? (
+                <View style={StyleSheet.flatten([styles.detailRow, styles.detailRowLast])}>
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Email</Text>
+                  <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.currentCompany.email}</Text>
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No current company is assigned yet. Add a transit event to set the active leg company.</Text>
+          )}
+        </Card>
+
+        {transit.status === 'DELIVERED' && (transit.deliveryReceiverName || transit.deliveryProofUrl || transit.deliveryNotes || transit.deliveryProofType) ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Delivery Confirmation</Text>
+            {transit.deliveryReceiverName ? (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Received By</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.deliveryReceiverName}</Text>
+              </View>
+            ) : null}
+            {transit.deliveryProofType ? (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Proof Type</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.deliveryProofType}</Text>
+              </View>
+            ) : null}
+            {transit.deliveryNotes ? (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Notes</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.deliveryNotes}</Text>
+              </View>
+            ) : null}
+            {transit.deliveryProofUrl ? (
+              <TouchableOpacity activeOpacity={0.85} onPress={() => void Linking.openURL(transit.deliveryProofUrl!)} style={styles.proofButton}>
+                <Text style={[styles.proofButtonText, { color: colors.accent }]}>{transit.deliveryProofName || 'Open delivery proof'}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </Card>
+        ) : null}
 
         <DetailTabStrip tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
@@ -100,8 +173,10 @@ const TransitDetailScreen: React.FC = () => {
             <EmptyState icon="shipment" title="No Shipments Linked" description="This transit does not have any linked shipments yet." />
           ) : (
             transit.shipments.map((shipment, index) => (
-              <View
+              <TouchableOpacity
                 key={shipment.id}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ShipmentDetail', { id: shipment.id })}
                 style={StyleSheet.flatten([
                   styles.itemRow,
                   index === transit.shipments.length - 1 ? styles.detailRowLast : null,
@@ -112,7 +187,7 @@ const TransitDetailScreen: React.FC = () => {
                 <Text style={[styles.itemMeta, { color: colors.textSecondary }]}> 
                   {titleCase(shipment.status)} • {shipment.user?.name || shipment.user?.email || 'No customer'}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </Card>
@@ -137,6 +212,9 @@ const TransitDetailScreen: React.FC = () => {
                 <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>
                   {titleCase(event.status)} • {event.company?.name || 'No company'}
                 </Text>
+                  {event.company?.phone || event.company?.email ? (
+                    <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{event.company?.phone || event.company?.email}</Text>
+                  ) : null}
                 <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{formatDate(event.eventDate || event.createdAt)}</Text>
               </View>
             ))
@@ -147,6 +225,7 @@ const TransitDetailScreen: React.FC = () => {
         {activeTab === 'expenses' ? (
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Expense Activity</Text>
+          <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Transit expenses and shipment transit expenses should track against the latest route leg so the active company context stays accurate.</Text>
           {transit.expenses.length === 0 ? (
             <EmptyState icon="finance" title="No Transit Expenses" description="Transit and shipment expense entries will appear here when they are recorded." />
           ) : (
@@ -164,6 +243,9 @@ const TransitDetailScreen: React.FC = () => {
                   <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>
                     {expense.source === 'TRANSIT_EXPENSE' ? 'Transit expense' : 'Shipment expense'} • {formatDate(expense.date)}
                   </Text>
+                    {expense.transitEvent?.company?.name ? (
+                      <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>Route company: {expense.transitEvent.company.name}</Text>
+                    ) : null}
                 </View>
                 <View style={StyleSheet.flatten([styles.amountPill, { backgroundColor: `${colors.accent}16`, borderColor: `${colors.accent}32` }])}>
                   <Text style={[styles.amountPillText, { color: colors.accent }]}>{formatCurrency(expense.amount)}</Text>
@@ -208,6 +290,14 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
   sectionCard: { marginBottom: Spacing.base },
+  actionRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  actionButton: {
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
@@ -231,6 +321,13 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.medium,
+  },
+  proofButton: {
+    paddingTop: Spacing.sm,
+  },
+  proofButtonText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
   },
   metricsRow: {
     flexDirection: 'row',

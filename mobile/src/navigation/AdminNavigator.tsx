@@ -9,6 +9,8 @@ import ShipmentDetailScreen from '../screens/admin/ShipmentDetailScreen';
 import ShipmentCreateScreen from '../screens/admin/ShipmentCreateScreen';
 import CustomersScreen from '../screens/admin/CustomersScreen';
 import CustomerDetailScreen from '../screens/admin/CustomerDetailScreen';
+import CustomerCreateScreen from '../screens/admin/CustomerCreateScreen';
+import CustomerEditScreen from '../screens/admin/CustomerEditScreen';
 import ContainersScreen from '../screens/admin/ContainersScreen';
 import ContainerDetailScreen from '../screens/admin/ContainerDetailScreen';
 import DispatchesScreen from '../screens/admin/DispatchesScreen';
@@ -50,7 +52,9 @@ export type AdminStackParamList = {
   Search: undefined;
   ShipmentDetail: { id: string };
   ShipmentCreate: undefined;
+  CustomerCreate: undefined;
   CustomerDetail: { id: string };
+  CustomerEdit: { id: string };
   UserCreate: undefined;
   UserDetail: { id: string };
   UserEdit: { id: string };
@@ -114,7 +118,9 @@ export const AdminNavigator = () => {
       <Stack.Screen name="Search" component={SearchScreen} />
       <Stack.Screen name="ShipmentDetail" component={ShipmentDetailScreen} />
       <Stack.Screen name="ShipmentCreate" component={ShipmentCreateScreen} />
+      <Stack.Screen name="CustomerCreate" component={CustomerCreateScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+      <Stack.Screen name="CustomerEdit" component={CustomerEditScreen} />
       <Stack.Screen name="UserCreate" component={UserCreateScreen} />
       <Stack.Screen name="UserDetail" component={UserDetailScreen} />
       <Stack.Screen name="UserEdit" component={UserEditScreen} />

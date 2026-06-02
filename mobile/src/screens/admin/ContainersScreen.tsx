@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { containersApi } from '../../api/containers';
+import { ListPaginationFooter } from '../../components/shared/ListPaginationFooter';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { AppTopBar } from '../../components/shared/AppTopBar';
@@ -14,6 +15,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Container } from '../../types/container';
+import { MOBILE_LIST_PAGE_SIZE } from '../../constants/pagination';
 
 const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\w/g, (match) => match.toUpperCase());
 
@@ -23,41 +25,51 @@ const ContainersScreen: React.FC = () => {
   const { colors } = useAppTheme();
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
-  
-  const { data, isLoading, error, refetch } = useQuery({
+
+  const query = useInfiniteQuery({
     queryKey: ['containers', search],
-    queryFn: () => containersApi.getContainers(search ? { search } : {}, { pageSize: 20 }),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      containersApi.getContainers(search ? { search } : {}, { page: pageParam, pageSize: MOBILE_LIST_PAGE_SIZE }),
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.page < lastPage.pagination.totalPages ? lastPage.pagination.page + 1 : undefined,
   });
 
-  const containers = data?.containers || [];
+  const containers: Container[] = query.data?.pages.flatMap((page) => page.containers) || [];
+  const totalContainers = query.data?.pages[0]?.pagination.totalCount || 0;
   const summary = useMemo(
     () => ({
-      total: data?.pagination.totalCount || 0,
+      total: totalContainers,
       inTransit: containers.filter((container) => container.status === 'IN_TRANSIT').length,
       withDocuments: containers.filter((container) => (container._count?.documents || 0) > 0).length,
     }),
-    [containers, data?.pagination.totalCount],
+    [containers, totalContainers],
   );
 
-  if (isLoading) return <LoadingSpinner fullScreen />;
-  if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
+  if (query.isLoading) return <LoadingSpinner fullScreen />;
+  if (query.error) return <ErrorState message={(query.error as any).message} onRetry={query.refetch} />;
+
+  const loadMore = () => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.pageHeader}>
-        <AppTopBar section="Containers" detail="Capacity, movement status, and linked shipments" showBack />
+        <AppTopBar section="Containers" showBack />
         <Input value={search} onChangeText={setSearch} placeholder="Search by container, tracking, vessel, or booking" />
-        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Capacity Snapshot</Text>
         <View style={styles.metricRow}>
-          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+          <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}> 
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.total}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Visible</Text>
           </Card>
-          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+          <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}> 
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.inTransit}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>In Transit</Text>
           </Card>
-          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+          <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}> 
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.withDocuments}</Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>With Docs</Text>
           </Card>
@@ -94,18 +106,26 @@ const ContainersScreen: React.FC = () => {
                 <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item._count?.shipments || 0}</Text>
               </View>
             </View>
-            {(item._count?.documents || 0) > 0 ? (
-              <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('ContainerDetail', { id: item.id })}>
-                <Text style={[styles.documentsHint, { color: colors.accent }]}>{item._count?.documents} linked documents available</Text>
-              </TouchableOpacity>
-            ) : null}
           </Card>
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<EmptyState icon="containers" title="No Containers" description="Containers tied to your shipments will appear here." />}
-        onRefresh={refetch}
-        refreshing={isLoading}
+        ListFooterComponent={
+          containers.length > 0 ? (
+            <ListPaginationFooter
+              loadedCount={containers.length}
+              totalCount={totalContainers}
+              hasNextPage={query.hasNextPage}
+              isFetchingNextPage={query.isFetchingNextPage}
+              onLoadMore={loadMore}
+            />
+          ) : null
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        onRefresh={query.refetch}
+        refreshing={query.isRefetching && !query.isFetchingNextPage}
       />
     </SafeAreaView>
   );
@@ -114,7 +134,6 @@ const ContainersScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { padding: Spacing.base, paddingBottom: 0 },
-  sectionEyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginTop: Spacing.sm, marginBottom: Spacing.xs },
   list: { padding: Spacing.base, paddingTop: Spacing.sm },
   metricRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
   metricCard: { flex: 1, paddingVertical: Spacing.base, borderWidth: 1 },
@@ -135,7 +154,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   statusPillText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
-  documentsHint: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, marginTop: Spacing.sm },
 });
 
 export default ContainersScreen;

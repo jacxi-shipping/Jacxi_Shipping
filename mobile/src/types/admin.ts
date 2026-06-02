@@ -221,6 +221,11 @@ export interface TransitSummary {
   dispatchDate: string | null;
   estimatedDelivery: string | null;
   actualDelivery?: string | null;
+  deliveryReceiverName?: string | null;
+  deliveryProofUrl?: string | null;
+  deliveryProofName?: string | null;
+  deliveryProofType?: string | null;
+  deliveryNotes?: string | null;
   cost: number | null;
   notes: string | null;
   createdAt: string;

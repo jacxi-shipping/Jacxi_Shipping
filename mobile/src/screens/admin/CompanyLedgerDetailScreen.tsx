@@ -1,9 +1,10 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { financeApi } from '../../api/finance';
+import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -28,6 +29,11 @@ const formatDate = (value?: string | null) => {
 
 const titleCase = (value: string) =>
   value.toLowerCase().replace(/(^|\s)\w/g, (match) => match.toUpperCase());
+
+const buildContactLines = (company: { email?: string | null; phone?: string | null } | null | undefined) => {
+  const lines = [company?.phone, company?.email].filter(Boolean) as string[];
+  return lines.length > 0 ? lines : ['No contact saved'];
+};
 
 const CompanyLedgerDetailScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
@@ -56,6 +62,9 @@ const CompanyLedgerDetailScreen: React.FC = () => {
 
   const { company, summary } = companyQuery.data;
   const entries = ledgerQuery.data?.entries || [];
+  const dispatchLinkedShipments = (company.shipments || []).filter((shipment) => Boolean(shipment.dispatchId));
+  const transitLinkedShipments = (company.shipments || []).filter((shipment) => Boolean(shipment.transitId));
+  const contactLines = buildContactLines(company);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -72,15 +81,25 @@ const CompanyLedgerDetailScreen: React.FC = () => {
           ]}
         />
 
+        <View style={styles.actionRow}>
+          <Button title="Ledgers" variant="secondary" onPress={() => navigation.navigate('CompanyLedgers')} style={styles.actionButton} />
+          <Button title="Banking" onPress={() => navigation.navigate('Banking')} style={styles.actionButton} />
+        </View>
+
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Company Profile</Text>
+          <Text style={[styles.sectionIntro, { color: colors.textSecondary }]}>Primary company identity, contact coverage, and expense recovery context.</Text>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Code</Text>
             <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{company.code || 'Not set'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Contact</Text>
-            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{company.email || company.phone || 'No contact saved'}</Text>
+            <View style={styles.detailStack}>
+              {contactLines.map((line) => (
+                <Text key={line} style={[styles.detailValue, styles.detailValueCompact, { color: colors.textPrimary }]}>{line}</Text>
+              ))}
+            </View>
           </View>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Country</Text>
@@ -94,6 +113,7 @@ const CompanyLedgerDetailScreen: React.FC = () => {
 
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Operational Links</Text>
+          <Text style={[styles.sectionIntro, { color: colors.textSecondary }]}>Live workload tied back to this ledger, grouped by the same operating role used on web.</Text>
           <View style={styles.metricsRow}>
             <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{company._count.transits}</Text>
@@ -104,34 +124,157 @@ const CompanyLedgerDetailScreen: React.FC = () => {
               <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Dispatches</Text>
             </View>
             <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
-              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{company._count.containers}</Text>
-              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Containers</Text>
+              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{company._count.shipments}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Shipments</Text>
             </View>
           </View>
-
-          {company.transits && company.transits.length > 0 ? (
-            <View style={styles.linkedList}>
-              {company.transits.slice(0, 4).map((transit) => (
-                <Card
-                  key={transit.id}
-                  style={styles.linkedCard}
-                  pressable
-                  onPress={() => navigation.navigate('TransitDetail', { id: transit.id })}
-                >
-                  <Text style={[styles.linkedTitle, { color: colors.textPrimary }]}>{transit.referenceNumber}</Text>
-                  <Text style={[styles.linkedMeta, { color: colors.textSecondary }]}>
-                    {transit.origin} to {transit.destination} • {transit._count.shipments} shipments
-                  </Text>
-                </Card>
-              ))}
-            </View>
-          ) : (
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No linked transits for this company yet.</Text>
-          )}
+          {company.companyType === 'SHIPPING' ? (
+            <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Shipping company ledgers tie container costs and shipment billing back to one shipping operator record.</Text>
+          ) : null}
+          {company.companyType === 'DISPATCH' ? (
+            <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Dispatch company ledgers track road-leg cost recovery and the shipments currently assigned to dispatches for this operator.</Text>
+          ) : null}
+          {company.companyType === 'TRANSIT' ? (
+            <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Transit company ledgers track inland route costs and linked shipment activity across active transit legs.</Text>
+          ) : null}
         </Card>
+
+        {company.companyType === 'SHIPPING' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Containers</Text>
+            {company.containers && company.containers.length > 0 ? (
+              company.containers.slice(0, 6).map((container, index) => (
+                <TouchableOpacity
+                  key={container.id}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('ContainerDetail', { id: container.id })}
+                  style={StyleSheet.flatten([
+                    styles.entryRow,
+                    index === Math.min(company.containers!.length, 6) - 1 ? styles.detailRowLast : null,
+                    { borderBottomColor: colors.border },
+                  ])}
+                >
+                  <View style={styles.entryInfo}>
+                    <Text style={[styles.entryTitle, { color: colors.textPrimary }]}>{container.containerNumber}</Text>
+                    <Text style={[styles.entryMeta, { color: colors.textSecondary }]}>{titleCase(container.status)} • Capacity {container.currentCount}/{container.maxCapacity}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No linked containers for this company yet.</Text>
+            )}
+          </Card>
+        ) : null}
+
+        {company.companyType === 'DISPATCH' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Dispatches</Text>
+            {company.dispatches && company.dispatches.length > 0 ? (
+              company.dispatches.slice(0, 6).map((dispatch, index) => (
+                <TouchableOpacity
+                  key={dispatch.id}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('DispatchDetail', { id: dispatch.id })}
+                  style={StyleSheet.flatten([
+                    styles.entryRow,
+                    index === Math.min(company.dispatches!.length, 6) - 1 ? styles.detailRowLast : null,
+                    { borderBottomColor: colors.border },
+                  ])}
+                >
+                  <View style={styles.entryInfo}>
+                    <Text style={[styles.entryTitle, { color: colors.textPrimary }]}>{dispatch.referenceNumber}</Text>
+                    <Text style={[styles.entryMeta, { color: colors.textSecondary }]}>{dispatch.origin} to {dispatch.destination} • {dispatch._count.shipments} shipments</Text>
+                  </View>
+                  <View style={StyleSheet.flatten([styles.amountPill, { backgroundColor: `${colors.accent}16`, borderColor: `${colors.accent}32` }])}>
+                    <Text style={[styles.amountPillText, { color: colors.accent }]}>{titleCase(dispatch.status)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No dispatch records linked to this company yet.</Text>
+            )}
+          </Card>
+        ) : null}
+
+        {company.companyType === 'TRANSIT' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Transits</Text>
+            {company.transits && company.transits.length > 0 ? (
+              company.transits.slice(0, 6).map((transit, index) => (
+                <TouchableOpacity
+                  key={transit.id}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('TransitDetail', { id: transit.id })}
+                  style={StyleSheet.flatten([
+                    styles.entryRow,
+                    index === Math.min(company.transits!.length, 6) - 1 ? styles.detailRowLast : null,
+                    { borderBottomColor: colors.border },
+                  ])}
+                >
+                  <View style={styles.entryInfo}>
+                    <Text style={[styles.entryTitle, { color: colors.textPrimary }]}>{transit.referenceNumber}</Text>
+                    <Text style={[styles.entryMeta, { color: colors.textSecondary }]}>{transit.origin} to {transit.destination} • {transit._count.shipments} shipments</Text>
+                  </View>
+                  <View style={StyleSheet.flatten([styles.amountPill, { backgroundColor: `${colors.accent}16`, borderColor: `${colors.accent}32` }])}>
+                    <Text style={[styles.amountPillText, { color: colors.accent }]}>{titleCase(transit.status)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No linked transits for this company yet.</Text>
+            )}
+          </Card>
+        ) : null}
+
+        {company.companyType === 'DISPATCH' && dispatchLinkedShipments.length > 0 ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assigned Shipments</Text>
+            {dispatchLinkedShipments.slice(0, 8).map((shipment, index) => (
+              <TouchableOpacity
+                key={shipment.id}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ShipmentDetail', { id: shipment.id })}
+                style={StyleSheet.flatten([
+                  styles.entryRow,
+                  index === Math.min(dispatchLinkedShipments.length, 8) - 1 ? styles.detailRowLast : null,
+                  { borderBottomColor: colors.border },
+                ])}
+              >
+                <View style={styles.entryInfo}>
+                  <Text style={[styles.entryTitle, { color: colors.textPrimary }]}>{shipment.vehicleVIN || [shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.id}</Text>
+                  <Text style={[styles.entryMeta, { color: colors.textSecondary }]}>{titleCase(shipment.status)} • Created {formatDate(shipment.createdAt)}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </Card>
+        ) : null}
+
+        {company.companyType === 'TRANSIT' && transitLinkedShipments.length > 0 ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assigned Shipments</Text>
+            {transitLinkedShipments.slice(0, 8).map((shipment, index) => (
+              <TouchableOpacity
+                key={shipment.id}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ShipmentDetail', { id: shipment.id })}
+                style={StyleSheet.flatten([
+                  styles.entryRow,
+                  index === Math.min(transitLinkedShipments.length, 8) - 1 ? styles.detailRowLast : null,
+                  { borderBottomColor: colors.border },
+                ])}
+              >
+                <View style={styles.entryInfo}>
+                  <Text style={[styles.entryTitle, { color: colors.textPrimary }]}>{shipment.vehicleVIN || [shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.id}</Text>
+                  <Text style={[styles.entryMeta, { color: colors.textSecondary }]}>{titleCase(shipment.status)} • Created {formatDate(shipment.createdAt)}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </Card>
+        ) : null}
 
         <Card>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Ledger Entries</Text>
+          <Text style={[styles.sectionIntro, { color: colors.textSecondary }]}>Latest debits and credits affecting the running company balance.</Text>
           {entries.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No ledger entries recorded yet.</Text>
           ) : (
@@ -166,15 +309,31 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
   sectionCard: { marginBottom: Spacing.base },
+  actionRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  actionButton: {
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.sm,
+  },
+  sectionIntro: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
     marginBottom: Spacing.md,
   },
   detailRow: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'transparent',
+  },
+  detailStack: {
+    gap: Spacing.xs,
   },
   detailRowLast: {
     borderBottomWidth: 0,
@@ -189,6 +348,10 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.medium,
+  },
+  detailValueCompact: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -224,6 +387,10 @@ const styles = StyleSheet.create({
   },
   linkedMeta: {
     fontSize: Typography.fontSize.sm,
+  },
+  summaryText: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
   },
   emptyText: {
     fontSize: Typography.fontSize.base,

@@ -3,19 +3,22 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { usersApi } from '../../api/users';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { AppTopBar } from '../../components/shared/AppTopBar';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
+import { ListPaginationFooter } from '../../components/shared/ListPaginationFooter';
+import { SectionHeader } from '../../components/shared/SectionHeader';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { AdminStackParamList } from '../../navigation/AdminNavigator';
 import { AdminUserSummary } from '../../types/admin';
+import { MOBILE_LIST_PAGE_SIZE } from '../../constants/pagination';
 
 type NavigationProp = NativeStackNavigationProp<AdminStackParamList>;
 
@@ -26,15 +29,25 @@ const UsersScreen: React.FC = () => {
   const { colors } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const query = useInfiniteQuery({
     queryKey: ['admin-users'],
-    queryFn: () => usersApi.getUsers({ roleType: 'users' }, { pageSize: 20 }),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => usersApi.getUsers({ roleType: 'users' }, { page: pageParam, pageSize: MOBILE_LIST_PAGE_SIZE }),
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.pageSize < lastPage.total ? lastPage.page + 1 : undefined,
   });
 
-  if (isLoading) return <LoadingSpinner fullScreen />;
-  if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
+  if (query.isLoading) return <LoadingSpinner fullScreen />;
+  if (query.error) return <ErrorState message={(query.error as any).message} onRetry={query.refetch} />;
 
-  const users = data?.users || [];
+  const users = query.data?.pages.flatMap((page) => page.users) || [];
+  const firstPage = query.data?.pages[0];
+
+  const loadMore = () => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -66,24 +79,37 @@ const UsersScreen: React.FC = () => {
         )}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <ModuleSummaryHeader
-              eyebrow="ADMIN / USERS"
+            <AppTopBar section="Users" showBack />
+            <SectionHeader
               title="Users"
-              subtitle="Real internal-user list parity for the web Users module, with direct mobile access to role and account detail."
-              showBack
-              stats={[
-                { label: 'Total Users', value: String(data?.total || 0) },
-                { label: 'Admins', value: String(data?.admins || 0) },
-                { label: 'Other Roles', value: String(data?.regularUsers || 0) },
+              meta={[
+                { label: 'Total', value: String(firstPage?.total || 0) },
+                { label: 'Admins', value: String(firstPage?.admins || 0) },
+                { label: 'Other', value: String(firstPage?.regularUsers || 0) },
               ]}
+              action={
+                <Button title="Create User" onPress={() => navigation.navigate('UserCreate')} />
+              }
             />
-            <Button title="Create User" onPress={() => navigation.navigate('UserCreate')} fullWidth />
           </View>
         }
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="users" title="No Users" description="No internal users matched this module yet." />}
-        onRefresh={refetch}
-        refreshing={isLoading}
+        ListEmptyComponent={<EmptyState icon="users" title="No Users" />}
+        ListFooterComponent={
+          users.length > 0 ? (
+            <ListPaginationFooter
+              loadedCount={users.length}
+              totalCount={firstPage?.total || 0}
+              hasNextPage={query.hasNextPage}
+              isFetchingNextPage={query.isFetchingNextPage}
+              onLoadMore={loadMore}
+            />
+          ) : null
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        onRefresh={query.refetch}
+        refreshing={query.isRefetching && !query.isFetchingNextPage}
       />
     </SafeAreaView>
   );

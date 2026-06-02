@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNotifications, useMarkNotificationAsRead } from '../../hooks/useNotifications';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { notificationsApi } from '../../api/notifications';
+import { useMarkNotificationAsRead } from '../../hooks/useNotifications';
 import { AppTopBar } from '../../components/shared/AppTopBar';
+import { ListPaginationFooter } from '../../components/shared/ListPaginationFooter';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -11,12 +14,19 @@ import { Badge } from '../../components/ui/Badge';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
+import { MOBILE_LIST_PAGE_SIZE } from '../../constants/pagination';
 import { format } from 'date-fns';
 import { Notification } from '../../types/api';
 
 const NotificationsScreen: React.FC = () => {
   const { colors } = useAppTheme();
-  const { data, isLoading, error, refetch } = useNotifications();
+  const query = useInfiniteQuery({
+    queryKey: ['notifications', 'admin'],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => notificationsApi.getNotifications({ page: pageParam, pageSize: MOBILE_LIST_PAGE_SIZE }),
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.hasMore ? Number(lastPageParam) + 1 : undefined,
+  });
   const markAsRead = useMarkNotificationAsRead();
 
   const handleNotificationPress = (notification: Notification) => {
@@ -25,12 +35,19 @@ const NotificationsScreen: React.FC = () => {
     }
   };
 
-  if (isLoading) return <LoadingSpinner fullScreen />;
-  if (error) return <ErrorState message={(error as any).message} onRetry={refetch} />;
+  if (query.isLoading) return <LoadingSpinner fullScreen />;
+  if (query.error) return <ErrorState message={(query.error as any).message} onRetry={query.refetch} />;
 
-  const notifications = data?.data || [];
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
+  const notifications = query.data?.pages.flatMap((page) => page.data) || [];
+  const firstPage = query.data?.pages[0];
+  const unreadCount = firstPage?.unreadCount || 0;
   const errorCount = notifications.filter((notification) => notification.type === 'ERROR').length;
+
+  const loadMore = () => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -38,7 +55,7 @@ const NotificationsScreen: React.FC = () => {
         data={notifications}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => handleNotificationPress(item)}>
-            <Card style={[styles.card, !item.read && { borderLeftWidth: 3, borderLeftColor: colors.accent }]}>
+            <Card style={StyleSheet.flatten([styles.card, !item.read ? { borderLeftWidth: 3, borderLeftColor: colors.accent } : null])}>
               <View style={styles.header}>
                 <Badge label={item.type} variant={item.type === 'ERROR' ? 'error' : 'info'} size="sm" />
                 <Text style={[styles.date, { color: colors.textTertiary }]}>
@@ -54,18 +71,17 @@ const NotificationsScreen: React.FC = () => {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.headerBlock}>
-            <AppTopBar section="Notifications" detail="Recent system updates and workflow alerts" showBack hideNotifications />
-            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Alert Snapshot</Text>
+            <AppTopBar section="Notifications" showBack hideNotifications />
             <View style={styles.metricRow}>
-              <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{notifications.length}</Text>
-                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Visible</Text>
+              <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{firstPage?.total || 0}</Text>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total</Text>
               </Card>
-              <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+              <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                 <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{unreadCount}</Text>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Unread</Text>
               </Card>
-              <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+              <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
                 <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{errorCount}</Text>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Errors</Text>
               </Card>
@@ -73,8 +89,21 @@ const NotificationsScreen: React.FC = () => {
           </View>
         }
         ListEmptyComponent={<EmptyState icon="notifications" title="No Notifications" />}
-        onRefresh={refetch}
-        refreshing={isLoading}
+        ListFooterComponent={
+          notifications.length > 0 ? (
+            <ListPaginationFooter
+              loadedCount={notifications.length}
+              totalCount={firstPage?.total || 0}
+              hasNextPage={query.hasNextPage}
+              isFetchingNextPage={query.isFetchingNextPage}
+              onLoadMore={loadMore}
+            />
+          ) : null
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        onRefresh={query.refetch}
+        refreshing={query.isRefetching && !query.isFetchingNextPage}
       />
     </SafeAreaView>
   );
@@ -84,7 +113,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   list: { padding: Spacing.base },
   headerBlock: { marginBottom: Spacing.sm },
-  sectionEyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   metricRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
   metricCard: { flex: 1, paddingVertical: Spacing.base, borderWidth: 1 },
   metricValue: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.semibold, textAlign: 'center' },

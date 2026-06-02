@@ -161,32 +161,49 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: actorId,
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10)), 100);
+    const skip = (page - 1) * pageSize;
+
+    const where = {
+      userId: actorId,
+    };
+
+    const [notifications, total, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where,
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 20,
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: pageSize,
+      }),
+      prisma.notification.count({ where }),
+      prisma.notification.count({ where: { ...where, read: false } }),
+    ]);
 
-    return NextResponse.json(
-      notifications.map((notification) => ({
+    return NextResponse.json({
+      data: notifications.map((notification) => ({
         ...notification,
         origin: getNotificationOrigin(notification.title),
-      }))
-    );
+      })),
+      total,
+      unreadCount,
+      page,
+      pageSize,
+      hasMore: skip + pageSize < total,
+    });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return NextResponse.json(

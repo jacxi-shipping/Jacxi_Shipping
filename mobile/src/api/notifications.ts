@@ -1,9 +1,15 @@
 import client from './client';
+import { PaginationParams } from '../types/api';
 import { Notification, NotificationListResponse } from '../types/api';
 
 export const notificationsApi = {
-  async getNotifications(): Promise<NotificationListResponse> {
-    const response = await client.get<NotificationListResponse>('/api/notifications');
+  async getNotifications(pagination?: PaginationParams): Promise<NotificationListResponse> {
+    const response = await client.get<NotificationListResponse>('/api/notifications', {
+      params: {
+        page: pagination?.page,
+        pageSize: pagination?.pageSize,
+      },
+    });
     return response.data;
   },
 

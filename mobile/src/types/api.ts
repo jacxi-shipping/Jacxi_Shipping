@@ -52,4 +52,7 @@ export interface NotificationListResponse {
   data: Notification[];
   total: number;
   unreadCount: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }

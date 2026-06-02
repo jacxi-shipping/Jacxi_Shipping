@@ -25,6 +25,12 @@ export interface DispatchSummary {
 
 export interface DispatchListResponse {
   dispatches: DispatchSummary[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface DispatchDetailShipment {

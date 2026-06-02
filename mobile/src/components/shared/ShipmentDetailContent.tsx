@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { Shipment } from '../../types/shipment';
 import { AppTopBar } from './AppTopBar';
+import { AppIcon } from './AppIcon';
 import { Card } from '../ui/Card';
 import { StatusBadge } from './StatusBadge';
 import { Divider } from '../ui/Divider';
@@ -58,6 +59,8 @@ export const ShipmentDetailContent: React.FC<ShipmentDetailContentProps> = ({ sh
   }, [showCustomer]);
 
   const [activeTab, setActiveTab] = useState<ShipmentDetailTabKey>('overview');
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const selectedPhoto = selectedPhotoIndex !== null ? shipment.photos[selectedPhotoIndex] : null;
 
   const overviewContent = (
     <Card>
@@ -111,13 +114,13 @@ export const ShipmentDetailContent: React.FC<ShipmentDetailContentProps> = ({ sh
         <EmptyState icon="documents" title="No Photos" description="No shipment photos are available yet." />
       ) : (
         <View style={styles.photoGrid}>
-          {shipment.photos.map((photo) => (
-            <View key={photo.id} style={styles.photoCell}>
+          {shipment.photos.map((photo, index) => (
+            <TouchableOpacity key={photo.id} style={styles.photoCell} activeOpacity={0.88} onPress={() => setSelectedPhotoIndex(index)}>
               <Image source={{ uri: photo.url }} style={[styles.photo, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]} resizeMode="cover" />
               <Text style={[styles.photoCaption, { color: colors.textSecondary }]} numberOfLines={2}>
                 {photo.caption || format(new Date(photo.uploadedAt), 'MMM d, yyyy')}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
@@ -193,45 +196,107 @@ export const ShipmentDetailContent: React.FC<ShipmentDetailContentProps> = ({ sh
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <AppTopBar section="Shipment Details" detail={shipment.trackingNumber} showBack />
+      <>
+        <ScrollView contentContainerStyle={styles.content}>
+          <AppTopBar section="Shipment Details" detail={shipment.trackingNumber} showBack />
 
-        <Card>
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <Text style={[styles.vin, { color: colors.textPrimary }]}>{shipment.vehicle.vin}</Text>
-              <Text style={[styles.vehicle, { color: colors.textSecondary }]}>
-                {[shipment.vehicle.year, shipment.vehicle.make, shipment.vehicle.model].filter(Boolean).join(' ')}
-              </Text>
-              {showCustomer && shipment.customerName ? (
-                <Text style={[styles.customer, { color: colors.textSecondary }]}>Customer: {shipment.customerName}</Text>
-              ) : null}
+          <Card>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text style={[styles.vin, { color: colors.textPrimary }]}>{shipment.vehicle.vin}</Text>
+                <Text style={[styles.vehicle, { color: colors.textSecondary }]}> 
+                  {[shipment.vehicle.year, shipment.vehicle.make, shipment.vehicle.model].filter(Boolean).join(' ')}
+                </Text>
+                {showCustomer && shipment.customerName ? (
+                  <Text style={[styles.customer, { color: colors.textSecondary }]}>Customer: {shipment.customerName}</Text>
+                ) : null}
+              </View>
+              <StatusBadge status={shipment.status} type="shipment" />
             </View>
-            <StatusBadge status={shipment.status} type="shipment" />
+
+            <Divider />
+
+            <View style={styles.summaryMetrics}>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Tracking</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{shipment.trackingNumber}</Text>
+              </View>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Documents</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{shipment.documents.length}</Text>
+              </View>
+              <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Photos</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{shipment.photos.length}</Text>
+              </View>
+            </View>
+          </Card>
+
+          <DetailTabs tabs={tabs} activeTab={activeTab} onChange={(key) => setActiveTab(key as ShipmentDetailTabKey)} />
+
+          {renderTabContent()}
+        </ScrollView>
+
+        <Modal visible={selectedPhotoIndex !== null} transparent animationType="fade" onRequestClose={() => setSelectedPhotoIndex(null)}>
+          <View style={[styles.viewerOverlay, { backgroundColor: 'rgba(10, 14, 20, 0.94)' }]}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setSelectedPhotoIndex(null)}
+              style={[styles.viewerCloseButton, { backgroundColor: colors.panel, borderColor: colors.border }]}
+            >
+              <AppIcon name="close" size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+
+            {selectedPhoto ? (
+              <>
+                <View style={styles.viewerHeader}>
+                  <Text style={[styles.viewerCounter, { color: colors.accentContrast || colors.textPrimary }]}>
+                    {selectedPhotoIndex! + 1} / {shipment.photos.length}
+                  </Text>
+                </View>
+                <Image source={{ uri: selectedPhoto.url }} style={styles.viewerImage} resizeMode="contain" />
+                <View style={styles.viewerFooter}>
+                  <Text style={[styles.viewerCaption, { color: '#FFFFFF' }]}>
+                    {selectedPhoto.caption || format(new Date(selectedPhoto.uploadedAt), 'MMM d, yyyy')}
+                  </Text>
+                  {shipment.photos.length > 1 ? (
+                    <View style={styles.viewerActionRow}>
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        disabled={selectedPhotoIndex === 0}
+                        onPress={() => setSelectedPhotoIndex((current) => (current === null ? current : Math.max(current - 1, 0)))}
+                        style={StyleSheet.flatten([
+                          styles.viewerAction,
+                          {
+                            backgroundColor: selectedPhotoIndex === 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.18)',
+                            borderColor: 'rgba(255,255,255,0.18)',
+                          },
+                        ])}
+                      >
+                        <Text style={styles.viewerActionText}>Previous</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        disabled={selectedPhotoIndex === shipment.photos.length - 1}
+                        onPress={() => setSelectedPhotoIndex((current) => (current === null ? current : Math.min(current + 1, shipment.photos.length - 1)))}
+                        style={StyleSheet.flatten([
+                          styles.viewerAction,
+                          {
+                            backgroundColor: selectedPhotoIndex === shipment.photos.length - 1 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.18)',
+                            borderColor: 'rgba(255,255,255,0.18)',
+                          },
+                        ])}
+                      >
+                        <Text style={styles.viewerActionText}>Next</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                </View>
+              </>
+            ) : null}
           </View>
-
-          <Divider />
-
-          <View style={styles.summaryMetrics}>
-            <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Tracking</Text>
-              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{shipment.trackingNumber}</Text>
-            </View>
-            <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Documents</Text>
-              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{shipment.documents.length}</Text>
-            </View>
-            <View style={[styles.metricChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Photos</Text>
-              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{shipment.photos.length}</Text>
-            </View>
-          </View>
-        </Card>
-
-        <DetailTabs tabs={tabs} activeTab={activeTab} onChange={(key) => setActiveTab(key as ShipmentDetailTabKey)} />
-
-        {renderTabContent()}
-      </ScrollView>
+        </Modal>
+      </>
     </SafeAreaView>
   );
 };
@@ -279,4 +344,56 @@ const styles = StyleSheet.create({
   },
   photoCaption: { fontSize: Typography.fontSize.xs, lineHeight: 18 },
   notes: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginTop: Spacing.base },
+  viewerOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: Spacing.base,
+  },
+  viewerCloseButton: {
+    position: 'absolute',
+    top: Spacing['3xl'],
+    right: Spacing.base,
+    zIndex: 2,
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    padding: Spacing.sm,
+  },
+  viewerHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.base,
+  },
+  viewerCounter: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: 0.8,
+  },
+  viewerImage: {
+    width: '100%',
+    height: '62%',
+  },
+  viewerFooter: {
+    marginTop: Spacing.base,
+    gap: Spacing.base,
+  },
+  viewerCaption: {
+    fontSize: Typography.fontSize.base,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  viewerActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  viewerAction: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  viewerActionText: {
+    color: '#FFFFFF',
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+  },
 });

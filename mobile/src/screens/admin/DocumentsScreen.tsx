@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
 import { documentsApi } from '../../api/documents';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { AppTopBar } from '../../components/shared/AppTopBar';
+import { ListPaginationFooter } from '../../components/shared/ListPaginationFooter';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -15,7 +16,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { useShipments } from '../../hooks/useShipments';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { BorderRadius, Spacing } from '../../constants/spacing';
+import { MOBILE_LIST_PAGE_SIZE } from '../../constants/pagination';
 import { Typography } from '../../constants/typography';
+import { DocumentRecord } from '../../types/document';
 
 const categoryOptions = [
   { label: 'All', value: 'all' },
@@ -50,25 +53,32 @@ const DocumentsScreen: React.FC = () => {
   const shipmentsQuery = useShipments({}, { pageSize: 12 });
   const shipments = shipmentsQuery.data?.data || [];
 
-  const documentsQuery = useQuery({
+  const documentsQuery = useInfiniteQuery({
     queryKey: ['documents', user?.role, search, category, shipmentId],
-    queryFn: () =>
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
       documentsApi.getDocuments({
         search: search || undefined,
         category: category === 'all' ? undefined : category,
         shipmentId: shipmentId || undefined,
-        limit: 50,
+        page: pageParam,
+        limit: MOBILE_LIST_PAGE_SIZE,
       }),
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.currentPage < lastPage.pagination.pages
+        ? lastPage.pagination.currentPage + 1
+        : undefined,
   });
 
-  const documents = documentsQuery.data?.documents || [];
+  const documents = documentsQuery.data?.pages.flatMap((page) => page.documents) || [];
+  const totalDocuments = documentsQuery.data?.pages[0]?.pagination.total || 0;
   const summary = useMemo(
     () => ({
-      total: documents.length,
+      total: totalDocuments,
       publicCount: documents.filter((document) => document.isPublic).length,
       invoiceCount: documents.filter((document) => document.category === 'INVOICE').length,
     }),
-    [documents],
+    [documents, totalDocuments],
   );
 
   const pickUploadFile = async () => {
@@ -137,152 +147,170 @@ const DocumentsScreen: React.FC = () => {
     return <ErrorState message={(documentsQuery.error as any).message} onRetry={documentsQuery.refetch} />;
   }
 
+  const loadMore = () => {
+    if (documentsQuery.hasNextPage && !documentsQuery.isFetchingNextPage) {
+      void documentsQuery.fetchNextPage();
+    }
+  };
+
+  const renderDocumentCard = (document: DocumentRecord) => (
+    <Card key={document.id} style={styles.documentCard}>
+      <View style={styles.documentHeader}>
+        <View style={styles.documentHeaderText}>
+          <Text style={[styles.documentName, { color: colors.textPrimary }]}>{document.name}</Text>
+          <Text style={[styles.documentMeta, { color: colors.textSecondary }]}>
+            {titleCase(document.category)} • {formatFileSize(document.fileSize)} • {new Date(document.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
+        {document.isPublic ? (
+          <View style={StyleSheet.flatten([styles.publicBadge, { backgroundColor: `${colors.info}12`, borderColor: `${colors.info}30` }])}>
+            <Text style={[styles.publicBadgeText, { color: colors.info }]}>Public</Text>
+          </View>
+        ) : null}
+      </View>
+      {document.description ? (
+        <Text style={[styles.documentDescription, { color: colors.textSecondary }]}>{document.description}</Text>
+      ) : null}
+      <View style={styles.contextRow}>
+        <View style={[styles.contextChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+          <Text style={[styles.contextLabel, { color: colors.textSecondary }]}>Uploaded By</Text>
+          <Text style={[styles.contextValue, { color: colors.textPrimary }]}>{document.user?.name || document.user?.email || document.uploadedBy}</Text>
+        </View>
+        <View style={[styles.contextChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+          <Text style={[styles.contextLabel, { color: colors.textSecondary }]}>Shipment</Text>
+          <Text style={[styles.contextValue, { color: colors.textPrimary }]}>{document.shipment?.id ? document.shipment.id.slice(0, 8) : 'Unlinked'}</Text>
+        </View>
+      </View>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => void Linking.openURL(document.fileUrl)}>
+        <Text style={[styles.openLink, { color: colors.accent }]}>Open / Download</Text>
+      </TouchableOpacity>
+    </Card>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.content}>
-        <AppTopBar
-          section="Documents"
-          detail={isAdmin ? 'Shared library, shipment filters, and uploads' : 'Shared library and shipment-linked paperwork'}
-          showBack
-        />
+      <FlatList
+        data={documents}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => renderDocumentCard(item)}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <>
+            <AppTopBar section="Documents" showBack />
 
-        <Input value={search} onChangeText={setSearch} placeholder="Search documents by name or description" />
+            <Input value={search} onChangeText={setSearch} placeholder="Search documents by name or description" />
 
-        {shipments.length > 0 ? (
-          <View style={styles.shipmentSection}>
-            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Shipment Scope</Text>
-            <Text style={[styles.shipmentSectionTitle, { color: colors.textPrimary }]}>Shipment Filter</Text>
-            <View style={styles.filterRow}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={StyleSheet.flatten([
-                  styles.filterChip,
-                  {
-                    backgroundColor: shipmentId === null ? `${colors.info}18` : colors.panel,
-                    borderColor: shipmentId === null ? `${colors.info}35` : colors.border,
-                  },
-                ])}
-                onPress={() => setShipmentId(null)}
-              >
-                <Text style={[styles.filterChipText, { color: shipmentId === null ? colors.info : colors.textPrimary }]}>All Shipments</Text>
-              </TouchableOpacity>
-              {shipments.slice(0, 8).map((shipment) => {
-                const selected = shipment.id === shipmentId;
-                const label = [shipment.vehicle.make, shipment.vehicle.model].filter(Boolean).join(' ') || shipment.vehicle.vin || shipment.id.slice(0, 8);
-
-                return (
+            {shipments.length > 0 ? (
+              <View style={styles.shipmentSection}>
+                <View style={styles.filterRow}>
                   <TouchableOpacity
-                    key={shipment.id}
                     activeOpacity={0.85}
                     style={StyleSheet.flatten([
                       styles.filterChip,
                       {
-                        backgroundColor: selected ? `${colors.info}18` : colors.panel,
-                        borderColor: selected ? `${colors.info}35` : colors.border,
+                        backgroundColor: shipmentId === null ? `${colors.info}18` : colors.panel,
+                        borderColor: shipmentId === null ? `${colors.info}35` : colors.border,
                       },
                     ])}
-                    onPress={() => setShipmentId(shipment.id)}
+                    onPress={() => setShipmentId(null)}
                   >
-                    <Text style={[styles.filterChipText, { color: selected ? colors.info : colors.textPrimary }]}>{label}</Text>
+                    <Text style={[styles.filterChipText, { color: shipmentId === null ? colors.info : colors.textPrimary }]}>All Shipments</Text>
+                  </TouchableOpacity>
+                  {shipments.slice(0, 8).map((shipment) => {
+                    const selected = shipment.id === shipmentId;
+                    const label = [shipment.vehicle.make, shipment.vehicle.model].filter(Boolean).join(' ') || shipment.vehicle.vin || shipment.id.slice(0, 8);
+
+                    return (
+                      <TouchableOpacity
+                        key={shipment.id}
+                        activeOpacity={0.85}
+                        style={StyleSheet.flatten([
+                          styles.filterChip,
+                          {
+                            backgroundColor: selected ? `${colors.info}18` : colors.panel,
+                            borderColor: selected ? `${colors.info}35` : colors.border,
+                          },
+                        ])}
+                        onPress={() => setShipmentId(shipment.id)}
+                      >
+                        <Text style={[styles.filterChipText, { color: selected ? colors.info : colors.textPrimary }]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.filterRow}>
+              {categoryOptions.map((option) => {
+                const selected = option.value === category;
+
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    activeOpacity={0.85}
+                    style={StyleSheet.flatten([
+                      styles.filterChip,
+                      {
+                        backgroundColor: selected ? `${colors.accent}18` : colors.panel,
+                        borderColor: selected ? `${colors.accent}35` : colors.border,
+                      },
+                    ])}
+                    onPress={() => setCategory(option.value)}
+                  >
+                    <Text style={[styles.filterChipText, { color: selected ? colors.accent : colors.textPrimary }]}>{option.label}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
-        ) : null}
 
-        <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Document Categories</Text>
-        <View style={styles.filterRow}>
-          {categoryOptions.map((option) => {
-            const selected = option.value === category;
-
-            return (
-              <TouchableOpacity
-                key={option.value}
-                activeOpacity={0.85}
-                style={StyleSheet.flatten([
-                  styles.filterChip,
-                  {
-                    backgroundColor: selected ? `${colors.accent}18` : colors.panel,
-                    borderColor: selected ? `${colors.accent}35` : colors.border,
-                  },
-                ])}
-                onPress={() => setCategory(option.value)}
-              >
-                <Text style={[styles.filterChipText, { color: selected ? colors.accent : colors.textPrimary }]}>{option.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={styles.metricRow}>
-          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-            <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.total}</Text>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Visible</Text>
-          </Card>
-          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-            <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.invoiceCount}</Text>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Invoices</Text>
-          </Card>
-          <Card style={[styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-            <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.publicCount}</Text>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Public</Text>
-          </Card>
-        </View>
-
-        {isAdmin ? (
-          <Card style={styles.uploadCard}>
-            <Text style={[styles.sectionEyebrow, { color: colors.textSecondary }]}>Admin Upload</Text>
-            <Text style={[styles.uploadTitle, { color: colors.textPrimary }]}>Upload Document</Text>
-            <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Choose a file and upload it to the shared document library. The active shipment filter will be used as the shipment link when one is selected.</Text>
-            {selectedUploadAsset ? (
-              <Text style={[styles.uploadMeta, { color: colors.textSecondary }]}>Selected: {selectedUploadAsset.name}</Text>
-            ) : null}
-            <View style={styles.uploadActions}>
-              <Button title={selectedUploadAsset ? 'Change File' : 'Choose File'} onPress={pickUploadFile} style={styles.uploadButton} />
-              <Button title="Upload" variant="secondary" onPress={handleUpload} disabled={!selectedUploadAsset} loading={uploading} style={styles.uploadButton} />
+            <View style={styles.metricRow}>
+              <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.total}</Text>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total</Text>
+              </Card>
+              <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.invoiceCount}</Text>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Invoices</Text>
+              </Card>
+              <Card style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }])}>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{summary.publicCount}</Text>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Public</Text>
+              </Card>
             </View>
-          </Card>
-        ) : null}
 
-        {documents.length === 0 ? (
-          <EmptyState icon="documents" title="No Documents" description="Documents matching the current filters will appear here." />
-        ) : (
-          documents.map((document) => (
-            <Card key={document.id} style={styles.documentCard}>
-              <View style={styles.documentHeader}>
-                <View style={styles.documentHeaderText}>
-                  <Text style={[styles.documentName, { color: colors.textPrimary }]}>{document.name}</Text>
-                  <Text style={[styles.documentMeta, { color: colors.textSecondary }]}>
-                    {titleCase(document.category)} • {formatFileSize(document.fileSize)} • {new Date(document.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-                {document.isPublic ? (
-                  <View style={StyleSheet.flatten([styles.publicBadge, { backgroundColor: `${colors.info}12`, borderColor: `${colors.info}30` }])}>
-                    <Text style={[styles.publicBadgeText, { color: colors.info }]}>Public</Text>
-                  </View>
+            {isAdmin ? (
+              <Card style={styles.uploadCard}>
+                <Text style={[styles.uploadTitle, { color: colors.textPrimary }]}>Upload Document</Text>
+                <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Attach to the selected shipment if needed.</Text>
+                {selectedUploadAsset ? (
+                  <Text style={[styles.uploadMeta, { color: colors.textSecondary }]}>Selected: {selectedUploadAsset.name}</Text>
                 ) : null}
-              </View>
-              {document.description ? (
-                <Text style={[styles.documentDescription, { color: colors.textSecondary }]}>{document.description}</Text>
-              ) : null}
-              <View style={styles.contextRow}>
-                <View style={[styles.contextChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-                  <Text style={[styles.contextLabel, { color: colors.textSecondary }]}>Uploaded By</Text>
-                  <Text style={[styles.contextValue, { color: colors.textPrimary }]}>{document.user?.name || document.user?.email || document.uploadedBy}</Text>
+                <View style={styles.uploadActions}>
+                  <Button title={selectedUploadAsset ? 'Change File' : 'Choose File'} onPress={pickUploadFile} style={styles.uploadButton} />
+                  <Button title="Upload" variant="secondary" onPress={handleUpload} disabled={!selectedUploadAsset} loading={uploading} style={styles.uploadButton} />
                 </View>
-                <View style={[styles.contextChip, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-                  <Text style={[styles.contextLabel, { color: colors.textSecondary }]}>Shipment</Text>
-                  <Text style={[styles.contextValue, { color: colors.textPrimary }]}>{document.shipment?.id ? document.shipment.id.slice(0, 8) : 'Unlinked'}</Text>
-                </View>
-              </View>
-              <TouchableOpacity activeOpacity={0.85} onPress={() => void Linking.openURL(document.fileUrl)}>
-                <Text style={[styles.openLink, { color: colors.accent }]}>Open / Download</Text>
-              </TouchableOpacity>
-            </Card>
-          ))
-        )}
-      </View>
+              </Card>
+            ) : null}
+          </>
+        }
+        ListEmptyComponent={<EmptyState icon="documents" title="No Documents" />}
+        ListFooterComponent={
+          documents.length > 0 ? (
+            <ListPaginationFooter
+              loadedCount={documents.length}
+              totalCount={totalDocuments}
+              hasNextPage={documentsQuery.hasNextPage}
+              isFetchingNextPage={documentsQuery.isFetchingNextPage}
+              onLoadMore={loadMore}
+            />
+          ) : null
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        onRefresh={documentsQuery.refetch}
+        refreshing={documentsQuery.isRefetching && !documentsQuery.isFetchingNextPage}
+      />
     </SafeAreaView>
   );
 };
@@ -290,15 +318,13 @@ const DocumentsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing['4xl'] },
-  sectionEyebrow: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.xs },
   shipmentSection: { marginBottom: Spacing.base },
-  shipmentSectionTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.base },
   filterChip: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm },
   filterChipText: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.semibold },
   uploadCard: { marginBottom: Spacing.base },
   uploadTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.xs },
-  uploadText: { fontSize: Typography.fontSize.sm, lineHeight: 20, marginBottom: Spacing.sm },
+  uploadText: { fontSize: Typography.fontSize.sm, marginBottom: Spacing.sm },
   uploadMeta: { fontSize: Typography.fontSize.xs, marginBottom: Spacing.sm },
   uploadActions: { flexDirection: 'row', gap: Spacing.sm },
   uploadButton: { flex: 1 },

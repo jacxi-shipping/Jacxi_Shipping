@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const companyId = searchParams.get('companyId');
     const search = searchParams.get('search') || '';
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20', 10)), 100);
+    const skip = (page - 1) * limit;
 
     const where: {
       status?: DispatchStatus;
@@ -66,16 +69,29 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const dispatches = await prisma.dispatch.findMany({
-      where,
-      include: {
-        company: { select: { id: true, name: true, code: true } },
-        _count: { select: { shipments: true, events: true, expenses: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [dispatches, total] = await Promise.all([
+      prisma.dispatch.findMany({
+        where,
+        include: {
+          company: { select: { id: true, name: true, code: true } },
+          _count: { select: { shipments: true, events: true, expenses: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.dispatch.count({ where }),
+    ]);
 
-    return NextResponse.json({ dispatches });
+    return NextResponse.json({
+      dispatches,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching dispatches:', error);
     return NextResponse.json({ error: 'Failed to fetch dispatches' }, { status: 500 });
