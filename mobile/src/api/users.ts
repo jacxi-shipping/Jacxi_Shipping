@@ -33,7 +33,7 @@ export const usersApi = {
   },
 
   async createUser(input: AdminUserCreateInput): Promise<AdminUserRecord> {
-    const response = await client.post<{ user: AdminUserRecord }>('/api/auth/register', input);
+    const response = await client.post<{ user: AdminUserRecord }>('/api/mobile-auth/register', input);
     return response.data.user;
   },
 

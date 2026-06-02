@@ -1,9 +1,11 @@
 import client, { apiClient } from './client';
 import { AuthResponse, LoginCodeCredentials, LoginCredentials, User } from '../types/auth';
 
+const MOBILE_AUTH_PATH = '/api/mobile-auth';
+
 export const authApi = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await client.post<AuthResponse>('/api/auth/signin', credentials);
+    const response = await client.post<AuthResponse>(`${MOBILE_AUTH_PATH}/signin`, credentials);
     
     if (response.data.token) {
       await apiClient.setToken(response.data.token);
@@ -13,7 +15,7 @@ export const authApi = {
   },
 
   async loginWithCode(credentials: LoginCodeCredentials): Promise<AuthResponse> {
-    const response = await client.post<AuthResponse>('/api/auth/signin-code', credentials);
+    const response = await client.post<AuthResponse>(`${MOBILE_AUTH_PATH}/signin-code`, credentials);
     
     if (response.data.token) {
       await apiClient.setToken(response.data.token);
@@ -24,14 +26,14 @@ export const authApi = {
 
   async logout(): Promise<void> {
     try {
-      await client.post('/api/auth/signout');
+      await client.post(`${MOBILE_AUTH_PATH}/signout`);
     } finally {
       await apiClient.removeToken();
     }
   },
 
   async getCurrentUser(): Promise<User> {
-    const response = await client.get<User>('/api/auth/me');
+    const response = await client.get<User>(`${MOBILE_AUTH_PATH}/me`);
     return response.data;
   },
 
