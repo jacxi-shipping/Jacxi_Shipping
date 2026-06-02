@@ -28,8 +28,10 @@
       "bundleIdentifier": "com.jacxi.shipping",
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
