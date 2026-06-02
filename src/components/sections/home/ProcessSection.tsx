@@ -1,4 +1,7 @@
+'use client';
+
 import { FileText, PackageCheck, PlaneTakeoff, Truck } from 'lucide-react';
+import { motion, Variants } from 'framer-motion';
 
 const steps = [
   {
@@ -27,36 +30,82 @@ const steps = [
   },
 ];
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 }
+  }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 280, damping: 20 } }
+};
+
 export default function ProcessSection() {
   return (
-    <section id="process" className="bg-[var(--background)] py-28">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="landing-reveal mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]" style={{ animationDelay: '60ms' }}>The Process</p>
-          <h2 className="landing-reveal text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]" style={{ animationDelay: '140ms' }}>Ship Your Vehicle in 4 Simple Steps</h2>
-          <p className="landing-reveal mt-5 text-lg leading-8 text-[var(--text-secondary)]" style={{ animationDelay: '220ms' }}>
-            We&apos;ve engineered every step to be transparent, predictable, and stress-free.
-          </p>
-        </div>
+    <section id="process" className="relative py-32 overflow-hidden bg-[var(--background)]">
+      <div className="absolute top-1/2 left-0 -ml-[20%] -mt-[20%] w-[60%] h-[60%] bg-[var(--accent-gold)]/5 rounded-full blur-[150px] pointer-events-none" />
 
-        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.7 }}
+          className="mx-auto max-w-3xl text-center mb-20"
+        >
+          <span className="mb-4 inline-block text-xs font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)]">
+            The Process
+          </span>
+          <h2 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-5xl lg:text-6xl mb-6">
+            Ship Your Vehicle in <br className="hidden sm:block" />
+            <span className="text-[var(--accent-gold)]">4 Simple Steps</span>
+          </h2>
+          <p className="text-lg leading-relaxed text-[var(--text-secondary)] opacity-80 max-w-2xl mx-auto">
+            We&apos;ve engineered every step to be transparent, predictable, and stress-free. Our system adapts to your vehicle footprint automatically.
+          </p>
+        </motion.div>
+
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-100px" }}
+          className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4"
+        >
           {steps.map((step, index) => {
             const Icon = step.icon;
 
             return (
-              <article key={step.number} className="landing-reveal flex min-h-[340px] flex-col rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5" style={{ animationDelay: `${280 + index * 110}ms` }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-[2.6rem] font-bold leading-none text-[var(--accent-gold)]">{step.number}</span>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--panel)] text-[var(--accent-gold)]">
-                    <Icon className="h-6 w-6" />
+              <motion.article 
+                key={step.number} 
+                variants={itemVariants}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group relative flex flex-col rounded-[2.5rem] border border-[var(--border)] bg-white/80 backdrop-blur-xl p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.03)] transition-all overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[rgba(var(--accent-gold-rgb),0.05)] z-0" />
+                
+                <div className="relative z-10 flex items-center justify-between mb-8">
+                  <span className="text-[3rem] font-extrabold leading-none text-[var(--accent-gold)] opacity-40 transition-all group-hover:opacity-100">
+                    {step.number}
+                  </span>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm transition-transform group-hover:rotate-12 group-hover:scale-110">
+                    <Icon className="h-7 w-7 text-[var(--accent-gold)]" strokeWidth={1.5} />
                   </div>
                 </div>
-                <h3 className="mt-8 text-[1.7rem] font-bold tracking-[-0.02em] text-[var(--text-primary)]">{step.title}</h3>
-                <p className="mt-4 leading-8 text-[var(--text-secondary)]">{step.description}</p>
-              </article>
+
+                <h3 className="relative z-10 mt-auto text-2xl font-bold tracking-tight text-[var(--text-primary)] mb-4">
+                  {step.title}
+                </h3>
+                <p className="relative z-10 leading-relaxed text-[var(--text-secondary)] opacity-90">
+                  {step.description}
+                </p>
+              </motion.article>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

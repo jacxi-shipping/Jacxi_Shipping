@@ -36,10 +36,10 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 will-change-[background-color,backdrop-filter,padding] ${
           isScrolled
-            ? 'border-b border-[var(--border)] bg-white/92 py-4 shadow-sm backdrop-blur-md'
-            : 'bg-transparent py-6'
+            ? 'border-b border-[var(--border)] bg-white/70 py-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] backdrop-blur-2xl'
+            : 'bg-transparent py-8'
         }`}
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">

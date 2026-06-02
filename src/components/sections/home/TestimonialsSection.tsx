@@ -1,3 +1,7 @@
+'use client';
+
+import { motion, Variants } from 'framer-motion';
+
 const testimonials = [
   {
     quote: 'JACXI handled my Toyota Land Cruiser with absolute professionalism. Arrived in Herat in perfect condition, and the customs process was seamless.',
@@ -21,31 +25,80 @@ const testimonials = [
   },
 ];
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 }
+  }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.95, y: 15 },
+  show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
+
 export default function TestimonialsSection() {
   return (
-    <section id="testimonials" className="bg-white py-28">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="landing-reveal mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]" style={{ animationDelay: '60ms' }}>Client Stories</p>
-          <h2 className="landing-reveal text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]" style={{ animationDelay: '140ms' }}>What Our Clients Say</h2>
-        </div>
+    <section id="testimonials" className="relative bg-white py-32 overflow-hidden">
+      {/* Decorative gradient blur */}
+      <div className="absolute bottom-0 right-0 -mr-[10%] -mb-[10%] w-[50%] h-[50%] bg-[var(--accent-gold)]/5 rounded-full blur-[150px] pointer-events-none" />
 
-        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.7 }}
+          className="mx-auto max-w-3xl text-center mb-20"
+        >
+          <span className="mb-4 inline-block text-xs font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)]">
+            Client Stories
+          </span>
+          <h2 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-5xl lg:text-5xl mb-6">
+            Trusted by the <br className="hidden sm:block" />
+            <span className="text-[var(--accent-gold)]">Best Around the Globe</span>
+          </h2>
+        </motion.div>
+
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-100px" }}
+          className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 max-w-6xl mx-auto"
+        >
           {testimonials.map((item, index) => (
-            <article key={item.name} className="landing-reveal flex min-h-[280px] flex-col rounded-[2rem] border border-[var(--border)] bg-[var(--background)] p-8 shadow-sm shadow-slate-900/5" style={{ animationDelay: `${240 + index * 110}ms` }}>
-              <p className="text-[1.05rem] leading-8 text-[var(--text-primary)]">&ldquo;{item.quote}&rdquo;</p>
-              <div className="mt-auto flex items-center gap-4 pt-8">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(var(--accent-gold-rgb),0.14)] text-sm font-bold text-[var(--accent-gold)]">
+            <motion.article 
+              key={item.name} 
+              variants={itemVariants}
+              whileHover={{ y: -5, scale: 1.01 }}
+              className="group relative flex flex-col rounded-[2.5rem] border border-[var(--border)] bg-white/80 backdrop-blur-xl p-10 shadow-[0_8px_32px_0_rgba(0,0,0,0.03)] transition-all overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[rgba(var(--accent-gold-rgb),0.03)] z-0" />
+              
+              <div className="relative z-10 mb-8">
+                <svg className="h-10 w-10 text-[var(--accent-gold)] opacity-30 group-hover:opacity-60 transition-opacity" fill="currentColor" viewBox="0 0 32 32" aria-hidden="true">
+                  <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
+                </svg>
+              </div>
+
+              <p className="relative z-10 text-xl leading-relaxed text-[var(--text-primary)] font-medium">
+                &ldquo;{item.quote}&rdquo;
+              </p>
+              
+              <div className="relative z-10 mt-auto flex items-center gap-4 pt-10">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(var(--accent-gold-rgb),0.1)] text-lg font-bold text-[var(--accent-gold)]">
                   {item.name.charAt(0)}
                 </div>
                 <div>
                   <p className="font-bold text-[var(--text-primary)]">{item.name}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">{item.role}</p>
+                  <p className="text-sm font-medium text-[var(--text-secondary)]">{item.role}</p>
                 </div>
               </div>
-            </article>
+            </motion.article>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
