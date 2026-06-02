@@ -17,7 +17,9 @@
         "gradleCommand": ":app:assembleDebug"
       },
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_APP_ENV": "development",
+        "EXPO_PUBLIC_API_URL": "https://www.jacxishipping.com"
       }
     },
     "preview": {
@@ -30,7 +32,9 @@
         "buildType": "apk"
       },
       "env": {
-        "APP_ENV": "staging"
+        "APP_ENV": "staging",
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_API_URL": "https://www.jacxishipping.com"
       }
     },
     "production": {
@@ -44,7 +48,9 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://www.jacxishipping.com"
       }
     }
   },
