@@ -7,25 +7,47 @@ import * as secureStorage from '../utils/secureStorage';
 function resolveApiUrl() {
   const configuredUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
+  const normalizedConfiguredUrl = (() => {
+    try {
+      const parsedUrl = new URL(configuredUrl);
+      if (parsedUrl.hostname === 'jacxishipping.com') {
+        parsedUrl.hostname = 'www.jacxishipping.com';
+      }
+      return parsedUrl.toString().replace(/\/$/, '');
+    } catch {
+      return configuredUrl;
+    }
+  })();
+
   if (
     Platform.OS === 'web' &&
     typeof window !== 'undefined' &&
     ['127.0.0.1', 'localhost'].includes(window.location.hostname)
   ) {
-    return `http://${window.location.hostname}:3000`;
+    const configuredHostname = (() => {
+      try {
+        return new URL(normalizedConfiguredUrl).hostname;
+      } catch {
+        return null;
+      }
+    })();
+
+    if (configuredHostname && ['127.0.0.1', 'localhost'].includes(configuredHostname)) {
+      return `http://${window.location.hostname}:3000`;
+    }
   }
 
   if (
     Platform.OS === 'web' &&
     typeof window !== 'undefined' &&
-    configuredUrl.includes('localhost:3000') &&
+    normalizedConfiguredUrl.includes('localhost:3000') &&
     window.location.hostname.endsWith('.app.github.dev')
   ) {
     const forwardedBackendHost = window.location.hostname.replace(/-\d+\.app\.github\.dev$/, '-3000.app.github.dev');
     return `https://${forwardedBackendHost}`;
   }
 
-  return configuredUrl;
+  return normalizedConfiguredUrl;
 }
 
 export const API_URL = resolveApiUrl();
