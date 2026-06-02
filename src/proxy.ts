@@ -10,6 +10,27 @@ const mobileWebOriginPatterns = [
   /^http:\/\/localhost:\d+$/,
 ];
 
+const legacyMobileAuthRewriteMap: Record<string, string> = {
+  '/api/auth/signin': '/api/mobile-auth/signin',
+  '/api/auth/signin-code': '/api/mobile-auth/signin-code',
+};
+
+function getLegacyMobileAuthRewrite(request: NextRequest) {
+  const rewritePath = legacyMobileAuthRewriteMap[request.nextUrl.pathname];
+  if (!rewritePath) {
+    return null;
+  }
+
+  const contentType = request.headers.get('content-type')?.toLowerCase() || '';
+  if (!contentType.includes('application/json')) {
+    return null;
+  }
+
+  const rewriteUrl = request.nextUrl.clone();
+  rewriteUrl.pathname = rewritePath;
+  return rewriteUrl;
+}
+
 function getAllowedMobileWebOrigin(request: NextRequest) {
   const origin = request.headers.get('origin');
   if (!origin) {
@@ -71,6 +92,11 @@ function isCustomDomainCandidatePath(pathname: string) {
 }
 
 export default auth(async (request) => {
+  const legacyMobileAuthRewrite = getLegacyMobileAuthRewrite(request);
+  if (legacyMobileAuthRewrite) {
+    return NextResponse.rewrite(legacyMobileAuthRewrite);
+  }
+
   const allowedMobileWebOrigin = getAllowedMobileWebOrigin(request);
   if (request.nextUrl.pathname.startsWith('/api/') && allowedMobileWebOrigin) {
     if (request.method === 'OPTIONS') {
