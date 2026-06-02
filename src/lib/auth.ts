@@ -106,13 +106,13 @@ async function getAuthorizationHeader(args: unknown[]): Promise<string | null> {
   }
 }
 
-export const auth: typeof nextAuthAuth = (async (...args: Parameters<typeof nextAuthAuth>) => {
+export const auth = (async (...args: Parameters<typeof nextAuthAuth>) => {
   const authorizationHeader = await getAuthorizationHeader(args);
   const mobileSession = await readMobileSessionFromAuthorizationHeader(authorizationHeader);
 
   if (mobileSession) {
-    return mobileSession as Awaited<ReturnType<typeof nextAuthAuth>>;
+    return mobileSession as unknown as Awaited<ReturnType<typeof nextAuthAuth>>;
   }
 
   return nextAuthAuth(...args);
-}) as typeof nextAuthAuth;
+}) as unknown as typeof nextAuthAuth;

@@ -1,4 +1,4 @@
-import { createServer } from 'http';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { parse } from 'url';
 import { pathToFileURL } from 'url';
 
@@ -32,7 +32,7 @@ function isAllowedApiOrigin(origin: string) {
   return pattern.test(origin);
 }
 
-function applyApiCors(req: Parameters<typeof createServer>[0], res: Parameters<Parameters<typeof createServer>[1]>[1]): boolean {
+function applyApiCors(req: IncomingMessage, res: ServerResponse<IncomingMessage>): boolean {
   const origin = req.headers.origin;
   const pathname = req.url ? parse(req.url).pathname : null;
 

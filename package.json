@@ -30,7 +30,7 @@
     "test": "node --experimental-strip-types --test 'src/**/*.test.ts'",
     "test:routes": "tsx --test src/app/api/workflow-routes.test.ts",
     "test:e2e": "playwright test",
-    "postinstall": "prisma generate --no-engine"
+    "postinstall": "prisma generate --no-engine && node scripts/fix-tanstack-react-query-types.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.2",
