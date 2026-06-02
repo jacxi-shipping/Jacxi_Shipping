@@ -371,7 +371,8 @@ const ContainerDetailScreen: React.FC = () => {
                 </View>
               ))
             )}
-            ) : null}
+          </Card>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
