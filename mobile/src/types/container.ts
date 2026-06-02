@@ -78,7 +78,10 @@ export interface ContainerDetailTrackingEvent {
   id: string;
   status: string;
   location?: string | null;
+  vesselName?: string | null;
   description?: string | null;
+  source?: string | null;
+  completed?: boolean;
   eventDate?: string | null;
   createdAt?: string;
 }
@@ -99,7 +102,54 @@ export interface ContainerDetailInvoice {
   invoiceNumber?: string;
   status?: string;
   amount: number;
+  currency?: string;
   date?: string | null;
+}
+
+export interface ContainerDetailDamage {
+  id: string;
+  shipmentId: string;
+  damageType: string;
+  amount: number;
+  description: string;
+  createdAt: string;
+  shipment?: {
+    id: string;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    vehicleVIN: string | null;
+    user?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+    } | null;
+  } | null;
+}
+
+export interface ContainerDetailUserInvoice {
+  id: string;
+  invoiceNumber: string;
+  status: string;
+  issueDate: string;
+  total: number;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  };
+  _count?: {
+    lineItems: number;
+  };
+}
+
+export interface ContainerAuditLog {
+  id: string;
+  action: string;
+  description: string;
+  performedBy: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+  timestamp: string;
 }
 
 export interface ContainerDetail extends Container {
@@ -111,7 +161,10 @@ export interface ContainerDetail extends Container {
   documents: ContainerDetailDocument[];
   trackingEvents: ContainerDetailTrackingEvent[];
   expenses?: ContainerDetailExpense[];
+  damages?: ContainerDetailDamage[];
   invoices?: ContainerDetailInvoice[];
+  userInvoices?: ContainerDetailUserInvoice[];
+  auditLogs?: ContainerAuditLog[];
 }
 
 export interface ContainerTracking {

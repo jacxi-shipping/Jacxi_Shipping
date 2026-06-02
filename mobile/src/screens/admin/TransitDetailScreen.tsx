@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { transitsApi } from '../../api/transits';
 import { Card } from '../../components/ui/Card';
+import { DetailTabOption, DetailTabStrip } from '../../components/shared/DetailTabs';
+import { EmptyState } from '../../components/shared/EmptyState';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ModuleSummaryHeader } from '../../components/shared/ModuleSummaryHeader';
@@ -37,6 +39,7 @@ const buildShipmentLabel = (shipment: { vehicleMake: string | null; vehicleModel
 const TransitDetailScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const { colors } = useAppTheme();
+  const [activeTab, setActiveTab] = useState<string>('shipments');
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['transit', route.params.id],
@@ -48,6 +51,12 @@ const TransitDetailScreen: React.FC = () => {
   if (!data?.transit) return <ErrorState message="Transit not found" />;
 
   const { transit, totalExpenses } = data;
+  const tabs: DetailTabOption[] = [
+    { key: 'shipments', label: `Shipments (${transit._count.shipments})` },
+    { key: 'events', label: `Events (${transit._count.events})` },
+    { key: 'expenses', label: `Expenses (${transit._count.expenses})` },
+    { key: 'company', label: 'Company Info' },
+  ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -65,36 +74,62 @@ const TransitDetailScreen: React.FC = () => {
         />
 
         <Card style={styles.sectionCard}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Route Snapshot</Text>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Current Company</Text>
-            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.currentCompany?.name || 'No current company'}</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Transit Snapshot</Text>
+          <View style={styles.metricsRow}>
+            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{titleCase(transit.status)}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Status</Text>
+            </View>
+            <View style={StyleSheet.flatten([styles.metricCard, { backgroundColor: colors.background, borderColor: colors.border }])}>
+              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{transit.currentCompany?.name || 'Pending'}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Current Company</Text>
+            </View>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Dispatch Date</Text>
-            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(transit.dispatchDate)}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Estimated Delivery</Text>
-            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(transit.estimatedDelivery)}</Text>
-          </View>
-          <View style={[styles.detailRow, styles.detailRowLast]}>
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Notes</Text>
-            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.notes || 'No notes added'}</Text>
-          </View>
+          <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Current leg: {transit.currentEvent ? `${transit.currentEvent.origin} to ${transit.currentEvent.destination}` : `${transit.origin} to ${transit.destination}`}</Text>
+          {transit.actualDelivery ? (
+            <Text style={[styles.summaryText, { color: colors.textSecondary }]}>Delivered on {formatDate(transit.actualDelivery)}</Text>
+          ) : null}
         </Card>
 
+        <DetailTabStrip tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+
+        {activeTab === 'shipments' ? (
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Linked Shipments</Text>
+          {transit.shipments.length === 0 ? (
+            <EmptyState icon="shipment" title="No Shipments Linked" description="This transit does not have any linked shipments yet." />
+          ) : (
+            transit.shipments.map((shipment, index) => (
+              <View
+                key={shipment.id}
+                style={StyleSheet.flatten([
+                  styles.itemRow,
+                  index === transit.shipments.length - 1 ? styles.detailRowLast : null,
+                  { borderBottomColor: colors.border },
+                ])}
+              >
+                <Text style={[styles.itemTitle, { color: colors.textPrimary }]}>{buildShipmentLabel(shipment)}</Text>
+                <Text style={[styles.itemMeta, { color: colors.textSecondary }]}> 
+                  {titleCase(shipment.status)} • {shipment.user?.name || shipment.user?.email || 'No customer'}
+                </Text>
+              </View>
+            ))
+          )}
+        </Card>
+        ) : null}
+
+        {activeTab === 'events' ? (
         <Card style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Events</Text>
           {transit.events.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No transit events recorded yet.</Text>
+            <EmptyState icon="timeline" title="No Transit Events" description="Transit events will appear here once movement updates are recorded." />
           ) : (
-            transit.events.slice(0, 5).map((event, index) => (
+            transit.events.map((event, index) => (
               <View
                 key={event.id}
                 style={StyleSheet.flatten([
                   styles.itemRow,
-                  index === transit.events.slice(0, 5).length - 1 ? styles.detailRowLast : null,
+                  index === transit.events.length - 1 ? styles.detailRowLast : null,
                   { borderBottomColor: colors.border },
                 ])}
               >
@@ -102,45 +137,25 @@ const TransitDetailScreen: React.FC = () => {
                 <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>
                   {titleCase(event.status)} • {event.company?.name || 'No company'}
                 </Text>
+                <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{formatDate(event.eventDate || event.createdAt)}</Text>
               </View>
             ))
           )}
         </Card>
+        ) : null}
 
+        {activeTab === 'expenses' ? (
         <Card style={styles.sectionCard}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Linked Shipments</Text>
-          {transit.shipments.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No shipments linked to this transit.</Text>
-          ) : (
-            transit.shipments.slice(0, 6).map((shipment, index) => (
-              <View
-                key={shipment.id}
-                style={StyleSheet.flatten([
-                  styles.itemRow,
-                  index === transit.shipments.slice(0, 6).length - 1 ? styles.detailRowLast : null,
-                  { borderBottomColor: colors.border },
-                ])}
-              >
-                <Text style={[styles.itemTitle, { color: colors.textPrimary }]}>{buildShipmentLabel(shipment)}</Text>
-                <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>
-                  {titleCase(shipment.status)} • {shipment.user?.name || shipment.user?.email || 'No customer'}
-                </Text>
-              </View>
-            ))
-          )}
-        </Card>
-
-        <Card>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Expense Activity</Text>
           {transit.expenses.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No transit expenses recorded.</Text>
+            <EmptyState icon="finance" title="No Transit Expenses" description="Transit and shipment expense entries will appear here when they are recorded." />
           ) : (
-            transit.expenses.slice(0, 6).map((expense, index) => (
+            transit.expenses.map((expense, index) => (
               <View
                 key={expense.id}
                 style={StyleSheet.flatten([
                   styles.itemRow,
-                  index === transit.expenses.slice(0, 6).length - 1 ? styles.detailRowLast : null,
+                  index === transit.expenses.length - 1 ? styles.detailRowLast : null,
                   { borderBottomColor: colors.border },
                 ])}
               >
@@ -157,6 +172,33 @@ const TransitDetailScreen: React.FC = () => {
             ))
           )}
         </Card>
+        ) : null}
+
+        {activeTab === 'company' ? (
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Company Info</Text>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Current Company</Text>
+            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.currentCompany?.name || 'No current company'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Dispatch Date</Text>
+            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(transit.dispatchDate)}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Estimated Delivery</Text>
+            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(transit.estimatedDelivery)}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Actual Delivery</Text>
+            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(transit.actualDelivery)}</Text>
+          </View>
+          <View style={[styles.detailRow, styles.detailRowLast]}>
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Notes</Text>
+            <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{transit.notes || 'No notes added'}</Text>
+          </View>
+        </Card>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -189,6 +231,32 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.medium,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  metricCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
+  },
+  metricValue: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.xs,
+  },
+  metricLabel: {
+    fontSize: Typography.fontSize.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  summaryText: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
+    marginTop: Spacing.xs,
   },
   emptyText: {
     fontSize: Typography.fontSize.base,

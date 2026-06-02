@@ -57,13 +57,14 @@ const ContainerDetailScreen: React.FC = () => {
   const tabs: DetailTabOption[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'shipments', label: `Shipments (${container.shipments.length})` },
+    { key: 'expenses', label: `Expenses (${container.expenses?.length || 0})` },
+    { key: 'damages', label: `Damages (${container.damages?.length || 0})` },
+    { key: 'invoices', label: `Invoices (${container.invoices?.length || 0})` },
+    { key: 'user-invoices', label: `User Invoices (${container.userInvoices?.length || 0})` },
     { key: 'tracking', label: `Tracking (${container.trackingEvents.length})` },
     { key: 'documents', label: `Documents (${container.documents.length})` },
+    { key: 'activity', label: `Activity (${container.auditLogs?.length || 0})` },
   ];
-
-  if (container.totals || (container.expenses?.length || 0) > 0 || (container.invoices?.length || 0) > 0) {
-    tabs.push({ key: 'financials', label: 'Financials' });
-  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -223,9 +224,9 @@ const ContainerDetailScreen: React.FC = () => {
         </Card>
         ) : null}
 
-        {activeTab === 'financials' ? (
+        {activeTab === 'expenses' ? (
           <Card style={styles.sectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Financials</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Expenses</Text>
 
             {container.totals ? (
               <View style={styles.metricRow}>
@@ -242,7 +243,6 @@ const ContainerDetailScreen: React.FC = () => {
 
             {container.expenses && container.expenses.length > 0 ? (
               <View style={styles.financialBlock}>
-                <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Expenses</Text>
                 {container.expenses.map((expense, index) => (
                   <View
                     key={expense.id}
@@ -261,9 +261,43 @@ const ContainerDetailScreen: React.FC = () => {
               </View>
             ) : null}
 
+            {!container.totals && (!container.expenses || container.expenses.length === 0) ? (
+              <EmptyState icon="finance" title="No Expense Data" description="Container and shipment expenses will appear here when available." />
+            ) : null}
+          </Card>
+        ) : null}
+
+        {activeTab === 'damages' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Shipment Damages</Text>
+            {!container.damages || container.damages.length === 0 ? (
+              <EmptyState title="No Damage Records" description="Damage records for shipments in this container will appear here." />
+            ) : (
+              container.damages.map((damage, index) => (
+                <View
+                  key={damage.id}
+                  style={StyleSheet.flatten([
+                    styles.detailRow,
+                    index === container.damages!.length - 1 ? styles.detailRowLast : null,
+                    { borderBottomColor: colors.border },
+                  ])}
+                >
+                  <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{damage.shipment ? buildShipmentLabel(damage.shipment) : damage.shipmentId}</Text>
+                  <Text style={[styles.rowMeta, { color: colors.textSecondary }]}> 
+                    {titleCase(damage.damageType)} • {formatCurrency(damage.amount)} • {new Date(damage.createdAt).toLocaleDateString()}
+                  </Text>
+                  <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>{damage.description}</Text>
+                </View>
+              ))
+            )}
+          </Card>
+        ) : null}
+
+        {activeTab === 'invoices' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Container Invoices</Text>
             {container.invoices && container.invoices.length > 0 ? (
               <View style={styles.financialBlock}>
-                <Text style={[styles.blockTitle, { color: colors.textPrimary }]}>Invoices</Text>
                 {container.invoices.map((invoice, index) => (
                   <View
                     key={invoice.id}
@@ -282,11 +316,62 @@ const ContainerDetailScreen: React.FC = () => {
               </View>
             ) : null}
 
-            {!container.totals && (!container.expenses || container.expenses.length === 0) && (!container.invoices || container.invoices.length === 0) ? (
-              <EmptyState icon="finance" title="No Financial Data" description="Container totals, expenses, and invoices will appear here when available." />
+            {!container.invoices || container.invoices.length === 0 ? (
+              <EmptyState icon="finance" title="No Invoices" description="Container invoices will appear here when they are created." />
             ) : null}
           </Card>
         ) : null}
+
+        {activeTab === 'user-invoices' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>User Invoices</Text>
+            {!container.userInvoices || container.userInvoices.length === 0 ? (
+              <EmptyState icon="finance" title="No User Invoices" description="Customer invoices for shipments in this container will appear here." />
+            ) : (
+              container.userInvoices.map((invoice, index) => (
+                <View
+                  key={invoice.id}
+                  style={StyleSheet.flatten([
+                    styles.detailRow,
+                    index === container.userInvoices!.length - 1 ? styles.detailRowLast : null,
+                    { borderBottomColor: colors.border },
+                  ])}
+                >
+                  <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{invoice.invoiceNumber}</Text>
+                  <Text style={[styles.rowMeta, { color: colors.textSecondary }]}> 
+                    {invoice.user.name || invoice.user.email || 'Customer pending'} • {titleCase(invoice.status)} • {new Date(invoice.issueDate).toLocaleDateString()}
+                  </Text>
+                  <Text style={[styles.rowMeta, { color: colors.textSecondary }]}> 
+                    {formatCurrency(invoice.total)}{invoice._count?.lineItems ? ` • ${invoice._count.lineItems} line items` : ''}
+                  </Text>
+                </View>
+              ))
+            )}
+          </Card>
+        ) : null}
+
+        {activeTab === 'activity' ? (
+          <Card style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Activity History</Text>
+            {!container.auditLogs || container.auditLogs.length === 0 ? (
+              <EmptyState icon="timeline" title="No Activity History" description="Container audit activity will appear here when actions are recorded." />
+            ) : (
+              container.auditLogs.map((log, index) => (
+                <View
+                  key={log.id}
+                  style={StyleSheet.flatten([
+                    styles.detailRow,
+                    index === container.auditLogs!.length - 1 ? styles.detailRowLast : null,
+                    { borderBottomColor: colors.border },
+                  ])}
+                >
+                  <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{titleCase(log.action)}</Text>
+                  <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>{new Date(log.timestamp).toLocaleString()}</Text>
+                  <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>{log.description}</Text>
+                </View>
+              ))
+            )}
+            ) : null}
       </ScrollView>
     </SafeAreaView>
   );

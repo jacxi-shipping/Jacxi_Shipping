@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { dispatchesApi } from '../../api/dispatches';
@@ -15,6 +16,7 @@ import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { ContainerStatus } from '../../types/container';
 import { DispatchStatus } from '../../types/dispatch';
+import { AdminStackParamList } from '../../navigation/AdminNavigator';
 
 const statusOptions: Array<{ label: string; value: 'all' | DispatchStatus }> = [
   { label: 'All', value: 'all' },
@@ -33,6 +35,7 @@ const eligibleContainerStatuses: ContainerStatus[] = ['CREATED', 'WAITING_FOR_LO
 
 const DispatchesScreen: React.FC = () => {
   const { colors } = useAppTheme();
+  const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | DispatchStatus>('all');
   const [activeDispatchId, setActiveDispatchId] = useState<string | null>(null);
@@ -229,6 +232,13 @@ const DispatchesScreen: React.FC = () => {
               {dispatch.notes ? <Text style={[styles.notes, { color: colors.textSecondary }]}>{dispatch.notes}</Text> : null}
 
               <View style={styles.actionBar}>
+                <Button
+                  title="Open Details"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => navigation.navigate('DispatchDetail' as keyof AdminStackParamList, { id: dispatch.id })}
+                  style={styles.actionButton}
+                />
                 <Button
                   title={activeDispatchId === dispatch.id ? 'Hide Actions' : 'Workflow Actions'}
                   variant="secondary"
