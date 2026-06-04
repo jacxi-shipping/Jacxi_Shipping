@@ -81,7 +81,11 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
                   color={isFocused ? colors.accentContrast : colors.textSecondary}
                 />
               </View>
-              <Text style={[styles.label, { color: isFocused ? colors.accent : colors.textSecondary }]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.label, { color: isFocused ? colors.accent : colors.textSecondary }, state.routes.length > 4 && styles.labelCondensed]}
+              >
                 {typeof label === 'string' ? label : ''}
               </Text>
             </View>
@@ -130,11 +134,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: 2,
     borderRadius: BorderRadius['2xl'],
     borderWidth: 1,
     borderColor: 'transparent',
-    minWidth: 68,
+    minWidth: 48,
     width: '100%',
   },
   tabContentActive: {
@@ -148,6 +152,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.xs,
     borderWidth: 1,
+  },
+  labelCondensed: {
+    fontSize: 10,
+    letterSpacing: 0,
   },
   label: {
     fontSize: Typography.fontSize.xs,
