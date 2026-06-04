@@ -39,7 +39,7 @@ export const Card: React.FC<CardProps> = ({
 
   const handlePressIn = () => {
     if (pressable) {
-      scale.value = withSpring(0.985, { damping: 20, stiffness: 300 });
+      scale.value = withSpring(0.96, { damping: 20, stiffness: 300 });
       void triggerImpact('light');
     }
   };
@@ -57,14 +57,14 @@ export const Card: React.FC<CardProps> = ({
     },
     card: {
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0.22 : 0.08,
+      shadowOpacity: isDark ? 0.35 : 0.12,
       shadowRadius: 16,
       elevation: 3,
     },
     elevated: {
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: isDark ? 0.30 : 0.12,
-      shadowRadius: 28,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: isDark ? 0.45 : 0.18,
+      shadowRadius: 32,
       elevation: 6,
     },
   };

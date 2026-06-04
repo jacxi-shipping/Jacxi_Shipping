@@ -17,9 +17,9 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
       edges={['bottom']}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
-      <View style={[styles.container, { backgroundColor: colors.panel, borderColor: colors.border }]}> 
+      <View style={[styles.container, { backgroundColor: colors.panel, borderColor: colors.border, shadowColor: colors.shadow }]}>
       <LinearGradient
-        colors={['transparent', `${colors.accent}24`, 'transparent']}
+        colors={['transparent', `${colors.accent}45`, 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.topAccent}
@@ -62,7 +62,7 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
                 styles.tabContent,
                 isFocused && [
                   styles.tabContentActive,
-                  { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}45` },
+                  { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}60` },
                 ],
               ]}
             >
@@ -71,7 +71,7 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
                   styles.iconBadge,
                   {
                     backgroundColor: isFocused ? colors.accent : colors.surfaceMuted,
-                    borderColor: isFocused ? `${colors.accentDark}55` : colors.border,
+                    borderColor: isFocused ? `${colors.accentDark}75` : colors.border,
                   },
                 ]}
               > 
@@ -96,21 +96,22 @@ export const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, naviga
 const styles = StyleSheet.create({
   safeArea: {
     paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.xs,
   },
   container: {
     overflow: 'hidden',
     flexDirection: 'row',
     borderWidth: 1,
-    borderRadius: BorderRadius['2xl'],
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius['3xl'],
+    paddingVertical: 6,
+    paddingHorizontal: 8,
     shadowOffset: {
       width: 0,
       height: 12,
     },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
     elevation: 6,
   },
   topAccent: {
@@ -128,9 +129,9 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: 8,
     paddingHorizontal: Spacing.sm,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius['2xl'],
     borderWidth: 1,
     borderColor: 'transparent',
     minWidth: 68,

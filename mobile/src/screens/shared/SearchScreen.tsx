@@ -134,8 +134,8 @@ const SearchScreen: React.FC = () => {
       style={[
         styles.filterChip,
         {
-          backgroundColor: selected ? colors.accentSoft : colors.panel,
-          borderColor: selected ? `${colors.accent}45` : colors.border,
+          backgroundColor: selected ? `${colors.accent}1A` : colors.panel,
+          borderColor: selected ? `${colors.accent}60` : colors.border,
         },
       ]}
     >
@@ -301,12 +301,12 @@ const styles = StyleSheet.create({
   filterChip: {
     borderWidth: 1,
     borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
   },
   filterChipText: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
+    fontWeight: Typography.fontWeight.semibold,
   },
   dateGrid: {
     marginBottom: Spacing.sm,
