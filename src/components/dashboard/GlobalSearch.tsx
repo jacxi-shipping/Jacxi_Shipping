@@ -248,6 +248,7 @@ export default function GlobalSearch() {
                   {loading && <Loader2 className="h-5 w-5 text-cyan-400 animate-spin" />}
                   <button
                     onClick={() => setIsOpen(false)}
+                    aria-label="Close search"
                     className="p-1 hover:bg-white/10 rounded-lg transition-colors"
                   >
                     <X className="h-5 w-5 text-white/60" />
