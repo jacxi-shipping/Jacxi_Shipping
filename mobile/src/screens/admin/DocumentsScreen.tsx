@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Alert, FlatList, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import * as DocumentPicker from 'expo-document-picker';
 import { documentsApi } from '../../api/documents';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { ErrorState } from '../../components/shared/ErrorState';
@@ -12,6 +11,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { DocumentUploadModal } from '../../components/shared/DocumentUploadModal';
 import { useAuth } from '../../hooks/useAuth';
 import { useShipments } from '../../hooks/useShipments';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -47,8 +47,6 @@ const DocumentsScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<(typeof categoryOptions)[number]['value']>('all');
   const [shipmentId, setShipmentId] = useState<string | null>(null);
-  const [selectedUploadAsset, setSelectedUploadAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
-  const [uploading, setUploading] = useState(false);
 
   const shipmentsQuery = useShipments({}, { pageSize: 12 });
   const shipments = shipmentsQuery.data?.data || [];
@@ -80,72 +78,6 @@ const DocumentsScreen: React.FC = () => {
     }),
     [documents, totalDocuments],
   );
-
-  const pickUploadFile = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      copyToCacheDirectory: true,
-      multiple: false,
-      type: [
-        'image/*',
-        'application/pdf',
-        'text/csv',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      ],
-    });
-
-    if (!result.canceled) {
-      setSelectedUploadAsset(result.assets[0]);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedUploadAsset || !isAdmin) {
-      return;
-    }
-
-    if (Platform.OS === 'web' && !selectedUploadAsset.file) {
-      Alert.alert('Re-select file', 'Please choose the document again so the browser can provide the live file handle for upload.');
-      return;
-    }
-
-    try {
-      setUploading(true);
-      const upload = await documentsApi.uploadFile({
-        uri: selectedUploadAsset.uri,
-        name: selectedUploadAsset.name,
-        mimeType: selectedUploadAsset.mimeType,
-        file: selectedUploadAsset.file,
-      });
-
-      await documentsApi.createDocument({
-        name: selectedUploadAsset.name,
-        fileUrl: upload.url,
-        fileType: selectedUploadAsset.mimeType || 'application/octet-stream',
-        fileSize: Math.max(selectedUploadAsset.size || 1, 1),
-        category: category === 'all' ? 'OTHER' : category,
-        shipmentId: shipmentId || undefined,
-      });
-
-      setSelectedUploadAsset(null);
-      await documentsQuery.refetch();
-      Alert.alert('Upload complete', 'The document was uploaded and indexed successfully.');
-    } catch (error: any) {
-      Alert.alert('Upload failed', error?.message || 'The document could not be uploaded.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  if (documentsQuery.isLoading) {
-    return <LoadingSpinner fullScreen />;
-  }
-
-  if (documentsQuery.error) {
-    return <ErrorState message={(documentsQuery.error as any).message} onRetry={documentsQuery.refetch} />;
-  }
 
   const loadMore = () => {
     if (documentsQuery.hasNextPage && !documentsQuery.isFetchingNextPage) {
@@ -283,15 +215,16 @@ const DocumentsScreen: React.FC = () => {
               <Card style={styles.uploadCard}>
                 <Text style={[styles.uploadTitle, { color: colors.textPrimary }]}>Upload Document</Text>
                 <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Attach to the selected shipment if needed.</Text>
-                {selectedUploadAsset ? (
-                  <Text style={[styles.uploadMeta, { color: colors.textSecondary }]}>Selected: {selectedUploadAsset.name}</Text>
-                ) : null}
-                <View style={styles.uploadActions}>
-                  <Button title={selectedUploadAsset ? 'Change File' : 'Choose File'} onPress={pickUploadFile} style={styles.uploadButton} />
-                  <Button title="Upload" variant="secondary" onPress={handleUpload} disabled={!selectedUploadAsset} loading={uploading} style={styles.uploadButton} />
-                </View>
+                <Button title="Upload Document" onPress={() => setUploadModalVisible(true)} />
               </Card>
             ) : null}
+
+            <DocumentUploadModal
+              visible={isUploadModalVisible}
+              onClose={() => setUploadModalVisible(false)}
+              shipmentId={shipmentId !== 'all' && shipmentId !== null ? shipmentId : undefined}
+              onSuccess={documentsQuery.refetch}
+            />
           </>
         }
         ListEmptyComponent={<EmptyState icon="documents" title="No Documents" />}
