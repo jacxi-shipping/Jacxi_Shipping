@@ -336,10 +336,29 @@ export function DocumentManager({
         open={isUploadOpen}
         onClose={() => !isProcessing && setIsUploadOpen(false)}
         title="Upload Documents"
+        description="Assign the right category first, then upload a single file. The document becomes searchable once processing finishes."
         disableBackdropClick={true}
         showCloseButton={!isProcessing}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                borderRadius: 3,
+                bgcolor: 'var(--background)',
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                Supported formats
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                PDF, JPG, PNG, DOC, DOCX, XLS, and XLSX. Upload one document at a time so the category and extracted details stay accurate.
+              </Typography>
+            </Paper>
             
             <FormField label="Document Category">
                 <Select
@@ -363,13 +382,15 @@ export function DocumentManager({
                 />
             </FormField>
 
-            <FileUpload 
-              multiple={false}
-              maxFiles={1}
+            <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'var(--panel)' }}>
+              <FileUpload 
+                multiple={false}
+                maxFiles={1}
                 uploadHandler={handleFileUpload}
                 onProcessingChange={setIsProcessing}
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
-            />
+              />
+            </Box>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
                 <Button 

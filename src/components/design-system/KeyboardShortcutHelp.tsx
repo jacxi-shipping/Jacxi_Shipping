@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle, Box, Typography, IconButton } from '@mui/material';
-import { Close, Keyboard } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
+import { Keyboard } from '@mui/icons-material';
+import Modal from './Modal';
 import { useKeyboardShortcut, ShortcutRegistry } from '@/lib/hooks/useKeyboardShortcut';
 
 interface ShortcutCategory {
@@ -68,47 +69,21 @@ export default function KeyboardShortcutHelp() {
   }, []);
 
   return (
-    <Dialog
+    <Modal
       open={open}
       onClose={() => setOpen(false)}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: 'var(--panel)',
-          borderRadius: 4,
-          border: '1px solid var(--border)',
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--border)',
-          pb: 2,
-        }}
-      >
+      size="lg"
+      title={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Keyboard sx={{ color: 'var(--accent-gold)' }} />
           <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--text-primary)' }}>
             Keyboard Shortcuts
           </Typography>
         </Box>
-        <IconButton
-          onClick={() => setOpen(false)}
-          sx={{
-            color: 'var(--text-secondary)',
-            '&:hover': { bgcolor: 'rgba(var(--border-rgb), 0.5)' },
-          }}
-        >
-          <Close />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={{ pt: 3 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      }
+      description="Global shortcuts are listed first, followed by any page-specific shortcuts currently registered."
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {defaultShortcuts.map((category) => (
             <Box key={category.name}>
               <Typography
@@ -220,8 +195,7 @@ export default function KeyboardShortcutHelp() {
               </Box>
             </Box>
           )}
-        </Box>
-      </DialogContent>
-    </Dialog>
+      </Box>
+    </Modal>
   );
 }

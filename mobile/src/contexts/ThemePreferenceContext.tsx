@@ -2,6 +2,14 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { Appearance, ColorSchemeName, useColorScheme } from 'react-native';
 import * as secureStorage from '../utils/secureStorage';
 
+declare const document: {
+  documentElement: {
+    style: {
+      colorScheme: string;
+    };
+  };
+} | undefined;
+
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 type ThemePreferenceContextValue = {

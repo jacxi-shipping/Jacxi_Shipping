@@ -2,10 +2,6 @@
 
 import { useState } from 'react';
 import {
-	Dialog,
-	DialogTitle,
-	DialogContent,
-	DialogActions,
 	TextField,
 	FormControl,
 	InputLabel,
@@ -15,8 +11,8 @@ import {
 	InputAdornment,
 	Typography,
 } from '@mui/material';
-import { DollarSign, X } from 'lucide-react';
-import { Button, toast } from '@/components/design-system';
+import { DollarSign } from 'lucide-react';
+import { Button, Modal, toast } from '@/components/design-system';
 
 interface Shipment {
 	id: string;
@@ -140,56 +136,34 @@ export default function AddDamageModal({
 	};
 
 	const selectedDamageType = damageTypeOptions.find((d) => d.value === formData.damageType);
+	const formId = 'container-damage-form';
 
 	return (
-		<Dialog
+		<Modal
 			open={open}
 			onClose={handleClose}
-			maxWidth="sm"
-			fullWidth
-			PaperProps={{
-				sx: {
-					bgcolor: 'var(--panel)',
-					backgroundImage: 'none',
-					border: '1px solid var(--border)',
-					borderRadius: 2,
-				},
-			}}
-		>
-			<DialogTitle
-				sx={{
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					pb: 1,
-					color: 'var(--text-primary)',
-				}}
-			>
+			size="sm"
+			title={
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 					<DollarSign style={{ width: 20, height: 20, color: 'var(--accent-gold)' }} />
 					<Box component="span" sx={{ fontWeight: 700 }}>Add Damage Record</Box>
 				</Box>
-				<Box
-					component="button"
-					onClick={handleClose}
-					disabled={loading}
-					sx={{
-						border: 'none',
-						background: 'transparent',
-						cursor: 'pointer',
-						padding: 0.5,
-						display: 'flex',
-						alignItems: 'center',
-						color: 'var(--text-secondary)',
-						'&:hover': { color: 'var(--text-primary)' },
-					}}
-				>
-					<X style={{ width: 20, height: 20 }} />
-				</Box>
-			</DialogTitle>
-
-			<Box component="form" onSubmit={handleSubmit}>
-				<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+			}
+			description="Create a damage adjustment and choose which ledger absorbs the resulting charge."
+			showCloseButton={!loading}
+			disableBackdropClick={loading}
+			actions={
+				<>
+					<Button variant="outline" onClick={handleClose} disabled={loading}>
+						Cancel
+					</Button>
+					<Button type="submit" form={formId} variant="primary" disabled={loading}>
+						{loading ? 'Adding...' : 'Add Damage'}
+					</Button>
+				</>
+			}
+		>
+			<Box component="form" id={formId} onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 					{/* Shipment selector */}
 					<FormControl fullWidth size="small" required>
 						<InputLabel sx={{ color: 'var(--text-secondary)' }}>Shipment</InputLabel>
@@ -310,17 +284,7 @@ export default function AddDamageModal({
 							'& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
 						}}
 					/>
-				</DialogContent>
-
-				<DialogActions sx={{ px: 3, pb: 3 }}>
-					<Button variant="outline" onClick={handleClose} disabled={loading}>
-						Cancel
-					</Button>
-					<Button type="submit" variant="primary" disabled={loading}>
-						{loading ? 'Adding...' : 'Add Damage'}
-					</Button>
-				</DialogActions>
 			</Box>
-		</Dialog>
+		</Modal>
 	);
 }

@@ -38,7 +38,14 @@ const titleCase = (value?: string | null) => {
     .replace(/(^|\s)\w/g, (match) => match.toUpperCase());
 };
 
-const buildShipmentLabel = (shipment: NonNullable<ReturnType<typeof customersApi.getCustomer> extends Promise<infer T> ? T['shipments'] : never>[number]) => {
+type CustomerShipmentSummary = {
+  vehicleYear?: number | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleVIN?: string | null;
+};
+
+const buildShipmentLabel = (shipment: CustomerShipmentSummary) => {
   const label = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ').trim();
   return label || shipment.vehicleVIN || 'Shipment';
 };

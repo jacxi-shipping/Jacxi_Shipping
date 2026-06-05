@@ -16,7 +16,7 @@ export const documentsApi = {
 
     const webFile = asset.file;
     if (webFile) {
-      formData.append('file', webFile as Blob, asset.name || 'document-upload');
+      (formData as any).append('file', webFile as Blob, asset.name || 'document-upload');
     } else {
       formData.append('file', {
         uri: asset.uri,

@@ -3,7 +3,7 @@ import { User, AuthSession } from '../types/auth';
 import { authApi } from '../api/auth';
 import * as secureStorage from '../utils/secureStorage';
 
-interface AuthState {
+export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;

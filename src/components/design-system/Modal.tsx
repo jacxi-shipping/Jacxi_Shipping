@@ -7,11 +7,12 @@ import {
   DialogActions, 
   IconButton, 
   Box,
-  Typography
+  Typography,
+  SxProps,
+  Theme,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * Modal Component
@@ -22,13 +23,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 export interface ModalProps {
   open: boolean;
   onClose: () => void;
-  title?: string;
+  title?: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   showCloseButton?: boolean;
   disableBackdropClick?: boolean;
   className?: string;
+  contentSx?: SxProps<Theme>;
+  actionsSx?: SxProps<Theme>;
 }
 
 // Size configurations
@@ -44,24 +48,31 @@ export default function Modal({
   open,
   onClose,
   title,
+  description,
   children,
   actions,
   size = 'md',
   showCloseButton = true,
   disableBackdropClick = false,
   className,
+  contentSx,
+  actionsSx,
 }: ModalProps) {
-  const handleBackdropClick = () => {
-    if (!disableBackdropClick) {
-      onClose();
+  const handleClose = (_event: object, reason: 'backdropClick' | 'escapeKeyDown') => {
+    if (disableBackdropClick && reason === 'backdropClick') {
+      return;
     }
+
+    onClose();
   };
 
   return (
     <Dialog
       open={open}
-      onClose={handleBackdropClick}
+      onClose={handleClose}
       maxWidth={false}
+      fullWidth
+      scroll="paper"
       className={className}
       PaperProps={{
         sx: {
@@ -71,7 +82,9 @@ export default function Modal({
           bgcolor: 'var(--panel)',
           backgroundImage: 'none',
           boxShadow: '0 24px 60px rgba(var(--text-primary-rgb), 0.15), 0 8px 16px rgba(var(--text-primary-rgb), 0.1)',
-          m: 2,
+          m: { xs: 1.5, sm: 2.5 },
+          maxHeight: { xs: 'calc(100% - 24px)', sm: 'calc(100% - 40px)' },
+          overflow: 'hidden',
         },
       }}
       slotProps={{
@@ -94,25 +107,42 @@ export default function Modal({
             px: 3,
             py: 2.5,
             borderBottom: '1px solid var(--border)',
+            bgcolor: 'var(--panel)',
           }}
         >
-          {title && (
-            <Typography
-              sx={{
-                fontSize: '1.125rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                flex: 1,
-              }}
-            >
-              {title}
-            </Typography>
-          )}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            {typeof title === 'string' ? (
+              <Typography
+                sx={{
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {title}
+              </Typography>
+            ) : (
+              title
+            )}
+            {description ? (
+              <Typography
+                sx={{
+                  mt: 0.75,
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {description}
+              </Typography>
+            ) : null}
+          </Box>
           {showCloseButton && (
             <IconButton
               onClick={onClose}
               sx={{
                 color: 'var(--text-secondary)',
+                border: '1px solid rgba(var(--border-rgb), 0.6)',
                 '&:hover': {
                   bgcolor: 'rgba(var(--border-rgb), 0.2)',
                 },
@@ -130,6 +160,9 @@ export default function Modal({
           px: 3,
           py: 3,
           color: 'var(--text-primary)',
+          overflowY: 'auto',
+          bgcolor: 'var(--panel)',
+          ...contentSx,
         }}
       >
         {children}
@@ -143,6 +176,8 @@ export default function Modal({
             py: 2.5,
             gap: 1.5,
             borderTop: '1px solid var(--border)',
+            bgcolor: 'var(--panel)',
+            ...actionsSx,
           }}
         >
           {actions}

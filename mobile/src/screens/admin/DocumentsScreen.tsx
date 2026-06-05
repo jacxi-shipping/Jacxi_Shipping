@@ -47,6 +47,7 @@ const DocumentsScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<(typeof categoryOptions)[number]['value']>('all');
   const [shipmentId, setShipmentId] = useState<string | null>(null);
+  const [isUploadModalVisible, setUploadModalVisible] = useState(false);
 
   const shipmentsQuery = useShipments({}, { pageSize: 12 });
   const shipments = shipmentsQuery.data?.data || [];

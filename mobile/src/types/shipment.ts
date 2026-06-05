@@ -93,18 +93,32 @@ export interface Shipment {
 }
 
 export interface ShipmentCreateInput {
-  vehicle: Vehicle;
-  customerId: string;
-  origin: Location;
-  destination: Location;
-  pickupDate?: string;
-  estimatedDelivery?: string;
-  pricing?: {
-    shippingCost: number;
-    oceanFreight?: number;
-    insurance?: number;
-  };
-  notes?: string;
+  userId: string;
+  serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
+  vehicleType: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: number | string;
+  vehicleVIN?: string;
+  vehicleColor?: string;
+  lotNumber?: string;
+  auctionName?: string;
+  weight?: number | string;
+  dimensions?: string;
+  specialInstructions?: string;
+  vehiclePhotos?: string[];
+  status?: 'ON_HAND' | 'IN_TRANSIT' | 'RELEASED';
+  containerId?: string;
+  internalNotes?: string;
+  hasKey?: boolean;
+  hasTitle?: boolean;
+  titleStatus?: 'PENDING' | 'DELIVERED';
+  paymentMode?: 'CASH' | 'DUE';
+  purchasePrice?: number | string;
+  purchaseDate?: string;
+  purchaseLocation?: string;
+  dealerName?: string;
+  purchaseNotes?: string;
 }
 
 export interface ShipmentUpdateInput {

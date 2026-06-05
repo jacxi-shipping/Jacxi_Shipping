@@ -3,6 +3,7 @@ export interface AdminUserSummary {
   name: string | null;
   email: string;
   role: string;
+  accountBalance?: number;
   createdAt?: string;
   _count?: {
     shipments: number;

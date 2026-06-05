@@ -3,10 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControl,
   InputAdornment,
   InputLabel,
@@ -15,8 +11,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { DollarSign, Paperclip, Upload, X } from 'lucide-react';
-import { Button, toast } from '@/components/design-system';
+import { DollarSign, Paperclip, Upload } from 'lucide-react';
+import { Button, Modal, toast } from '@/components/design-system';
 import {
   DEFAULT_DISPATCH_EXPENSE_CATEGORY,
   DISPATCH_EXPENSE_CATEGORY_OPTIONS,
@@ -196,33 +192,32 @@ export default function DispatchExpenseModal({
     }
   };
 
+  const formId = 'dispatch-expense-form';
+
   return (
-    <Dialog open={open} onClose={resetAndClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Modal
+      open={open}
+      onClose={resetAndClose}
+      size="sm"
+      title={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <DollarSign style={{ fontSize: 24, color: 'var(--accent-gold)' }} />
           <span>{isEditing ? 'Edit Dispatch Expense' : 'Add Dispatch Expense'}</span>
         </Box>
-        <Box
-          component="button"
-          onClick={resetAndClose}
-          disabled={loading || uploading}
-          sx={{
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            padding: 0.5,
-            display: 'flex',
-            alignItems: 'center',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <X style={{ fontSize: 20 }} />
-        </Box>
-      </DialogTitle>
-
-      <Box component="form" onSubmit={handleSubmit}>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      }
+      description="Track dispatch-related costs and attach supporting paperwork when available."
+      showCloseButton={!loading && !uploading}
+      disableBackdropClick={loading || uploading}
+      actions={
+        <>
+          <Button variant="outline" onClick={resetAndClose} disabled={loading || uploading}>Cancel</Button>
+          <Button type="submit" form={formId} variant="primary" disabled={loading || uploading}>
+            {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Expense'}
+          </Button>
+        </>
+      }
+    >
+      <Box component="form" id={formId} onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
             <FormControl fullWidth size="small" required>
               <InputLabel>Category</InputLabel>
@@ -355,15 +350,7 @@ export default function DispatchExpenseModal({
             multiline
             rows={3}
           />
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button variant="outline" onClick={resetAndClose} disabled={loading || uploading}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={loading || uploading}>
-            {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Expense'}
-          </Button>
-        </DialogActions>
       </Box>
-    </Dialog>
+    </Modal>
   );
 }

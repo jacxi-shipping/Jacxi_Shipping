@@ -2,10 +2,6 @@
 
 import { useState } from 'react';
 import {
-	Dialog,
-	DialogTitle,
-	DialogContent,
-	DialogActions,
 	TextField,
 	FormControl,
 	InputLabel,
@@ -14,8 +10,8 @@ import {
 	Box,
 	InputAdornment,
 } from '@mui/material';
-import { DollarSign, X } from 'lucide-react';
-import { Button, toast } from '@/components/design-system';
+import { DollarSign } from 'lucide-react';
+import { Button, Modal, toast } from '@/components/design-system';
 
 interface AddTransitExpenseModalProps {
 	open: boolean;
@@ -114,45 +110,34 @@ export default function AddTransitExpenseModal({
 		}
 	};
 
+	const formId = 'transit-expense-form';
+
 	return (
-		<Dialog
+		<Modal
 			open={open}
 			onClose={handleClose}
-			maxWidth="sm"
-			fullWidth
-			PaperProps={{
-				sx: {
-					bgcolor: 'var(--panel)',
-					border: '1px solid var(--border)',
-				},
-			}}
-		>
-			<DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+			size="sm"
+			title={
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 					<DollarSign style={{ fontSize: 24, color: 'var(--accent-gold)' }} />
 					<span>Add Transit Expense</span>
 				</Box>
-				<Box
-					component="button"
-					onClick={handleClose}
-					disabled={loading}
-					sx={{
-						border: 'none',
-						background: 'transparent',
-						cursor: 'pointer',
-						padding: 0.5,
-						display: 'flex',
-						alignItems: 'center',
-						color: 'var(--text-secondary)',
-						'&:hover': { color: 'var(--text-primary)' },
-					}}
-				>
-					<X style={{ fontSize: 20 }} />
-				</Box>
-			</DialogTitle>
-
-			<Box component="form" onSubmit={handleSubmit}>
-				<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+			}
+			description="Track a transit cost with the supporting vendor details and charge date."
+			showCloseButton={!loading}
+			disableBackdropClick={loading}
+			actions={
+				<>
+					<Button variant="outline" onClick={handleClose} disabled={loading}>
+						Cancel
+					</Button>
+					<Button type="submit" form={formId} variant="primary" disabled={loading}>
+						{loading ? 'Adding...' : 'Add Expense'}
+					</Button>
+				</>
+			}
+		>
+			<Box component="form" id={formId} onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 					<FormControl fullWidth size="small" required>
 						<InputLabel>Expense Type</InputLabel>
 						<Select
@@ -225,17 +210,7 @@ export default function AddTransitExpenseModal({
 						rows={3}
 						placeholder="Additional details..."
 					/>
-				</DialogContent>
-
-				<DialogActions sx={{ px: 3, pb: 3 }}>
-					<Button variant="outline" onClick={handleClose} disabled={loading}>
-						Cancel
-					</Button>
-					<Button type="submit" variant="primary" disabled={loading}>
-						{loading ? 'Adding...' : 'Add Expense'}
-					</Button>
-				</DialogActions>
 			</Box>
-		</Dialog>
+		</Modal>
 	);
 }

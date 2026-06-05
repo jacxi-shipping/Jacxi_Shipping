@@ -2,10 +2,6 @@
 
 import { useRef, useState } from 'react';
 import {
-	Dialog,
-	DialogTitle,
-	DialogContent,
-	DialogActions,
 	TextField,
 	FormControl,
 	InputLabel,
@@ -15,8 +11,8 @@ import {
 	InputAdornment,
 	Typography,
 } from '@mui/material';
-import { FileText, Upload, X } from 'lucide-react';
-import { Button, toast } from '@/components/design-system';
+import { FileText, Upload } from 'lucide-react';
+import { Button, Modal, toast } from '@/components/design-system';
 
 interface AddInvoiceModalProps {
 	open: boolean;
@@ -218,45 +214,34 @@ export default function AddInvoiceModal({
 		}
 	};
 
+	const formId = 'container-invoice-form';
+
 	return (
-		<Dialog 
-			open={open} 
-			onClose={handleClose} 
-			maxWidth="sm" 
-			fullWidth
-			PaperProps={{
-				sx: {
-					bgcolor: 'var(--panel)',
-					border: '1px solid var(--border)',
-				},
-			}}
-		>
-			<DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+		<Modal
+			open={open}
+			onClose={handleClose}
+			size="sm"
+			title={
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 					<FileText style={{ fontSize: 24, color: 'var(--accent-gold)' }} />
 					<span>Create Invoice</span>
 				</Box>
-				<Box
-					component="button"
-					onClick={handleClose}
-					disabled={loading}
-					sx={{
-						border: 'none',
-						background: 'transparent',
-						cursor: 'pointer',
-						padding: 0.5,
-						display: 'flex',
-						alignItems: 'center',
-						color: 'var(--text-secondary)',
-						'&:hover': { color: 'var(--text-primary)' },
-					}}
-				>
-					<X style={{ fontSize: 20 }} />
-				</Box>
-			</DialogTitle>
-
-			<Box component="form" onSubmit={handleSubmit}>
-				<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+			}
+			description="Create a container invoice manually or prefill it from an uploaded source file."
+			showCloseButton={!loading && !extracting}
+			disableBackdropClick={loading || extracting}
+			actions={
+				<>
+					<Button variant="outline" onClick={handleClose} disabled={loading || extracting}>
+						Cancel
+					</Button>
+					<Button type="submit" form={formId} variant="primary" disabled={loading || extracting}>
+						{loading ? 'Creating...' : 'Create Invoice'}
+					</Button>
+				</>
+			}
+		>
+			<Box component="form" id={formId} onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 					<Box sx={{ border: '1px dashed var(--border)', borderRadius: 2, p: 2, bgcolor: 'var(--background)' }}>
 						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
 							<Box>
@@ -380,17 +365,7 @@ export default function AddInvoiceModal({
 						rows={3}
 						placeholder="Additional details..."
 					/>
-				</DialogContent>
-
-				<DialogActions sx={{ px: 3, pb: 3 }}>
-					<Button variant="outline" onClick={handleClose} disabled={loading}>
-						Cancel
-					</Button>
-					<Button type="submit" variant="primary" disabled={loading}>
-						{loading ? 'Creating...' : 'Create Invoice'}
-					</Button>
-				</DialogActions>
 			</Box>
-		</Dialog>
+		</Modal>
 	);
 }

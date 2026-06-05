@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, TouchableOpacity } from 'react-native';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import Animated, {
   useAnimatedStyle,
@@ -13,7 +13,7 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   pressable?: boolean;
   onPress?: () => void;
   /** Visual elevation level: 'flat' | 'card' | 'elevated'. Default: 'card' */

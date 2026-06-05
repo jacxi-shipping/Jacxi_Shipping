@@ -7,6 +7,7 @@ type UserListItem = {
   name: string | null;
   email: string;
   createdAt: string;
+  accountBalance?: number;
   _count?: {
     shipments?: number;
   };
@@ -92,7 +93,7 @@ function mapUserListItemToCustomer(user: UserListItem): Customer {
     name: user.name || user.email,
     email: user.email,
     role: 'user',
-    balance: 0,
+    balance: user.accountBalance ?? 0,
     totalShipments: user._count?.shipments || 0,
     activeShipments: 0,
     deliveredShipments: user._count?.shipments || 0,

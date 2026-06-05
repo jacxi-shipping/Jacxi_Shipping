@@ -11,10 +11,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "jsx": "react-native",
     "lib": [
+      "dom",
       "esnext"
     ],
     "target": "esnext",

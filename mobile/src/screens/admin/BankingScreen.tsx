@@ -117,6 +117,7 @@ const BankingScreen: React.FC = () => {
       setSelectedFile(
         persisted.selectedFile
           ? {
+              lastModified: 0,
               uri: persisted.selectedFile.uri,
               name: persisted.selectedFile.name || 'bank-import.csv',
               mimeType: persisted.selectedFile.mimeType || undefined,

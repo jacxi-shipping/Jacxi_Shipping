@@ -46,6 +46,8 @@ export const DetailTabs: React.FC<DetailTabsProps> = ({ tabs, activeTab, onChang
   );
 };
 
+export const DetailTabStrip = DetailTabs;
+
 const styles = StyleSheet.create({
   container: {
     borderWidth: 1,

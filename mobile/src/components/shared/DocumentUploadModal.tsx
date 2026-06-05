@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Modal } from '../ui/Modal';
@@ -12,6 +12,17 @@ import { TouchableOpacity } from 'react-native';
 
 const categoryOptions: DocumentCategory[] = ['OTHER', 'TITLE', 'INSURANCE', 'BILL_OF_LADING', 'INSPECTION_REPORT'];
 const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\w/g, (match) => match.toUpperCase());
+const formatFileSize = (size?: number) => {
+  if (!size || size <= 0) {
+    return 'Size unavailable';
+  }
+
+  if (size < 1024 * 1024) {
+    return `${Math.max(size / 1024, 0.1).toFixed(1)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 interface DocumentUploadModalProps {
   visible: boolean;
@@ -32,6 +43,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   const [selectedUploadAsset, setSelectedUploadAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [uploading, setUploading] = useState(false);
   const [category, setCategory] = useState<DocumentCategory>(defaultCategory);
+  const supportedFormats = useMemo(() => ['PDF', 'Images', 'CSV', 'DOC', 'DOCX'], []);
 
   const pickUploadFile = async () => {
     try {
@@ -96,15 +108,38 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   };
 
   const handleClose = () => {
+    if (uploading) {
+      return;
+    }
+
     setSelectedUploadAsset(null);
     setCategory(defaultCategory);
     onClose();
   };
 
   return (
-    <Modal visible={visible} onClose={handleClose} title="Upload Document">
+    <Modal
+      visible={visible}
+      onClose={handleClose}
+      title="Upload Document"
+      subtitle="Choose a category, add one file, and we will attach it to the shipment record."
+      showCloseButton={!uploading}
+    >
       <View style={styles.container}>
+        <View style={[styles.heroCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+          <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>One clean upload flow</Text>
+          <Text style={[styles.heroCopy, { color: colors.textSecondary }]}>Keep documents discoverable by assigning the right type before you upload.</Text>
+          <View style={styles.supportedFormatsRow}>
+            {supportedFormats.map((format) => (
+              <View key={format} style={[styles.supportedFormatChip, { backgroundColor: colors.panel, borderColor: colors.border }]}>
+                <Text style={[styles.supportedFormatText, { color: colors.textSecondary }]}>{format}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <Text style={[styles.label, { color: colors.textPrimary }]}>Category</Text>
+        <Text style={[styles.helperText, { color: colors.textSecondary }]}>This decides where the document is grouped across the app.</Text>
         <View style={styles.filterRow}>
           {categoryOptions.map((option) => {
             const selected = option === category;
@@ -129,15 +164,40 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         </View>
 
         <Text style={[styles.label, { color: colors.textPrimary, marginTop: Spacing.md }]}>File</Text>
-        <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Select a file to upload.</Text>
+        <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Choose one supported file from your device.</Text>
 
         {selectedUploadAsset ? (
-          <Text style={[styles.uploadMeta, { color: colors.textSecondary }]}>Selected: {selectedUploadAsset.name}</Text>
-        ) : null}
+          <View style={[styles.fileCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+            <Text style={[styles.fileName, { color: colors.textPrimary }]} numberOfLines={2}>{selectedUploadAsset.name}</Text>
+            <View style={styles.fileMetaRow}>
+              <Text style={[styles.uploadMeta, { color: colors.textSecondary }]}>{selectedUploadAsset.mimeType || 'Unknown type'}</Text>
+              <Text style={[styles.uploadMeta, { color: colors.textSecondary }]}>{formatFileSize(selectedUploadAsset.size)}</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.emptyState, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}> 
+            <Text style={[styles.emptyStateTitle, { color: colors.textPrimary }]}>No file selected yet</Text>
+            <Text style={[styles.emptyStateCopy, { color: colors.textSecondary }]}>Pick a document first, then confirm the upload.</Text>
+          </View>
+        )}
 
         <View style={styles.uploadActions}>
-          <Button title={selectedUploadAsset ? 'Change File' : 'Choose File'} onPress={pickUploadFile} style={styles.uploadButton} />
-          <Button title="Upload" variant="secondary" onPress={handleUpload} disabled={!selectedUploadAsset} loading={uploading} style={styles.uploadButton} />
+          <Button
+            title={selectedUploadAsset ? 'Replace File' : 'Choose File'}
+            variant="secondary"
+            onPress={pickUploadFile}
+            disabled={uploading}
+            style={styles.uploadButton}
+            fullWidth
+          />
+          <Button
+            title={uploading ? 'Uploading...' : 'Upload Document'}
+            onPress={handleUpload}
+            disabled={!selectedUploadAsset}
+            loading={uploading}
+            style={styles.uploadButton}
+            fullWidth
+          />
         </View>
       </View>
     </Modal>
@@ -147,11 +207,48 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingBottom: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  heroTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  heroCopy: {
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
+  },
+  supportedFormatsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  supportedFormatChip: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
+  supportedFormatText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.medium,
   },
   label: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.sm,
+  },
+  helperText: {
+    fontSize: Typography.fontSize.xs,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
+    lineHeight: 18,
   },
   filterRow: {
     flexDirection: 'row',
@@ -173,16 +270,44 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     marginBottom: Spacing.sm,
   },
+  fileCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
+    gap: Spacing.xs,
+  },
+  fileName: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  fileMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.base,
+  },
   uploadMeta: {
     fontSize: Typography.fontSize.xs,
-    marginBottom: Spacing.sm,
+  },
+  emptyState: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
+    gap: Spacing.xs,
+  },
+  emptyStateTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  emptyStateCopy: {
+    fontSize: Typography.fontSize.xs,
+    lineHeight: 18,
   },
   uploadActions: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: Spacing.sm,
     marginTop: Spacing.md,
   },
   uploadButton: {
-    flex: 1,
+    width: '100%',
   },
 });

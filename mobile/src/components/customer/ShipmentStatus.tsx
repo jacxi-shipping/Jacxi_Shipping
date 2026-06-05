@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { StatusBadge } from '../shared/StatusBadge';
-import { ShipmentStatus } from '../../types/shipment';
+import type { ShipmentStatus as ShipmentStatusValue } from '../../types/shipment';
 import { Typography } from '../../constants/typography';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface ShipmentStatusProps {
-  status: ShipmentStatus;
+  status: ShipmentStatusValue;
   estimatedDelivery?: string;
 }
 

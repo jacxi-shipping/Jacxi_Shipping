@@ -67,6 +67,16 @@ export async function GET(request: NextRequest) {
           email: true,
           role: true,
           createdAt: true,
+          ledgerEntries: {
+            select: {
+              balance: true,
+            },
+            orderBy: [
+              { createdAt: 'desc' },
+              { id: 'desc' },
+            ],
+            take: 1,
+          },
           _count: {
             select: { shipments: true }
           }
@@ -79,7 +89,12 @@ export async function GET(request: NextRequest) {
 
     const regularUsers = total - admins;
 
-    return NextResponse.json({ users, total, page, pageSize, admins, regularUsers });
+    const usersWithBalances = users.map(({ ledgerEntries, ...user }) => ({
+      ...user,
+      accountBalance: ledgerEntries[0]?.balance ?? 0,
+    }));
+
+    return NextResponse.json({ users: usersWithBalances, total, page, pageSize, admins, regularUsers });
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(

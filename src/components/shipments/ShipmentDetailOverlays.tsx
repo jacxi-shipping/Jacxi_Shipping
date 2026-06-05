@@ -1,7 +1,8 @@
 'use client';
 
 import { Eye, EyeOff } from 'lucide-react';
-import { Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
+import { Box, MenuItem, TextField } from '@mui/material';
+import { Button, Modal } from '@/components/design-system';
 import AddShipmentExpenseModal from '@/components/shipments/AddShipmentExpenseModal';
 import PhotoLightbox from '@/components/shipments/PhotoLightbox';
 import type {
@@ -95,9 +96,30 @@ export default function ShipmentDetailOverlays({
       )}
 
       {canManageWorkflow && (
-        <Dialog open={openAssignDispatch} onClose={() => !assigningDispatch && onCloseAssignDispatch()} maxWidth="xs" fullWidth>
-          <DialogTitle>Assign Shipment to Dispatch</DialogTitle>
-          <DialogContent sx={{ pt: 1.5 }}>
+        <Modal
+          open={openAssignDispatch}
+          onClose={() => !assigningDispatch && onCloseAssignDispatch()}
+          size="sm"
+          title="Assign Shipment to Dispatch"
+          description="Choose a pending dispatch route for this shipment."
+          showCloseButton={!assigningDispatch}
+          disableBackdropClick={assigningDispatch}
+          actions={
+            <>
+              <Button variant="outline" onClick={onCloseAssignDispatch} disabled={assigningDispatch}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => void onAssignDispatch()}
+                disabled={assigningDispatch || loadingDispatches || !dispatchIdToAssign}
+              >
+                {assigningDispatch ? 'Assigning...' : 'Assign'}
+              </Button>
+            </>
+          }
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
               select
               fullWidth
@@ -117,30 +139,31 @@ export default function ShipmentDetailOverlays({
             {!loadingDispatches && availableDispatches.length === 0 && (
               <p className="mt-3 text-sm text-[var(--text-secondary)]">No pending dispatches are available.</p>
             )}
-          </DialogContent>
-          <DialogActions>
-            <button
-              onClick={onCloseAssignDispatch}
-              disabled={assigningDispatch}
-              style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => void onAssignDispatch()}
-              disabled={assigningDispatch || loadingDispatches || !dispatchIdToAssign}
-              style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#fff' }}
-            >
-              {assigningDispatch ? 'Assigning...' : 'Assign'}
-            </button>
-          </DialogActions>
-        </Dialog>
+          </Box>
+        </Modal>
       )}
 
       {canManageWorkflow && (
-        <Dialog open={openAssignTransit} onClose={() => !assigningTransit && onCloseAssignTransit()} maxWidth="xs" fullWidth>
-          <DialogTitle>Assign Shipment to Transit</DialogTitle>
-          <DialogContent sx={{ pt: 1.5 }}>
+        <Modal
+          open={openAssignTransit}
+          onClose={() => !assigningTransit && onCloseAssignTransit()}
+          size="sm"
+          title="Assign Shipment to Transit"
+          description="Link this shipment to a transit record and verify it with the release token."
+          showCloseButton={!assigningTransit}
+          disableBackdropClick={assigningTransit}
+          actions={
+            <>
+              <Button variant="outline" onClick={onCloseAssignTransit} disabled={assigningTransit}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={() => void onAssignTransit()} disabled={assigningTransit}>
+                {assigningTransit ? 'Assigning...' : 'Assign'}
+              </Button>
+            </>
+          }
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
               fullWidth
               label="Transit ID"
@@ -170,24 +193,8 @@ export default function ShipmentDetailOverlays({
                 ),
               }}
             />
-          </DialogContent>
-          <DialogActions>
-            <button
-              onClick={onCloseAssignTransit}
-              disabled={assigningTransit}
-              style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => void onAssignTransit()}
-              disabled={assigningTransit}
-              style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent-gold)', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#fff' }}
-            >
-              {assigningTransit ? 'Assigning...' : 'Assign'}
-            </button>
-          </DialogActions>
-        </Dialog>
+          </Box>
+        </Modal>
       )}
 
       {shipmentId && (

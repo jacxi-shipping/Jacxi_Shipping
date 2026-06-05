@@ -149,7 +149,7 @@ export const financeApi = {
 
     const webFile = asset.file;
     if (webFile) {
-      formData.append('file', webFile as Blob, asset.name || 'bank-import.csv');
+      (formData as any).append('file', webFile as Blob, asset.name || 'bank-import.csv');
     } else {
       formData.append('file', {
         uri: asset.uri,
@@ -171,7 +171,7 @@ export const financeApi = {
 
     const webFile = asset.file;
     if (webFile) {
-      formData.append('file', webFile as Blob, asset.name || 'bank-import.csv');
+      (formData as any).append('file', webFile as Blob, asset.name || 'bank-import.csv');
     } else {
       formData.append('file', {
         uri: asset.uri,
