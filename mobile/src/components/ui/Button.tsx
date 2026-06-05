@@ -50,7 +50,7 @@ export const Button: React.FC<ButtonProps> = ({
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.97);
+    scale.value = withSpring(0.95);
     void triggerImpact('light');
   };
 
@@ -98,9 +98,9 @@ export const Button: React.FC<ButtonProps> = ({
         borderWidth: 1,
         borderColor: `${colors.accentDark}55`,
         shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.16,
-        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 14,
         elevation: 4,
       },
       secondary: {
