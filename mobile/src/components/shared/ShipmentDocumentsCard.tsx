@@ -1,17 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as DocumentPicker from 'expo-document-picker';
 import { documentsApi } from '../../api/documents';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { DocumentUploadModal } from './DocumentUploadModal';
 import { BorderRadius, Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
-import { DocumentCategory, DocumentRecord } from '../../types/document';
-
-const categoryOptions: DocumentCategory[] = ['OTHER', 'TITLE', 'INSURANCE', 'BILL_OF_LADING', 'INSPECTION_REPORT'];
+import { DocumentRecord } from '../../types/document';
 
 const titleCase = (value: string) => value.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\w/g, (match) => match.toUpperCase());
 
@@ -33,10 +31,8 @@ export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ sh
   const { colors } = useAppTheme();
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
-  const [selectedUploadAsset, setSelectedUploadAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [category, setCategory] = useState<DocumentCategory>('OTHER');
+  const [isUploadModalVisible, setUploadModalVisible] = useState(false);
 
   const documentsQuery = useQuery({
     queryKey: ['shipment-documents', shipmentId],
@@ -44,7 +40,7 @@ export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ sh
   });
 
   const documents = documentsQuery.data?.documents || [];
-  const canUpload = Boolean(user);
+  const canUpload = isAdmin;
 
   const visibleSummary = useMemo(
     () => ({
@@ -71,69 +67,9 @@ export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ sh
     );
   };
 
-  const pickUploadFile = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        copyToCacheDirectory: true,
-        multiple: false,
-        type: [
-          'image/*',
-          'application/pdf',
-          'text/csv',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
-      });
-
-      if (!result.canceled) {
-        setSelectedUploadAsset(result.assets[0]);
-      }
-    } catch (error: any) {
-      Alert.alert('Unable to select file', error?.message || 'The document could not be selected.');
-    }
-  };
-
   const refreshDocuments = async () => {
     await documentsQuery.refetch();
     await queryClient.invalidateQueries({ queryKey: ['shipment', shipmentId] });
-  };
-
-  const handleUpload = async () => {
-    if (!selectedUploadAsset || !user) {
-      return;
-    }
-
-    if (Platform.OS === 'web' && !selectedUploadAsset.file) {
-      Alert.alert('Re-select file', 'Please choose the document again so the browser can provide the live file handle for upload.');
-      return;
-    }
-
-    try {
-      setUploading(true);
-      const upload = await documentsApi.uploadFile({
-        uri: selectedUploadAsset.uri,
-        name: selectedUploadAsset.name,
-        mimeType: selectedUploadAsset.mimeType,
-        file: selectedUploadAsset.file,
-      });
-
-      await documentsApi.createDocument({
-        name: selectedUploadAsset.name,
-        fileUrl: upload.url,
-        fileType: selectedUploadAsset.mimeType || 'application/octet-stream',
-        fileSize: Math.max(selectedUploadAsset.size || 1, 1),
-        category,
-        shipmentId,
-      });
-
-      setSelectedUploadAsset(null);
-      await refreshDocuments();
-      Alert.alert('Upload complete', 'The shipment document was uploaded successfully.');
-    } catch (error: any) {
-      Alert.alert('Upload failed', error?.message || 'The shipment document could not be uploaded.');
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleDelete = (document: DocumentRecord) => {
@@ -180,40 +116,16 @@ export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ sh
 
       {canUpload ? (
         <View style={styles.uploadSection}>
-          <Text style={[styles.uploadLabel, { color: colors.textPrimary }]}>Upload Document</Text>
-          <View style={styles.filterRow}>
-            {categoryOptions.map((option) => {
-              const selected = option === category;
-
-              return (
-                <TouchableOpacity
-                  key={option}
-                  activeOpacity={0.85}
-                  style={StyleSheet.flatten([
-                    styles.filterChip,
-                    {
-                      backgroundColor: selected ? `${colors.accent}18` : colors.panel,
-                      borderColor: selected ? `${colors.accent}35` : colors.border,
-                    },
-                  ])}
-                  onPress={() => setCategory(option)}
-                >
-                  <Text style={[styles.filterChipText, { color: selected ? colors.accent : colors.textPrimary }]}>{titleCase(option)}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {selectedUploadAsset ? (
-            <Text style={[styles.uploadMeta, { color: colors.textSecondary }]}>Selected: {selectedUploadAsset.name}</Text>
-          ) : null}
-
-          <View style={styles.uploadActions}>
-            <Button title={selectedUploadAsset ? 'Change File' : 'Choose File'} onPress={pickUploadFile} style={styles.uploadButton} />
-            <Button title="Upload" variant="secondary" onPress={handleUpload} disabled={!selectedUploadAsset} loading={uploading} style={styles.uploadButton} />
-          </View>
+          <Button title="Upload Document" onPress={() => setUploadModalVisible(true)} />
         </View>
       ) : null}
+
+      <DocumentUploadModal
+        visible={isUploadModalVisible}
+        onClose={() => setUploadModalVisible(false)}
+        shipmentId={shipmentId}
+        onSuccess={refreshDocuments}
+      />
 
       {documentsQuery.isLoading ? (
         <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Loading documents...</Text>
