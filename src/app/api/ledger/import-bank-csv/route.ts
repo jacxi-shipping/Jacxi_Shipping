@@ -255,35 +255,34 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      let importedCount = 0;
-
-      for (const transaction of preview.importableRows) {
-        await tx.ledgerEntry.create({
-          data: {
-            userId: session.user.id as string,
-            description: transaction.description,
-            type: transaction.type,
-            amount: transaction.amount,
-            balance: 0,
-            transactionDate: transaction.ledgerDate,
-            createdBy: session.user.id as string,
-            notes: transaction.notes || null,
-            metadata: {
-              importSource: 'BANK_OF_AMERICA_CSV',
-              importFingerprint: transaction.importFingerprint,
-              importedAt: new Date().toISOString(),
-              importedFileName: file.name,
-              sourceLabel,
-              category,
-              rawRow: transaction.rawRow,
-            } as Prisma.InputJsonValue,
-          },
-        });
-
-        importedCount += 1;
-      }
+      // ⚡ Bolt: Replaced sequential O(N) create calls with a single createMany for bulk import
+      const importedCount = preview.importableRows.length;
 
       if (importedCount > 0) {
+        const createData = preview.importableRows.map((transaction) => ({
+          userId: session.user.id as string,
+          description: transaction.description,
+          type: transaction.type,
+          amount: transaction.amount,
+          balance: 0,
+          transactionDate: transaction.ledgerDate,
+          createdBy: session.user.id as string,
+          notes: transaction.notes || null,
+          metadata: {
+            importSource: 'BANK_OF_AMERICA_CSV',
+            importFingerprint: transaction.importFingerprint,
+            importedAt: new Date().toISOString(),
+            importedFileName: file.name,
+            sourceLabel,
+            category,
+            rawRow: transaction.rawRow,
+          } as Prisma.InputJsonValue,
+        }));
+
+        await tx.ledgerEntry.createMany({
+          data: createData,
+        });
+
         await recalculateUserLedgerBalances(tx, session.user.id as string);
       }
 
