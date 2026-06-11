@@ -270,10 +270,11 @@ export async function GET(
       portalShipmentFinanceMap.set(entry.shipmentId, existing);
     }
 
+    // ⚡ Bolt: Replaced chained .filter().reduce() operations with single pass loops
     const portalLedgerSummary = {
       balance: portalLedgerEntries[0]?.balance || 0,
-      debitAmount: portalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: portalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: portalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'DEBIT' ? entry.amount : 0), 0),
+      creditAmount: portalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'CREDIT' ? entry.amount : 0), 0),
       paymentRecordCount: portalPaymentRecords.length,
       ledgerEntryCount: portalLedgerEntries.length,
     };
@@ -287,8 +288,8 @@ export async function GET(
     ));
 
     const activitySummary = {
-      debitAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: filteredPortalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'DEBIT' ? entry.amount : 0), 0),
+      creditAmount: filteredPortalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'CREDIT' ? entry.amount : 0), 0),
       paymentRecordCount: filteredPortalPaymentRecords.length,
       ledgerEntryCount: filteredPortalLedgerEntries.length,
     };
@@ -362,9 +363,9 @@ export async function GET(
       invoiceCount: invoices.length,
       openInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).length,
       overdueInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).length,
-      outstandingAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).reduce((sum, invoice) => sum + invoice.total, 0),
-      overdueAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).reduce((sum, invoice) => sum + invoice.total, 0),
-      paidAmount: invoices.filter((invoice) => invoice.status === 'PAID').reduce((sum, invoice) => sum + invoice.total, 0),
+      outstandingAmount: invoices.reduce((sum, invoice) => sum + (outstandingInvoiceStatuses.has(invoice.status) ? invoice.total : 0), 0),
+      overdueAmount: invoices.reduce((sum, invoice) => sum + (outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0 ? invoice.total : 0), 0),
+      paidAmount: invoices.reduce((sum, invoice) => sum + (invoice.status === 'PAID' ? invoice.total : 0), 0),
       unbilledAmount: unbilledCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
       unbilledChargeCount: unbilledCharges.length,
     };
