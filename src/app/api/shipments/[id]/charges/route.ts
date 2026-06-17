@@ -1,12 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ShipmentChargeStatus } from '@prisma/client';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { materializeShipmentLedgerCharges } from '@/lib/billing/shipment-charge-backfill';
-import { hasAnyPermission, hasPermission } from '@/lib/rbac';
+import { NextRequest, NextResponse } from "next/server";
+import { ShipmentChargeStatus } from "@prisma/client";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { materializeShipmentLedgerCharges } from "@/lib/billing/shipment-charge-backfill";
+import { hasAnyPermission, hasPermission } from "@/lib/rbac";
 
-const mutableStatuses = new Set<ShipmentChargeStatus>(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'DISPUTED']);
-const mutableInvoiceStatuses = new Set(['DRAFT', 'PENDING']);
+const mutableStatuses = new Set<ShipmentChargeStatus>([
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "DISPUTED",
+]);
+const mutableInvoiceStatuses = new Set(["DRAFT", "PENDING"]);
 
 function buildPostIssueDelta(
   charges: Array<{
@@ -15,7 +20,9 @@ function buildPostIssueDelta(
     invoice: { id: string; invoiceNumber: string; status: string } | null;
   }>,
 ) {
-  const approvedUninvoicedCharges = charges.filter((charge) => charge.status === 'APPROVED' && !charge.invoice);
+  const approvedUninvoicedCharges = charges.filter(
+    (charge) => charge.status === "APPROVED" && !charge.invoice,
+  );
   const issuedInvoices = Array.from(
     new Map(
       charges
@@ -23,15 +30,23 @@ function buildPostIssueDelta(
           (charge) =>
             charge.invoice &&
             !mutableInvoiceStatuses.has(charge.invoice.status) &&
-            charge.invoice.status !== 'CANCELLED',
+            charge.invoice.status !== "CANCELLED",
         )
         .map((charge) => [charge.invoice!.id, charge.invoice]),
     ).values(),
   );
 
-  const deltaAmount = approvedUninvoicedCharges.reduce((sum, charge) => sum + charge.totalAmount, 0);
+  const deltaAmount = approvedUninvoicedCharges.reduce(
+    (sum, charge) => sum + charge.totalAmount,
+    0,
+  );
   const latestIssuedInvoice = issuedInvoices[issuedInvoices.length - 1] || null;
-  const kind = deltaAmount < 0 ? 'CREDIT_NOTE' : deltaAmount > 0 ? 'SUPPLEMENTAL_INVOICE' : 'ADJUSTMENT';
+  const kind =
+    deltaAmount < 0
+      ? "CREDIT_NOTE"
+      : deltaAmount > 0
+        ? "SUPPLEMENTAL_INVOICE"
+        : "ADJUSTMENT";
 
   return {
     active: issuedInvoices.length > 0 && approvedUninvoicedCharges.length > 0,
@@ -43,23 +58,33 @@ function buildPostIssueDelta(
     description:
       issuedInvoices.length > 0 && approvedUninvoicedCharges.length > 0
         ? deltaAmount < 0
-          ? `${approvedUninvoicedCharges.length} approved post-issue charge${approvedUninvoicedCharges.length === 1 ? '' : 's'} would generate a credit note instead of changing the issued invoice.`
-          : `${approvedUninvoicedCharges.length} approved post-issue charge${approvedUninvoicedCharges.length === 1 ? '' : 's'} would generate a supplemental invoice instead of changing the issued invoice.`
+          ? `${approvedUninvoicedCharges.length} approved post-issue charge${approvedUninvoicedCharges.length === 1 ? "" : "s"} would generate a credit note instead of changing the issued invoice.`
+          : `${approvedUninvoicedCharges.length} approved post-issue charge${approvedUninvoicedCharges.length === 1 ? "" : "s"} would generate a supplemental invoice instead of changing the issued invoice.`
         : null,
   };
 }
 
-function buildBillingReadiness(charges: Array<{ status: string; invoice: { id: string } | null }>) {
-  const approvedUninvoicedCount = charges.filter((charge) => charge.status === 'APPROVED' && !charge.invoice).length;
-  const blockedCount = charges.filter((charge) => ['DRAFT', 'PENDING_APPROVAL', 'DISPUTED'].includes(charge.status)).length;
-  const settledCount = charges.filter((charge) => ['INVOICED', 'PAID'].includes(charge.status) || Boolean(charge.invoice)).length;
-  const paidCount = charges.filter((charge) => charge.status === 'PAID').length;
+function buildBillingReadiness(
+  charges: Array<{ status: string; invoice: { id: string } | null }>,
+) {
+  const approvedUninvoicedCount = charges.filter(
+    (charge) => charge.status === "APPROVED" && !charge.invoice,
+  ).length;
+  const blockedCount = charges.filter((charge) =>
+    ["DRAFT", "PENDING_APPROVAL", "DISPUTED"].includes(charge.status),
+  ).length;
+  const settledCount = charges.filter(
+    (charge) =>
+      ["INVOICED", "PAID"].includes(charge.status) || Boolean(charge.invoice),
+  ).length;
+  const paidCount = charges.filter((charge) => charge.status === "PAID").length;
 
   if (!charges.length) {
     return {
-      status: 'NOT_BILLABLE',
-      label: 'Not Billable',
-      description: 'No shipment charges are available yet. Add or sync billable activity before invoicing.',
+      status: "NOT_BILLABLE",
+      label: "Not Billable",
+      description:
+        "No shipment charges are available yet. Add or sync billable activity before invoicing.",
       approvedUninvoicedCount,
       blockedCount,
       settledCount,
@@ -69,9 +94,10 @@ function buildBillingReadiness(charges: Array<{ status: string; invoice: { id: s
 
   if (paidCount === charges.length) {
     return {
-      status: 'PAID',
-      label: 'Paid',
-      description: 'All shipment charges linked to this shipment have been settled.',
+      status: "PAID",
+      label: "Paid",
+      description:
+        "All shipment charges linked to this shipment have been settled.",
       approvedUninvoicedCount,
       blockedCount,
       settledCount,
@@ -79,11 +105,16 @@ function buildBillingReadiness(charges: Array<{ status: string; invoice: { id: s
     };
   }
 
-  if (settledCount === charges.length && approvedUninvoicedCount === 0 && blockedCount === 0) {
+  if (
+    settledCount === charges.length &&
+    approvedUninvoicedCount === 0 &&
+    blockedCount === 0
+  ) {
     return {
-      status: 'INVOICED',
-      label: 'Invoiced',
-      description: 'All shipment charges are already tied to invoices or completed payment.',
+      status: "INVOICED",
+      label: "Invoiced",
+      description:
+        "All shipment charges are already tied to invoices or completed payment.",
       approvedUninvoicedCount,
       blockedCount,
       settledCount,
@@ -93,9 +124,9 @@ function buildBillingReadiness(charges: Array<{ status: string; invoice: { id: s
 
   if (approvedUninvoicedCount > 0 && blockedCount === 0) {
     return {
-      status: 'READY_TO_INVOICE',
-      label: 'Ready To Invoice',
-      description: `${approvedUninvoicedCount} approved charge${approvedUninvoicedCount === 1 ? '' : 's'} can be picked up by invoice generation now.`,
+      status: "READY_TO_INVOICE",
+      label: "Ready To Invoice",
+      description: `${approvedUninvoicedCount} approved charge${approvedUninvoicedCount === 1 ? "" : "s"} can be picked up by invoice generation now.`,
       approvedUninvoicedCount,
       blockedCount,
       settledCount,
@@ -104,12 +135,12 @@ function buildBillingReadiness(charges: Array<{ status: string; invoice: { id: s
   }
 
   return {
-    status: 'PARTIALLY_BILLABLE',
-    label: 'Partially Billable',
+    status: "PARTIALLY_BILLABLE",
+    label: "Partially Billable",
     description:
       approvedUninvoicedCount > 0
-        ? `${approvedUninvoicedCount} approved charge${approvedUninvoicedCount === 1 ? '' : 's'} are invoiceable, but ${blockedCount} still need review.`
-        : `${blockedCount} charge${blockedCount === 1 ? '' : 's'} still need review before this shipment becomes invoice-ready.`,
+        ? `${approvedUninvoicedCount} approved charge${approvedUninvoicedCount === 1 ? "" : "s"} are invoiceable, but ${blockedCount} still need review.`
+        : `${blockedCount} charge${blockedCount === 1 ? "" : "s"} still need review before this shipment becomes invoice-ready.`,
     approvedUninvoicedCount,
     blockedCount,
     settledCount,
@@ -117,7 +148,11 @@ function buildBillingReadiness(charges: Array<{ status: string; invoice: { id: s
   };
 }
 
-async function assertShipmentAccess(shipmentId: string, sessionUserId: string, role: string | undefined) {
+async function assertShipmentAccess(
+  shipmentId: string,
+  sessionUserId: string,
+  role: string | undefined,
+) {
   const shipment = await prisma.shipment.findUnique({
     where: { id: shipmentId },
     select: {
@@ -127,12 +162,19 @@ async function assertShipmentAccess(shipmentId: string, sessionUserId: string, r
   });
 
   if (!shipment) {
-    return { error: NextResponse.json({ error: 'Shipment not found' }, { status: 404 }) };
+    return {
+      error: NextResponse.json(
+        { error: "Shipment not found" },
+        { status: 404 },
+      ),
+    };
   }
 
-  const canReadAllShipments = hasPermission(role, 'shipments:read_all');
+  const canReadAllShipments = hasPermission(role, "shipments:read_all");
   if (!canReadAllShipments && shipment.userId !== sessionUserId) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
   }
 
   return { shipment };
@@ -145,12 +187,16 @@ export async function GET(
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const access = await assertShipmentAccess(id, session.user.id, session.user.role);
-    if ('error' in access) {
+    const access = await assertShipmentAccess(
+      id,
+      session.user.id,
+      session.user.role,
+    );
+    if ("error" in access) {
       return access.error;
     }
 
@@ -160,7 +206,7 @@ export async function GET(
       const ledgerEntries = await tx.ledgerEntry.findMany({
         where: {
           shipmentId: id,
-          type: 'DEBIT',
+          type: "DEBIT",
         },
         select: {
           id: true,
@@ -177,7 +223,11 @@ export async function GET(
         },
       });
 
-      await materializeShipmentLedgerCharges(tx, ledgerEntries, fallbackActorId);
+      await materializeShipmentLedgerCharges(
+        tx,
+        ledgerEntries,
+        fallbackActorId,
+      );
     });
 
     const charges = await prisma.shipmentCharge.findMany({
@@ -204,19 +254,18 @@ export async function GET(
             timestamp: true,
           },
           orderBy: {
-            timestamp: 'desc',
+            timestamp: "desc",
           },
         },
       },
-      orderBy: [
-        { billableAt: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ billableAt: "desc" }, { createdAt: "desc" }],
     });
 
     const actorIds = Array.from(
       new Set(
-        charges.flatMap((charge) => charge.auditLogs.map((log) => log.performedBy)).filter(Boolean),
+        charges
+          .flatMap((charge) => charge.auditLogs.map((log) => log.performedBy))
+          .filter(Boolean),
       ),
     );
 
@@ -236,7 +285,10 @@ export async function GET(
       : [];
 
     const actorMap = new Map(
-      actors.map((actor) => [actor.id, actor.name?.trim() || actor.email || actor.id]),
+      actors.map((actor) => [
+        actor.id,
+        actor.name?.trim() || actor.email || actor.id,
+      ]),
     );
 
     const chargesWithActors = charges.map((charge) => ({
@@ -251,15 +303,16 @@ export async function GET(
       (accumulator, charge) => {
         accumulator.total += charge.totalAmount;
 
-        if (charge.status === 'PAID') {
+        if (charge.status === "PAID") {
           accumulator.paid += charge.totalAmount;
-        } else if (charge.status === 'INVOICED') {
+        } else if (charge.status === "INVOICED") {
           accumulator.invoiced += charge.totalAmount;
-        } else if (charge.status === 'APPROVED') {
+        } else if (charge.status === "APPROVED") {
           accumulator.open += charge.totalAmount;
         }
 
-        accumulator.counts[charge.status] = (accumulator.counts[charge.status] || 0) + 1;
+        accumulator.counts[charge.status] =
+          (accumulator.counts[charge.status] || 0) + 1;
         return accumulator;
       },
       {
@@ -278,8 +331,11 @@ export async function GET(
       postIssueDelta: buildPostIssueDelta(chargesWithActors),
     });
   } catch (error) {
-    console.error('Error fetching shipment charges:', error);
-    return NextResponse.json({ error: 'Failed to fetch shipment charges' }, { status: 500 });
+    console.error("Error fetching shipment charges:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch shipment charges" },
+      { status: 500 },
+    );
   }
 }
 
@@ -290,31 +346,47 @@ export async function PATCH(
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!hasAnyPermission(session.user.role, ['shipments:manage', 'invoices:manage', 'finance:manage'])) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (
+      !hasAnyPermission(session.user.role, [
+        "shipments:manage",
+        "invoices:manage",
+        "finance:manage",
+      ])
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { id } = await params;
-    const access = await assertShipmentAccess(id, session.user.id, session.user.role);
-    if ('error' in access) {
+    const access = await assertShipmentAccess(
+      id,
+      session.user.id,
+      session.user.role,
+    );
+    if ("error" in access) {
       return access.error;
     }
 
     const body = (await request.json().catch(() => ({}))) as {
       chargeIds?: string[];
-      status?: 'APPROVED' | 'DISPUTED';
+      status?: "APPROVED" | "DISPUTED";
       note?: string;
     };
 
     if (!Array.isArray(body.chargeIds) || body.chargeIds.length === 0) {
-      return NextResponse.json({ error: 'At least one charge ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "At least one charge ID is required" },
+        { status: 400 },
+      );
     }
 
-    if (body.status !== 'APPROVED' && body.status !== 'DISPUTED') {
-      return NextResponse.json({ error: 'Invalid bulk charge status update' }, { status: 400 });
+    if (body.status !== "APPROVED" && body.status !== "DISPUTED") {
+      return NextResponse.json(
+        { error: "Invalid bulk charge status update" },
+        { status: 400 },
+      );
     }
 
     const trimmedNote = body.note?.trim();
@@ -333,15 +405,20 @@ export async function PATCH(
     });
 
     if (charges.length !== uniqueChargeIds.length) {
-      return NextResponse.json({ error: 'One or more shipment charges were not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: "One or more shipment charges were not found" },
+        { status: 404 },
+      );
     }
 
-    const blockedCharge = charges.find((charge) => charge.invoiceId || !mutableStatuses.has(charge.status));
+    const blockedCharge = charges.find(
+      (charge) => charge.invoiceId || !mutableStatuses.has(charge.status),
+    );
     if (blockedCharge) {
       return NextResponse.json(
         {
           error: blockedCharge.invoiceId
-            ? 'One or more charges are already linked to an invoice.'
+            ? "One or more charges are already linked to an invoice."
             : `Charge cannot be updated while it is ${blockedCharge.status.toLowerCase()}.`,
         },
         { status: 400 },
@@ -350,41 +427,48 @@ export async function PATCH(
 
     const actorId = session.user.id;
     await prisma.$transaction(async (tx) => {
-      for (const charge of charges) {
-        await tx.shipmentCharge.update({
-          where: { id: charge.id },
-          data: {
-            status: body.status,
-            approvedAt: body.status === 'APPROVED' ? new Date() : null,
-            approvedBy: body.status === 'APPROVED' ? actorId : null,
-            notes: trimmedNote,
-          },
-        });
+      // ⚡ Bolt: Replaced sequential database queries inside the loop with efficient updateMany and createMany bulk operations.
+      await tx.shipmentCharge.updateMany({
+        where: { id: { in: uniqueChargeIds } },
+        data: {
+          status: body.status,
+          approvedAt: body.status === "APPROVED" ? new Date() : null,
+          approvedBy: body.status === "APPROVED" ? actorId : null,
+          notes: trimmedNote,
+        },
+      });
 
-        await tx.shipmentChargeAuditLog.create({
-          data: {
-            chargeId: charge.id,
-            action: body.status === 'APPROVED' ? 'BULK_APPROVAL' : 'BULK_DISPUTE',
-            description:
-              body.status === 'APPROVED'
-                ? `Shipment charge approved in bulk: ${charge.description}`
-                : `Shipment charge disputed in bulk: ${charge.description}`,
-            performedBy: actorId,
-            oldValue: charge.status,
-            newValue: body.status,
-            metadata: {
-              mode: 'bulk',
-              chargeIds: uniqueChargeIds,
-              ...(trimmedNote ? { note: trimmedNote } : {}),
-            },
-          },
-        });
-      }
+      const auditLogs = charges.map((charge) => ({
+        chargeId: charge.id,
+        action: body.status === "APPROVED" ? "BULK_APPROVAL" : "BULK_DISPUTE",
+        description:
+          body.status === "APPROVED"
+            ? `Shipment charge approved in bulk: ${charge.description}`
+            : `Shipment charge disputed in bulk: ${charge.description}`,
+        performedBy: actorId,
+        oldValue: charge.status,
+        newValue: body.status,
+        metadata: {
+          mode: "bulk",
+          chargeIds: uniqueChargeIds,
+          ...(trimmedNote ? { note: trimmedNote } : {}),
+        },
+      }));
+
+      await tx.shipmentChargeAuditLog.createMany({
+        data: auditLogs,
+      });
     });
 
-    return NextResponse.json({ success: true, updated: uniqueChargeIds.length });
+    return NextResponse.json({
+      success: true,
+      updated: uniqueChargeIds.length,
+    });
   } catch (error) {
-    console.error('Error bulk updating shipment charges:', error);
-    return NextResponse.json({ error: 'Failed to bulk update shipment charges' }, { status: 500 });
+    console.error("Error bulk updating shipment charges:", error);
+    return NextResponse.json(
+      { error: "Failed to bulk update shipment charges" },
+      { status: 500 },
+    );
   }
 }
