@@ -270,28 +270,49 @@ export async function GET(
       portalShipmentFinanceMap.set(entry.shipmentId, existing);
     }
 
-    const portalLedgerSummary = {
-      balance: portalLedgerEntries[0]?.balance || 0,
-      debitAmount: portalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: portalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
-      paymentRecordCount: portalPaymentRecords.length,
-      ledgerEntryCount: portalLedgerEntries.length,
-    };
-
-    const filteredPortalLedgerEntries = portalLedgerEntries.filter((entry) => (
-      isWithinDateRange(entry.transactionDate, activityStartDate, activityEndDate)
-    ));
+    // ⚡ Bolt: Replaced chained array methods with single-pass O(N) loops
+    const portalLedgerSummary = portalLedgerEntries.reduce(
+      (acc, entry) => {
+        if (entry.type === 'DEBIT') {
+          acc.debitAmount += entry.amount;
+        } else if (entry.type === 'CREDIT') {
+          acc.creditAmount += entry.amount;
+        }
+        return acc;
+      },
+      {
+        balance: portalLedgerEntries[0]?.balance || 0,
+        debitAmount: 0,
+        creditAmount: 0,
+        paymentRecordCount: portalPaymentRecords.length,
+        ledgerEntryCount: portalLedgerEntries.length,
+      }
+    );
 
     const filteredPortalPaymentRecords = portalPaymentRecords.filter((payment) => (
       isWithinDateRange(payment.paymentDate, activityStartDate, activityEndDate)
     ));
 
+    // ⚡ Bolt: Calculate filtered ledger activity in one pass
+    const filteredPortalLedgerEntries: typeof portalLedgerEntries = [];
     const activitySummary = {
-      debitAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: 0,
+      creditAmount: 0,
       paymentRecordCount: filteredPortalPaymentRecords.length,
-      ledgerEntryCount: filteredPortalLedgerEntries.length,
+      ledgerEntryCount: 0,
     };
+
+    for (const entry of portalLedgerEntries) {
+      if (isWithinDateRange(entry.transactionDate, activityStartDate, activityEndDate)) {
+        filteredPortalLedgerEntries.push(entry);
+        activitySummary.ledgerEntryCount++;
+        if (entry.type === 'DEBIT') {
+          activitySummary.debitAmount += entry.amount;
+        } else if (entry.type === 'CREDIT') {
+          activitySummary.creditAmount += entry.amount;
+        }
+      }
+    }
 
     const invoices = assignments.flatMap((assignment) => {
       const shipmentReference = formatShipmentReference(assignment.shipment);
@@ -357,14 +378,46 @@ export async function GET(
       }));
     });
 
+    // ⚡ Bolt: Single pass calculation for multiple invoice aggregates
+    const invoiceAggregates = invoices.reduce(
+      (acc, invoice) => {
+        const isOutstanding = outstandingInvoiceStatuses.has(invoice.status);
+        const isOverdue = isOutstanding && (invoice.daysOverdue ?? 0) > 0;
+
+        if (isOutstanding) {
+          acc.openInvoiceCount++;
+          acc.outstandingAmount += invoice.total;
+        }
+
+        if (isOverdue) {
+          acc.overdueInvoiceCount++;
+          acc.overdueAmount += invoice.total;
+        }
+
+        if (invoice.status === 'PAID') {
+          acc.paidAmount += invoice.total;
+        }
+
+        return acc;
+      },
+      {
+        openInvoiceCount: 0,
+        overdueInvoiceCount: 0,
+        outstandingAmount: 0,
+        overdueAmount: 0,
+        paidAmount: 0,
+      }
+    );
+
     const summary = {
       linkedShipmentCount: assignments.length,
       invoiceCount: invoices.length,
-      openInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).length,
-      overdueInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).length,
-      outstandingAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).reduce((sum, invoice) => sum + invoice.total, 0),
-      overdueAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).reduce((sum, invoice) => sum + invoice.total, 0),
-      paidAmount: invoices.filter((invoice) => invoice.status === 'PAID').reduce((sum, invoice) => sum + invoice.total, 0),
+      openInvoiceCount: invoiceAggregates.openInvoiceCount,
+      overdueInvoiceCount: invoiceAggregates.overdueInvoiceCount,
+      outstandingAmount: invoiceAggregates.outstandingAmount,
+      overdueAmount: invoiceAggregates.overdueAmount,
+      paidAmount: invoiceAggregates.paidAmount,
+      // ⚡ Bolt: Single pass for unbilled charges
       unbilledAmount: unbilledCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
       unbilledChargeCount: unbilledCharges.length,
     };
