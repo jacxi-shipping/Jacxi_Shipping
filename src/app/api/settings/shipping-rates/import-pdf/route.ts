@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { PDFParse } from 'pdf-parse';
+import path from 'path';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import {
@@ -26,17 +26,6 @@ const DEFAULT_SETTINGS = {
   twoFactorEnabled: false,
   language: 'en',
 };
-
-async function extractPdfText(buffer: Buffer) {
-  const parser = new PDFParse({ data: buffer });
-
-  try {
-    const parsed = await parser.getText();
-    return parsed.text.replace(/\s+/g, ' ').trim();
-  } finally {
-    await parser.destroy();
-  }
-}
 
 type PdfTextItem = {
   str: string;
@@ -76,9 +65,14 @@ function findLoadingPoint(items: PdfTextItem[], y: number) {
 
 async function extractAuctionRatesFromPdf(buffer: Buffer) {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = path.join(
+    process.cwd(),
+    'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+  );
   const data = new Uint8Array(buffer);
   const document = await pdfjs.getDocument({ data }).promise;
   const entries: AuctionRateEntry[] = [];
+  const textParts: string[] = [];
   let carryStateCode: string | null = null;
   let carryLoadingPoint: string | null = null;
 
@@ -95,6 +89,7 @@ async function extractAuctionRatesFromPdf(buffer: Buffer) {
         };
       })
       .filter((item) => item.str);
+    textParts.push(...items.map((item) => item.str));
 
     const headers = items
       .map((item) => {
@@ -167,7 +162,10 @@ async function extractAuctionRatesFromPdf(buffer: Buffer) {
 
   await document.destroy();
 
-  return entries;
+  return {
+    entries,
+    text: textParts.join(' ').replace(/\s+/g, ' ').trim(),
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -200,10 +198,7 @@ export async function POST(request: NextRequest) {
     });
     const existingConfig = normalizeShippingRateConfig(existingSettings?.calculatorConfig);
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const [extractedText, auctionRates] = await Promise.all([
-      extractPdfText(fileBuffer),
-      extractAuctionRatesFromPdf(fileBuffer),
-    ]);
+    const { entries: auctionRates, text: extractedText } = await extractAuctionRatesFromPdf(fileBuffer);
     const stateRatesFromAuctionRates = buildStateRatesFromAuctionRates(auctionRates);
     const importedRates = Object.keys(stateRatesFromAuctionRates).length
       ? stateRatesFromAuctionRates
