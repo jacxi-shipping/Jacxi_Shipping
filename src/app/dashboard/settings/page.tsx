@@ -39,6 +39,7 @@ import {
 } from '@/components/design-system';
 import {
   DEFAULT_SHIPPING_RATE_CONFIG,
+  normalizeShippingRateConfig,
   US_STATES,
   type ShippingRateCalculatorConfig,
 } from '@/lib/shipping-rate-calculator';
@@ -170,6 +171,7 @@ export default function SettingsPage() {
         if (settingsRes.ok) {
           const data = await settingsRes.json();
           const values = data.settings;
+          const calculatorConfig = normalizeShippingRateConfig(values.calculatorConfig);
           setSettings(values);
           setSettingsForm({
             theme: values.theme,
@@ -182,9 +184,9 @@ export default function SettingsPage() {
             notifyCriticalSms: values.notifyCriticalSms,
             twoFactorEnabled: values.twoFactorEnabled,
             language: values.language,
-            calculatorConfig: values.calculatorConfig ?? DEFAULT_SHIPPING_RATE_CONFIG,
+            calculatorConfig,
           });
-          setRateConfig(values.calculatorConfig ?? DEFAULT_SHIPPING_RATE_CONFIG);
+          setRateConfig(calculatorConfig);
         }
 
         if (backupRes?.ok) {
