@@ -27,8 +27,7 @@ const DEFAULT_SETTINGS = {
   language: 'en',
 };
 
-async function extractPdfText(file: File) {
-  const buffer = Buffer.from(await file.arrayBuffer());
+async function extractPdfText(buffer: Buffer) {
   const parser = new PDFParse({ data: buffer });
 
   try {
@@ -75,9 +74,9 @@ function findLoadingPoint(items: PdfTextItem[], y: number) {
   return match?.str.trim() || null;
 }
 
-async function extractAuctionRatesFromPdf(file: File) {
+async function extractAuctionRatesFromPdf(buffer: Buffer) {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const data = new Uint8Array(await file.arrayBuffer());
+  const data = new Uint8Array(buffer);
   const document = await pdfjs.getDocument({ data }).promise;
   const entries: AuctionRateEntry[] = [];
   let carryStateCode: string | null = null;
@@ -200,9 +199,10 @@ export async function POST(request: NextRequest) {
       where: { userId: session.user.id },
     });
     const existingConfig = normalizeShippingRateConfig(existingSettings?.calculatorConfig);
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
     const [extractedText, auctionRates] = await Promise.all([
-      extractPdfText(file),
-      extractAuctionRatesFromPdf(file),
+      extractPdfText(fileBuffer),
+      extractAuctionRatesFromPdf(fileBuffer),
     ]);
     const stateRatesFromAuctionRates = buildStateRatesFromAuctionRates(auctionRates);
     const importedRates = Object.keys(stateRatesFromAuctionRates).length
@@ -248,6 +248,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error importing shipping rates from PDF:', error);
-    return NextResponse.json({ message: 'Failed to import PDF rates' }, { status: 500 });
+    return NextResponse.json({
+      message: error instanceof Error ? error.message : 'Failed to import PDF rates',
+    }, { status: 500 });
   }
 }
