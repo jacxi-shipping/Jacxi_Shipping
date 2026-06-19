@@ -17,6 +17,8 @@ import {
   UploadCloud,
   PhoneCall,
   ArrowRight,
+  FileText,
+  DollarSign,
 } from 'lucide-react';
 import { Box, Typography } from '@mui/material';
 
@@ -35,6 +37,11 @@ import {
   Select,
   LoadingState
 } from '@/components/design-system';
+import {
+  DEFAULT_SHIPPING_RATE_CONFIG,
+  US_STATES,
+  type ShippingRateCalculatorConfig,
+} from '@/lib/shipping-rate-calculator';
 
 const DEFAULT_SETTINGS = {
   theme: 'futuristic',
@@ -47,6 +54,7 @@ const DEFAULT_SETTINGS = {
   notifyCriticalSms: false,
   twoFactorEnabled: false,
   language: 'en',
+  calculatorConfig: DEFAULT_SHIPPING_RATE_CONFIG,
 };
 
 type ProfileData = {
@@ -73,6 +81,7 @@ type UserSettingsData = {
   notifyCriticalSms: boolean;
   twoFactorEnabled: boolean;
   language: string;
+  calculatorConfig: ShippingRateCalculatorConfig;
   createdAt: string;
   updatedAt: string;
 };
@@ -118,12 +127,16 @@ export default function SettingsPage() {
     info: null,
   });
   const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [ratePdfFile, setRatePdfFile] = useState<File | null>(null);
+  const [rateConfig, setRateConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
 
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [savingSecurity, setSavingSecurity] = useState(false);
+  const [savingRates, setSavingRates] = useState(false);
+  const [importingRates, setImportingRates] = useState(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -169,7 +182,9 @@ export default function SettingsPage() {
             notifyCriticalSms: values.notifyCriticalSms,
             twoFactorEnabled: values.twoFactorEnabled,
             language: values.language,
+            calculatorConfig: values.calculatorConfig ?? DEFAULT_SHIPPING_RATE_CONFIG,
           });
+          setRateConfig(values.calculatorConfig ?? DEFAULT_SHIPPING_RATE_CONFIG);
         }
 
         if (backupRes?.ok) {
@@ -336,6 +351,74 @@ export default function SettingsPage() {
       toast.error('Failed to restore database');
     } finally {
       setBackupState(prev => ({ ...prev, running: false }));
+    }
+  };
+
+  const handleRateConfigChange = <T extends keyof ShippingRateCalculatorConfig>(
+    field: T,
+    value: ShippingRateCalculatorConfig[T],
+  ) => {
+    setRateConfig(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleStateRateChange = (stateCode: string, value: string) => {
+    const parsed = Number(value);
+    setRateConfig(prev => ({
+      ...prev,
+      stateRates: {
+        ...prev.stateRates,
+        [stateCode]: Number.isFinite(parsed) ? parsed : 0,
+      },
+    }));
+  };
+
+  const handleSaveRates = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingRates(true);
+    try {
+      const response = await fetch('/api/settings/shipping-rates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rateConfig),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || 'Failed to save rate settings');
+      setRateConfig(data.config);
+      setSettingsForm(prev => ({ ...prev, calculatorConfig: data.config }));
+      toast.success('Calculator rates saved');
+    } catch (error) {
+      console.error(error);
+      toast.error('Unable to save calculator rates');
+    } finally {
+      setSavingRates(false);
+    }
+  };
+
+  const handleImportRatesPdf = async () => {
+    if (!ratePdfFile) {
+      toast.error('Select a rate PDF first');
+      return;
+    }
+
+    setImportingRates(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', ratePdfFile);
+      const response = await fetch('/api/settings/shipping-rates/import-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || 'Failed to import PDF rates');
+      setRateConfig(data.config);
+      setSettingsForm(prev => ({ ...prev, calculatorConfig: data.config }));
+      setRatePdfFile(null);
+      toast.success(`Imported ${data.importedAuctionRateCount || data.importedCount} rates from PDF`);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Unable to import PDF rates');
+    } finally {
+      setImportingRates(false);
     }
   };
 
@@ -635,6 +718,95 @@ export default function SettingsPage() {
           </div>
         </DashboardPanel>
       </DashboardGrid>
+
+      {isAdmin ? (
+        <DashboardPanel
+          title="Price Calculator"
+          description="Configure dashboard calculator rates and import state prices from PDF sheets."
+        >
+          <form onSubmit={handleSaveRates} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                label="Destination"
+                value={rateConfig.destinationLabel}
+                onChange={(e) => handleRateConfigChange('destinationLabel', e.target.value)}
+                placeholder="Jebel Ali, UAE"
+              />
+              <FormField
+                label="Fallback Rate"
+                type="number"
+                value={rateConfig.fallbackRate}
+                onChange={(e) => handleRateConfigChange('fallbackRate', Number(e.target.value))}
+                leftIcon={<DollarSign className="w-4 h-4" />}
+              />
+              <FormField
+                label="Currency"
+                value={rateConfig.currency}
+                onChange={(e) => handleRateConfigChange('currency', e.target.value.toUpperCase())}
+                placeholder="USD"
+              />
+            </div>
+
+            <div className="p-4 border border-[var(--border)] rounded-lg bg-[var(--background)]">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <Typography variant="subtitle2" fontWeight="600">Import Rates From PDF</Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Reads rows like CA $1300, California 1300, or similar state/rate pairs.
+                  </Typography>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setRatePdfFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    id="rate-pdf-upload"
+                  />
+                  <label htmlFor="rate-pdf-upload">
+                    <Button component="span" variant="outline" icon={<FileText className="w-4 h-4" />}>
+                      {ratePdfFile ? ratePdfFile.name : 'Select PDF'}
+                    </Button>
+                  </label>
+                  <Button
+                    type="button"
+                    onClick={handleImportRatesPdf}
+                    disabled={!ratePdfFile || importingRates}
+                    loading={importingRates}
+                    variant="primary"
+                  >
+                    Import PDF
+                  </Button>
+                </div>
+              </div>
+              {rateConfig.updatedFromPdfName ? (
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
+                  Last imported from {rateConfig.updatedFromPdfName}
+                </Typography>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {US_STATES.map((state) => (
+                <FormField
+                  key={state.code}
+                  label={`${state.code} Rate`}
+                  type="number"
+                  value={rateConfig.stateRates[state.code] ?? ''}
+                  onChange={(e) => handleStateRateChange(state.code, e.target.value)}
+                  helperText={state.name}
+                />
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={savingRates} loading={savingRates} variant="primary">
+                Save Calculator
+              </Button>
+            </div>
+          </form>
+        </DashboardPanel>
+      ) : null}
     </DashboardSurface>
   );
 }

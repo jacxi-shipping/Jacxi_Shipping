@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { normalizeShippingRateConfig } from '@/lib/shipping-rate-calculator';
 
 const DEFAULT_SETTINGS = {
 	theme: 'futuristic',
@@ -13,6 +15,7 @@ const DEFAULT_SETTINGS = {
 	notifyCriticalSms: false,
 	twoFactorEnabled: false,
 	language: 'en',
+	calculatorConfig: normalizeShippingRateConfig(null),
 };
 
 const sanitizeBoolean = (value: unknown) => {
@@ -66,7 +69,7 @@ export async function PUT(request: NextRequest) {
 
 		const payload = await request.json();
 
-		const updates: Record<string, string | boolean> = {};
+		const updates: Record<string, string | boolean | Prisma.InputJsonValue> = {};
 
 		const theme = sanitizeString(payload.theme);
 		const accentColor = sanitizeString(payload.accentColor);
@@ -84,6 +87,9 @@ export async function PUT(request: NextRequest) {
 		if (accentColor) updates.accentColor = accentColor;
 		if (sidebarDensity) updates.sidebarDensity = sidebarDensity;
 		if (language) updates.language = language;
+		if (payload.calculatorConfig !== undefined) {
+			updates.calculatorConfig = normalizeShippingRateConfig(payload.calculatorConfig) as unknown as Prisma.InputJsonValue;
+		}
 		if (animationsEnabled !== undefined) updates.animationsEnabled = animationsEnabled;
 		if (notifyShipmentEmail !== undefined) updates.notifyShipmentEmail = notifyShipmentEmail;
 		if (notifyShipmentPush !== undefined) updates.notifyShipmentPush = notifyShipmentPush;
@@ -111,5 +117,4 @@ export async function PUT(request: NextRequest) {
 		return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
 	}
 }
-
 

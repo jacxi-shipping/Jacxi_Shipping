@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
     Box, 
     MenuItem, 
@@ -13,71 +13,64 @@ import {
 import { Button } from '@/components/design-system';
 import { Calculator, MapPin, Truck, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Mock Rates Data (Base rates to Jebel Ali)
-const STATE_RATES: Record<string, number> = {
-    'AL': 1100, 'AK': 2500, 'AZ': 1250, 'AR': 1150, 'CA': 1300, 
-    'CO': 1300, 'CT': 950,  'DE': 950,  'FL': 1000, 'GA': 1000,
-    'HI': 2200, 'ID': 1400, 'IL': 1200, 'IN': 1150, 'IA': 1250,
-    'KS': 1250, 'KY': 1100, 'LA': 1100, 'ME': 1100, 'MD': 950,
-    'MA': 950,  'MI': 1200, 'MN': 1300, 'MS': 1100, 'MO': 1200,
-    'MT': 1500, 'NE': 1300, 'NV': 1300, 'NH': 1000, 'NJ': 900,
-    'NM': 1300, 'NY': 900,  'NC': 1000, 'ND': 1400, 'OH': 1100,
-    'OK': 1200, 'OR': 1400, 'PA': 1000, 'RI': 950,  'SC': 1000,
-    'SD': 1400, 'TN': 1100, 'TX': 1050, 'UT': 1350, 'VT': 1000,
-    'VA': 950,  'WA': 1400, 'WV': 1100, 'WI': 1250, 'WY': 1400,
-    'DC': 950
-};
-
-const VEHICLE_TYPES = [
-    { id: 'sedan', label: 'Sedan', multiplier: 1 },
-    { id: 'suv', label: 'SUV / Crossover', multiplier: 1.25 },
-    { id: 'pickup', label: 'Pickup Truck', multiplier: 1.4 },
-    { id: 'motorcycle', label: 'Motorcycle', multiplier: 0.6 },
-    { id: 'van', label: 'Van', multiplier: 1.3 },
-];
-
-const STATES = [
-    { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
-    { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
-    { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'DC', name: 'District Of Columbia' },
-    { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
-    { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
-    { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' },
-    { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
-    { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
-    { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
-    { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' },
-    { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
-    { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
-    { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
-    { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' },
-    { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' },
-    { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' },
-    { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }
-];
+import {
+    type AuctionRateEntry,
+    DEFAULT_SHIPPING_RATE_CONFIG,
+    US_STATES,
+    type ShippingRateCalculatorConfig,
+} from '@/lib/shipping-rate-calculator';
 
 export default function ShipmentCalculator() {
     const [origin, setOrigin] = useState('');
+    const [pickupLocation, setPickupLocation] = useState('');
     const [vehicleType, setVehicleType] = useState('sedan');
     const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
+    const [config, setConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
+
+    const stateAuctionRates = config.auctionRates.filter((rate) => rate.stateCode === origin);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        fetch('/api/settings/shipping-rates', { cache: 'no-store' })
+            .then((response) => response.ok ? response.json() : null)
+            .then((data) => {
+                if (isMounted && data?.config) {
+                    setConfig(data.config);
+                    setVehicleType(data.config.vehicleTypes?.[0]?.id || 'sedan');
+                }
+            })
+            .catch(() => {
+                if (isMounted) setConfig(DEFAULT_SHIPPING_RATE_CONFIG);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleCalculate = () => {
         if (!origin) return;
         
-        const baseRate = STATE_RATES[origin] || 1200; // Default fallback
-        const multiplier = VEHICLE_TYPES.find(v => v.id === vehicleType)?.multiplier || 1;
-        
-        // Add random slight variation to make it look real (optional, but nice)
-        // const variation = Math.floor(Math.random() * 50); 
+        const selectedAuctionRate = pickupLocation
+            ? stateAuctionRates[Number(pickupLocation)]
+            : null;
+        const baseRate = selectedAuctionRate?.total || config.stateRates[origin] || config.fallbackRate;
+        const multiplier = config.vehicleTypes.find(v => v.id === vehicleType)?.multiplier || 1;
         
         setEstimatedCost(Math.round(baseRate * multiplier));
+    };
+
+    const formatAuctionRateLabel = (rate: AuctionRateEntry) => {
+        const location = [rate.branch, rate.city].filter(Boolean).join(' - ');
+        const loadingPoint = rate.loadingPoint ? ` to ${rate.loadingPoint}` : '';
+        return `${location || rate.stateCode}${loadingPoint} (${formatCurrency(rate.total)})`;
     };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: 'USD',
+            currency: config.currency,
             maximumFractionDigits: 0
         }).format(amount);
     };
@@ -121,7 +114,7 @@ export default function ShipmentCalculator() {
                         Quick Rate Calculator
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'var(--text-secondary)' }}>
-                        Instant quote to Jebel Ali (Dubai)
+                        Instant quote to {config.destinationLabel}
                     </Typography>
                 </Box>
             </Box>
@@ -146,7 +139,7 @@ export default function ShipmentCalculator() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <MapPin size={16} className="text-red-500" />
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {origin ? STATES.find(s => s.code === origin)?.name : 'Origin (USA)'}
+                                {origin ? US_STATES.find(s => s.code === origin)?.name : 'Origin (USA)'}
                             </Typography>
                         </Box>
                     </Box>
@@ -158,7 +151,7 @@ export default function ShipmentCalculator() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <MapPin size={16} className="text-green-500" />
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                Jebel Ali, UAE
+                                {config.destinationLabel}
                             </Typography>
                         </Box>
                     </Box>
@@ -172,17 +165,42 @@ export default function ShipmentCalculator() {
                             label="Pickup State"
                             onChange={(e) => {
                                 setOrigin(e.target.value);
+                                setPickupLocation('');
                                 setEstimatedCost(null); // Reset on change
                             }}
                             sx={{ bgcolor: 'var(--background)' }}
                         >
-                            {STATES.map((state) => (
+                            {US_STATES.map((state) => (
                                 <MenuItem key={state.code} value={state.code}>
                                     {state.name} ({state.code})
                                 </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
+
+                    {stateAuctionRates.length > 0 && (
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Pickup Location</InputLabel>
+                            <Select
+                                value={pickupLocation}
+                                label="Pickup Location"
+                                onChange={(e) => {
+                                    setPickupLocation(e.target.value);
+                                    setEstimatedCost(null);
+                                }}
+                                sx={{ bgcolor: 'var(--background)' }}
+                            >
+                                <MenuItem value="">
+                                    Lowest state rate ({formatCurrency(config.stateRates[origin] || config.fallbackRate)})
+                                </MenuItem>
+                                {stateAuctionRates.map((rate, index) => (
+                                    <MenuItem key={`${rate.stateCode}-${rate.branch}-${rate.city}-${index}`} value={String(index)}>
+                                        {formatAuctionRateLabel(rate)}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )}
 
                     <FormControl fullWidth size="small">
                         <InputLabel>Vehicle Type</InputLabel>
@@ -195,7 +213,7 @@ export default function ShipmentCalculator() {
                             }}
                             sx={{ bgcolor: 'var(--background)' }}
                         >
-                            {VEHICLE_TYPES.map((type) => (
+                            {config.vehicleTypes.map((type) => (
                                 <MenuItem key={type.id} value={type.id}>
                                     {type.label}
                                 </MenuItem>
@@ -220,6 +238,7 @@ export default function ShipmentCalculator() {
                         sx={{ display: 'block', textAlign: 'center', mt: 1, color: 'var(--text-secondary)' }}
                     >
                         Rates update daily and include standard handling.
+                        {config.updatedFromPdfName ? ` Last PDF: ${config.updatedFromPdfName}.` : ''}
                     </Typography>
                 </Box>
 
