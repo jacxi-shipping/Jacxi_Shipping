@@ -113,6 +113,20 @@ const formatRelativeTime = (value?: string | null) => {
   return date.toLocaleDateString();
 };
 
+const parseJsonResponse = async (response: Response) => {
+  const text = await response.text();
+
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return {
+      message: text.startsWith('<!DOCTYPE')
+        ? `Server returned an HTML error page with status ${response.status}`
+        : text || `Request failed with status ${response.status}`,
+    };
+  }
+};
+
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -410,7 +424,7 @@ export default function SettingsPage() {
         method: 'POST',
         body: formData,
       });
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
       if (!response.ok) throw new Error(data?.message || 'Failed to import PDF rates');
       setRateConfig(data.config);
       setSettingsForm(prev => ({ ...prev, calculatorConfig: data.config }));

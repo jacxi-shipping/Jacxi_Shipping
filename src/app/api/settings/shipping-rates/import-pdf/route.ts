@@ -11,6 +11,9 @@ import {
   US_STATES,
 } from '@/lib/shipping-rate-calculator';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const DEFAULT_SETTINGS = {
   theme: 'futuristic',
   accentColor: 'var(--accent-gold)',
@@ -184,7 +187,9 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) {
       return NextResponse.json({ message: 'PDF file is required' }, { status: 400 });
     }
-    if (!file.type.includes('pdf')) {
+    const fileName = file.name.toLowerCase();
+    const isPdf = file.type.includes('pdf') || fileName.endsWith('.pdf');
+    if (!isPdf) {
       return NextResponse.json({ message: 'Only PDF files can be imported' }, { status: 400 });
     }
     if (file.size > 8 * 1024 * 1024) {
@@ -237,7 +242,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       config: normalizeShippingRateConfig(settings.calculatorConfig),
       importedRates,
-      importedAuctionRates: auctionRates,
       importedCount: Object.keys(importedRates).length,
       importedAuctionRateCount: auctionRates.length,
       extractedTextPreview: extractedText.slice(0, 700),
