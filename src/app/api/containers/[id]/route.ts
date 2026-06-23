@@ -474,60 +474,64 @@ export async function PATCH(
         routeDeps.logger.error('Failed to create container status notifications:', notificationError);
       }
 
-      // Cascade status to shipments
-      if (validatedData.status === 'LOADED' || validatedData.status === 'IN_TRANSIT') {
-        await routeDeps.prisma.shipment.updateMany({
-          where: { containerId: container.id, transitId: null },
-          data: { status: 'IN_TRANSIT' },
-        });
-      } else if (validatedData.status === 'ARRIVED_PORT') {
-        // When container arrives at port, shipments are available at destination facility.
-        await routeDeps.prisma.shipment.updateMany({
+      try {
+        // Cascade status to shipments
+        if (validatedData.status === 'LOADED' || validatedData.status === 'IN_TRANSIT') {
+          await routeDeps.prisma.shipment.updateMany({
             where: { containerId: container.id, transitId: null },
-            data: { status: 'ON_HAND' },
-        });
-      } else if (validatedData.status === 'RELEASED') {
-        // Released shipments are now eligible for transit assignment.
-        await routeDeps.prisma.shipment.updateMany({
-            where: { containerId: container.id, transitId: null },
-            data: { status: 'RELEASED' },
-        });
+            data: { status: 'IN_TRANSIT' },
+          });
+        } else if (validatedData.status === 'ARRIVED_PORT') {
+          // When container arrives at port, shipments are available at destination facility.
+          await routeDeps.prisma.shipment.updateMany({
+              where: { containerId: container.id, transitId: null },
+              data: { status: 'ON_HAND' },
+          });
+        } else if (validatedData.status === 'RELEASED') {
+          // Released shipments are now eligible for transit assignment.
+          await routeDeps.prisma.shipment.updateMany({
+              where: { containerId: container.id, transitId: null },
+              data: { status: 'RELEASED' },
+          });
 
-        await sendShipmentWorkflowNotifications(
-          session.user.id as string,
-          updatedContainer.shipments
-            .filter((shipment) => shipment.transitId === null)
-            .map((shipment) => ({
-              shipmentId: shipment.id,
-              shipmentUserId: shipment.userId,
-              title: 'Shipment workflow updated',
-              customerDescription: `Your shipment ${buildShipmentLabel(shipment)} has been released from container ${updatedContainer.containerNumber} and is ready for destination transit.`,
-              internalDescription: `Shipment ${buildShipmentLabel(shipment)} was released from container ${updatedContainer.containerNumber}.`,
-              link: `/dashboard/shipments/${shipment.id}`,
-            })),
-          { prisma: routeDeps.prisma, createNotificationsFn: routeDeps.createNotifications },
-        );
-      } else if (validatedData.status === 'CLOSED') {
-        // When container is closed, it means the shipments have been delivered to customers
-        await routeDeps.prisma.shipment.updateMany({
-            where: { containerId: container.id, transitId: null },
-            data: { status: 'DELIVERED' },
-        });
+          await sendShipmentWorkflowNotifications(
+            session.user.id as string,
+            updatedContainer.shipments
+              .filter((shipment) => shipment.transitId === null)
+              .map((shipment) => ({
+                shipmentId: shipment.id,
+                shipmentUserId: shipment.userId,
+                title: 'Shipment workflow updated',
+                customerDescription: `Your shipment ${buildShipmentLabel(shipment)} has been released from container ${updatedContainer.containerNumber} and is ready for destination transit.`,
+                internalDescription: `Shipment ${buildShipmentLabel(shipment)} was released from container ${updatedContainer.containerNumber}.`,
+                link: `/dashboard/shipments/${shipment.id}`,
+              })),
+            { prisma: routeDeps.prisma, createNotificationsFn: routeDeps.createNotifications },
+          );
+        } else if (validatedData.status === 'CLOSED') {
+          // When container is closed, it means the shipments have been delivered to customers
+          await routeDeps.prisma.shipment.updateMany({
+              where: { containerId: container.id, transitId: null },
+              data: { status: 'DELIVERED' },
+          });
 
-        await sendShipmentWorkflowNotifications(
-          session.user.id as string,
-          updatedContainer.shipments
-            .filter((shipment) => shipment.transitId === null)
-            .map((shipment) => ({
-              shipmentId: shipment.id,
-              shipmentUserId: shipment.userId,
-              title: 'Shipment workflow updated',
-              customerDescription: `Your shipment ${buildShipmentLabel(shipment)} has been delivered and the container ${updatedContainer.containerNumber} is now closed.`,
-              internalDescription: `Shipment ${buildShipmentLabel(shipment)} was marked delivered when container ${updatedContainer.containerNumber} was closed.`,
-              link: `/dashboard/shipments/${shipment.id}`,
-            })),
-          { prisma: routeDeps.prisma, createNotificationsFn: routeDeps.createNotifications },
-        );
+          await sendShipmentWorkflowNotifications(
+            session.user.id as string,
+            updatedContainer.shipments
+              .filter((shipment) => shipment.transitId === null)
+              .map((shipment) => ({
+                shipmentId: shipment.id,
+                shipmentUserId: shipment.userId,
+                title: 'Shipment workflow updated',
+                customerDescription: `Your shipment ${buildShipmentLabel(shipment)} has been delivered and the container ${updatedContainer.containerNumber} is now closed.`,
+                internalDescription: `Shipment ${buildShipmentLabel(shipment)} was marked delivered when container ${updatedContainer.containerNumber} was closed.`,
+                link: `/dashboard/shipments/${shipment.id}`,
+              })),
+            { prisma: routeDeps.prisma, createNotificationsFn: routeDeps.createNotifications },
+          );
+        }
+      } catch (statusSideEffectError) {
+        routeDeps.logger.error('Container status updated, but shipment cascade/notifications failed:', statusSideEffectError);
       }
     }
 
@@ -544,9 +548,13 @@ export async function PATCH(
 
     // Bulk create audit logs
     if (auditLogs.length > 0) {
-      await routeDeps.prisma.containerAuditLog.createMany({
-        data: auditLogs,
-      });
+      try {
+        await routeDeps.prisma.containerAuditLog.createMany({
+          data: auditLogs,
+        });
+      } catch (auditError) {
+        routeDeps.logger.error('Container updated, but audit log creation failed:', auditError);
+      }
     }
 
     return NextResponse.json({

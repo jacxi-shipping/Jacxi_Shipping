@@ -374,6 +374,7 @@ export default function ContainerDetailPage() {
 
 	const handleStatusUpdate = async (newStatus: string) => {
 		if (!container) return;
+		if (newStatus === container.status) return;
 		
 		try {
 			setUpdating(true);
@@ -382,12 +383,17 @@ export default function ContainerDetailPage() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ status: newStatus }),
 			});
+			const data = await response.json().catch(() => ({}));
 
 			if (response.ok) {
+				setContainer((current) => current ? {
+					...current,
+					status: data.container?.status || newStatus,
+					progress: typeof data.container?.progress === 'number' ? data.container.progress : current.progress,
+				} : current);
 				toast.success('Status updated successfully');
-				fetchContainer();
+				await fetchContainer();
 			} else {
-				const data = await response.json();
 				toast.error(data.error || 'Failed to update status');
 			}
 		} catch (error) {
