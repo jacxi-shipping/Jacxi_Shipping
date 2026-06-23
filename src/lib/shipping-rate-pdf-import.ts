@@ -1,5 +1,3 @@
-import path from 'path';
-import { pathToFileURL } from 'url';
 import {
   type AuctionRateEntry,
   buildStateRatesFromAuctionRates,
@@ -78,11 +76,11 @@ function findStateHeader(items: PdfTextItem[], item: PdfTextItem) {
 
 export async function extractAuctionRatesFromPdf(buffer: Buffer) {
   await ensurePdfNodePolyfills();
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(path.join(
-    process.cwd(),
-    'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
-  )).href;
+  const [pdfjs, pdfjsWorker] = await Promise.all([
+    import('pdfjs-dist/legacy/build/pdf.mjs'),
+    import('pdfjs-dist/legacy/build/pdf.worker.mjs'),
+  ]);
+  (globalThis as typeof globalThis & { pdfjsWorker?: unknown }).pdfjsWorker = pdfjsWorker;
   const data = new Uint8Array(buffer);
   const document = await pdfjs.getDocument({ data }).promise;
   const entries: AuctionRateEntry[] = [];
