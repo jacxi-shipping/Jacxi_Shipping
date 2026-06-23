@@ -83,6 +83,8 @@ export async function GET(request: NextRequest) {
             take: 1,
             orderBy: { createdAt: 'desc' },
             select: {
+              id: true,
+              name: true,
               importedAuctionRateCount: true,
               importedStateRateCount: true,
               sourceFileName: true,

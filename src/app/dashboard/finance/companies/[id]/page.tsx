@@ -525,6 +525,75 @@ export default function CompanyLedgerDetailPage() {
     setPriceListPreview(null);
   };
 
+  const handleUpdatePreviewRow = (index: number, field: keyof AuctionRateEntry, value: string) => {
+    setPriceListPreview((preview) => {
+      if (!preview) return preview;
+
+      const rows = preview.rows.map((row, rowIndex) => {
+        if (rowIndex !== index) return row;
+
+        return {
+          ...row,
+          [field]: field === 'total' ? Number(value) || 0 : value,
+        };
+      });
+
+      return {
+        ...preview,
+        rows,
+        importedAuctionRateCount: rows.length,
+      };
+    });
+  };
+
+  const handleDeletePreviewRow = (index: number) => {
+    setPriceListPreview((preview) => {
+      if (!preview) return preview;
+      const rows = preview.rows.filter((_, rowIndex) => rowIndex !== index);
+
+      return {
+        ...preview,
+        rows,
+        importedAuctionRateCount: rows.length,
+      };
+    });
+  };
+
+  const downloadPriceListImportReport = () => {
+    if (!priceListPreview) return;
+
+    const rows = [
+      ['File', priceListPreview.fileName],
+      ['List Name', priceListPreview.listName],
+      ['Destination', priceListPreview.destinationLabel],
+      ['Mode', priceListPreview.mode],
+      ['State Rates Found', String(priceListPreview.importedCount)],
+      ['Auction Rows Found', String(priceListPreview.rows.length)],
+      [],
+      ['Warnings'],
+      ...(priceListPreview.warnings.length ? priceListPreview.warnings.map((warning) => [warning]) : [['No warnings']]),
+      [],
+      ['State', 'Branch', 'City', 'Loading Point', 'Total'],
+      ...priceListPreview.rows.map((row) => [
+        row.stateCode,
+        row.branch,
+        row.city,
+        row.loadingPoint || '',
+        String(row.total),
+      ]),
+    ];
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${priceListPreview.listName || 'price-list'}-import-report.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const appendPriceListForm = (body: FormData, action: 'preview' | 'import') => {
     body.append('action', action);
     body.append('mode', priceListForm.mode);
@@ -581,6 +650,7 @@ export default function CompanyLedgerDetailPage() {
       setImportingPriceList(true);
       const body = new FormData();
       body.append('file', priceListFile);
+      body.append('rowsJson', JSON.stringify(priceListPreview.rows));
       appendPriceListForm(body, 'import');
 
       const response = await fetch(`/api/finance/companies/${companyId}/price-list/import-pdf`, {
@@ -1113,6 +1183,13 @@ export default function CompanyLedgerDetailPage() {
           description="Upload and manage the rate sheet used by this company"
         >
           <Box sx={{ display: 'grid', gap: 2.5 }}>
+            <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid rgba(var(--accent-gold-rgb), 0.32)', background: 'rgba(var(--accent-gold-rgb), 0.08)' }}>
+              <Box sx={{ fontWeight: 700, color: 'var(--text-primary)' }}>How to upload</Box>
+              <Box sx={{ mt: 0.5, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                Upload a PDF, CSV, TXT, or XLSX rate sheet with state, branch/city, and total price columns. Preview first, edit or delete rows if needed, then import to create a new active version. Older versions stay in Import History and can be restored.
+              </Box>
+            </Box>
+
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
                 <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Destination</Box>
@@ -1186,10 +1263,10 @@ export default function CompanyLedgerDetailPage() {
             </Box>
 
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, alignItems: { xs: 'stretch', sm: 'center' } }}>
-              <input id="company-price-list-pdf" type="file" accept="application/pdf" onChange={handlePriceListFileChange} style={{ display: 'none' }} />
+              <input id="company-price-list-pdf" type="file" accept=".pdf,.csv,.txt,.xlsx,application/pdf,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handlePriceListFileChange} style={{ display: 'none' }} />
               <label htmlFor="company-price-list-pdf">
                 <Button component="span" variant="outline" icon={<Upload className="w-4 h-4" />}>
-                  {priceListFile ? priceListFile.name : 'Select PDF'}
+                  {priceListFile ? priceListFile.name : 'Select File'}
                 </Button>
               </label>
               <Button variant="outline" onClick={handlePreviewPriceListPdf} disabled={!priceListFile || previewingPriceList || importingPriceList}>
@@ -1215,6 +1292,59 @@ export default function CompanyLedgerDetailPage() {
                     ))}
                   </Box>
                 )}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Box>
+                    <Box sx={{ fontWeight: 700 }}>Preview Rows</Box>
+                    <Box sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Edit state, branch, city, loading point, or total before importing this version.</Box>
+                  </Box>
+                  <Button variant="outline" size="sm" onClick={downloadPriceListImportReport}>
+                    Download Report
+                  </Button>
+                </Box>
+                <Box sx={{ border: '1px solid var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                  <Box sx={{ maxHeight: 380, overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ textAlign: 'left', padding: '10px 12px', minWidth: 90 }}>State</th>
+                          <th style={{ textAlign: 'left', padding: '10px 12px', minWidth: 150 }}>Branch</th>
+                          <th style={{ textAlign: 'left', padding: '10px 12px', minWidth: 150 }}>City</th>
+                          <th style={{ textAlign: 'left', padding: '10px 12px', minWidth: 150 }}>Loading Point</th>
+                          <th style={{ textAlign: 'right', padding: '10px 12px', minWidth: 110 }}>Total</th>
+                          <th style={{ textAlign: 'center', padding: '10px 12px', width: 80 }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {priceListPreview.rows.length > 0 ? priceListPreview.rows.map((row, index) => (
+                          <tr key={`${row.stateCode}-${row.branch}-${row.city}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px 10px' }}>
+                              <TextField size="small" value={row.stateCode} onChange={(event) => handleUpdatePreviewRow(index, 'stateCode', event.target.value.toUpperCase())} inputProps={{ maxLength: 2 }} />
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <TextField size="small" value={row.branch} onChange={(event) => handleUpdatePreviewRow(index, 'branch', event.target.value)} />
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <TextField size="small" value={row.city} onChange={(event) => handleUpdatePreviewRow(index, 'city', event.target.value)} />
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <TextField size="small" value={row.loadingPoint || ''} onChange={(event) => handleUpdatePreviewRow(index, 'loadingPoint', event.target.value)} />
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <TextField size="small" type="number" value={row.total} onChange={(event) => handleUpdatePreviewRow(index, 'total', event.target.value)} inputProps={{ min: 1 }} />
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                              <Button variant="outline" size="sm" onClick={() => handleDeletePreviewRow(index)}>
+                                Delete
+                              </Button>
+                            </td>
+                          </tr>
+                        )) : (
+                          <tr><td colSpan={6} style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>No editable branch/city rows were detected. Check state-level rates above or upload a more detailed file.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </Box>
+                </Box>
               </Box>
             )}
 
@@ -1265,7 +1395,7 @@ export default function CompanyLedgerDetailPage() {
                       </Box>
                     </Box>
                     <Button variant="outline" size="sm" disabled={list.isActive || activatingPriceListId === list.id} onClick={() => void handleActivatePriceList(list.id)}>
-                      {activatingPriceListId === list.id ? 'Activating...' : 'Activate'}
+                      {activatingPriceListId === list.id ? 'Restoring...' : list.isActive ? 'Active' : 'Restore'}
                     </Button>
                   </Box>
                 ))}

@@ -26,9 +26,13 @@ type CompanyRateOption = {
     name: string;
     priceListConfig?: ShippingRateCalculatorConfig | null;
     priceLists?: Array<{
+        id: string;
+        name: string;
         importedAuctionRateCount: number;
         importedStateRateCount: number;
         destinationLabel: string;
+        sourceFileName: string;
+        createdAt: string;
     }>;
 };
 
@@ -43,6 +47,8 @@ export default function ShipmentCalculator() {
     const [companyId, setCompanyId] = useState('');
 
     const stateAuctionRates = config.auctionRates.filter((rate) => rate.stateCode === origin);
+    const selectedCompany = companies.find((company) => company.id === companyId);
+    const activeCompanyPriceList = selectedCompany?.priceLists?.[0];
 
     useEffect(() => {
         let isMounted = true;
@@ -312,8 +318,10 @@ export default function ShipmentCalculator() {
                         variant="caption"
                         sx={{ display: 'block', textAlign: 'center', mt: 1, color: 'var(--text-secondary)' }}
                     >
-                        Rates update daily and include standard handling.
-                        {config.updatedFromPdfName ? ` Last PDF: ${config.updatedFromPdfName}.` : ''}
+                        {activeCompanyPriceList
+                            ? `Using ${activeCompanyPriceList.name} from ${activeCompanyPriceList.sourceFileName}.`
+                            : 'Rates update daily and include standard handling.'}
+                        {!activeCompanyPriceList && config.updatedFromPdfName ? ` Last file: ${config.updatedFromPdfName}.` : ''}
                     </Typography>
                 </Box>
 

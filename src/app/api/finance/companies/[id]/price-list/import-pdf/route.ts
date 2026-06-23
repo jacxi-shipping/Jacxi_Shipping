@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import JSZip from 'jszip';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 import {
   type AuctionRateEntry,
+  buildStateRatesFromAuctionRates,
   normalizeShippingRateConfig,
+  parseShippingRatesFromText,
   US_STATES,
 } from '@/lib/shipping-rate-calculator';
 import { extractAuctionRatesFromPdf, getImportedRatesFromPdfText } from '@/lib/shipping-rate-pdf-import';
@@ -15,6 +18,7 @@ export const runtime = 'nodejs';
 
 const VALID_IMPORT_MODES = new Set(['replace', 'merge', 'add_new']);
 const stateCodes = new Set(US_STATES.map((state) => state.code));
+const stateNames = new Map(US_STATES.map((state) => [state.name.toUpperCase(), state.code]));
 
 type ImportMode = 'replace' | 'merge' | 'add_new';
 
@@ -68,18 +72,202 @@ function buildStateRates(existing: Record<string, number>, imported: Record<stri
 function buildWarnings(importedRates: Record<string, number>, auctionRates: AuctionRateEntry[]) {
   const warnings: string[] = [];
   const importedStateCodes = new Set(Object.keys(importedRates));
-  const missingCommonStates = ['CA', 'TX', 'NJ', 'GA', 'MD'].filter((stateCode) => !importedStateCodes.has(stateCode));
+  const missingCommonStates = ['CA', 'TX', 'NJ', 'GA', 'MD', 'FL', 'NY', 'PA', 'IL', 'OH'].filter((stateCode) => !importedStateCodes.has(stateCode));
   const invalidStates = Object.keys(importedRates).filter((stateCode) => !stateCodes.has(stateCode));
   const unusuallyLow = Object.entries(importedRates).filter(([, rate]) => rate < 500).map(([stateCode]) => stateCode);
   const unusuallyHigh = Object.entries(importedRates).filter(([, rate]) => rate > 6000).map(([stateCode]) => stateCode);
+  const rowKeys = new Map<string, number>();
+  const suspiciousRows = auctionRates
+    .filter((rate) => rate.total < 500 || rate.total > 6000)
+    .map((rate) => `${rate.stateCode} ${rate.branch || rate.city} ${rate.total}`)
+    .slice(0, 8);
+
+  for (const rate of auctionRates) {
+    const key = [
+      rate.stateCode,
+      rate.branch.trim().toLowerCase(),
+      rate.city.trim().toLowerCase(),
+      rate.loadingPoint?.trim().toLowerCase() || '',
+    ].join('|');
+    rowKeys.set(key, (rowKeys.get(key) || 0) + 1);
+  }
+
+  const duplicateLaneCount = [...rowKeys.values()].filter((count) => count > 1).length;
 
   if (missingCommonStates.length) warnings.push(`Missing common lanes: ${missingCommonStates.join(', ')}`);
   if (invalidStates.length) warnings.push(`Unknown states ignored: ${invalidStates.join(', ')}`);
   if (unusuallyLow.length) warnings.push(`Unusually low state rates: ${unusuallyLow.join(', ')}`);
   if (unusuallyHigh.length) warnings.push(`Unusually high state rates: ${unusuallyHigh.join(', ')}`);
+  if (duplicateLaneCount > 0) warnings.push(`${duplicateLaneCount} duplicate lane${duplicateLaneCount === 1 ? '' : 's'} detected. Review before import.`);
+  if (suspiciousRows.length) warnings.push(`Suspicious row totals: ${suspiciousRows.join('; ')}`);
   if (auctionRates.length === 0) warnings.push('No branch/city auction rows were detected; imported state-level rates only.');
 
   return warnings;
+}
+
+function normalizeCell(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function parseAmount(value: string) {
+  const parsed = Number(value.replace(/[$,\s]/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
+}
+
+function resolveStateCode(value: string) {
+  const normalized = normalizeCell(value).toUpperCase();
+  if (stateCodes.has(normalized)) return normalized;
+  return stateNames.get(normalized) ?? null;
+}
+
+function parseCsvLine(line: string) {
+  const cells: string[] = [];
+  let current = '';
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      cells.push(normalizeCell(current));
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(normalizeCell(current));
+  return cells;
+}
+
+function parseDelimitedPriceList(text: string) {
+  const rows = text
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.includes(',') ? parseCsvLine(line) : line.split(/\t+/).map(normalizeCell));
+  const entries: AuctionRateEntry[] = [];
+  const textParts: string[] = [];
+
+  for (const cells of rows) {
+    textParts.push(cells.join(' '));
+    const stateIndex = cells.findIndex((cell) => Boolean(resolveStateCode(cell)));
+    const amountIndex = cells.findIndex((cell) => parseAmount(cell) !== null);
+    if (stateIndex === -1 || amountIndex === -1) continue;
+
+    const stateCode = resolveStateCode(cells[stateIndex]);
+    const total = parseAmount(cells[amountIndex]);
+    if (!stateCode || !total) continue;
+
+    const middle = cells.filter((_, index) => index !== stateIndex && index !== amountIndex);
+    const branch = middle[0] || '';
+    const city = middle[1] || middle[0] || stateCode;
+    const loadingPoint = middle[2] || null;
+
+    entries.push({
+      stateCode,
+      branch,
+      city,
+      loadingPoint,
+      total,
+    });
+  }
+
+  return {
+    entries,
+    text: textParts.join(' ').replace(/\s+/g, ' ').trim(),
+  };
+}
+
+function decodeXmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+async function extractXlsxText(buffer: Buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const sharedXml = await zip.file('xl/sharedStrings.xml')?.async('string');
+  const sharedStrings = sharedXml
+    ? [...sharedXml.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((match) => decodeXmlEntities(match[1]))
+    : [];
+  const sheets = Object.keys(zip.files)
+    .filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name))
+    .sort();
+  const rows: string[] = [];
+
+  for (const sheet of sheets) {
+    const xml = await zip.file(sheet)?.async('string');
+    if (!xml) continue;
+
+    for (const rowMatch of xml.matchAll(/<row[\s\S]*?<\/row>/g)) {
+      const cells: string[] = [];
+      for (const cellMatch of rowMatch[0].matchAll(/<c[^>]*?(?:t="([^"]+)")?[^>]*>([\s\S]*?)<\/c>/g)) {
+        const cellType = cellMatch[1];
+        const body = cellMatch[2];
+        const value = body.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? body.match(/<t[^>]*>([\s\S]*?)<\/t>/)?.[1] ?? '';
+        const decoded = decodeXmlEntities(value);
+        cells.push(cellType === 's' ? sharedStrings[Number(decoded)] || '' : decoded);
+      }
+      if (cells.some(Boolean)) rows.push(cells.join(','));
+    }
+  }
+
+  return rows.join('\n');
+}
+
+function parseOverrideRows(value: FormDataEntryValue | null) {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(String(value)) as unknown;
+    if (!Array.isArray(parsed)) return null;
+
+    return parsed
+      .map((item) => {
+        const row = item && typeof item === 'object' ? item as Partial<AuctionRateEntry> : {};
+        const stateCode = String(row.stateCode || '').trim().toUpperCase();
+        const total = Number(row.total);
+
+        return {
+          stateCode,
+          branch: String(row.branch || '').trim(),
+          city: String(row.city || '').trim(),
+          loadingPoint: row.loadingPoint ? String(row.loadingPoint).trim() : null,
+          total: Number.isFinite(total) ? Math.round(total) : 0,
+        };
+      })
+      .filter((row) => stateCodes.has(row.stateCode) && row.total > 0 && (row.branch || row.city));
+  } catch {
+    return null;
+  }
+}
+
+async function extractPriceListFromFile(file: File, buffer: Buffer) {
+  const fileName = file.name.toLowerCase();
+  if (file.type.includes('pdf') || fileName.endsWith('.pdf')) {
+    return extractAuctionRatesFromPdf(buffer);
+  }
+
+  if (file.type.includes('csv') || file.type.includes('text') || fileName.endsWith('.csv') || fileName.endsWith('.txt')) {
+    return parseDelimitedPriceList(buffer.toString('utf8'));
+  }
+
+  if (fileName.endsWith('.xlsx')) {
+    const text = await extractXlsxText(buffer);
+    return parseDelimitedPriceList(text);
+  }
+
+  return null;
 }
 
 export async function POST(
@@ -118,31 +306,48 @@ export async function POST(
     const file = formData.get('file');
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: 'PDF file is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Price list file is required' }, { status: 400 });
     }
 
     const fileName = file.name.toLowerCase();
-    const isPdf = file.type.includes('pdf') || fileName.endsWith('.pdf');
-    if (!isPdf) {
-      return NextResponse.json({ error: 'Only PDF files can be imported' }, { status: 400 });
+    const isSupportedFile = file.type.includes('pdf')
+      || file.type.includes('csv')
+      || file.type.includes('text')
+      || fileName.endsWith('.pdf')
+      || fileName.endsWith('.csv')
+      || fileName.endsWith('.txt')
+      || fileName.endsWith('.xlsx');
+    if (!isSupportedFile) {
+      return NextResponse.json({ error: 'Only PDF, CSV, TXT, or XLSX price list files can be imported' }, { status: 400 });
     }
 
     if (file.size > 8 * 1024 * 1024) {
-      return NextResponse.json({ error: 'PDF file must be 8MB or smaller' }, { status: 400 });
+      return NextResponse.json({ error: 'Price list file must be 8MB or smaller' }, { status: 400 });
     }
 
     const existingConfig = normalizeShippingRateConfig(company.priceListConfig);
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const { entries: auctionRates, text: extractedText } = await extractAuctionRatesFromPdf(fileBuffer);
-    const importedRates = getImportedRatesFromPdfText(auctionRates, extractedText);
+    const extracted = await extractPriceListFromFile(file, fileBuffer);
+    if (!extracted) {
+      return NextResponse.json({ error: 'Unsupported price list file format.' }, { status: 400 });
+    }
 
-    if (Object.keys(importedRates).length === 0) {
+    const overrideRows = parseOverrideRows(formData.get('rowsJson'));
+    const auctionRates = overrideRows ?? extracted.entries;
+    const extractedText = extracted.text;
+    const importedRates = overrideRows
+      ? buildStateRatesFromAuctionRates(overrideRows)
+      : getImportedRatesFromPdfText(auctionRates, extractedText);
+    const fallbackStateRates = parseShippingRatesFromText(extractedText);
+    const finalImportedRates = Object.keys(importedRates).length ? importedRates : fallbackStateRates;
+
+    if (Object.keys(finalImportedRates).length === 0) {
       return NextResponse.json({
-        error: 'No rates were found in the PDF. Expected the Jacxi branch/city/total table or rows like "CA $1300".',
+        error: 'No rates were found in the file. Expected branch/city/total rows or state rows like "CA $1300".',
       }, { status: 422 });
     }
 
-    const warnings = buildWarnings(importedRates, auctionRates);
+    const warnings = buildWarnings(finalImportedRates, auctionRates);
     const destinationLabel = String(formData.get('destinationLabel') || '').trim()
       || (file.name.toLowerCase().includes('islam qala') ? 'Islam Qala, Afghanistan' : existingConfig.destinationLabel);
     const listName = String(formData.get('name') || '').trim()
@@ -153,7 +358,7 @@ export async function POST(
     const config = normalizeShippingRateConfig({
       ...existingConfig,
       destinationLabel,
-      stateRates: buildStateRates(existingConfig.stateRates, importedRates, mode),
+      stateRates: buildStateRates(existingConfig.stateRates, finalImportedRates, mode),
       auctionRates: mergeAuctionRates(existingConfig.auctionRates, auctionRates, mode),
       updatedFromPdfName: file.name,
       updatedAt: new Date().toISOString(),
@@ -164,13 +369,13 @@ export async function POST(
       mode,
       listName,
       destinationLabel,
-      importedCount: Object.keys(importedRates).length,
+      importedCount: Object.keys(finalImportedRates).length,
       importedAuctionRateCount: auctionRates.length,
       totalStateRateCount: Object.keys(config.stateRates).length,
       totalAuctionRateCount: config.auctionRates.length,
       warnings,
       rows: auctionRates.slice(0, 300),
-      stateRates: importedRates,
+      stateRates: finalImportedRates,
       extractedTextPreview: extractedText.slice(0, 700),
     };
 
@@ -191,7 +396,7 @@ export async function POST(
           sourceFileName: file.name,
           importMode: mode,
           config: config as unknown as Prisma.InputJsonValue,
-          importedStateRateCount: Object.keys(importedRates).length,
+          importedStateRateCount: Object.keys(finalImportedRates).length,
           importedAuctionRateCount: auctionRates.length,
           warnings: warnings as unknown as Prisma.InputJsonValue,
           isActive: true,
@@ -217,8 +422,8 @@ export async function POST(
       priceList,
       config: normalizeShippingRateConfig(updatedCompany.priceListConfig),
       preview,
-      importedRates,
-      importedCount: Object.keys(importedRates).length,
+      importedRates: finalImportedRates,
+      importedCount: Object.keys(finalImportedRates).length,
       importedAuctionRateCount: auctionRates.length,
     });
   } catch (error) {
