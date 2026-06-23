@@ -131,6 +131,7 @@ type AiConnectivityStatus = {
     provider: string;
     model: string | null;
     status: string;
+    reason: string | null;
     createdAt: string;
   } | null;
 };
@@ -755,6 +756,25 @@ export default function SettingsPage() {
                     : 'Run a dashboard brief, document extraction, shipment draft, or connectivity test to create a log.'}
                 </Typography>
               </Box>
+
+              {aiConnectivity?.latestFailure?.reason && (
+                <Box
+                  sx={{
+                    gridColumn: { xs: '1', lg: '1 / -1' },
+                    p: 2,
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    borderRadius: 2,
+                    bgcolor: 'rgba(245, 158, 11, 0.08)',
+                  }}
+                >
+                  <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgb(146, 64, 14)', mb: 0.75 }}>
+                    Latest AI failure reason
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.88rem', color: 'rgb(146, 64, 14)' }}>
+                    {aiConnectivity.latestFailure.reason}
+                  </Typography>
+                </Box>
+              )}
 
               <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: 2, bgcolor: 'var(--background)' }}>
                 <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', mb: 1 }}>

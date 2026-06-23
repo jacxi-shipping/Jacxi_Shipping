@@ -31,6 +31,11 @@ export async function POST(request: NextRequest) {
 		// Verify webhook signature (if your API provides one)
 		const signature = request.headers.get('x-webhook-signature');
 		const webhookSecret = process.env.TRACKING_WEBHOOK_SECRET;
+		const webhookToken = process.env.TRACKING_WEBHOOK_TOKEN?.trim();
+		const isProduction = process.env.NODE_ENV === 'production';
+		const providedToken = request.headers.get('x-webhook-token')?.trim()
+			|| request.nextUrl.searchParams.get('token')?.trim()
+			|| request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
 
 		if (webhookSecret && signature) {
 			const isValid = verifySignature(signature, bodyText, webhookSecret);
@@ -42,6 +47,14 @@ export async function POST(request: NextRequest) {
 			// If secret is configured but signature is missing, reject
 			logger.warn('Missing webhook signature');
 			return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+		} else if (webhookToken) {
+			if (providedToken !== webhookToken) {
+				logger.warn('Invalid tracking webhook token');
+				return NextResponse.json({ error: 'Invalid webhook token' }, { status: 401 });
+			}
+		} else if (isProduction) {
+			logger.error('Tracking webhook rejected because no production webhook secret/token is configured');
+			return NextResponse.json({ error: 'Webhook authentication is not configured' }, { status: 503 });
 		}
 
 		let body;

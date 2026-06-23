@@ -29,34 +29,20 @@ describe('runWithConcurrency', () => {
     assert.ok(maxActive <= 3, `Expected max concurrency <= 3, got ${maxActive}`);
   });
 
-  test('performance: concurrent vs sequential', async () => {
+  test('runs work concurrently when limit is greater than one', async () => {
     const items = Array.from({ length: 5 }, (_, i) => i);
-    const taskDuration = 50; // ms
+    let active = 0;
+    let observedOverlap = false;
 
-    const task = async () => {
-      await new Promise(resolve => setTimeout(resolve, taskDuration));
-    };
+    await runWithConcurrency(items, async () => {
+      active += 1;
+      if (active > 1) {
+        observedOverlap = true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 25));
+      active -= 1;
+    }, 2);
 
-    // Baseline: Sequential execution
-    const startSequential = Date.now();
-    for (const item of items) {
-      await task();
-    }
-    const durationSequential = Date.now() - startSequential;
-
-    // Test: Concurrent execution (concurrency 2)
-    const startConcurrent = Date.now();
-    await runWithConcurrency(items, task, 2);
-    const durationConcurrent = Date.now() - startConcurrent;
-
-    console.log(`Sequential: ${durationSequential}ms`);
-    console.log(`Concurrent (limit 2): ${durationConcurrent}ms`);
-
-    // Sequential should take roughly 5 * 50 = 250ms
-    // Concurrent should take roughly ceil(5/2) * 50 = 3 * 50 = 150ms
-    // Allow some buffer for execution overhead
-
-    assert.ok(durationConcurrent < durationSequential, 'Concurrent execution should be faster');
-    assert.ok(durationConcurrent < (durationSequential * 0.8), 'Concurrent execution should be significantly faster');
+    assert.equal(observedOverlap, true);
   });
 });

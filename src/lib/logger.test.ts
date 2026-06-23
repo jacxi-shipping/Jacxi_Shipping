@@ -5,6 +5,9 @@ import { logger } from './logger.ts';
 describe('Logger', () => {
     let originalConsole: any;
     let originalEnv: string | undefined;
+    const setNodeEnv = (value: string | undefined) => {
+        (process.env as Record<string, string | undefined>).NODE_ENV = value;
+    };
 
     before(() => {
         originalConsole = { ...console };
@@ -25,11 +28,11 @@ describe('Logger', () => {
         console.warn = originalConsole.warn;
         console.error = originalConsole.error;
         console.debug = originalConsole.debug;
-        process.env.NODE_ENV = originalEnv;
+        setNodeEnv(originalEnv);
     });
 
     it('should log info messages correctly in development', (t) => {
-        process.env.NODE_ENV = 'development';
+        setNodeEnv('development');
         const mockInfo = console.info as any;
         mockInfo.mock.resetCalls();
 
@@ -45,7 +48,7 @@ describe('Logger', () => {
     });
 
     it('should log info messages correctly in production', (t) => {
-        process.env.NODE_ENV = 'production';
+        setNodeEnv('production');
         const mockInfo = console.info as any;
         mockInfo.mock.resetCalls();
 
@@ -64,7 +67,7 @@ describe('Logger', () => {
     });
 
     it('should log error messages correctly', (t) => {
-        process.env.NODE_ENV = 'development';
+        setNodeEnv('development');
         const mockError = console.error as any;
         mockError.mock.resetCalls();
 
@@ -80,7 +83,7 @@ describe('Logger', () => {
     });
 
     it('should log warn messages correctly', (t) => {
-        process.env.NODE_ENV = 'development';
+        setNodeEnv('development');
         const mockWarn = console.warn as any;
         mockWarn.mock.resetCalls();
 

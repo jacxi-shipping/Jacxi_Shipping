@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import JSZip from 'jszip';
+import { createCanvas } from '@napi-rs/canvas';
+import { createTokenRouterChatCompletion, isTokenRouterConfigured } from '@/lib/ai/tokenrouter';
 import { ensurePdfNodePolyfills } from '@/lib/pdf-node-polyfills';
 
 export const documentExtractionRequestSchema = z.object({
@@ -36,6 +39,130 @@ function truncateText(value: string, length: number) {
   return value.length > length ? `${value.slice(0, length)}...` : value;
 }
 
+function normalizeExtractedText(value: string) {
+  return truncateText(value.replace(/\s+/g, ' ').trim(), 12000);
+}
+
+function decodeXmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+async function extractDocxText(buffer: Buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const xml = await zip.file('word/document.xml')?.async('string');
+  if (!xml) return '';
+
+  return normalizeExtractedText(
+    [...xml.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)]
+      .map((match) => decodeXmlEntities(match[1]))
+      .join(' '),
+  );
+}
+
+async function extractXlsxText(buffer: Buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const sharedXml = await zip.file('xl/sharedStrings.xml')?.async('string');
+  const sharedStrings = sharedXml
+    ? [...sharedXml.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((match) => decodeXmlEntities(match[1]))
+    : [];
+  const rows: string[] = [];
+
+  for (const name of Object.keys(zip.files).filter((fileName) => /^xl\/worksheets\/sheet\d+\.xml$/.test(fileName)).sort()) {
+    const xml = await zip.file(name)?.async('string');
+    if (!xml) continue;
+
+    for (const rowMatch of xml.matchAll(/<row[\s\S]*?<\/row>/g)) {
+      const cells: string[] = [];
+      for (const cellMatch of rowMatch[0].matchAll(/<c[^>]*?(?:t="([^"]+)")?[^>]*>([\s\S]*?)<\/c>/g)) {
+        const cellType = cellMatch[1];
+        const body = cellMatch[2];
+        const value = body.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? body.match(/<t[^>]*>([\s\S]*?)<\/t>/)?.[1] ?? '';
+        const decoded = decodeXmlEntities(value);
+        cells.push(cellType === 's' ? sharedStrings[Number(decoded)] || '' : decoded);
+      }
+      if (cells.some(Boolean)) rows.push(cells.join(' '));
+    }
+  }
+
+  return normalizeExtractedText(rows.join('\n'));
+}
+
+async function ocrImageDataUrl(dataUrl: string) {
+  if (!isTokenRouterConfigured()) {
+    return '';
+  }
+
+  const completion = await createTokenRouterChatCompletion(
+    [
+      {
+        role: 'system',
+        content: 'You are an OCR engine for shipping documents. Return only the readable text you can see.',
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Extract all readable document text from this image.' },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    { maxTokens: 1200, temperature: 0 },
+  );
+
+  return normalizeExtractedText(completion.content);
+}
+
+async function renderPdfPageImages(buffer: Buffer, maxPages = 2) {
+  await ensurePdfNodePolyfills();
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const document = await pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    disableWorker: true,
+    isEvalSupported: false,
+  } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
+  const images: string[] = [];
+
+  try {
+    const pageCount = Math.min(document.numPages, maxPages);
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1.4 });
+      const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+      const context = canvas.getContext('2d');
+      await page.render({
+        canvas: canvas as unknown as HTMLCanvasElement,
+        canvasContext: context as unknown as CanvasRenderingContext2D,
+        viewport,
+      }).promise;
+      images.push(canvas.toDataURL('image/png'));
+    }
+  } finally {
+    await document.destroy();
+  }
+
+  return images;
+}
+
+async function ocrPdfImages(buffer: Buffer) {
+  if (!isTokenRouterConfigured()) {
+    return '';
+  }
+
+  const pageImages = await renderPdfPageImages(buffer);
+  const pageTexts: string[] = [];
+  for (const image of pageImages) {
+    const text = await ocrImageDataUrl(image).catch(() => '');
+    if (text) pageTexts.push(text);
+  }
+
+  return normalizeExtractedText(pageTexts.join('\n'));
+}
+
 export async function extractDocumentText(fileUrl: string, fileType: string) {
   const response = await fetch(fileUrl, { cache: 'no-store' });
   if (!response.ok) {
@@ -50,15 +177,33 @@ export async function extractDocumentText(fileUrl: string, fileType: string) {
 
     try {
       const parsed = await parser.getText();
-      return truncateText(parsed.text.replace(/\s+/g, ' ').trim(), 12000);
+      const extractedText = normalizeExtractedText(parsed.text);
+      if (extractedText.length > 20) {
+        return extractedText;
+      }
+
+      return await ocrPdfImages(buffer).catch(() => '');
     } finally {
       await parser.destroy();
     }
   }
 
+  if (fileType.includes('image/')) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return await ocrImageDataUrl(`data:${fileType};base64,${buffer.toString('base64')}`).catch(() => '');
+  }
+
+  if (fileType.includes('wordprocessingml.document') || fileType.includes('application/msword')) {
+    return extractDocxText(Buffer.from(await response.arrayBuffer()));
+  }
+
+  if (fileType.includes('spreadsheetml.sheet') || fileType.includes('application/vnd.ms-excel')) {
+    return extractXlsxText(Buffer.from(await response.arrayBuffer()));
+  }
+
   if (fileType.includes('csv') || fileType.includes('text')) {
     const text = await response.text();
-    return truncateText(text.replace(/\s+/g, ' ').trim(), 12000);
+    return normalizeExtractedText(text);
   }
 
   return '';

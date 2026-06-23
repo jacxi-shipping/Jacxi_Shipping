@@ -74,9 +74,10 @@ describe('Export Utilities', () => {
     exportToCSV(data, filename);
 
     assert.ok(createdBlob, 'Blob should be created');
-    assert.strictEqual(createdBlob.type, 'text/csv;charset=utf-8;');
+    const csvBlob = createdBlob as Blob;
+    assert.strictEqual(csvBlob.type, 'text/csv;charset=utf-8;');
 
-    const text = await createdBlob.text();
+    const text = await csvBlob.text();
     assert.ok(text.includes('name,age'), 'Header should be present');
     assert.ok(text.includes('John,30'), 'Data row 1 should be present');
     assert.ok(text.includes('Jane,25'), 'Data row 2 should be present');
@@ -94,7 +95,7 @@ describe('Export Utilities', () => {
 
   it('exportToCSVWithHeaders should use custom headers', async () => {
     const data = [{ name: 'John', age: 30 }, { name: 'Jane', age: 25 }];
-    const headers = [
+    const headers: Array<{ key: 'name' | 'age'; label: string }> = [
       { key: 'name', label: 'Full Name' },
       { key: 'age', label: 'Years' },
     ];

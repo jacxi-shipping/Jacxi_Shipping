@@ -11,7 +11,7 @@ import {
 	InputAdornment,
 	Typography,
 } from '@mui/material';
-import { FileText, Upload } from 'lucide-react';
+import { AlertTriangle, FileText, Upload } from 'lucide-react';
 import { Button, Modal, toast } from '@/components/design-system';
 
 interface AddInvoiceModalProps {
@@ -55,6 +55,7 @@ export default function AddInvoiceModal({
 		fileName: string;
 		confidenceNotes: string;
 		extractedTextPreview: string;
+		failureReason?: string | null;
 		aiInteractionLogId?: string;
 	} | null>(null);
 
@@ -201,6 +202,7 @@ export default function AddInvoiceModal({
 				fileName: file.name,
 				confidenceNotes: extracted.confidenceNotes || 'Please verify the extracted invoice fields before saving.',
 				extractedTextPreview: extracted.extractedTextPreview || 'No extracted text available.',
+				failureReason: extracted.failureReason || null,
 				aiInteractionLogId: extracted.aiInteractionLogId,
 			});
 
@@ -247,7 +249,7 @@ export default function AddInvoiceModal({
 							<Box>
 								<Typography sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>Import From Invoice File</Typography>
 								<Typography sx={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-									Upload a PDF, CSV, or text invoice source to prefill the form before saving.
+									Upload a PDF, image, DOCX, XLSX, CSV, or text invoice source to prefill the form before saving.
 								</Typography>
 							</Box>
 							<Button
@@ -262,7 +264,7 @@ export default function AddInvoiceModal({
 							<input
 								ref={fileInputRef}
 								type="file"
-								accept=".pdf,.csv,.txt,.xls,.xlsx"
+								accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.csv,.txt,.xls,.xlsx"
 								onChange={handleInvoiceImport}
 								hidden
 							/>
@@ -276,6 +278,24 @@ export default function AddInvoiceModal({
 								<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
 									{invoiceSource.extractedTextPreview}
 								</Typography>
+								{invoiceSource.failureReason && (
+									<Box
+										sx={{
+											display: 'flex',
+											alignItems: 'flex-start',
+											gap: 1,
+											p: 1,
+											borderRadius: 1,
+											bgcolor: 'rgba(245, 158, 11, 0.08)',
+											border: '1px solid rgba(245, 158, 11, 0.35)',
+										}}
+									>
+										<AlertTriangle className="w-4 h-4" style={{ color: 'rgb(180, 83, 9)', marginTop: 2 }} />
+										<Typography sx={{ fontSize: '0.78rem', color: 'rgb(146, 64, 14)' }}>
+											{invoiceSource.failureReason}
+										</Typography>
+									</Box>
+								)}
 							</Box>
 						)}
 					</Box>

@@ -22,7 +22,8 @@ import {
   Upload, 
   Download, 
   Trash2, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal, FormField, Select } from '@/components/design-system';
@@ -59,6 +60,7 @@ type ExtractionReview = {
   tags: string[];
   summary: string;
   extractedTextPreview: string;
+  failureReason?: string | null;
   aiInteractionLogId?: string;
 };
 
@@ -129,6 +131,7 @@ export function DocumentManager({
         tags: Array.isArray(extracted.tags) ? extracted.tags : [],
         summary: extracted.summary || 'No summary available.',
         extractedTextPreview: extracted.extractedTextPreview || 'No extracted text available.',
+        failureReason: extracted.failureReason || null,
         aiInteractionLogId: extracted.aiInteractionLogId,
       });
       setReviewTags(Array.isArray(extracted.tags) ? extracted.tags.join(', ') : '');
@@ -424,6 +427,25 @@ export function DocumentManager({
                 {review.extractedTextPreview}
               </Typography>
             </Paper>
+
+            {review.failureReason && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  display: 'flex',
+                  gap: 1,
+                  alignItems: 'flex-start',
+                  bgcolor: 'rgba(245, 158, 11, 0.08)',
+                  borderColor: 'rgba(245, 158, 11, 0.35)',
+                }}
+              >
+                <AlertTriangle className="w-4 h-4" style={{ color: 'rgb(180, 83, 9)', marginTop: 2 }} />
+                <Typography variant="body2" sx={{ color: 'rgb(146, 64, 14)' }}>
+                  {review.failureReason}
+                </Typography>
+              </Paper>
+            )}
 
             <TextField
               size="small"

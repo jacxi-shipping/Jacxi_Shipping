@@ -1,4 +1,5 @@
 import { prisma } from './db';
+import { decryptSecret, encryptSecret } from './secret-crypto';
 
 export const DEFAULT_GEMINI_VOICE_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_GEMINI_LIVE_MODEL = 'gemini-3.1-flash-live-preview';
@@ -32,9 +33,16 @@ export const EMPTY_CALL_AGENT_SETTINGS: CallAgentSettingsValues = {
 };
 
 export const CALL_AGENT_SETTING_KEYS = Object.keys(EMPTY_CALL_AGENT_SETTINGS) as Array<keyof CallAgentSettingsValues>;
+const SECRET_CALL_AGENT_KEYS = new Set<keyof CallAgentSettingsValues>([
+  'twilioAuthToken',
+  'twilioApiSecret',
+  'geminiApiKey',
+  'geminiLiveApiKey',
+]);
 
-function normalizeStoredValue(value: string | null | undefined, fallback = '') {
-  return value?.trim() || fallback;
+function normalizeStoredValue(value: string | null | undefined, fallback = '', isSecret = false) {
+  const normalized = isSecret ? decryptSecret(value) : value?.trim();
+  return normalized || fallback;
 }
 
 export function mapCallAgentSettings(
@@ -42,13 +50,13 @@ export function mapCallAgentSettings(
 ): CallAgentSettingsValues {
   return {
     twilioAccountSid: normalizeStoredValue(record?.twilioAccountSid),
-    twilioAuthToken: normalizeStoredValue(record?.twilioAuthToken),
+    twilioAuthToken: normalizeStoredValue(record?.twilioAuthToken, '', true),
     twilioApiKey: normalizeStoredValue(record?.twilioApiKey),
-    twilioApiSecret: normalizeStoredValue(record?.twilioApiSecret),
+    twilioApiSecret: normalizeStoredValue(record?.twilioApiSecret, '', true),
     twilioPhoneNumber: normalizeStoredValue(record?.twilioPhoneNumber),
     twilioPhoneNumberSid: normalizeStoredValue(record?.twilioPhoneNumberSid),
-    geminiApiKey: normalizeStoredValue(record?.geminiApiKey),
-    geminiLiveApiKey: normalizeStoredValue(record?.geminiLiveApiKey),
+    geminiApiKey: normalizeStoredValue(record?.geminiApiKey, '', true),
+    geminiLiveApiKey: normalizeStoredValue(record?.geminiLiveApiKey, '', true),
     geminiVoiceModel: normalizeStoredValue(record?.geminiVoiceModel, DEFAULT_GEMINI_VOICE_MODEL),
     geminiLiveModel: normalizeStoredValue(record?.geminiLiveModel, DEFAULT_GEMINI_LIVE_MODEL),
   };
@@ -57,16 +65,20 @@ export function mapCallAgentSettings(
 export function toPersistedCallAgentSettingsData(settings: CallAgentSettingsValues) {
   return {
     twilioAccountSid: settings.twilioAccountSid || null,
-    twilioAuthToken: settings.twilioAuthToken || null,
+    twilioAuthToken: encryptSecret(settings.twilioAuthToken),
     twilioApiKey: settings.twilioApiKey || null,
-    twilioApiSecret: settings.twilioApiSecret || null,
+    twilioApiSecret: encryptSecret(settings.twilioApiSecret),
     twilioPhoneNumber: settings.twilioPhoneNumber || null,
     twilioPhoneNumberSid: settings.twilioPhoneNumberSid || null,
-    geminiApiKey: settings.geminiApiKey || null,
-    geminiLiveApiKey: settings.geminiLiveApiKey || null,
+    geminiApiKey: encryptSecret(settings.geminiApiKey),
+    geminiLiveApiKey: encryptSecret(settings.geminiLiveApiKey),
     geminiVoiceModel: settings.geminiVoiceModel || null,
     geminiLiveModel: settings.geminiLiveModel || null,
   };
+}
+
+export function isSecretCallAgentSettingKey(key: keyof CallAgentSettingsValues) {
+  return SECRET_CALL_AGENT_KEYS.has(key);
 }
 
 export async function getStoredCallAgentSettings() {

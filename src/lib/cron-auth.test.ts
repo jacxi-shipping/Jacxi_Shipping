@@ -7,7 +7,7 @@ import { validateCronRequest } from './cron-auth.ts';
 // Assuming node_modules/next/server.js is correctly mocked
 
 describe('validateCronRequest', () => {
-    let originalEnv;
+    let originalEnv: NodeJS.ProcessEnv;
 
     before(() => {
         originalEnv = { ...process.env };

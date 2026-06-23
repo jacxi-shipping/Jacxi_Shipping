@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 
 import { auth } from '@/lib/auth';
 import {
@@ -11,9 +12,11 @@ import {
   getEffectiveGeminiLiveModel,
   getEffectiveGeminiVoiceModel,
   getStoredCallAgentSettings,
+  isSecretCallAgentSettingKey,
   saveStoredCallAgentSettings,
 } from '@/lib/call-agent-settings';
 import { prisma } from '@/lib/db';
+import { createSystemAuditLog, redactSecretAuditFields } from '@/lib/system-audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -355,6 +358,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const settings = await saveStoredCallAgentSettings(partial);
+    const secretKeys = new Set(
+      CALL_AGENT_SETTING_KEYS.filter(isSecretCallAgentSettingKey),
+    ) as Set<string>;
+
+    await createSystemAuditLog({
+      action: 'call-agent-settings-update',
+      entityType: 'CALL_AGENT_SETTINGS',
+      entityId: 'default',
+      actorUserId: session.user.id,
+      summary: `Updated call-agent settings fields: ${Object.keys(partial).join(', ')}`,
+      metadata: {
+        fields: Object.keys(partial),
+        values: redactSecretAuditFields(partial as Record<string, unknown>, secretKeys),
+      } as Prisma.InputJsonValue,
+    }).catch(() => null);
 
     return NextResponse.json(await buildCallAgentResponse(request, settings), { status: 200 });
   } catch (error) {

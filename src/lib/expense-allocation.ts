@@ -1,6 +1,8 @@
-import type { Shipment, ContainerExpense } from '@prisma/client';
+import type { ContainerExpense, Shipment } from '@prisma/client';
 
 export type AllocationMethod = 'EQUAL' | 'BY_VALUE' | 'BY_WEIGHT' | 'CUSTOM';
+type AllocatableShipment = Pick<Shipment, 'id'> & Partial<Pick<Shipment, 'insuranceValue' | 'weight' | 'vehicleYear' | 'vehicleMake' | 'vehicleModel'>>;
+type AllocatableExpense = Pick<ContainerExpense, 'amount'>;
 
 /**
  * Allocate container expenses across shipments based on the specified method
@@ -10,8 +12,8 @@ export type AllocationMethod = 'EQUAL' | 'BY_VALUE' | 'BY_WEIGHT' | 'CUSTOM';
  * @returns Object mapping shipment IDs to their allocated expense amount
  */
 export function allocateExpenses(
-  shipments: Shipment[],
-  expenses: ContainerExpense[],
+  shipments: AllocatableShipment[],
+  expenses: AllocatableExpense[],
   method: AllocationMethod = 'EQUAL'
 ): Record<string, number> {
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -73,8 +75,8 @@ export function allocateExpenses(
  * @returns Summary of allocation with totals and per-shipment breakdown
  */
 export function calculateAllocationSummary(
-  shipments: Shipment[],
-  expenses: ContainerExpense[],
+  shipments: AllocatableShipment[],
+  expenses: AllocatableExpense[],
   method: AllocationMethod = 'EQUAL'
 ) {
   const allocation = allocateExpenses(shipments, expenses, method);
@@ -105,7 +107,7 @@ export function calculateAllocationSummary(
  * @returns Object with valid flag and reason if invalid
  */
 export function validateAllocationMethod(
-  shipments: Shipment[],
+  shipments: AllocatableShipment[],
   method: AllocationMethod
 ): { valid: boolean; reason?: string } {
   if (shipments.length === 0) {

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { normalizeShippingRateConfig } from '@/lib/shipping-rate-calculator';
+import { createSystemAuditLog } from '@/lib/system-audit';
 
 const DEFAULT_SETTINGS = {
 	theme: 'futuristic',
@@ -115,6 +116,18 @@ export async function PUT(request: NextRequest) {
 			},
 			update: updates,
 		});
+
+		await createSystemAuditLog({
+			action: 'settings-update',
+			entityType: 'USER_SETTINGS',
+			entityId: settings.id,
+			actorUserId: session.user.id,
+			summary: `Updated user settings fields: ${Object.keys(updates).join(', ')}`,
+			metadata: {
+				userId: session.user.id,
+				fields: Object.keys(updates),
+			},
+		}).catch(() => null);
 
 		return NextResponse.json({ settings }, { status: 200 });
 	} catch (error) {

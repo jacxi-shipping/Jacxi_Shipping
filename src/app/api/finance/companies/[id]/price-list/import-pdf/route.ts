@@ -4,6 +4,7 @@ import JSZip from 'jszip';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
+import { createSystemAuditLog } from '@/lib/system-audit';
 import {
   type AuctionRateEntry,
   buildStateRatesFromAuctionRates,
@@ -380,6 +381,22 @@ export async function POST(
     };
 
     if (action === 'preview') {
+      await createSystemAuditLog({
+        action: 'price-list-preview',
+        entityType: 'COMPANY',
+        entityId: company.id,
+        actorUserId: session.user.id as string,
+        summary: `Previewed price list ${file.name} for ${company.name}`,
+        metadata: {
+          companyId: company.id,
+          fileName: file.name,
+          mode,
+          importedStateRateCount: Object.keys(finalImportedRates).length,
+          importedAuctionRateCount: auctionRates.length,
+          warnings,
+        },
+      }).catch(() => null);
+
       return NextResponse.json({ preview, config });
     }
 
@@ -416,6 +433,24 @@ export async function POST(
         },
       }),
     ]);
+
+    await createSystemAuditLog({
+      action: 'price-list-import',
+      entityType: 'COMPANY_PRICE_LIST',
+      entityId: priceList.id,
+      actorUserId: session.user.id as string,
+      summary: `Imported and activated price list ${priceList.name} for ${company.name}`,
+      metadata: {
+        companyId: company.id,
+        priceListId: priceList.id,
+        sourceFileName: file.name,
+        mode,
+        destinationLabel,
+        importedStateRateCount: Object.keys(finalImportedRates).length,
+        importedAuctionRateCount: auctionRates.length,
+        warnings,
+      },
+    }).catch(() => null);
 
     return NextResponse.json({
       company: updatedCompany,

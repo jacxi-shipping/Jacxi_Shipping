@@ -15,6 +15,21 @@ import {
 } from '@/lib/ai/document-extraction';
 import { z } from 'zod';
 
+function isTrustedUploadedFileUrl(fileUrl: string, request: NextRequest) {
+  try {
+    const parsedUrl = new URL(fileUrl);
+    const requestUrl = new URL(request.url);
+    const isSameOriginUpload = parsedUrl.origin === requestUrl.origin
+      && (parsedUrl.pathname.startsWith('/uploads/') || parsedUrl.pathname.startsWith('/shipments/'));
+    const isVercelBlobUpload = parsedUrl.hostname.endsWith('blob.vercel-storage.com')
+      && parsedUrl.pathname.startsWith('/shipments/');
+
+    return isSameOriginUpload || isVercelBlobUpload;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -23,6 +38,13 @@ export async function POST(request: NextRequest) {
     }
 
     const parsed = documentExtractionRequestSchema.parse(await request.json());
+    if (!isTrustedUploadedFileUrl(parsed.fileUrl, request)) {
+      return NextResponse.json(
+        { error: 'Document extraction is restricted to trusted uploaded files.' },
+        { status: 400 },
+      );
+    }
+
     const extractedText = await extractDocumentText(parsed.fileUrl, parsed.fileType).catch(() => '');
 
     let result:
@@ -30,6 +52,7 @@ export async function POST(request: NextRequest) {
       | z.infer<typeof documentReviewResponseSchema>;
     let model = parsed.mode === 'invoice-draft' ? 'deterministic-invoice-extraction' : 'deterministic-document-review';
     let source: 'tokenrouter-ai' | 'rules' = 'rules';
+    let failureReason: string | null = extractedText ? null : 'No text could be extracted from the document.';
     let prompt = parsed.mode === 'invoice-draft'
       ? buildInvoiceExtractionPrompt(parsed, extractedText)
       : buildDocumentReviewPrompt(parsed, extractedText);
@@ -58,8 +81,8 @@ export async function POST(request: NextRequest) {
           : documentReviewResponseSchema.parse(extractJsonObject(completion.content));
         model = completion.model;
         source = 'tokenrouter-ai';
-      } catch {
-        // Fallback already set.
+      } catch (aiError) {
+        failureReason = aiError instanceof Error ? aiError.message : 'TokenRouter AI failed; rules fallback was used.';
       }
     }
 
@@ -78,8 +101,12 @@ export async function POST(request: NextRequest) {
         fileType: parsed.fileType,
         entityType: parsed.entityType,
         entityId: parsed.entityId,
+        extractionTextLength: extractedText.length,
       },
-      responsePayload: result,
+      responsePayload: {
+        ...result,
+        failureReason: source === 'rules' ? failureReason : null,
+      },
       status: source === 'tokenrouter-ai' ? 'SUCCESS' : 'FALLBACK',
     });
 
@@ -88,6 +115,7 @@ export async function POST(request: NextRequest) {
       aiInteractionLogId: aiLog.id,
       source,
       model,
+      failureReason: source === 'rules' ? failureReason : null,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

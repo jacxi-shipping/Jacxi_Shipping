@@ -98,6 +98,8 @@ type WorkflowState = {
   ledgerEntries: Array<Record<string, unknown>>;
   companyLedgerEntries: Array<Record<string, unknown>>;
   containerAuditLogs: Array<Record<string, unknown>>;
+  shipmentCharges: Array<Record<string, unknown>>;
+  shipmentChargeAuditLogs: Array<Record<string, unknown>>;
 };
 
 const originalRouteDepFns = {
@@ -133,6 +135,10 @@ const originalRouteDepFns = {
   containerAuditCreateMany: routeDeps.prisma.containerAuditLog.createMany,
   ledgerEntryCreate: routeDeps.prisma.ledgerEntry.create,
   companyLedgerEntryCreate: routeDeps.prisma.companyLedgerEntry.create,
+  shipmentChargeFindFirst: routeDeps.prisma.shipmentCharge.findFirst,
+  shipmentChargeCreate: routeDeps.prisma.shipmentCharge.create,
+  shipmentChargeUpdate: routeDeps.prisma.shipmentCharge.update,
+  shipmentChargeAuditCreate: routeDeps.prisma.shipmentChargeAuditLog.create,
 };
 
 function createState(): WorkflowState {
@@ -247,6 +253,8 @@ function createState(): WorkflowState {
     ledgerEntries: [],
     companyLedgerEntries: [],
     containerAuditLogs: [],
+    shipmentCharges: [],
+    shipmentChargeAuditLogs: [],
   };
 }
 
@@ -347,16 +355,18 @@ function matchesShipmentWhere(shipment: ShipmentState, where: Record<string, unk
 function installRouteMocks(state: WorkflowState) {
   let ledgerId = 1;
   let companyLedgerId = 1;
+  let shipmentChargeId = 1;
+  let shipmentChargeAuditId = 1;
 
-  routeDeps.auth = (async () => ({ user: { id: 'admin-1', role: 'admin' } })) as typeof routeDeps.auth;
-  routeDeps.hasPermission = (() => true) as typeof routeDeps.hasPermission;
-  routeDeps.hasAnyPermission = (() => true) as typeof routeDeps.hasAnyPermission;
-  routeDeps.recalculateUserLedgerBalances = (async () => 0) as typeof routeDeps.recalculateUserLedgerBalances;
-  routeDeps.recalculateCompanyLedgerBalances = (async () => 0) as typeof routeDeps.recalculateCompanyLedgerBalances;
-  routeDeps.createNotifications = (async () => ({ count: 0 })) as typeof routeDeps.createNotifications;
-  routeDeps.logger.info = (() => undefined) as typeof routeDeps.logger.info;
-  routeDeps.logger.error = (() => undefined) as typeof routeDeps.logger.error;
-  routeDeps.prisma.$transaction = (async (callback: (tx: typeof routeDeps.prisma) => Promise<unknown>) => callback(routeDeps.prisma)) as typeof routeDeps.prisma.$transaction;
+  routeDeps.auth = (async () => ({ user: { id: 'admin-1', role: 'admin' } })) as unknown as typeof routeDeps.auth;
+  routeDeps.hasPermission = (() => true) as unknown as typeof routeDeps.hasPermission;
+  routeDeps.hasAnyPermission = (() => true) as unknown as typeof routeDeps.hasAnyPermission;
+  routeDeps.recalculateUserLedgerBalances = (async () => 0) as unknown as typeof routeDeps.recalculateUserLedgerBalances;
+  routeDeps.recalculateCompanyLedgerBalances = (async () => 0) as unknown as typeof routeDeps.recalculateCompanyLedgerBalances;
+  routeDeps.createNotifications = (async () => ({ count: 0 })) as unknown as typeof routeDeps.createNotifications;
+  routeDeps.logger.info = (() => undefined) as unknown as typeof routeDeps.logger.info;
+  routeDeps.logger.error = (() => undefined) as unknown as typeof routeDeps.logger.error;
+  routeDeps.prisma.$transaction = (async (callback: (tx: typeof routeDeps.prisma) => Promise<unknown>) => callback(routeDeps.prisma)) as unknown as typeof routeDeps.prisma.$transaction;
   routeDeps.prisma.$queryRawUnsafe = (async (query: string, ...args: unknown[]) => {
     if (query.includes('COUNT(*)::int AS count')) {
       const token = String(args[0]);
@@ -373,12 +383,12 @@ function installRouteMocks(state: WorkflowState) {
     }
 
     return [];
-  }) as typeof routeDeps.prisma.$queryRawUnsafe;
+  }) as unknown as typeof routeDeps.prisma.$queryRawUnsafe;
   routeDeps.prisma.$executeRawUnsafe = (async (_query: string, token: string, createdAt: Date, _updatedAt: Date, shipmentId: string) => {
     state.shipments[shipmentId].releaseToken = token;
     state.shipments[shipmentId].releaseTokenCreatedAt = createdAt;
     return 1;
-  }) as typeof routeDeps.prisma.$executeRawUnsafe;
+  }) as unknown as typeof routeDeps.prisma.$executeRawUnsafe;
 
   routeDeps.prisma.dispatch.findUnique = (async ({ where, include }: any) => {
     const dispatch = state.dispatches[where.id];
@@ -405,27 +415,27 @@ function installRouteMocks(state: WorkflowState) {
           }
         : {}),
     };
-  }) as typeof routeDeps.prisma.dispatch.findUnique;
+  }) as unknown as typeof routeDeps.prisma.dispatch.findUnique;
   routeDeps.prisma.dispatch.update = (async ({ where, data, include }: any) => {
     const dispatch = state.dispatches[where.id];
     Object.assign(dispatch, data);
     return include?.company
       ? { ...dispatch, company: state.companies[dispatch.companyId] }
       : { ...dispatch };
-  }) as typeof routeDeps.prisma.dispatch.update;
+  }) as unknown as typeof routeDeps.prisma.dispatch.update;
 
-  routeDeps.prisma.company.findUnique = (async ({ where }: { where: { id: string } }) => state.companies[where.id] || null) as typeof routeDeps.prisma.company.findUnique;
+  routeDeps.prisma.company.findUnique = (async ({ where }: { where: { id: string } }) => state.companies[where.id] || null) as unknown as typeof routeDeps.prisma.company.findUnique;
 
-  routeDeps.prisma.shipment.findUnique = (async ({ where }: { where: { id: string } }) => buildShipment(state, where.id)) as typeof routeDeps.prisma.shipment.findUnique;
+  routeDeps.prisma.shipment.findUnique = (async ({ where }: { where: { id: string } }) => buildShipment(state, where.id)) as unknown as typeof routeDeps.prisma.shipment.findUnique;
   routeDeps.prisma.shipment.findMany = (async ({ where }: { where?: Record<string, unknown> }) => {
     return Object.values(state.shipments)
       .filter((shipment) => matchesShipmentWhere(shipment, where))
       .map((shipment) => buildShipment(state, shipment.id));
-  }) as typeof routeDeps.prisma.shipment.findMany;
+  }) as unknown as typeof routeDeps.prisma.shipment.findMany;
   routeDeps.prisma.shipment.update = (async ({ where, data, include }: any) => {
     Object.assign(state.shipments[where.id], data);
     return include?.user ? buildShipment(state, where.id) : buildShipment(state, where.id);
-  }) as typeof routeDeps.prisma.shipment.update;
+  }) as unknown as typeof routeDeps.prisma.shipment.update;
   routeDeps.prisma.shipment.updateMany = (async ({ where, data }: any) => {
     let count = 0;
     for (const shipment of Object.values(state.shipments)) {
@@ -434,13 +444,13 @@ function installRouteMocks(state: WorkflowState) {
       count += 1;
     }
     return { count };
-  }) as typeof routeDeps.prisma.shipment.updateMany;
+  }) as unknown as typeof routeDeps.prisma.shipment.updateMany;
 
-  routeDeps.prisma.container.findUnique = (async ({ where }: { where: { id: string } }) => buildContainer(state, where.id)) as typeof routeDeps.prisma.container.findUnique;
+  routeDeps.prisma.container.findUnique = (async ({ where }: { where: { id: string } }) => buildContainer(state, where.id)) as unknown as typeof routeDeps.prisma.container.findUnique;
   routeDeps.prisma.container.update = (async ({ where, data }: any) => {
     Object.assign(state.containers[where.id], data);
     return buildContainer(state, where.id);
-  }) as typeof routeDeps.prisma.container.update;
+  }) as unknown as typeof routeDeps.prisma.container.update;
 
   routeDeps.prisma.transit.findUnique = (async ({ where, include }: any) => {
     const transit = state.transits[where.id];
@@ -471,7 +481,7 @@ function installRouteMocks(state: WorkflowState) {
           }
         : {}),
     };
-  }) as typeof routeDeps.prisma.transit.findUnique;
+  }) as unknown as typeof routeDeps.prisma.transit.findUnique;
   routeDeps.prisma.transit.update = (async ({ where, data, include }: any) => {
     Object.assign(state.transits[where.id], data);
     const transit = state.transits[where.id];
@@ -485,12 +495,12 @@ function installRouteMocks(state: WorkflowState) {
     }
 
     return { ...transit };
-  }) as typeof routeDeps.prisma.transit.update;
+  }) as unknown as typeof routeDeps.prisma.transit.update;
   routeDeps.prisma.transit.delete = (async ({ where }: any) => {
     const transit = state.transits[where.id];
     delete state.transits[where.id];
     return transit;
-  }) as typeof routeDeps.prisma.transit.delete;
+  }) as unknown as typeof routeDeps.prisma.transit.delete;
   routeDeps.prisma.transitEvent.create = (async ({ data }: any) => {
     const event = {
       id: `te-${state.transitEvents.length + 1}`,
@@ -504,7 +514,7 @@ function installRouteMocks(state: WorkflowState) {
       ...event,
       company: state.companies[event.companyId],
     };
-  }) as typeof routeDeps.prisma.transitEvent.create;
+  }) as unknown as typeof routeDeps.prisma.transitEvent.create;
   routeDeps.prisma.user.findMany = (async ({ where, select }: any) => {
     return Object.values(state.users)
       .filter((user) => {
@@ -524,7 +534,7 @@ function installRouteMocks(state: WorkflowState) {
         }
         return result;
       });
-  }) as typeof routeDeps.prisma.user.findMany;
+  }) as unknown as typeof routeDeps.prisma.user.findMany;
   routeDeps.prisma.userSettings.findMany = (async ({ where, select }: any) => {
     return Object.values(state.userSettings)
       .filter((setting) => {
@@ -542,36 +552,59 @@ function installRouteMocks(state: WorkflowState) {
         }
         return result;
       });
-  }) as typeof routeDeps.prisma.userSettings.findMany;
+  }) as unknown as typeof routeDeps.prisma.userSettings.findMany;
   routeDeps.prisma.dispatchEvent.create = (async ({ data }: any) => {
     const event = { id: `de-${state.dispatchEvents.length + 1}`, createdAt: new Date(), ...data };
     state.dispatchEvents.push(event);
     return event;
-  }) as typeof routeDeps.prisma.dispatchEvent.create;
+  }) as unknown as typeof routeDeps.prisma.dispatchEvent.create;
   routeDeps.prisma.shipmentAuditLog.createMany = (async ({ data }: any) => {
     state.shipmentAuditLogs.push(...data);
     return { count: data.length };
-  }) as typeof routeDeps.prisma.shipmentAuditLog.createMany;
+  }) as unknown as typeof routeDeps.prisma.shipmentAuditLog.createMany;
 
   routeDeps.prisma.containerAuditLog.create = (async ({ data }: any) => {
     state.containerAuditLogs.push(data);
     return data;
-  }) as typeof routeDeps.prisma.containerAuditLog.create;
+  }) as unknown as typeof routeDeps.prisma.containerAuditLog.create;
   routeDeps.prisma.containerAuditLog.createMany = (async ({ data }: any) => {
     state.containerAuditLogs.push(...data);
     return { count: data.length };
-  }) as typeof routeDeps.prisma.containerAuditLog.createMany;
+  }) as unknown as typeof routeDeps.prisma.containerAuditLog.createMany;
 
   routeDeps.prisma.ledgerEntry.create = (async ({ data }: any) => {
     const entry = { id: `le-${ledgerId++}`, ...data };
     state.ledgerEntries.push(entry);
     return entry;
-  }) as typeof routeDeps.prisma.ledgerEntry.create;
+  }) as unknown as typeof routeDeps.prisma.ledgerEntry.create;
   routeDeps.prisma.companyLedgerEntry.create = (async ({ data }: any) => {
     const entry = { id: `cle-${companyLedgerId++}`, ...data };
     state.companyLedgerEntries.push(entry);
     return entry;
-  }) as typeof routeDeps.prisma.companyLedgerEntry.create;
+  }) as unknown as typeof routeDeps.prisma.companyLedgerEntry.create;
+  routeDeps.prisma.shipmentCharge.findFirst = (async ({ where }: any) => {
+    return state.shipmentCharges.find((charge) => (
+      charge.shipmentId === where.shipmentId &&
+      charge.sourceType === where.sourceType &&
+      charge.sourceId === where.sourceId
+    )) || null;
+  }) as unknown as typeof routeDeps.prisma.shipmentCharge.findFirst;
+  routeDeps.prisma.shipmentCharge.create = (async ({ data }: any) => {
+    const charge = { id: `sc-${shipmentChargeId++}`, ...data };
+    state.shipmentCharges.push(charge);
+    return charge;
+  }) as unknown as typeof routeDeps.prisma.shipmentCharge.create;
+  routeDeps.prisma.shipmentCharge.update = (async ({ where, data }: any) => {
+    const charge = state.shipmentCharges.find((item) => item.id === where.id);
+    if (!charge) return null;
+    Object.assign(charge, data);
+    return charge;
+  }) as unknown as typeof routeDeps.prisma.shipmentCharge.update;
+  routeDeps.prisma.shipmentChargeAuditLog.create = (async ({ data }: any) => {
+    const audit = { id: `sca-${shipmentChargeAuditId++}`, ...data };
+    state.shipmentChargeAuditLogs.push(audit);
+    return audit;
+  }) as unknown as typeof routeDeps.prisma.shipmentChargeAuditLog.create;
 }
 
 function request(url: string, method: string, body?: Record<string, unknown>) {
@@ -623,6 +656,10 @@ describe('workflow route integration', () => {
     routeDeps.prisma.containerAuditLog.createMany = originalRouteDepFns.containerAuditCreateMany;
     routeDeps.prisma.ledgerEntry.create = originalRouteDepFns.ledgerEntryCreate;
     routeDeps.prisma.companyLedgerEntry.create = originalRouteDepFns.companyLedgerEntryCreate;
+    routeDeps.prisma.shipmentCharge.findFirst = originalRouteDepFns.shipmentChargeFindFirst;
+    routeDeps.prisma.shipmentCharge.create = originalRouteDepFns.shipmentChargeCreate;
+    routeDeps.prisma.shipmentCharge.update = originalRouteDepFns.shipmentChargeUpdate;
+    routeDeps.prisma.shipmentChargeAuditLog.create = originalRouteDepFns.shipmentChargeAuditCreate;
     mock.restoreAll();
   });
 
@@ -640,7 +677,7 @@ describe('workflow route integration', () => {
   });
 
   it('forbids dispatch assignment without workflow permissions', async () => {
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await postDispatchShipment(
       request('http://localhost/api/dispatches/d1/shipments', 'POST', { shipmentId: 's1' }),
@@ -654,7 +691,7 @@ describe('workflow route integration', () => {
 
   it('blocks adding a shipment to a closed dispatch', async () => {
     state.dispatches.d1.status = 'COMPLETED';
-    routeDeps.auth = (async () => ({ user: { id: 'manager-1', role: 'manager' } })) as typeof routeDeps.auth;
+    routeDeps.auth = (async () => ({ user: { id: 'manager-1', role: 'manager' } })) as unknown as typeof routeDeps.auth;
 
     const response = await postDispatchShipment(
       request('http://localhost/api/dispatches/d1/shipments', 'POST', { shipmentId: 's1' }),
@@ -671,7 +708,7 @@ describe('workflow route integration', () => {
   it('forbids dispatch removal without workflow permissions', async () => {
     state.shipments.s1.dispatchId = 'd1';
     state.shipments.s1.status = 'DISPATCHING';
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await deleteDispatchShipment(
       request('http://localhost/api/dispatches/d1/shipments?shipmentId=s1', 'DELETE'),
@@ -803,7 +840,7 @@ describe('workflow route integration', () => {
   it('forbids receiving a dispatch to yard without permissions', async () => {
     state.shipments.s1.dispatchId = 'd1';
     state.shipments.s1.status = 'DISPATCHING';
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await postDispatchReceive(
       request('http://localhost/api/dispatches/d1/receive', 'POST'),
@@ -819,7 +856,7 @@ describe('workflow route integration', () => {
   it('forbids dispatch handoff without workflow permissions', async () => {
     state.shipments.s1.dispatchId = 'd1';
     state.shipments.s1.status = 'DISPATCHING';
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await postDispatchHandoff(
       request('http://localhost/api/dispatches/d1/handoff', 'POST', { containerId: 'c1', shipmentIds: ['s1'] }),
@@ -851,7 +888,7 @@ describe('workflow route integration', () => {
   });
 
   it('forbids container assignment without workflow permissions', async () => {
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await postContainerShipments(
       request('http://localhost/api/containers/c1/shipments', 'POST', { shipmentIds: ['s1'] }),
@@ -882,7 +919,7 @@ describe('workflow route integration', () => {
     state.shipments.s1.containerId = 'c1';
     state.shipments.s1.status = 'IN_TRANSIT';
     state.containers.c1.currentCount = 1;
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await deleteContainerShipment(
       request('http://localhost/api/containers/c1/shipments?shipmentId=s1', 'DELETE'),
@@ -931,7 +968,7 @@ describe('workflow route integration', () => {
     state.shipments.s1.containerId = 'c1';
     state.shipments.s1.status = 'RELEASED';
     state.containers.c1.status = 'RELEASED';
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await postReleaseToken(new Request('http://localhost/api/shipments/s1/release-token', { method: 'POST' }), {
       params: Promise.resolve({ id: 's1' }),
@@ -968,7 +1005,7 @@ describe('workflow route integration', () => {
     state.shipments.s1.status = 'RELEASED';
     state.shipments.s1.releaseToken = 'REL-TEST-TOKEN';
     state.containers.c1.status = 'RELEASED';
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await postTransitShipment(
       request('http://localhost/api/transits/t1/shipments', 'POST', {
@@ -1007,7 +1044,7 @@ describe('workflow route integration', () => {
     state.shipments.s1.containerId = 'c1';
     state.shipments.s1.transitId = 't1';
     state.shipments.s1.status = 'IN_TRANSIT_TO_DESTINATION';
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await deleteTransitShipment(
       request('http://localhost/api/transits/t1/shipments?shipmentId=s1', 'DELETE'),
@@ -1121,7 +1158,7 @@ describe('workflow route integration', () => {
     state.shipments.s1.containerId = 'c1';
     state.shipments.s1.transitId = 't1';
     state.shipments.s1.status = 'IN_TRANSIT_TO_DESTINATION';
-    routeDeps.hasPermission = (() => false) as typeof routeDeps.hasPermission;
+    routeDeps.hasPermission = (() => false) as unknown as typeof routeDeps.hasPermission;
 
     const response = await postTransitDeliveryConfirmation(
       request('http://localhost/api/transits/t1/confirm-delivery', 'POST', {

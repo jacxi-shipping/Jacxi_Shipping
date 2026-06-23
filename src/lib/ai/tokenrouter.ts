@@ -1,8 +1,15 @@
 const TOKENROUTER_AI_URL = 'https://api.tokenrouter.com/v1/chat/completions';
 
+type ChatMessageContent =
+  | string
+  | Array<
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string } }
+    >;
+
 type ChatMessage = {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: ChatMessageContent;
 };
 
 type ChatCompletionOptions = {

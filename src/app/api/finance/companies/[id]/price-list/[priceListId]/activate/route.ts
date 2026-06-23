@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 import { normalizeShippingRateConfig } from '@/lib/shipping-rate-calculator';
+import { createSystemAuditLog } from '@/lib/system-audit';
 
 export async function POST(
   _request: NextRequest,
@@ -51,6 +52,20 @@ export async function POST(
         },
       }),
     ]);
+
+    await createSystemAuditLog({
+      action: 'price-list-activation',
+      entityType: 'COMPANY_PRICE_LIST',
+      entityId: priceList.id,
+      actorUserId: session.user.id as string,
+      summary: `Activated price list ${priceList.name}`,
+      metadata: {
+        companyId: params.id,
+        priceListId: priceList.id,
+        sourceFileName: priceList.sourceFileName,
+        destinationLabel: priceList.destinationLabel,
+      },
+    }).catch(() => null);
 
     return NextResponse.json({ config });
   } catch (error) {

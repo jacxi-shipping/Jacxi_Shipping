@@ -60,6 +60,8 @@ async function buildAiConnectivityStatus() {
         provider: true,
         model: true,
         status: true,
+        response: true,
+        responsePayload: true,
         createdAt: true,
       },
     }),
@@ -102,11 +104,18 @@ async function buildAiConnectivityStatus() {
       : null,
     latestFailure: latestFailure
       ? {
-          provider: latestFailure.provider,
-          model: latestFailure.model,
-          status: latestFailure.status,
-          createdAt: latestFailure.createdAt.toISOString(),
-        }
+        provider: latestFailure.provider,
+        model: latestFailure.model,
+        status: latestFailure.status,
+        reason:
+          typeof latestFailure.responsePayload === 'object' &&
+          latestFailure.responsePayload &&
+          'error' in latestFailure.responsePayload &&
+          typeof latestFailure.responsePayload.error === 'string'
+            ? latestFailure.responsePayload.error
+            : latestFailure.response || null,
+        createdAt: latestFailure.createdAt.toISOString(),
+      }
       : null,
   };
 }
