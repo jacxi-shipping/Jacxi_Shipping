@@ -204,7 +204,7 @@ export default function AddInvoiceModal({
 				aiInteractionLogId: extracted.aiInteractionLogId,
 			});
 
-			toast.success(extracted.source === 'digitalocean-ai' ? 'Invoice fields extracted' : 'Fallback invoice extraction applied');
+			toast.success(extracted.source === 'rules' ? 'Fallback invoice extraction applied' : 'Invoice fields extracted');
 		} catch (error) {
 			console.error('Invoice import error:', error);
 			toast.error(error instanceof Error ? error.message : 'Failed to import invoice source');

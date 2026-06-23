@@ -55,7 +55,7 @@ type DashboardBriefResult = {
   model: string;
   generatedAt: string;
   mode: DashboardAssistantMode;
-  source: 'digitalocean-ai' | 'rules';
+  source: 'tokenrouter-ai' | 'digitalocean-ai' | 'rules';
   remainingRequests?: number;
 };
 
@@ -183,8 +183,8 @@ export default function DashboardAiBrief({ aiEnabled, payload }: DashboardAiBrie
             />
             <p className="text-xs text-muted-foreground">
               {aiEnabled
-                ? 'DigitalOcean AI is enabled. If the model request fails, the assistant falls back to a rule-based ops summary.'
-                : 'DigitalOcean AI is not configured. The assistant will use the built-in rule-based fallback until DO_AI_API_KEY is set.'}
+                ? 'TokenRouter AI is enabled. If the model request fails, the assistant falls back to a rule-based ops summary.'
+                : 'TokenRouter AI is not configured. The assistant will use the built-in rule-based fallback until TOKENROUTER_API_KEY is set.'}
             </p>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function DashboardAiBrief({ aiEnabled, payload }: DashboardAiBrie
             <span>•</span>
             <span>{result.model}</span>
             <span>•</span>
-            <span>{result.source === 'digitalocean-ai' ? 'AI' : 'Rules fallback'}</span>
+            <span>{result.source === 'rules' ? 'Rules fallback' : 'AI'}</span>
             <span>•</span>
             <span>{new Date(result.generatedAt).toLocaleString()}</span>
             {typeof result.remainingRequests === 'number' && (

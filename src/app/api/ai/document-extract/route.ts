@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { createDigitalOceanChatCompletion } from '@/lib/ai/digitalocean';
+import { createTokenRouterChatCompletion, isTokenRouterConfigured } from '@/lib/ai/tokenrouter';
 import { createAiInteractionLog } from '@/lib/ai/audit';
 import { extractJsonObject } from '@/lib/ai/json';
 import {
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       | z.infer<typeof invoiceDraftResponseSchema>
       | z.infer<typeof documentReviewResponseSchema>;
     let model = parsed.mode === 'invoice-draft' ? 'deterministic-invoice-extraction' : 'deterministic-document-review';
-    let source: 'digitalocean-ai' | 'rules' = 'rules';
+    let source: 'tokenrouter-ai' | 'rules' = 'rules';
     let prompt = parsed.mode === 'invoice-draft'
       ? buildInvoiceExtractionPrompt(parsed, extractedText)
       : buildDocumentReviewPrompt(parsed, extractedText);
@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
       ? buildFallbackInvoiceExtraction(parsed, extractedText)
       : buildFallbackDocumentReview(parsed, extractedText);
 
-    if (process.env.DO_AI_API_KEY && extractedText) {
+    if (isTokenRouterConfigured() && extractedText) {
       try {
-        const completion = await createDigitalOceanChatCompletion(
+        const completion = await createTokenRouterChatCompletion(
           [
             {
               role: 'system',
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
           ? invoiceDraftResponseSchema.parse(extractJsonObject(completion.content))
           : documentReviewResponseSchema.parse(extractJsonObject(completion.content));
         model = completion.model;
-        source = 'digitalocean-ai';
+        source = 'tokenrouter-ai';
       } catch {
         // Fallback already set.
       }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       entityType: parsed.entityType ?? null,
       entityId: parsed.entityId ?? null,
       actorUserId: session.user.id,
-      provider: source === 'digitalocean-ai' ? 'digitalocean-ai' : 'rules',
+      provider: source === 'tokenrouter-ai' ? 'tokenrouter-ai' : 'rules',
       model,
       prompt,
       response: JSON.stringify(result),
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
         entityId: parsed.entityId,
       },
       responsePayload: result,
-      status: source === 'digitalocean-ai' ? 'SUCCESS' : 'FALLBACK',
+      status: source === 'tokenrouter-ai' ? 'SUCCESS' : 'FALLBACK',
     });
 
     return NextResponse.json({

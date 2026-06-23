@@ -99,13 +99,13 @@ export default function AiLogsPage() {
   };
 
   const stats = useMemo(() => {
-    const digitalOceanCount = logs.filter((log) => log.provider === 'digitalocean-ai').length;
-    const fallbackCount = logs.filter((log) => log.provider !== 'digitalocean-ai').length;
+    const tokenRouterCount = logs.filter((log) => log.provider === 'tokenrouter-ai').length;
+    const fallbackCount = logs.filter((log) => log.provider === 'rules').length;
     const failedCount = logs.filter((log) => log.status !== 'SUCCESS').length;
 
     return {
       total: logs.length,
-      digitalOceanCount,
+      tokenRouterCount,
       fallbackCount,
       failedCount,
     };
@@ -162,7 +162,7 @@ export default function AiLogsPage() {
 
         <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           <StatsCard title="Total Logs" value={stats.total} icon={<Bot className="w-5 h-5" />} variant="default" />
-          <StatsCard title="DigitalOcean AI" value={stats.digitalOceanCount} icon={<ShieldCheck className="w-5 h-5" />} variant="success" />
+          <StatsCard title="TokenRouter AI" value={stats.tokenRouterCount} icon={<ShieldCheck className="w-5 h-5" />} variant="success" />
           <StatsCard title="Fallback Runs" value={stats.fallbackCount} icon={<Bot className="w-5 h-5" />} variant="warning" />
           <StatsCard title="Non-Success Status" value={stats.failedCount} icon={<ShieldCheck className="w-5 h-5" />} variant="error" />
         </DashboardGrid>

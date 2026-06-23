@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { createDigitalOceanChatCompletion } from '@/lib/ai/digitalocean';
+import { createTokenRouterChatCompletion, isTokenRouterConfigured } from '@/lib/ai/tokenrouter';
 import { createAiInteractionLog } from '@/lib/ai/audit';
 import {
   buildDashboardAssistantPrompt,
@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
     const parsedRequest = dashboardAssistantRequestSchema.parse(await request.json());
     const prompt = buildDashboardAssistantPrompt(parsedRequest);
     let brief = buildHeuristicDashboardAssistantBrief(parsedRequest);
-    let source: 'digitalocean-ai' | 'rules' = 'rules';
+    let source: 'tokenrouter-ai' | 'rules' = 'rules';
     let model = 'deterministic-ops-fallback';
     let status = 'FALLBACK';
 
-    if (!process.env.DO_AI_API_KEY) {
+    if (!isTokenRouterConfigured()) {
       const aiLog = await createAiInteractionLog({
         feature: 'dashboard-ops-brief',
         entityType: 'DASHBOARD',
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const completion = await createDigitalOceanChatCompletion(
+      const completion = await createTokenRouterChatCompletion(
         [
           {
             role: 'system',
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         },
       );
       brief = completion.content;
-      source = 'digitalocean-ai';
+      source = 'tokenrouter-ai';
       model = completion.model;
       status = 'SUCCESS';
     } catch {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       feature: 'dashboard-ops-brief',
       entityType: 'DASHBOARD',
       actorUserId: session.user.id,
-      provider: source === 'digitalocean-ai' ? 'digitalocean-ai' : 'rules',
+      provider: source === 'tokenrouter-ai' ? 'tokenrouter-ai' : 'rules',
       model,
       prompt,
       response: brief,

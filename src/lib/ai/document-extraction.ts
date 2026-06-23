@@ -64,7 +64,7 @@ export async function extractDocumentText(fileUrl: string, fileType: string) {
 
 export function buildDocumentReviewPrompt(input: z.infer<typeof documentExtractionRequestSchema>, extractedText: string) {
   return `You are extracting metadata for an internal shipping document review workflow.
-Return valid JSON only with keys suggestedName, suggestedCategory, description, tags, summary.
+Return valid JSON only with keys suggestedName, suggestedCategory, description, tags, summary, extractedTextPreview.
 Do not include markdown.
 Use one of these categories when possible: INVOICE, BILL_OF_LADING, CUSTOMS, INSURANCE, TITLE, INSPECTION_REPORT, EXPORT_DOCUMENT, PACKING_LIST, CONTRACT, PHOTO, OTHER.
 
@@ -77,7 +77,7 @@ ${extractedText || 'No text could be extracted from the file.'}`;
 
 export function buildInvoiceExtractionPrompt(input: z.infer<typeof documentExtractionRequestSchema>, extractedText: string) {
   return `You are extracting invoice fields for a review-before-save workflow.
-Return valid JSON only with keys invoiceNumber, amount, currency, vendor, date, dueDate, notes, confidenceNotes.
+Return valid JSON only with keys invoiceNumber, amount, currency, vendor, date, dueDate, notes, confidenceNotes, extractedTextPreview.
 Use ISO date format YYYY-MM-DD when dates are present.
 Set unknown scalar values to empty string and amount to null.
 Do not include markdown.

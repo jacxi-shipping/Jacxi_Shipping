@@ -467,7 +467,7 @@ export default async function DashboardPage() {
         canReadAllInvoices,
         canManageDispatches,
     });
-    const aiEnabled = Boolean(process.env.DO_AI_API_KEY);
+    const aiEnabled = Boolean(process.env.TOKENROUTER_API_KEY);
     const aiBriefPayload = {
         activeShipmentsCount: data.activeShipmentsCount,
         activeContainersCount: data.activeContainersCount,
