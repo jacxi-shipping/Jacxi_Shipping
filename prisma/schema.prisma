@@ -844,6 +844,7 @@ model Company {
   isShipping    Boolean              @default(false)
   isTransit     Boolean              @default(false)
   isActive      Boolean              @default(true)
+  priceListConfig Json                @default("{}")
   createdBy     String?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt

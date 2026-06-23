@@ -19,6 +19,7 @@ import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import type { ShippingRateCalculatorConfig } from '@/lib/shipping-rate-calculator';
 
 interface Company {
   id: string;
@@ -31,6 +32,7 @@ interface Company {
   country: string | null;
   notes: string | null;
   isActive: boolean;
+  priceListConfig?: ShippingRateCalculatorConfig | null;
   _count?: {
     ledgerEntries: number;
     dispatches: number;
@@ -167,6 +169,8 @@ export default function CompanyLedgerDetailPage() {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [priceListFile, setPriceListFile] = useState<File | null>(null);
+  const [importingPriceList, setImportingPriceList] = useState(false);
   const [filters, setFilters] = useState({ search: '', type: '', source: '' });
   const [importForm, setImportForm] = useState({
     category: 'Bank Statement',
@@ -428,6 +432,43 @@ export default function CompanyLedgerDetailPage() {
   const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setImportFile(event.target.files?.[0] || null);
     setImportPreview(null);
+  };
+
+  const handlePriceListFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setPriceListFile(event.target.files?.[0] || null);
+  };
+
+  const handleImportPriceListPdf = async () => {
+    if (!priceListFile) {
+      toast.error('Select a price list PDF first');
+      return;
+    }
+
+    try {
+      setImportingPriceList(true);
+      const body = new FormData();
+      body.append('file', priceListFile);
+
+      const response = await fetch(`/api/finance/companies/${companyId}/price-list/import-pdf`, {
+        method: 'POST',
+        body,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to import company price list');
+      }
+
+      setCompany((prev) => prev ? { ...prev, priceListConfig: data.config } : prev);
+      setPriceListFile(null);
+      toast.success(`Imported ${data.importedAuctionRateCount || data.importedCount} rates for ${company?.name || 'company'}`);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to import company price list');
+    } finally {
+      setImportingPriceList(false);
+    }
   };
 
   const handlePreviewBankCsv = async () => {
@@ -839,6 +880,56 @@ export default function CompanyLedgerDetailPage() {
                 : undefined
             }
           />
+        </DashboardPanel>
+
+        <DashboardPanel
+          title="Company Price List"
+          description="Upload and manage the rate sheet used by this company"
+        >
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) auto' }, gap: 2, alignItems: 'center' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Destination</Box>
+                <Box sx={{ mt: 0.5, fontWeight: 700 }}>{company.priceListConfig?.destinationLabel || 'Not imported'}</Box>
+              </Box>
+              <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>State Rates</Box>
+                <Box sx={{ mt: 0.5, fontWeight: 700 }}>{Object.keys(company.priceListConfig?.stateRates || {}).length}</Box>
+              </Box>
+              <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Auction Rows</Box>
+                <Box sx={{ mt: 0.5, fontWeight: 700 }}>{company.priceListConfig?.auctionRates?.length || 0}</Box>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, alignItems: { xs: 'stretch', sm: 'center' } }}>
+              <input
+                id="company-price-list-pdf"
+                type="file"
+                accept="application/pdf"
+                onChange={handlePriceListFileChange}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="company-price-list-pdf">
+                <Button component="span" variant="outline" icon={<Upload className="w-4 h-4" />}>
+                  {priceListFile ? priceListFile.name : 'Select PDF'}
+                </Button>
+              </label>
+              <Button
+                variant="primary"
+                onClick={handleImportPriceListPdf}
+                disabled={!priceListFile || importingPriceList}
+              >
+                {importingPriceList ? 'Importing...' : 'Import Price List'}
+              </Button>
+            </Box>
+          </Box>
+          {company.priceListConfig?.updatedFromPdfName ? (
+            <Box sx={{ mt: 1.5, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              Last imported from {company.priceListConfig.updatedFromPdfName}
+              {company.priceListConfig.updatedAt ? ` on ${new Date(company.priceListConfig.updatedAt).toLocaleString()}` : ''}
+            </Box>
+          ) : null}
         </DashboardPanel>
 
         {company.companyType === 'SHIPPING' && (
