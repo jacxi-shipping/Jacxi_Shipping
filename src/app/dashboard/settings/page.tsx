@@ -24,7 +24,7 @@ import {
   PlugZap,
   XCircle,
 } from 'lucide-react';
-import { Box, Typography } from '@mui/material';
+import { Box, Tab, Tabs, Typography } from '@mui/material';
 
 import { 
   DashboardSurface, 
@@ -168,6 +168,7 @@ export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAdmin = session?.user?.role === 'admin';
+  const [activeTab, setActiveTab] = useState(0);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [profileForm, setProfileForm] = useState({ name: '', phone: '', address: '', city: '', country: '' });
@@ -545,6 +546,33 @@ export default function SettingsPage() {
     return channels.length ? channels.join(' + ') : 'Disabled';
   }, [settingsForm]);
 
+  const settingsTabs = useMemo(() => {
+    const tabs = [
+      { label: 'Profile', icon: <User className="h-4 w-4" /> },
+      { label: 'Preferences', icon: <Palette className="h-4 w-4" /> },
+      { label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+      { label: isAdmin ? 'Security & Backup' : 'Security', icon: <Shield className="h-4 w-4" /> },
+    ];
+
+    if (isAdmin) {
+      tabs.push(
+        { label: 'AI', icon: <Bot className="h-4 w-4" /> },
+        { label: 'Call Agent', icon: <PhoneCall className="h-4 w-4" /> },
+        { label: 'Price Calculator', icon: <DollarSign className="h-4 w-4" /> },
+      );
+    }
+
+    return tabs;
+  }, [isAdmin]);
+
+  const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
+    return (
+      <div role="tabpanel" hidden={value !== index} id={`settings-tabpanel-${index}`} aria-labelledby={`settings-tab-${index}`}>
+        {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+      </div>
+    );
+  };
+
   if (status === 'loading' || loading) {
     return <LoadingState fullScreen message="Loading settings..." />;
   }
@@ -560,6 +588,67 @@ export default function SettingsPage() {
         description={isAdmin ? 'Manage your profile, preferences, and system configuration' : 'Manage your profile, preferences, and account settings'}
       />
 
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 15,
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          backgroundColor: 'var(--panel)',
+          boxShadow: '0 12px 28px rgba(var(--text-primary-rgb),0.08)',
+          overflow: 'hidden',
+        }}
+      >
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            minHeight: 52,
+            '& .MuiTabs-flexContainer': {
+              gap: 0.25,
+              px: 1,
+            },
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 650,
+              color: 'var(--text-secondary)',
+              minHeight: 52,
+              borderRadius: '10px',
+              my: 0.75,
+              px: 1.5,
+              '&:hover': {
+                color: 'var(--accent-gold)',
+                backgroundColor: 'rgba(var(--accent-gold-rgb), 0.08)',
+              },
+            },
+            '& .Mui-selected': {
+              color: 'var(--accent-gold) !important',
+              backgroundColor: 'rgba(var(--accent-gold-rgb), 0.1)',
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: 'var(--accent-gold)',
+              height: 3,
+            },
+          }}
+        >
+          {settingsTabs.map((tab, index) => (
+            <Tab
+              key={tab.label}
+              id={`settings-tab-${index}`}
+              aria-controls={`settings-tabpanel-${index}`}
+              icon={tab.icon}
+              iconPosition="start"
+              label={tab.label}
+            />
+          ))}
+        </Tabs>
+      </Box>
+
+      <TabPanel value={activeTab} index={5}>
       {isAdmin ? (
         <DashboardPanel
           title="Call Agent"
@@ -583,7 +672,9 @@ export default function SettingsPage() {
           </Box>
         </DashboardPanel>
       ) : null}
+      </TabPanel>
 
+      <TabPanel value={activeTab} index={4}>
       {isAdmin ? (
         <DashboardPanel
           title="AI Connectivity"
@@ -684,7 +775,9 @@ export default function SettingsPage() {
           </div>
         </DashboardPanel>
       ) : null}
+      </TabPanel>
 
+      <TabPanel value={activeTab} index={0}>
       <DashboardGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           icon={<Shield style={{ fontSize: 18 }} />}
@@ -716,9 +809,11 @@ export default function SettingsPage() {
           size="md"
         />
       </DashboardGrid>
+      </TabPanel>
 
       <DashboardGrid className="grid-cols-1 lg:grid-cols-2">
         {/* Profile Section */}
+        {activeTab === 0 ? (
         <DashboardPanel 
           title="Profile & Identity" 
           description="Update your personal information"
@@ -769,8 +864,10 @@ export default function SettingsPage() {
             </div>
           </form>
         </DashboardPanel>
+        ) : null}
 
         {/* Preferences Section */}
+        {activeTab === 1 ? (
         <DashboardPanel 
           title="Interface Preferences" 
           description="Customize your dashboard experience"
@@ -816,8 +913,10 @@ export default function SettingsPage() {
             </div>
           </form>
         </DashboardPanel>
+        ) : null}
 
         {/* Notifications Section */}
+        {activeTab === 2 ? (
         <DashboardPanel 
           title="Notification Rules" 
           description="Manage your alert preferences"
@@ -853,8 +952,10 @@ export default function SettingsPage() {
             </div>
           </form>
         </DashboardPanel>
+        ) : null}
 
         {/* System & Backup */}
+        {activeTab === 3 ? (
         <DashboardPanel 
           title={isAdmin ? 'System & Backup' : 'Security'} 
           description={isAdmin ? 'Database management and security' : 'Account security controls'}
@@ -933,8 +1034,10 @@ export default function SettingsPage() {
             ) : null}
           </div>
         </DashboardPanel>
+        ) : null}
       </DashboardGrid>
 
+      <TabPanel value={activeTab} index={6}>
       {isAdmin ? (
         <DashboardPanel
           title="Price Calculator"
@@ -1023,6 +1126,7 @@ export default function SettingsPage() {
           </form>
         </DashboardPanel>
       ) : null}
+      </TabPanel>
     </DashboardSurface>
   );
 }
