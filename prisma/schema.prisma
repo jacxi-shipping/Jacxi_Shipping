@@ -849,6 +849,7 @@ model Company {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   ledgerEntries CompanyLedgerEntry[]
+  priceLists    CompanyPriceList[]
   dispatches    Dispatch[]
   transits      Transit[]
   transitEvents TransitEvent[]
@@ -858,6 +859,29 @@ model Company {
   @@index([name])
   @@index([isActive])
   @@index([companyType])
+}
+
+model CompanyPriceList {
+  id                       String   @id @default(cuid())
+  companyId                String
+  name                     String
+  destinationLabel         String
+  sourceFileName           String
+  importMode               String
+  config                   Json     @default("{}")
+  importedStateRateCount   Int      @default(0)
+  importedAuctionRateCount Int      @default(0)
+  warnings                 Json     @default("[]")
+  isActive                 Boolean  @default(true)
+  effectiveFrom            DateTime?
+  importedBy               String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  company                  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([isActive])
+  @@index([createdAt])
 }
 
 model CompanyLedgerEntry {

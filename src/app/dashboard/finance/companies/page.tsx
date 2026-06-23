@@ -41,8 +41,16 @@ interface Company {
   currentBalance: number;
   totalDebit: number;
   totalCredit: number;
+  priceLists?: Array<{
+    importedAuctionRateCount: number;
+    importedStateRateCount: number;
+    sourceFileName: string;
+    destinationLabel: string;
+    createdAt: string;
+  }>;
   _count: {
     ledgerEntries: number;
+    priceLists?: number;
   };
 }
 
@@ -295,6 +303,17 @@ export default function CompanyFinancePage() {
         key: 'phone',
         header: 'Contact',
         render: (_, row) => row.phone || row.email || '-',
+      },
+      {
+        key: 'priceLists',
+        header: 'Price List',
+        align: 'center',
+        render: (_, row) => {
+          const activeList = row.priceLists?.[0];
+          if (!activeList) return 'Not uploaded';
+          const rowCount = activeList.importedAuctionRateCount || activeList.importedStateRateCount;
+          return `${rowCount} rows`;
+        },
       },
       {
         key: 'totalDebit',

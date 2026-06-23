@@ -75,6 +75,19 @@ export async function GET(request: NextRequest) {
           _count: {
             select: {
               ledgerEntries: true,
+              priceLists: true,
+            },
+          },
+          priceLists: {
+            where: { isActive: true },
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            select: {
+              importedAuctionRateCount: true,
+              importedStateRateCount: true,
+              sourceFileName: true,
+              destinationLabel: true,
+              createdAt: true,
             },
           },
           ledgerEntries: {

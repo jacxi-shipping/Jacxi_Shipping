@@ -146,6 +146,23 @@ export async function GET(
             transits: true,
           },
         },
+        priceLists: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            name: true,
+            destinationLabel: true,
+            sourceFileName: true,
+            importMode: true,
+            importedStateRateCount: true,
+            importedAuctionRateCount: true,
+            warnings: true,
+            isActive: true,
+            effectiveFrom: true,
+            createdAt: true,
+          },
+        },
       },
     });
 

@@ -19,7 +19,9 @@ import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
-import type { ShippingRateCalculatorConfig } from '@/lib/shipping-rate-calculator';
+import type { AuctionRateEntry, ShippingRateCalculatorConfig } from '@/lib/shipping-rate-calculator';
+
+type PriceListImportMode = 'replace' | 'merge' | 'add_new';
 
 interface Company {
   id: string;
@@ -33,6 +35,7 @@ interface Company {
   notes: string | null;
   isActive: boolean;
   priceListConfig?: ShippingRateCalculatorConfig | null;
+  priceLists?: CompanyPriceListSummary[];
   _count?: {
     ledgerEntries: number;
     dispatches: number;
@@ -109,6 +112,35 @@ interface LedgerEntry {
   };
 }
 
+interface CompanyPriceListSummary {
+  id: string;
+  name: string;
+  destinationLabel: string;
+  sourceFileName: string;
+  importMode: string;
+  importedStateRateCount: number;
+  importedAuctionRateCount: number;
+  warnings: string[] | null;
+  isActive: boolean;
+  effectiveFrom: string | null;
+  createdAt: string;
+}
+
+interface PriceListPreview {
+  fileName: string;
+  mode: PriceListImportMode;
+  listName: string;
+  destinationLabel: string;
+  importedCount: number;
+  importedAuctionRateCount: number;
+  totalStateRateCount: number;
+  totalAuctionRateCount: number;
+  warnings: string[];
+  rows: AuctionRateEntry[];
+  stateRates: Record<string, number>;
+  extractedTextPreview: string;
+}
+
 interface ImportPreviewRow {
   transactionDate: string;
   description: string;
@@ -170,7 +202,17 @@ export default function CompanyLedgerDetailPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [priceListFile, setPriceListFile] = useState<File | null>(null);
+  const [previewingPriceList, setPreviewingPriceList] = useState(false);
   const [importingPriceList, setImportingPriceList] = useState(false);
+  const [priceListPreview, setPriceListPreview] = useState<PriceListPreview | null>(null);
+  const [priceListSearch, setPriceListSearch] = useState('');
+  const [activatingPriceListId, setActivatingPriceListId] = useState<string | null>(null);
+  const [priceListForm, setPriceListForm] = useState({
+    name: '',
+    destinationLabel: '',
+    effectiveFrom: '',
+    mode: 'merge' as PriceListImportMode,
+  });
   const [filters, setFilters] = useState({ search: '', type: '', source: '' });
   const [importForm, setImportForm] = useState({
     category: 'Bank Statement',
@@ -211,6 +253,27 @@ export default function CompanyLedgerDetailPage() {
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+
+  const activePriceListRows = useMemo(() => {
+    const rows = company?.priceListConfig?.auctionRates || [];
+    const query = priceListSearch.trim().toLowerCase();
+    if (!query) return rows.slice(0, 200);
+
+    return rows
+      .filter((row) => [
+        row.stateCode,
+        row.branch,
+        row.city,
+        row.loadingPoint || '',
+        String(row.total),
+      ].join(' ').toLowerCase().includes(query))
+      .slice(0, 200);
+  }, [company?.priceListConfig?.auctionRates, priceListSearch]);
+
+  const activePriceListWarnings = useMemo(() => {
+    const activeList = company?.priceLists?.find((list) => list.isActive);
+    return Array.isArray(activeList?.warnings) ? activeList.warnings : [];
+  }, [company?.priceLists]);
 
   const isExpenseRecoveryEntry = (row: LedgerEntry) => {
     const category = (row.category || '').toLowerCase();
@@ -436,18 +499,28 @@ export default function CompanyLedgerDetailPage() {
 
   const handlePriceListFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setPriceListFile(event.target.files?.[0] || null);
+    setPriceListPreview(null);
   };
 
-  const handleImportPriceListPdf = async () => {
+  const appendPriceListForm = (body: FormData, action: 'preview' | 'import') => {
+    body.append('action', action);
+    body.append('mode', priceListForm.mode);
+    body.append('name', priceListForm.name.trim());
+    body.append('destinationLabel', priceListForm.destinationLabel.trim());
+    body.append('effectiveFrom', priceListForm.effectiveFrom);
+  };
+
+  const handlePreviewPriceListPdf = async () => {
     if (!priceListFile) {
       toast.error('Select a price list PDF first');
       return;
     }
 
     try {
-      setImportingPriceList(true);
+      setPreviewingPriceList(true);
       const body = new FormData();
       body.append('file', priceListFile);
+      appendPriceListForm(body, 'preview');
 
       const response = await fetch(`/api/finance/companies/${companyId}/price-list/import-pdf`, {
         method: 'POST',
@@ -460,14 +533,75 @@ export default function CompanyLedgerDetailPage() {
         throw new Error(data.error || 'Failed to import company price list');
       }
 
-      setCompany((prev) => prev ? { ...prev, priceListConfig: data.config } : prev);
+      setPriceListPreview(data.preview as PriceListPreview);
+      toast.success('Price list preview ready');
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to preview company price list');
+    } finally {
+      setPreviewingPriceList(false);
+    }
+  };
+
+  const handleImportPriceListPdf = async () => {
+    if (!priceListFile) {
+      toast.error('Select a price list PDF first');
+      return;
+    }
+
+    if (!priceListPreview) {
+      toast.error('Preview the price list before importing');
+      return;
+    }
+
+    try {
+      setImportingPriceList(true);
+      const body = new FormData();
+      body.append('file', priceListFile);
+      appendPriceListForm(body, 'import');
+
+      const response = await fetch(`/api/finance/companies/${companyId}/price-list/import-pdf`, {
+        method: 'POST',
+        body,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to import company price list');
+      }
+
       setPriceListFile(null);
+      setPriceListPreview(null);
+      await fetchCompany();
       toast.success(`Imported ${data.importedAuctionRateCount || data.importedCount} rates for ${company?.name || 'company'}`);
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : 'Failed to import company price list');
     } finally {
       setImportingPriceList(false);
+    }
+  };
+
+  const handleActivatePriceList = async (priceListId: string) => {
+    try {
+      setActivatingPriceListId(priceListId);
+      const response = await fetch(`/api/finance/companies/${companyId}/price-list/${priceListId}/activate`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to activate price list');
+      }
+
+      await fetchCompany();
+      toast.success('Price list activated');
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to activate price list');
+    } finally {
+      setActivatingPriceListId(null);
     }
   };
 
@@ -886,7 +1020,7 @@ export default function CompanyLedgerDetailPage() {
           title="Company Price List"
           description="Upload and manage the rate sheet used by this company"
         >
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) auto' }, gap: 2, alignItems: 'center' }}>
+          <Box sx={{ display: 'grid', gap: 2.5 }}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
                 <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Destination</Box>
@@ -902,34 +1036,150 @@ export default function CompanyLedgerDetailPage() {
               </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, alignItems: { xs: 'stretch', sm: 'center' } }}>
-              <input
-                id="company-price-list-pdf"
-                type="file"
-                accept="application/pdf"
-                onChange={handlePriceListFileChange}
-                style={{ display: 'none' }}
+            {activePriceListWarnings.length > 0 && (
+              <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid rgba(234, 179, 8, 0.35)', background: 'rgba(234, 179, 8, 0.08)', color: 'var(--text-primary)' }}>
+                <Box sx={{ fontWeight: 700, mb: 0.75 }}>Import Warnings</Box>
+                {activePriceListWarnings.map((warning) => (
+                  <Box key={warning} sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{warning}</Box>
+                ))}
+              </Box>
+            )}
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 180px 180px' }, gap: 1.5 }}>
+              <TextField
+                size="small"
+                label="List Name"
+                value={priceListForm.name}
+                onChange={(event) => {
+                  setPriceListForm((prev) => ({ ...prev, name: event.target.value }));
+                  setPriceListPreview(null);
+                }}
+                placeholder={`${company.name} price list`}
               />
+              <TextField
+                size="small"
+                label="Destination"
+                value={priceListForm.destinationLabel}
+                onChange={(event) => {
+                  setPriceListForm((prev) => ({ ...prev, destinationLabel: event.target.value }));
+                  setPriceListPreview(null);
+                }}
+                placeholder={company.priceListConfig?.destinationLabel || 'Islam Qala, Afghanistan'}
+              />
+              <TextField
+                size="small"
+                type="date"
+                label="Effective From"
+                InputLabelProps={{ shrink: true }}
+                value={priceListForm.effectiveFrom}
+                onChange={(event) => {
+                  setPriceListForm((prev) => ({ ...prev, effectiveFrom: event.target.value }));
+                  setPriceListPreview(null);
+                }}
+              />
+              <TextField
+                select
+                size="small"
+                label="Import Mode"
+                value={priceListForm.mode}
+                onChange={(event) => {
+                  setPriceListForm((prev) => ({ ...prev, mode: event.target.value as PriceListImportMode }));
+                  setPriceListPreview(null);
+                }}
+              >
+                <MenuItem value="merge">Merge/update</MenuItem>
+                <MenuItem value="replace">Replace all</MenuItem>
+                <MenuItem value="add_new">Add new only</MenuItem>
+              </TextField>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, alignItems: { xs: 'stretch', sm: 'center' } }}>
+              <input id="company-price-list-pdf" type="file" accept="application/pdf" onChange={handlePriceListFileChange} style={{ display: 'none' }} />
               <label htmlFor="company-price-list-pdf">
                 <Button component="span" variant="outline" icon={<Upload className="w-4 h-4" />}>
                   {priceListFile ? priceListFile.name : 'Select PDF'}
                 </Button>
               </label>
-              <Button
-                variant="primary"
-                onClick={handleImportPriceListPdf}
-                disabled={!priceListFile || importingPriceList}
-              >
+              <Button variant="outline" onClick={handlePreviewPriceListPdf} disabled={!priceListFile || previewingPriceList || importingPriceList}>
+                {previewingPriceList ? 'Previewing...' : 'Preview'}
+              </Button>
+              <Button variant="primary" onClick={handleImportPriceListPdf} disabled={!priceListFile || !priceListPreview || importingPriceList || previewingPriceList}>
                 {importingPriceList ? 'Importing...' : 'Import Price List'}
               </Button>
             </Box>
-          </Box>
-          {company.priceListConfig?.updatedFromPdfName ? (
-            <Box sx={{ mt: 1.5, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              Last imported from {company.priceListConfig.updatedFromPdfName}
-              {company.priceListConfig.updatedAt ? ` on ${new Date(company.priceListConfig.updatedAt).toLocaleString()}` : ''}
+
+            {priceListPreview && (
+              <Box sx={{ display: 'grid', gap: 1.5, p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--background)' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+                  <Box><Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700 }}>States Found</Box><Box sx={{ fontWeight: 700 }}>{priceListPreview.importedCount}</Box></Box>
+                  <Box><Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700 }}>Auction Rows Found</Box><Box sx={{ fontWeight: 700 }}>{priceListPreview.importedAuctionRateCount}</Box></Box>
+                  <Box><Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700 }}>After Import Rows</Box><Box sx={{ fontWeight: 700 }}>{priceListPreview.totalAuctionRateCount}</Box></Box>
+                  <Box><Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700 }}>Mode</Box><Box sx={{ fontWeight: 700 }}>{priceListPreview.mode}</Box></Box>
+                </Box>
+                {priceListPreview.warnings.length > 0 && (
+                  <Box sx={{ p: 1.25, borderRadius: 2, background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+                    {priceListPreview.warnings.map((warning) => (
+                      <Box key={warning} sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{warning}</Box>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            <Box sx={{ display: 'grid', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Box sx={{ fontWeight: 700 }}>Rate Lookup</Box>
+                <TextField size="small" placeholder="Search state, branch, city" value={priceListSearch} onChange={(event) => setPriceListSearch(event.target.value)} />
+              </Box>
+              <Box sx={{ border: '1px solid var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                <Box sx={{ maxHeight: 360, overflow: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)' }}>
+                        <th style={{ textAlign: 'left', padding: '10px 12px' }}>State</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px' }}>Branch</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px' }}>City</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px' }}>Loading Point</th>
+                        <th style={{ textAlign: 'right', padding: '10px 12px' }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activePriceListRows.length > 0 ? activePriceListRows.map((row, index) => (
+                        <tr key={`${row.stateCode}-${row.branch}-${row.city}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 700 }}>{row.stateCode}</td>
+                          <td style={{ padding: '10px 12px' }}>{row.branch || '-'}</td>
+                          <td style={{ padding: '10px 12px' }}>{row.city || '-'}</td>
+                          <td style={{ padding: '10px 12px' }}>{row.loadingPoint || '-'}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{formatCurrency(row.total)}</td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan={5} style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>No imported auction rows to display.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </Box>
+              </Box>
             </Box>
-          ) : null}
+
+            {company.priceLists && company.priceLists.length > 0 && (
+              <Box sx={{ display: 'grid', gap: 1 }}>
+                <Box sx={{ fontWeight: 700 }}>Import History</Box>
+                {company.priceLists.map((list) => (
+                  <Box key={list.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto' }, gap: 1.5, alignItems: 'center', p: 1.5, border: '1px solid var(--border)', borderRadius: 2, background: list.isActive ? 'rgba(34, 197, 94, 0.08)' : 'var(--panel)' }}>
+                    <Box>
+                      <Box sx={{ fontWeight: 700 }}>{list.name}{list.isActive ? ' • Active' : ''}</Box>
+                      <Box sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 0.25 }}>
+                        {list.sourceFileName} • {list.destinationLabel} • {list.importedAuctionRateCount || list.importedStateRateCount} rows • {new Date(list.createdAt).toLocaleString()}
+                      </Box>
+                    </Box>
+                    <Button variant="outline" size="sm" disabled={list.isActive || activatingPriceListId === list.id} onClick={() => void handleActivatePriceList(list.id)}>
+                      {activatingPriceListId === list.id ? 'Activating...' : 'Activate'}
+                    </Button>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
         </DashboardPanel>
 
         {company.companyType === 'SHIPPING' && (

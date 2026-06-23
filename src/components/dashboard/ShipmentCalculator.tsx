@@ -18,7 +18,19 @@ import {
     DEFAULT_SHIPPING_RATE_CONFIG,
     US_STATES,
     type ShippingRateCalculatorConfig,
+    normalizeShippingRateConfig,
 } from '@/lib/shipping-rate-calculator';
+
+type CompanyRateOption = {
+    id: string;
+    name: string;
+    priceListConfig?: ShippingRateCalculatorConfig | null;
+    priceLists?: Array<{
+        importedAuctionRateCount: number;
+        importedStateRateCount: number;
+        destinationLabel: string;
+    }>;
+};
 
 export default function ShipmentCalculator() {
     const [origin, setOrigin] = useState('');
@@ -26,6 +38,9 @@ export default function ShipmentCalculator() {
     const [vehicleType, setVehicleType] = useState('sedan');
     const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
     const [config, setConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
+    const [defaultConfig, setDefaultConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
+    const [companies, setCompanies] = useState<CompanyRateOption[]>([]);
+    const [companyId, setCompanyId] = useState('');
 
     const stateAuctionRates = config.auctionRates.filter((rate) => rate.stateCode === origin);
 
@@ -37,6 +52,7 @@ export default function ShipmentCalculator() {
             .then((data) => {
                 if (isMounted && data?.config) {
                     setConfig(data.config);
+                    setDefaultConfig(data.config);
                     setVehicleType(data.config.vehicleTypes?.[0]?.id || 'sedan');
                 }
             })
@@ -48,6 +64,37 @@ export default function ShipmentCalculator() {
             isMounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        fetch('/api/finance/companies?active=true&companyType=SHIPPING', { cache: 'no-store' })
+            .then((response) => response.ok ? response.json() : null)
+            .then((data) => {
+                if (isMounted) setCompanies(data?.companies || []);
+            })
+            .catch(() => {
+                if (isMounted) setCompanies([]);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!companyId) {
+            setConfig(defaultConfig);
+            setEstimatedCost(null);
+            setPickupLocation('');
+            return;
+        }
+
+        const selectedCompany = companies.find((company) => company.id === companyId);
+        setConfig(normalizeShippingRateConfig(selectedCompany?.priceListConfig));
+        setEstimatedCost(null);
+        setPickupLocation('');
+    }, [companies, companyId, defaultConfig]);
 
     const handleCalculate = () => {
         if (!origin) return;
@@ -158,6 +205,34 @@ export default function ShipmentCalculator() {
                 </Box>
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Company Rate Sheet</InputLabel>
+                        <Select
+                            value={companyId}
+                            label="Company Rate Sheet"
+                            onChange={(e) => {
+                                setCompanyId(e.target.value);
+                                setOrigin('');
+                                setPickupLocation('');
+                                setEstimatedCost(null);
+                            }}
+                            sx={{ bgcolor: 'var(--background)' }}
+                        >
+                            <MenuItem value="">Default dashboard rates</MenuItem>
+                            {companies.map((company) => {
+                                const activeList = company.priceLists?.[0];
+                                const rowCount = activeList
+                                    ? activeList.importedAuctionRateCount || activeList.importedStateRateCount
+                                    : company.priceListConfig?.auctionRates?.length || 0;
+                                return (
+                                    <MenuItem key={company.id} value={company.id}>
+                                        {company.name}{rowCount ? ` (${rowCount} rows)` : ' (no uploaded list)'}
+                                    </MenuItem>
+                                );
+                            })}
+                        </Select>
+                    </FormControl>
+
                     <FormControl fullWidth size="small">
                         <InputLabel>Pickup State</InputLabel>
                         <Select
