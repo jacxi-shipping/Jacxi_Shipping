@@ -119,10 +119,14 @@ export class TrackingSyncService {
                     updateData.vesselName = latestEvent.vesselName;
                 }
 
-                // Auto-update container status based on tracking if it's a significant milestone
+                // Auto-update container status based on tracking if it's a significant milestone.
+                // Carrier events can arrive late, so only advance early workflow stages.
                 const statusLower = latestEvent.status.toLowerCase();
                 let statusChanged = false;
-                if (statusLower.includes('arrived') && container.status !== 'ARRIVED_PORT') {
+                if (
+                    statusLower.includes('arrived') &&
+                    ['CREATED', 'WAITING_FOR_LOADING', 'LOADED', 'IN_TRANSIT'].includes(container.status)
+                ) {
                     updateData.status = 'ARRIVED_PORT';
                     statusChanged = true;
                 } else if ((statusLower.includes('depart') || statusLower.includes('transit')) && container.status === 'LOADED') {
