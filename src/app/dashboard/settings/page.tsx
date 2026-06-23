@@ -19,6 +19,10 @@ import {
   ArrowRight,
   FileText,
   DollarSign,
+  Bot,
+  CheckCircle2,
+  PlugZap,
+  XCircle,
 } from 'lucide-react';
 import { Box, Typography } from '@mui/material';
 
@@ -98,6 +102,39 @@ type BackupState = {
   info: BackupInfo | null;
 };
 
+type AiConnectivityStatus = {
+  provider: string;
+  configured: boolean;
+  model: string;
+  lookbackHours: number;
+  stats: {
+    totalRuns: number;
+    providerRuns: number;
+    tokenRouterRuns: number;
+    fallbackRuns: number;
+    successRuns: number;
+    failedRuns: number;
+    successRate: number | null;
+  };
+  latestLog: {
+    provider: string;
+    model: string | null;
+    status: string;
+    createdAt: string;
+  } | null;
+  latestSuccess: {
+    provider: string;
+    model: string | null;
+    createdAt: string;
+  } | null;
+  latestFailure: {
+    provider: string;
+    model: string | null;
+    status: string;
+    createdAt: string;
+  } | null;
+};
+
 const formatRelativeTime = (value?: string | null) => {
   if (!value) return 'Just now';
   const date = new Date(value);
@@ -144,6 +181,13 @@ export default function SettingsPage() {
   const [backupFile, setBackupFile] = useState<File | null>(null);
   const [ratePdfFile, setRatePdfFile] = useState<File | null>(null);
   const [rateConfig, setRateConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
+  const [aiConnectivity, setAiConnectivity] = useState<AiConnectivityStatus | null>(null);
+  const [aiTestResult, setAiTestResult] = useState<{
+    latencyMs: number;
+    responsePreview: string;
+    model: string;
+    testedAt: string;
+  } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -152,6 +196,8 @@ export default function SettingsPage() {
   const [savingSecurity, setSavingSecurity] = useState(false);
   const [savingRates, setSavingRates] = useState(false);
   const [importingRates, setImportingRates] = useState(false);
+  const [refreshingAiConnectivity, setRefreshingAiConnectivity] = useState(false);
+  const [testingAiConnectivity, setTestingAiConnectivity] = useState(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -164,10 +210,11 @@ export default function SettingsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [profileRes, settingsRes, backupRes] = await Promise.all([
+        const [profileRes, settingsRes, backupRes, aiConnectivityRes] = await Promise.all([
           fetch('/api/profile'),
           fetch('/api/settings'),
           isAdmin ? fetch('/api/settings/backup', { cache: 'no-store' }) : Promise.resolve(null),
+          isAdmin ? fetch('/api/settings/ai-connectivity', { cache: 'no-store' }) : Promise.resolve(null),
         ]);
 
         if (profileRes.ok) {
@@ -218,6 +265,11 @@ export default function SettingsPage() {
             ...prev,
             loading: false,
           }));
+        }
+
+        if (aiConnectivityRes?.ok) {
+          const data = await aiConnectivityRes.json();
+          setAiConnectivity(data);
         }
       } catch (error) {
         console.error('Error fetching settings data:', error);
@@ -438,6 +490,53 @@ export default function SettingsPage() {
     }
   };
 
+  const refreshAiConnectivity = async (showToastOnError = true) => {
+    try {
+      setRefreshingAiConnectivity(true);
+      const response = await fetch('/api/settings/ai-connectivity', { cache: 'no-store' });
+      const data = await parseJsonResponse(response);
+      if (!response.ok) throw new Error(data?.message || 'Failed to load AI connectivity');
+      setAiConnectivity(data);
+      return true;
+    } catch (error) {
+      if (showToastOnError) {
+        toast.error(error instanceof Error ? error.message : 'Unable to refresh AI connectivity');
+      }
+      return false;
+    } finally {
+      setRefreshingAiConnectivity(false);
+    }
+  };
+
+  const handleTestAiConnectivity = async () => {
+    try {
+      setTestingAiConnectivity(true);
+      const response = await fetch('/api/settings/ai-connectivity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await parseJsonResponse(response);
+
+      if (!response.ok) {
+        if (data?.status) setAiConnectivity(data.status);
+        throw new Error(data?.message || 'AI connectivity test failed');
+      }
+
+      setAiConnectivity(data.status);
+      setAiTestResult({
+        latencyMs: data.latencyMs,
+        responsePreview: data.responsePreview,
+        model: data.model,
+        testedAt: new Date().toISOString(),
+      });
+      toast.success('AI connectivity test passed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'AI connectivity test failed');
+    } finally {
+      setTestingAiConnectivity(false);
+    }
+  };
+
   const notificationSummary = useMemo(() => {
     const channels = [];
     if (settingsForm.notifyShipmentEmail || settingsForm.notifyPaymentEmail) channels.push('Email');
@@ -482,6 +581,107 @@ export default function SettingsPage() {
               </Button>
             </Link>
           </Box>
+        </DashboardPanel>
+      ) : null}
+
+      {isAdmin ? (
+        <DashboardPanel
+          title="AI Connectivity"
+          description="TokenRouter provider status, recent usage, fallbacks, and a live connectivity test."
+          actions={
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RefreshCw className="w-4 h-4" />}
+                onClick={() => void refreshAiConnectivity()}
+                loading={refreshingAiConnectivity}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<PlugZap className="w-4 h-4" />}
+                onClick={() => void handleTestAiConnectivity()}
+                loading={testingAiConnectivity}
+                disabled={!aiConnectivity?.configured}
+              >
+                Test AI
+              </Button>
+            </Box>
+          }
+        >
+          <div className="space-y-4">
+            <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+              <StatsCard
+                icon={aiConnectivity?.configured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
+                title="TokenRouter"
+                value={aiConnectivity?.configured ? 'Connected' : 'Missing Key'}
+                subtitle={aiConnectivity?.model || 'MiniMax-M3'}
+                variant={aiConnectivity?.configured ? 'success' : 'error'}
+                size="md"
+              />
+              <StatsCard
+                icon={<Bot style={{ fontSize: 18 }} />}
+                title="24h AI Runs"
+                value={aiConnectivity ? String(aiConnectivity.stats.providerRuns) : '0'}
+                subtitle={`${aiConnectivity?.stats.tokenRouterRuns ?? 0} TokenRouter`}
+                variant="info"
+                size="md"
+              />
+              <StatsCard
+                icon={<Activity style={{ fontSize: 18 }} />}
+                title="24h Success"
+                value={aiConnectivity?.stats.successRate === null || aiConnectivity?.stats.successRate === undefined ? 'No Runs' : `${aiConnectivity.stats.successRate}%`}
+                subtitle={`${aiConnectivity?.stats.failedRuns ?? 0} failed`}
+                variant={(aiConnectivity?.stats.failedRuns ?? 0) > 0 ? 'warning' : 'success'}
+                size="md"
+              />
+              <StatsCard
+                icon={<RefreshCw style={{ fontSize: 18 }} />}
+                title="Fallbacks"
+                value={aiConnectivity ? String(aiConnectivity.stats.fallbackRuns) : '0'}
+                subtitle={`Last ${aiConnectivity?.lookbackHours ?? 24} hours`}
+                variant={(aiConnectivity?.stats.fallbackRuns ?? 0) > 0 ? 'warning' : 'default'}
+                size="md"
+              />
+            </DashboardGrid>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2 }}>
+              <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: 2, bgcolor: 'var(--background)' }}>
+                <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', mb: 1 }}>
+                  Latest activity
+                </Typography>
+                <Typography sx={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {aiConnectivity?.latestLog
+                    ? `${aiConnectivity.latestLog.provider} · ${aiConnectivity.latestLog.status}`
+                    : 'No AI activity logged yet'}
+                </Typography>
+                <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 0.75 }}>
+                  {aiConnectivity?.latestLog
+                    ? `${aiConnectivity.latestLog.model || 'Unknown model'} · ${formatRelativeTime(aiConnectivity.latestLog.createdAt)}`
+                    : 'Run a dashboard brief, document extraction, shipment draft, or connectivity test to create a log.'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: 2, bgcolor: 'var(--background)' }}>
+                <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', mb: 1 }}>
+                  Last test result
+                </Typography>
+                <Typography sx={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {aiTestResult ? `${aiTestResult.latencyMs} ms · ${aiTestResult.model}` : 'No test run this session'}
+                </Typography>
+                <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 0.75 }}>
+                  {aiTestResult
+                    ? `${aiTestResult.responsePreview} · ${formatRelativeTime(aiTestResult.testedAt)}`
+                    : aiConnectivity?.configured
+                      ? 'Use Test AI to verify live provider connectivity.'
+                      : 'Set TOKENROUTER_API_KEY to enable live testing.'}
+                </Typography>
+              </Box>
+            </Box>
+          </div>
         </DashboardPanel>
       ) : null}
 
