@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -11,6 +11,8 @@ import {
   DialogTitle,
   IconButton,
   MenuItem,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
 } from '@mui/material';
@@ -243,6 +245,7 @@ export default function CompanyLedgerDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [focusedEntry, setFocusedEntry] = useState<LedgerEntry | null>(null);
   const [focusedEntryLoading, setFocusedEntryLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   const companyTypeLabel =
     company?.companyType === 'SHIPPING'
@@ -274,6 +277,26 @@ export default function CompanyLedgerDetailPage() {
     const activeList = company?.priceLists?.find((list) => list.isActive);
     return Array.isArray(activeList?.warnings) ? activeList.warnings : [];
   }, [company?.priceLists]);
+
+  const companyTabs = useMemo(() => [
+    { label: 'Ledger', icon: <ReceiptText className="h-4 w-4" /> },
+    { label: 'Price List', icon: <Upload className="h-4 w-4" /> },
+    {
+      label: companyTypeLabel === 'Shipping'
+        ? 'Shipping'
+        : companyTypeLabel === 'Dispatch'
+        ? 'Dispatch'
+        : 'Transit',
+      icon: <Truck className="h-4 w-4" />,
+    },
+    { label: 'Reports', icon: <DollarSign className="h-4 w-4" /> },
+  ], [companyTypeLabel]);
+
+  const TabPanel = ({ children, value, index }: { children: ReactNode; value: number; index: number }) => (
+    <div role="tabpanel" hidden={value !== index} id={`company-tabpanel-${index}`} aria-labelledby={`company-tab-${index}`}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
 
   const isExpenseRecoveryEntry = (row: LedgerEntry) => {
     const category = (row.category || '').toLowerCase();
@@ -935,6 +958,73 @@ export default function CompanyLedgerDetailPage() {
             <StatsCard icon={<Building2 className="w-5 h-5" />} title="Total Owed" value={formatCurrency(Math.abs(summary.currentBalance))} variant="info" />
             <StatsCard icon={<ReceiptText className="w-5 h-5" />} title="Total Transactions" value={report?.summary.transactionCount || entries.length} variant="default" />
           </DashboardGrid>
+        </DashboardPanel>
+
+        <Box
+          sx={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 15,
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            backgroundColor: 'var(--panel)',
+            boxShadow: '0 12px 28px rgba(var(--text-primary-rgb),0.08)',
+            overflow: 'hidden',
+          }}
+        >
+          <Tabs
+            value={activeTab}
+            onChange={(_, newValue) => setActiveTab(newValue)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              minHeight: 52,
+              '& .MuiTabs-flexContainer': {
+                gap: 0.25,
+                px: 1,
+              },
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 650,
+                color: 'var(--text-secondary)',
+                minHeight: 52,
+                borderRadius: '10px',
+                my: 0.75,
+                px: 1.5,
+                '&:hover': {
+                  color: 'var(--accent-gold)',
+                  backgroundColor: 'rgba(var(--accent-gold-rgb), 0.08)',
+                },
+              },
+              '& .Mui-selected': {
+                color: 'var(--accent-gold) !important',
+                backgroundColor: 'rgba(var(--accent-gold-rgb), 0.1)',
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: 'var(--accent-gold)',
+                height: 3,
+              },
+            }}
+          >
+            {companyTabs.map((tab, index) => (
+              <Tab
+                key={tab.label}
+                id={`company-tab-${index}`}
+                aria-controls={`company-tabpanel-${index}`}
+                icon={tab.icon}
+                iconPosition="start"
+                label={tab.label}
+              />
+            ))}
+          </Tabs>
+        </Box>
+
+        <TabPanel value={activeTab} index={0}>
+        <DashboardPanel
+          title="Company Ledger"
+          description="Search, filter, and manage transactions for this company"
+        >
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 180px 180px' }, gap: 1.5, mb: 2 }}>
             <TextField
@@ -1015,7 +1105,9 @@ export default function CompanyLedgerDetailPage() {
             }
           />
         </DashboardPanel>
+        </TabPanel>
 
+        <TabPanel value={activeTab} index={1}>
         <DashboardPanel
           title="Company Price List"
           description="Upload and manage the rate sheet used by this company"
@@ -1181,7 +1273,9 @@ export default function CompanyLedgerDetailPage() {
             )}
           </Box>
         </DashboardPanel>
+        </TabPanel>
 
+        <TabPanel value={activeTab} index={2}>
         {company.companyType === 'SHIPPING' && (
           <DashboardPanel
             title="Shipping Operations"
@@ -1392,7 +1486,9 @@ export default function CompanyLedgerDetailPage() {
 
           </DashboardPanel>
         )}
+        </TabPanel>
 
+        <TabPanel value={activeTab} index={3}>
         {report && report.summary.transactionCount > 0 && (
           <DashboardPanel title="Monthly Report" description="Transaction breakdown by month">
             <Box sx={{ overflowX: 'auto' }}>
@@ -1421,6 +1517,12 @@ export default function CompanyLedgerDetailPage() {
             </Box>
           </DashboardPanel>
         )}
+        {(!report || report.summary.transactionCount === 0) && (
+          <DashboardPanel title="Monthly Report" description="Transaction breakdown by month">
+            <Box sx={{ color: 'var(--text-secondary)' }}>No report data is available for this company yet.</Box>
+          </DashboardPanel>
+        )}
+        </TabPanel>
 
         <Dialog open={openEntry} onClose={() => { if (!posting) { setOpenEntry(false); setIsPaymentMode(false); } }} maxWidth="sm" fullWidth>
           <DialogTitle>{isPaymentMode ? `Record Payment to ${company?.name || 'Company'}` : 'Add Company Transaction'}</DialogTitle>
