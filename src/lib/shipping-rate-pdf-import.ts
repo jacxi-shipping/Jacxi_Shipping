@@ -6,6 +6,7 @@ import {
   parseShippingRatesFromText,
   US_STATES,
 } from '@/lib/shipping-rate-calculator';
+import { ensurePdfNodePolyfills } from '@/lib/pdf-node-polyfills';
 
 type PdfTextItem = {
   str: string;
@@ -76,6 +77,7 @@ function findStateHeader(items: PdfTextItem[], item: PdfTextItem) {
 }
 
 export async function extractAuctionRatesFromPdf(buffer: Buffer) {
+  await ensurePdfNodePolyfills();
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(path.join(
     process.cwd(),

@@ -1,5 +1,5 @@
-import { PDFParse } from 'pdf-parse';
 import { z } from 'zod';
+import { ensurePdfNodePolyfills } from '@/lib/pdf-node-polyfills';
 
 export const documentExtractionRequestSchema = z.object({
   mode: z.enum(['document-review', 'invoice-draft']),
@@ -43,6 +43,8 @@ export async function extractDocumentText(fileUrl: string, fileType: string) {
   }
 
   if (fileType.includes('pdf')) {
+    await ensurePdfNodePolyfills();
+    const { PDFParse } = await import('pdf-parse');
     const buffer = Buffer.from(await response.arrayBuffer());
     const parser = new PDFParse({ data: buffer });
 
