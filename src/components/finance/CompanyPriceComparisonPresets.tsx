@@ -99,7 +99,7 @@ export default function CompanyPriceComparisonPresets({
 
   return (
     <>
-      <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)', mb: 2 }}>
+      <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             <Bookmark className="w-4 h-4" />

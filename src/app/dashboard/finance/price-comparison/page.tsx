@@ -1,27 +1,39 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Box, Tab, Tabs } from '@mui/material';
 import {
-  Box,
-  Checkbox,
-  FormControlLabel,
-  MenuItem,
-  Tab,
-  Tabs,
-  TextField,
-  Tooltip,
-} from '@mui/material';
-import { ArrowLeft, ArrowLeftRight, Building2, Download, GitCompareArrows, Search, Trophy } from 'lucide-react';
+  ArrowLeft,
+  ArrowLeftRight,
+  Bookmark,
+  Building2,
+  Download,
+  Filter,
+  GitCompareArrows,
+  LayoutDashboard,
+  LayoutGrid,
+  MapPin,
+  Trophy,
+} from 'lucide-react';
 import PermissionRoute from '@/components/auth/PermissionRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
-import { Breadcrumbs, Button, StatsCard, toast } from '@/components/design-system';
 import {
-  DEFAULT_SHIPPING_RATE_CONFIG,
-  US_STATES,
-  type VehicleRateMultiplier,
-} from '@/lib/shipping-rate-calculator';
+  Breadcrumbs,
+  Button,
+  EmptyState,
+  SkeletonStatsCard,
+  SkeletonTable,
+  StatsCard,
+  toast,
+} from '@/components/design-system';
+import CompanyPriceComparisonFilters, {
+  countActiveFilters,
+  type ComparisonFiltersState,
+} from '@/components/finance/CompanyPriceComparisonFilters';
+import CompanyPriceComparisonInsights from '@/components/finance/CompanyPriceComparisonInsights';
+import { DEFAULT_SHIPPING_RATE_CONFIG, type VehicleRateMultiplier } from '@/lib/shipping-rate-calculator';
 import CompanyPriceComparisonPresets from '@/components/finance/CompanyPriceComparisonPresets';
 import CompanyPriceComparisonSideBySide from '@/components/finance/CompanyPriceComparisonSideBySide';
 import {
@@ -68,6 +80,18 @@ type CompanyPriceRecord = CompanyPriceSnapshot & {
 
 type DisplayMode = ComparisonDisplayMode;
 
+const TAB_OVERVIEW = 0;
+const TAB_STATE = 1;
+const TAB_LANE = 2;
+const TAB_SIDE_BY_SIDE = 3;
+const TAB_PRESETS = 4;
+
+const viewModeToTab = (mode: ComparisonViewMode) => {
+  if (mode === 'state') return TAB_STATE;
+  if (mode === 'lane') return TAB_LANE;
+  return TAB_SIDE_BY_SIDE;
+};
+
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
 
@@ -99,29 +123,50 @@ function RateCell({
   const isLowest = hasMultipleRates && minRate !== null && value === minRate && minRate !== maxRate;
   const isHighest = hasMultipleRates && maxRate !== null && value === maxRate && minRate !== maxRate;
 
+  const cellShell = (content: ReactNode) => (
+    <Box
+      sx={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        px: 0.75,
+        py: 0.5,
+        borderRadius: 1,
+        minWidth: 72,
+        background: isLowest
+          ? 'rgba(22, 163, 74, 0.08)'
+          : isHighest
+          ? 'rgba(220, 38, 38, 0.06)'
+          : 'transparent',
+        border: isLowest
+          ? '1px solid rgba(22, 163, 74, 0.2)'
+          : isHighest
+          ? '1px solid rgba(220, 38, 38, 0.15)'
+          : '1px solid transparent',
+      }}
+    >
+      {content}
+    </Box>
+  );
+
   if (displayMode === 'delta' && referenceRate !== undefined) {
     if (delta === null) {
       return <Box sx={{ color: 'var(--text-secondary)' }}>—</Box>;
     }
 
     if (delta === 0) {
-      return <Box sx={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Same</Box>;
+      return cellShell(<Box sx={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Same</Box>);
     }
 
-    return (
-      <Box
-        sx={{
-          fontWeight: 700,
-          color: delta < 0 ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)',
-        }}
-      >
+    return cellShell(
+      <Box sx={{ fontWeight: 700, color: delta < 0 ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)' }}>
         {formatSignedCurrency(delta)}
-      </Box>
+      </Box>,
     );
   }
 
-  return (
-    <Box>
+  return cellShell(
+    <>
       <Box
         sx={{
           fontWeight: isLowest || isHighest ? 700 : 500,
@@ -145,6 +190,30 @@ function RateCell({
           {formatSignedCurrency(delta)}
         </Box>
       )}
+    </>,
+  );
+}
+
+function SpreadBar({ spread, maxSpread }: { spread: number | null; maxSpread: number }) {
+  if (!spread || spread <= 0) {
+    return <Box sx={{ color: 'var(--text-secondary)' }}>—</Box>;
+  }
+
+  const width = Math.max(8, Math.round((spread / maxSpread) * 100));
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.4 }}>
+      <Box sx={{ fontWeight: 700 }}>{formatCurrency(spread)}</Box>
+      <Box sx={{ width: 72, height: 4, borderRadius: 999, bgcolor: 'rgba(var(--border-rgb), 0.35)', overflow: 'hidden' }}>
+        <Box
+          sx={{
+            width: `${width}%`,
+            height: '100%',
+            borderRadius: 999,
+            background: 'linear-gradient(90deg, rgba(var(--accent-gold-rgb), 0.45), var(--accent-gold))',
+          }}
+        />
+      </Box>
     </Box>
   );
 }
@@ -170,6 +239,9 @@ export default function CompanyPriceComparisonPage() {
   const [vehicleTypeId, setVehicleTypeId] = useState(DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes[0].id);
   const [referenceCompanyId, setReferenceCompanyId] = useState('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('absolute');
+  const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showCompanies, setShowCompanies] = useState(false);
 
   const vehicleTypes = DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes;
   const vehicleMultiplier = vehicleTypes.find((type) => type.id === vehicleTypeId)?.multiplier || 1;
@@ -248,33 +320,38 @@ export default function CompanyPriceComparisonPage() {
     if (nextRight !== sideBySideRightId) setSideBySideRightId(nextRight);
   }, [sideBySideCandidates, sideBySideLeftId, sideBySideRightId, viewMode]);
 
+  const comparisonFilterOptions = useMemo(() => ({
+    search,
+    differencesOnly,
+    stateCode: stateFilter,
+    completeCoverageOnly,
+    minSpread: Number(minSpread) > 0 ? Number(minSpread) : undefined,
+  }), [completeCoverageOnly, differencesOnly, minSpread, search, stateFilter]);
+
   const comparisonRows = useMemo(() => {
     if (viewMode === 'side-by-side') return [];
 
-    const options = {
-      search,
-      differencesOnly,
-      stateCode: stateFilter,
-      completeCoverageOnly,
-      minSpread: Number(minSpread) > 0 ? Number(minSpread) : undefined,
-    };
-
     const baseRows = viewMode === 'state'
-      ? buildStateComparisonRows(visibleCompanies, options)
-      : buildLaneComparisonRows(visibleCompanies, options);
+      ? buildStateComparisonRows(visibleCompanies, comparisonFilterOptions)
+      : buildLaneComparisonRows(visibleCompanies, comparisonFilterOptions);
 
     return sortComparisonRows(adjustComparisonRows(baseRows, vehicleMultiplier), sortBy);
-  }, [
-    completeCoverageOnly,
-    differencesOnly,
-    minSpread,
-    search,
-    sortBy,
-    stateFilter,
-    vehicleMultiplier,
-    viewMode,
-    visibleCompanies,
-  ]);
+  }, [comparisonFilterOptions, sortBy, vehicleMultiplier, viewMode, visibleCompanies]);
+
+  const overviewComparisonRows = useMemo(() => {
+    const baseRows = buildStateComparisonRows(visibleCompanies, comparisonFilterOptions);
+    return sortComparisonRows(adjustComparisonRows(baseRows, vehicleMultiplier), sortBy);
+  }, [comparisonFilterOptions, sortBy, vehicleMultiplier, visibleCompanies]);
+
+  const overviewScorecards = useMemo(
+    () => buildCompanyScorecards(visibleCompanies, overviewComparisonRows),
+    [overviewComparisonRows, visibleCompanies],
+  );
+
+  const overviewInsights = useMemo(
+    () => buildComparisonInsights(visibleCompanies, overviewComparisonRows),
+    [overviewComparisonRows, visibleCompanies],
+  );
 
   const currentPresetConfig = useMemo<ComparisonPresetConfig>(() => ({
     typeFilter,
@@ -335,11 +412,28 @@ export default function CompanyPriceComparisonPage() {
     setVehicleTypeId(sanitized.vehicleTypeId);
     setReferenceCompanyId(sanitized.referenceCompanyId);
     setDisplayMode(sanitized.displayMode);
+    setActiveTab(viewModeToTab(sanitized.viewMode || defaults.viewMode));
   };
 
-  const scorecards = useMemo(
-    () => buildCompanyScorecards(visibleCompanies, comparisonRows),
-    [comparisonRows, visibleCompanies],
+  const handleTabChange = (_: unknown, newTab: number) => {
+    setActiveTab(newTab);
+    if (newTab === TAB_STATE) setViewMode('state');
+    else if (newTab === TAB_LANE) setViewMode('lane');
+    else if (newTab === TAB_SIDE_BY_SIDE) setViewMode('side-by-side');
+  };
+
+  const comparisonTabs = useMemo(() => [
+    { label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'State Rates', icon: <MapPin className="h-4 w-4" /> },
+    { label: 'Branch / City', icon: <LayoutGrid className="h-4 w-4" /> },
+    { label: 'Side by Side', icon: <ArrowLeftRight className="h-4 w-4" /> },
+    { label: 'Presets', icon: <Bookmark className="h-4 w-4" /> },
+  ], []);
+
+  const TabPanel = ({ children, value, index }: { children: ReactNode; value: number; index: number }) => (
+    <div role="tabpanel" hidden={value !== index} id={`comparison-tabpanel-${index}`} aria-labelledby={`comparison-tab-${index}`}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
   );
 
   const insights = useMemo(
@@ -347,25 +441,33 @@ export default function CompanyPriceComparisonPage() {
     [comparisonRows, visibleCompanies],
   );
 
+  const displayInsights = activeTab === TAB_OVERVIEW || activeTab === TAB_PRESETS || viewMode === 'side-by-side'
+    ? overviewInsights
+    : insights;
+
+  const displayRows = activeTab === TAB_OVERVIEW || activeTab === TAB_PRESETS || viewMode === 'side-by-side'
+    ? overviewComparisonRows
+    : comparisonRows;
+
   const stats = useMemo(() => {
     const withLists = companies.filter((company) => company.hasPriceList).length;
-    const spreads = comparisonRows.map((row) => row.spread ?? 0).filter((spread) => spread > 0);
+    const spreads = displayRows.map((row) => row.spread ?? 0).filter((spread) => spread > 0);
 
     return {
       totalCompanies: companies.length,
       withPriceLists: withLists,
       comparedCompanies: visibleCompanies.length,
-      comparedRows: comparisonRows.length,
-      differentRows: insights.totalDifferentRows,
+      comparedRows: displayRows.length,
+      differentRows: displayInsights.totalDifferentRows,
       averageSpread: spreads.length
         ? Math.round(spreads.reduce((sum, spread) => sum + spread, 0) / spreads.length)
         : 0,
-      maxSpread: insights.maxSpread,
+      maxSpread: displayInsights.maxSpread,
     };
-  }, [companies, comparisonRows.length, insights.maxSpread, insights.totalDifferentRows, visibleCompanies.length]);
+  }, [companies, displayInsights.maxSpread, displayInsights.totalDifferentRows, displayRows, visibleCompanies.length]);
 
-  const leaderCompany = insights.leader
-    ? visibleCompanies.find((company) => company.id === insights.leader?.companyId)
+  const leaderCompany = displayInsights.leader
+    ? visibleCompanies.find((company) => company.id === displayInsights.leader?.companyId)
     : null;
 
   const toggleCompany = (companyId: string) => {
@@ -452,6 +554,304 @@ export default function CompanyPriceComparisonPage() {
     setSideBySideRightId(sideBySideLeftId);
   };
 
+  const handleFilterChange = <K extends keyof ComparisonFiltersState>(
+    key: K,
+    value: ComparisonFiltersState[K],
+  ) => {
+    switch (key) {
+      case 'typeFilter': setTypeFilter(value as typeof typeFilter); break;
+      case 'search': setSearch(value as string); break;
+      case 'stateFilter': setStateFilter(value as string); break;
+      case 'destinationFilter': setDestinationFilter(value as string); break;
+      case 'vehicleTypeId': setVehicleTypeId(value as string); break;
+      case 'referenceCompanyId': setReferenceCompanyId(value as string); break;
+      case 'displayMode': setDisplayMode(value as DisplayMode); break;
+      case 'sortBy': setSortBy(value as ComparisonSortKey); break;
+      case 'minSpread': setMinSpread(value as string); break;
+      case 'differencesOnly': setDifferencesOnly(value as boolean); break;
+      case 'onlyWithPriceLists': setOnlyWithPriceLists(value as boolean); break;
+      case 'completeCoverageOnly': setCompleteCoverageOnly(value as boolean); break;
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setStateFilter('');
+    setDestinationFilter('');
+    setReferenceCompanyId('');
+    setDisplayMode('absolute');
+    setSortBy('spread-desc');
+    setMinSpread('');
+    setDifferencesOnly(false);
+    setOnlyWithPriceLists(true);
+    setCompleteCoverageOnly(false);
+  };
+
+  const filterState = {
+    typeFilter,
+    search,
+    stateFilter,
+    destinationFilter,
+    vehicleTypeId,
+    referenceCompanyId,
+    displayMode,
+    sortBy,
+    minSpread,
+    differencesOnly,
+    onlyWithPriceLists,
+    completeCoverageOnly,
+  };
+
+  const viewModeLabels: Record<ComparisonViewMode, string> = {
+    state: 'Matrix: State Rates',
+    lane: 'Matrix: Branch / City',
+    'side-by-side': 'Side by Side',
+  };
+
+  const activeFilterCount = countActiveFilters(filterState);
+
+  const tableMaxSpread = useMemo(
+    () => Math.max(...comparisonRows.map((row) => row.spread ?? 0), 1),
+    [comparisonRows],
+  );
+
+  const renderComparisonToolbar = (options?: { showSwap?: boolean }) => (
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+      <Button
+        variant={showFilters ? 'primary' : 'outline'}
+        size="sm"
+        icon={<Filter className="w-4 h-4" />}
+        onClick={() => setShowFilters((current) => !current)}
+      >
+        {`Filters${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`}
+      </Button>
+      <Button
+        variant={showCompanies ? 'primary' : 'outline'}
+        size="sm"
+        icon={<Building2 className="w-4 h-4" />}
+        onClick={() => setShowCompanies((current) => !current)}
+      >
+        {`Companies (${selectedCompanyIds.length})`}
+      </Button>
+      {activeFilterCount > 0 && (
+        <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+          Reset filters
+        </Button>
+      )}
+      {options?.showSwap && (
+        <Button variant="outline" size="sm" icon={<ArrowLeftRight className="w-4 h-4" />} onClick={handleSwapSideBySideCompanies}>
+          Swap companies
+        </Button>
+      )}
+      <Button variant="outline" size="sm" icon={<Download className="w-4 h-4" />} onClick={handleExportCsv}>
+        Export CSV
+      </Button>
+    </Box>
+  );
+
+  const renderFilterPanels = () => {
+    if (!showFilters && !showCompanies) return null;
+
+    const sharedFilterProps = {
+      companies,
+      selectedCompanyIds,
+      visibleCompanyCount: visibleCompanies.length,
+      loading,
+      destinationOptions,
+      visibleCompanies,
+      filters: filterState,
+      onFilterChange: handleFilterChange,
+      onToggleCompany: toggleCompany,
+      onSelectAllCompanies: selectAllCompanies,
+      onClearCompanySelection: clearCompanySelection,
+    };
+
+    return (
+      <Box sx={{ display: 'grid', gap: 1.5, mb: 2 }}>
+        {showFilters && (
+          <CompanyPriceComparisonFilters {...sharedFilterProps} panel="filters" showActiveChips />
+        )}
+        {showCompanies && (
+          <CompanyPriceComparisonFilters {...sharedFilterProps} panel="companies" showActiveChips={!showFilters} />
+        )}
+      </Box>
+    );
+  };
+
+  const renderLegendBar = () => (
+    <Box
+      sx={{
+        mb: 1.5,
+        px: 1.25,
+        py: 1,
+        borderRadius: 1.5,
+        border: '1px solid var(--border)',
+        background: 'var(--background)',
+        fontSize: '0.82rem',
+        color: 'var(--text-secondary)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 0.75,
+        alignItems: 'center',
+      }}
+    >
+      <Box component="span" sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+        {viewMode === 'side-by-side'
+          ? `Duel view · ${sideBySideCandidates.length} available compan${sideBySideCandidates.length === 1 ? 'y' : 'ies'}`
+          : `${comparisonRows.length} ${viewMode === 'state' ? 'state' : 'lane'} row${comparisonRows.length === 1 ? '' : 's'} · ${visibleCompanies.length} compan${visibleCompanies.length === 1 ? 'y' : 'ies'}`}
+      </Box>
+      {vehicleMultiplier !== 1 && (
+        <Box
+          component="span"
+          sx={{
+            px: 0.75,
+            py: 0.25,
+            borderRadius: 999,
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            bgcolor: 'rgba(var(--accent-gold-rgb), 0.1)',
+            color: 'var(--accent-gold)',
+            border: '1px solid rgba(var(--accent-gold-rgb), 0.25)',
+          }}
+        >
+          {vehicleMultiplier}x vehicle adjustment
+        </Box>
+      )}
+      <Box component="span" sx={{ ml: 'auto', display: 'inline-flex', gap: 0.75, alignItems: 'center' }}>
+        <Box component="span" sx={{ px: 0.75, py: 0.25, borderRadius: 999, fontSize: '0.72rem', fontWeight: 600, color: 'rgb(22, 163, 74)', bgcolor: 'rgba(22, 163, 74, 0.08)', border: '1px solid rgba(22, 163, 74, 0.2)' }}>
+          Lowest
+        </Box>
+        <Box component="span" sx={{ px: 0.75, py: 0.25, borderRadius: 999, fontSize: '0.72rem', fontWeight: 600, color: 'rgb(220, 38, 38)', bgcolor: 'rgba(220, 38, 38, 0.06)', border: '1px solid rgba(220, 38, 38, 0.15)' }}>
+          Highest
+        </Box>
+      </Box>
+    </Box>
+  );
+
+  const renderMatrixTable = (matrixViewMode: 'state' | 'lane') => {
+    if (loading) {
+      return <SkeletonTable rows={8} columns={Math.max(visibleCompanies.length + 2, 4)} />;
+    }
+
+    if (visibleCompanies.length < 2) {
+      return (
+        <EmptyState
+          icon={<GitCompareArrows />}
+          title="Select at least two companies"
+          description="Choose two or more carriers with uploaded price lists to start comparing rates."
+          action={
+            <Button variant="outline" size="sm" onClick={() => { setShowCompanies(true); selectAllCompanies(); }}>
+              Select companies
+            </Button>
+          }
+        />
+      );
+    }
+
+    return (
+      <Box sx={{ border: '1px solid var(--border)', borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <Box sx={{ maxHeight: 620, overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)' }}>
+                <th style={{ textAlign: 'left', padding: '12px 14px', minWidth: 220, position: 'sticky', top: 0, left: 0, background: 'var(--panel)', zIndex: 3, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
+                  {matrixViewMode === 'state' ? 'State' : 'Lane'}
+                </th>
+                {visibleCompanies.map((company) => (
+                  <th key={company.id} style={{ textAlign: 'right', padding: '12px 14px', minWidth: 150, position: 'sticky', top: 0, background: 'var(--panel)', zIndex: 2 }}>
+                    <Link href={`/dashboard/finance/companies/${company.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      <Box sx={{ fontWeight: 700 }}>{company.name}</Box>
+                      <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{company.destinationLabel}</Box>
+                    </Link>
+                  </th>
+                ))}
+                <th style={{ textAlign: 'right', padding: '12px 14px', minWidth: 100, position: 'sticky', top: 0, background: 'var(--panel)', zIndex: 2, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>Spread</th>
+                <th style={{ textAlign: 'center', padding: '12px 14px', minWidth: 90, position: 'sticky', top: 0, background: 'var(--panel)', zIndex: 2, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>Coverage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonRows.length > 0 ? comparisonRows.map((row, rowIndex) => {
+                const comparableRates = Object.values(row.rates).filter((value): value is number => value !== null);
+                const hasMultipleRates = comparableRates.length > 1;
+                const referenceRate = referenceCompanyId ? row.rates[referenceCompanyId] ?? null : undefined;
+                const rowBg = rowIndex % 2 === 0 ? 'var(--background)' : 'rgba(var(--text-primary-rgb), 0.015)';
+
+                return (
+                  <tr
+                    key={row.key}
+                    style={{ borderBottom: '1px solid var(--border)', background: rowBg, transition: 'background 0.15s ease' }}
+                    onMouseEnter={(event) => { event.currentTarget.style.background = 'rgba(var(--accent-gold-rgb), 0.05)'; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.background = rowBg; }}
+                  >
+                    <td style={{ padding: '10px 14px', position: 'sticky', left: 0, background: 'inherit', zIndex: 1 }}>
+                      <Box sx={{ fontWeight: 700 }}>{row.label}</Box>
+                      {matrixViewMode === 'lane' && (
+                        <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{row.stateCode}</Box>
+                      )}
+                    </td>
+                    {visibleCompanies.map((company) => (
+                      <td key={`${row.key}-${company.id}`} style={{ padding: '10px 14px', textAlign: 'right' }}>
+                        <RateCell
+                          value={row.rates[company.id] ?? null}
+                          minRate={row.minRate}
+                          maxRate={row.maxRate}
+                          hasMultipleRates={hasMultipleRates}
+                          referenceRate={referenceRate}
+                          displayMode={displayMode}
+                        />
+                      </td>
+                    ))}
+                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                      <SpreadBar spread={row.spread} maxSpread={tableMaxSpread} />
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <Box component="span" sx={{ display: 'inline-flex', px: 0.75, py: 0.25, borderRadius: 999, fontSize: '0.78rem', fontWeight: row.coverageCount < visibleCompanies.length ? 700 : 500, color: row.coverageCount < visibleCompanies.length ? 'rgb(180, 130, 0)' : 'var(--text-secondary)', bgcolor: row.coverageCount < visibleCompanies.length ? 'rgba(234, 179, 8, 0.12)' : 'transparent', border: row.coverageCount < visibleCompanies.length ? '1px solid rgba(234, 179, 8, 0.25)' : '1px solid transparent' }}>
+                        {row.coverageCount}/{visibleCompanies.length}
+                      </Box>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan={visibleCompanies.length + 3}>
+                    <EmptyState
+                      icon={<GitCompareArrows />}
+                      title="No matching rows"
+                      description="Try loosening filters, selecting more companies, or uploading price lists on company ledger pages."
+                      action={
+                        <Button variant="outline" size="sm" onClick={() => { handleResetFilters(); setShowFilters(true); }}>
+                          Adjust filters
+                        </Button>
+                      }
+                    />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </Box>
+      </Box>
+    );
+  };
+
+  const renderStatsGrid = () => (
+    loading ? (
+      <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-5 mb-4">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <SkeletonStatsCard key={index} />
+        ))}
+      </DashboardGrid>
+    ) : (
+      <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-5 mb-4">
+        <StatsCard icon={<GitCompareArrows className="w-5 h-5" />} title="Compared" value={stats.comparedCompanies} subtitle={`${stats.withPriceLists} with price lists`} variant="default" delay={0} />
+        <StatsCard icon={<Building2 className="w-5 h-5" />} title="Rows Shown" value={stats.comparedRows} subtitle={comparisonTabs[activeTab]?.label ?? viewModeLabels[viewMode]} variant="info" delay={0.05} />
+        <StatsCard icon={<GitCompareArrows className="w-5 h-5" />} title="Different Rows" value={stats.differentRows} subtitle="Rows with price gaps" variant="warning" delay={0.1} />
+        <StatsCard icon={<GitCompareArrows className="w-5 h-5" />} title="Avg Spread" value={stats.averageSpread ? formatCurrency(stats.averageSpread) : '—'} subtitle={stats.maxSpread ? `Max ${formatCurrency(stats.maxSpread)}` : 'No spreads yet'} variant="success" delay={0.15} />
+        <StatsCard icon={<Trophy className="w-5 h-5" />} title="Best Value Leader" value={leaderCompany?.name || '—'} subtitle={displayInsights.leader ? `${displayInsights.leader.wins} row wins` : 'Needs 2+ companies'} variant="default" delay={0.2} />
+      </DashboardGrid>
+    )
+  );
+
   return (
     <PermissionRoute permission="finance:view">
       <DashboardSurface>
@@ -464,14 +864,6 @@ export default function CompanyPriceComparisonPage() {
           description="Compare imported shipping rate sheets, spot the cheapest carrier, and export results"
           actions={
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {viewMode === 'side-by-side' && (
-                <Button variant="outline" icon={<ArrowLeftRight className="w-4 h-4" />} onClick={handleSwapSideBySideCompanies}>
-                  Swap Companies
-                </Button>
-              )}
-              <Button variant="outline" icon={<Download className="w-4 h-4" />} onClick={handleExportCsv}>
-                Export CSV
-              </Button>
               <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => router.push('/dashboard/finance')}>
                 Finance
               </Button>
@@ -481,397 +873,194 @@ export default function CompanyPriceComparisonPage() {
             </Box>
           }
         >
-          <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-5 mb-4">
-            <StatsCard icon={<GitCompareArrows className="w-5 h-5" />} title="Compared" value={stats.comparedCompanies} variant="default" />
-            <StatsCard icon={<Building2 className="w-5 h-5" />} title="Rows Shown" value={stats.comparedRows} variant="info" />
-            <StatsCard icon={<GitCompareArrows className="w-5 h-5" />} title="Different Rows" value={stats.differentRows} variant="warning" />
-            <StatsCard icon={<GitCompareArrows className="w-5 h-5" />} title="Avg Spread" value={stats.averageSpread ? formatCurrency(stats.averageSpread) : '—'} variant="success" />
-            <StatsCard icon={<Trophy className="w-5 h-5" />} title="Best Value Leader" value={leaderCompany?.name || '—'} variant="default" />
-          </DashboardGrid>
-
-          <CompanyPriceComparisonPresets
-            currentConfig={currentPresetConfig}
-            onApply={applyPresetConfig}
-          />
-
-          {viewMode !== 'side-by-side' && visibleCompanies.length >= 2 && comparisonRows.length > 0 && (
-            <Box sx={{ display: 'grid', gap: 1.5, mb: 2, gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.4fr) minmax(0, 1fr)' } }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
-                <Box sx={{ fontWeight: 700, mb: 1 }}>Company Scorecard</Box>
-                <Box sx={{ display: 'grid', gap: 1 }}>
-                  {scorecards.map((scorecard) => {
-                    const company = visibleCompanies.find((item) => item.id === scorecard.companyId);
-                    if (!company) return null;
-
-                    return (
-                      <Box
-                        key={scorecard.companyId}
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: 'minmax(0, 1fr) auto auto auto',
-                          gap: 1.5,
-                          alignItems: 'center',
-                          p: 1,
-                          borderRadius: 1.5,
-                          border: scorecard.companyId === insights.leader?.companyId
-                            ? '1px solid rgba(34, 197, 94, 0.35)'
-                            : '1px solid transparent',
-                          background: scorecard.companyId === insights.leader?.companyId
-                            ? 'rgba(34, 197, 94, 0.08)'
-                            : 'transparent',
-                        }}
-                      >
-                        <Box>
-                          <Box sx={{ fontWeight: 700 }}>{company.name}</Box>
-                          <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{company.destinationLabel}</Box>
-                        </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Wins</Box>
-                          <Box sx={{ fontWeight: 700 }}>{scorecard.wins}</Box>
-                        </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Coverage</Box>
-                          <Box sx={{ fontWeight: 700 }}>{scorecard.coveragePercent}%</Box>
-                        </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Avg Rate</Box>
-                          <Box sx={{ fontWeight: 700 }}>{scorecard.averageRate ? formatCurrency(scorecard.averageRate) : '—'}</Box>
-                        </Box>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              </Box>
-
-              <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
-                <Box sx={{ fontWeight: 700, mb: 1 }}>Biggest Price Gaps</Box>
-                {insights.topSpreads.length > 0 ? insights.topSpreads.map((row) => (
-                  <Box key={row.key} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, py: 0.75, borderBottom: '1px solid var(--border)' }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box sx={{ fontWeight: 600, fontSize: '0.84rem' }}>{row.label}</Box>
-                      <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                        {row.coverageCount}/{visibleCompanies.length} companies priced
-                      </Box>
-                    </Box>
-                    <Box sx={{ fontWeight: 700, color: 'rgb(220, 38, 38)', whiteSpace: 'nowrap' }}>
-                      {row.spread ? formatCurrency(row.spread) : '—'}
-                    </Box>
-                  </Box>
-                )) : (
-                  <Box sx={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>No price differences in the current view.</Box>
-                )}
-              </Box>
-            </Box>
-          )}
-
-          <Box sx={{ display: 'grid', gap: 2, mb: 2 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-              <TextField
-                select
-                size="small"
-                label="Company Type"
-                value={typeFilter}
-                onChange={(event) => setTypeFilter(event.target.value as 'ALL' | 'SHIPPING' | 'DISPATCH' | 'TRANSIT')}
-              >
-                <MenuItem value="ALL">All Types</MenuItem>
-                <MenuItem value="SHIPPING">Shipping</MenuItem>
-                <MenuItem value="DISPATCH">Dispatch</MenuItem>
-                <MenuItem value="TRANSIT">Transit</MenuItem>
-              </TextField>
-              <TextField
-                size="small"
-                label="Search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={viewMode === 'state' ? 'Search state code or name' : 'Search branch, city, or loading point'}
-                InputProps={{
-                  startAdornment: <Search className="w-4 h-4 mr-2 text-[var(--text-secondary)]" />,
-                }}
-              />
-              <TextField
-                select
-                size="small"
-                label="State Filter"
-                value={stateFilter}
-                onChange={(event) => setStateFilter(event.target.value)}
-              >
-                <MenuItem value="">All States</MenuItem>
-                {US_STATES.map((state) => (
-                  <MenuItem key={state.code} value={state.code}>
-                    {state.code} — {state.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                size="small"
-                label="Destination"
-                value={destinationFilter}
-                onChange={(event) => setDestinationFilter(event.target.value)}
-              >
-                <MenuItem value="">All Destinations</MenuItem>
-                {destinationOptions.map((destination) => (
-                  <MenuItem key={destination} value={destination}>
-                    {destination}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-              <TextField
-                select
-                size="small"
-                label="Vehicle Type"
-                value={vehicleTypeId}
-                onChange={(event) => setVehicleTypeId(event.target.value)}
-              >
-                {vehicleTypes.map((type) => (
-                  <MenuItem key={type.id} value={type.id}>
-                    {type.label} ({type.multiplier}x)
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                size="small"
-                label="Reference Company"
-                value={referenceCompanyId}
-                onChange={(event) => setReferenceCompanyId(event.target.value)}
-              >
-                <MenuItem value="">No reference</MenuItem>
-                {visibleCompanies.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                size="small"
-                label="Display"
-                value={displayMode}
-                onChange={(event) => setDisplayMode(event.target.value as DisplayMode)}
-                disabled={!referenceCompanyId}
-              >
-                <MenuItem value="absolute">Absolute prices</MenuItem>
-                <MenuItem value="delta">Delta vs reference</MenuItem>
-              </TextField>
-              <TextField
-                select
-                size="small"
-                label="Sort By"
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as ComparisonSortKey)}
-              >
-                <MenuItem value="spread-desc">Largest spread first</MenuItem>
-                <MenuItem value="spread-asc">Smallest spread first</MenuItem>
-                <MenuItem value="label-asc">Name A → Z</MenuItem>
-                <MenuItem value="label-desc">Name Z → A</MenuItem>
-                <MenuItem value="coverage-desc">Best coverage first</MenuItem>
-                <MenuItem value="coverage-asc">Lowest coverage first</MenuItem>
-              </TextField>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '180px 1fr' }, gap: 1.5, alignItems: 'center' }}>
-              <TextField
-                size="small"
-                type="number"
-                label="Min Spread ($)"
-                value={minSpread}
-                onChange={(event) => setMinSpread(event.target.value)}
-                inputProps={{ min: 0, step: 50 }}
-              />
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                <FormControlLabel
-                  control={<Checkbox checked={differencesOnly} onChange={(event) => setDifferencesOnly(event.target.checked)} />}
-                  label="Only rows with price differences"
-                />
-                <FormControlLabel
-                  control={<Checkbox checked={onlyWithPriceLists} onChange={(event) => setOnlyWithPriceLists(event.target.checked)} />}
-                  label="Only companies with uploaded price lists"
-                />
-                <FormControlLabel
-                  control={<Checkbox checked={completeCoverageOnly} onChange={(event) => setCompleteCoverageOnly(event.target.checked)} />}
-                  label="Only rows priced by every selected company"
-                />
-                <Button variant="outline" size="sm" onClick={selectAllCompanies}>Select All</Button>
-                <Button variant="outline" size="sm" onClick={clearCompanySelection}>Clear Selection</Button>
-              </Box>
-            </Box>
-
-            <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
-              <Box sx={{ fontWeight: 700, mb: 1 }}>Companies to Compare</Box>
-              {loading ? (
-                <Box sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading companies...</Box>
-              ) : companies.length === 0 ? (
-                <Box sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No companies found for this filter.</Box>
-              ) : (
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {companies.map((company) => {
-                    const selected = selectedCompanyIds.includes(company.id);
-                    const disabled = onlyWithPriceLists && !company.hasPriceList;
-
-                    return (
-                      <Tooltip
-                        key={company.id}
-                        title={company.hasPriceList
-                          ? `${company.destinationLabel}${company.activePriceList?.name ? ` • ${company.activePriceList.name}` : ''}${company.activePriceList?.createdAt ? ` • ${new Date(company.activePriceList.createdAt).toLocaleDateString()}` : ''}`
-                          : 'No uploaded price list yet'}
-                      >
-                        <Box
-                          component="button"
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => toggleCompany(company.id)}
-                          sx={{
-                            border: selected ? '1px solid rgba(var(--accent-gold-rgb), 0.55)' : '1px solid var(--border)',
-                            background: selected ? 'rgba(var(--accent-gold-rgb), 0.12)' : 'var(--background)',
-                            color: disabled ? 'var(--text-secondary)' : 'var(--text-primary)',
-                            borderRadius: 9999,
-                            px: 1.25,
-                            py: 0.6,
-                            fontSize: '0.8rem',
-                            cursor: disabled ? 'not-allowed' : 'pointer',
-                            opacity: disabled ? 0.55 : 1,
-                          }}
-                        >
-                          {company.name}
-                          {!company.hasPriceList ? ' (no list)' : ''}
-                        </Box>
-                      </Tooltip>
-                    );
-                  })}
-                </Box>
-              )}
-            </Box>
-          </Box>
-
-          <Tabs value={viewMode} onChange={(_, value: ComparisonViewMode) => setViewMode(value)} sx={{ mb: 1 }}>
-            <Tab value="state" label="Matrix: State Rates" />
-            <Tab value="lane" label="Matrix: Branch / City" />
-            <Tab value="side-by-side" label="Side by Side" />
-          </Tabs>
-
-          <Box sx={{ mb: 1.5, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-            {viewMode === 'side-by-side' ? (
-              <>
-                Side-by-side duel view across {sideBySideCandidates.length} available compan{sideBySideCandidates.length === 1 ? 'y' : 'ies'}.
-              </>
-            ) : (
-              <>
-                Showing {comparisonRows.length} {viewMode === 'state' ? 'state' : 'lane'} row{comparisonRows.length === 1 ? '' : 's'} across {visibleCompanies.length} selected compan{visibleCompanies.length === 1 ? 'y' : 'ies'}.
-              </>
-            )}
-            {vehicleMultiplier !== 1 && (
-              <Box component="span" sx={{ ml: 1 }}>
-                Vehicle-adjusted at {vehicleMultiplier}x.
-              </Box>
-            )}
-            <Box component="span" sx={{ ml: 1 }}>
-              <Box component="span" sx={{ color: 'rgb(22, 163, 74)', fontWeight: 700 }}>Green</Box> = lowest,
-              <Box component="span" sx={{ color: 'rgb(220, 38, 38)', fontWeight: 700, ml: 0.5 }}>Red</Box> = highest.
-            </Box>
-          </Box>
-
-          {viewMode === 'side-by-side' ? (
-            <CompanyPriceComparisonSideBySide
-              companies={sideBySideCandidates}
-              leftCompanyId={sideBySideLeftId}
-              rightCompanyId={sideBySideRightId}
-              rateType={sideBySideRateType}
-              onLeftCompanyChange={setSideBySideLeftId}
-              onRightCompanyChange={setSideBySideRightId}
-              onRateTypeChange={setSideBySideRateType}
-              search={search}
-              stateFilter={stateFilter}
-              differencesOnly={differencesOnly}
-              completeCoverageOnly={completeCoverageOnly}
-              minSpread={minSpread}
-              sortBy={sortBy}
-              vehicleMultiplier={vehicleMultiplier}
-              formatCurrency={formatCurrency}
-              formatSignedCurrency={formatSignedCurrency}
-            />
-          ) : visibleCompanies.length < 2 ? (
-            <Box sx={{ py: 4, textAlign: 'center', color: 'var(--text-secondary)' }}>
-              Select at least two companies to compare prices.
-            </Box>
-          ) : (
-            <Box sx={{ border: '1px solid var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-              <Box sx={{ maxHeight: 620, overflow: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ textAlign: 'left', padding: '12px 14px', minWidth: 220, position: 'sticky', left: 0, background: 'var(--panel)', zIndex: 2 }}>
-                        {viewMode === 'state' ? 'State' : 'Lane'}
-                      </th>
-                      {visibleCompanies.map((company) => (
-                        <th key={company.id} style={{ textAlign: 'right', padding: '12px 14px', minWidth: 150 }}>
-                          <Link href={`/dashboard/finance/companies/${company.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                            <Box sx={{ fontWeight: 700 }}>{company.name}</Box>
-                            <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                              {company.destinationLabel}
-                            </Box>
-                            {company.activePriceList?.sourceFileName && (
-                              <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
-                                {company.activePriceList.sourceFileName}
-                              </Box>
-                            )}
-                          </Link>
-                        </th>
-                      ))}
-                      <th style={{ textAlign: 'right', padding: '12px 14px', minWidth: 90 }}>Spread</th>
-                      <th style={{ textAlign: 'center', padding: '12px 14px', minWidth: 80 }}>Coverage</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {comparisonRows.length > 0 ? comparisonRows.map((row) => {
-                      const comparableRates = Object.values(row.rates).filter((value): value is number => value !== null);
-                      const hasMultipleRates = comparableRates.length > 1;
-                      const referenceRate = referenceCompanyId ? row.rates[referenceCompanyId] ?? null : undefined;
-
-                      return (
-                        <tr key={row.key} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '10px 14px', position: 'sticky', left: 0, background: 'var(--background)', zIndex: 1 }}>
-                            <Box sx={{ fontWeight: 700 }}>{row.label}</Box>
-                            {viewMode === 'lane' && (
-                              <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{row.stateCode}</Box>
-                            )}
-                          </td>
-                          {visibleCompanies.map((company) => (
-                            <td key={`${row.key}-${company.id}`} style={{ padding: '10px 14px', textAlign: 'right' }}>
-                              <RateCell
-                                value={row.rates[company.id] ?? null}
-                                minRate={row.minRate}
-                                maxRate={row.maxRate}
-                                hasMultipleRates={hasMultipleRates}
-                                referenceRate={referenceRate}
-                                displayMode={displayMode}
-                              />
-                            </td>
-                          ))}
-                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: (row.spread ?? 0) > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                            {row.spread ? formatCurrency(row.spread) : '—'}
-                          </td>
-                          <td style={{ padding: '10px 14px', textAlign: 'center', color: row.coverageCount < visibleCompanies.length ? 'rgb(234, 179, 8)' : 'var(--text-secondary)', fontWeight: row.coverageCount < visibleCompanies.length ? 700 : 500 }}>
-                            {row.coverageCount}/{visibleCompanies.length}
-                          </td>
-                        </tr>
-                      );
-                    }) : (
-                      <tr>
-                        <td colSpan={visibleCompanies.length + 3} style={{ padding: '18px 14px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                          No matching rows to compare. Try changing filters or upload price lists on company ledger pages.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </Box>
-            </Box>
-          )}
+          {renderStatsGrid()}
         </DashboardPanel>
+
+        <Box
+          sx={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 15,
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            backgroundColor: 'var(--panel)',
+            boxShadow: '0 12px 28px rgba(var(--text-primary-rgb),0.08)',
+            overflow: 'hidden',
+          }}
+        >
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              minHeight: 52,
+              '& .MuiTabs-flexContainer': { gap: 0.25, px: 1 },
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 650,
+                color: 'var(--text-secondary)',
+                minHeight: 52,
+                borderRadius: '10px',
+                my: 0.75,
+                px: 1.5,
+                '&:hover': {
+                  color: 'var(--accent-gold)',
+                  backgroundColor: 'rgba(var(--accent-gold-rgb), 0.08)',
+                },
+              },
+              '& .Mui-selected': {
+                color: 'var(--accent-gold) !important',
+                backgroundColor: 'rgba(var(--accent-gold-rgb), 0.1)',
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: 'var(--accent-gold)',
+                height: 3,
+              },
+            }}
+          >
+            {comparisonTabs.map((tab, index) => (
+              <Tab
+                key={tab.label}
+                id={`comparison-tab-${index}`}
+                aria-controls={`comparison-tabpanel-${index}`}
+                icon={tab.icon}
+                iconPosition="start"
+                label={tab.label}
+              />
+            ))}
+          </Tabs>
+        </Box>
+
+        <TabPanel value={activeTab} index={TAB_OVERVIEW}>
+          <DashboardPanel
+            title="Comparison Overview"
+            description="High-level stats, leader rankings, and the biggest price gaps across selected carriers"
+            actions={
+              <Button variant="outline" size="sm" onClick={() => setActiveTab(TAB_STATE)}>
+                Open state matrix
+              </Button>
+            }
+          >
+            {visibleCompanies.length >= 2 && overviewComparisonRows.length > 0 ? (
+              <CompanyPriceComparisonInsights
+                visibleCompanies={visibleCompanies}
+                scorecards={overviewScorecards}
+                insights={overviewInsights}
+                formatCurrency={formatCurrency}
+              />
+            ) : (
+              <EmptyState
+                icon={<LayoutDashboard />}
+                title="No comparison data yet"
+                description="Select at least two companies and open a comparison tab to populate the overview."
+                action={
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <Button variant="outline" size="sm" onClick={() => { setActiveTab(TAB_PRESETS); setShowCompanies(true); }}>
+                      Configure companies
+                    </Button>
+                    <Button variant="primary" size="sm" onClick={() => setActiveTab(TAB_STATE)}>
+                      Start comparing
+                    </Button>
+                  </Box>
+                }
+              />
+            )}
+          </DashboardPanel>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={TAB_STATE}>
+          <DashboardPanel
+            title="State Rate Matrix"
+            description="Compare per-state shipping rates across all selected companies"
+          >
+            {renderComparisonToolbar()}
+            {renderFilterPanels()}
+            {renderLegendBar()}
+            {renderMatrixTable('state')}
+          </DashboardPanel>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={TAB_LANE}>
+          <DashboardPanel
+            title="Branch / City Matrix"
+            description="Compare lane-level auction rates by branch, city, and loading point"
+          >
+            {renderComparisonToolbar()}
+            {renderFilterPanels()}
+            {renderLegendBar()}
+            {renderMatrixTable('lane')}
+          </DashboardPanel>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={TAB_SIDE_BY_SIDE}>
+          <DashboardPanel
+            title="Side by Side Comparison"
+            description="Head-to-head duel between two carriers across overlapping rate rows"
+          >
+            {renderComparisonToolbar({ showSwap: true })}
+            {renderFilterPanels()}
+            {renderLegendBar()}
+            {loading ? (
+              <SkeletonTable rows={6} columns={3} />
+            ) : (
+              <CompanyPriceComparisonSideBySide
+                companies={sideBySideCandidates}
+                leftCompanyId={sideBySideLeftId}
+                rightCompanyId={sideBySideRightId}
+                rateType={sideBySideRateType}
+                onLeftCompanyChange={setSideBySideLeftId}
+                onRightCompanyChange={setSideBySideRightId}
+                onRateTypeChange={setSideBySideRateType}
+                search={search}
+                stateFilter={stateFilter}
+                differencesOnly={differencesOnly}
+                completeCoverageOnly={completeCoverageOnly}
+                minSpread={minSpread}
+                sortBy={sortBy}
+                vehicleMultiplier={vehicleMultiplier}
+                formatCurrency={formatCurrency}
+                formatSignedCurrency={formatSignedCurrency}
+              />
+            )}
+          </DashboardPanel>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={TAB_PRESETS}>
+          <DashboardPanel
+            title="Presets & Setup"
+            description="Save comparison configurations and manage company selection and filters"
+          >
+            <CompanyPriceComparisonPresets
+              currentConfig={currentPresetConfig}
+              onApply={applyPresetConfig}
+            />
+            <Box sx={{ mt: 2 }}>
+              <CompanyPriceComparisonFilters
+                companies={companies}
+                selectedCompanyIds={selectedCompanyIds}
+                visibleCompanyCount={visibleCompanies.length}
+                loading={loading}
+                destinationOptions={destinationOptions}
+                visibleCompanies={visibleCompanies}
+                filters={filterState}
+                panel="all"
+                onFilterChange={handleFilterChange}
+                onToggleCompany={toggleCompany}
+                onSelectAllCompanies={selectAllCompanies}
+                onClearCompanySelection={clearCompanySelection}
+              />
+            </Box>
+            {activeFilterCount > 0 && (
+              <Box sx={{ mt: 1.5 }}>
+                <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+                  Reset all filters
+                </Button>
+              </Box>
+            )}
+          </DashboardPanel>
+        </TabPanel>
       </DashboardSurface>
     </PermissionRoute>
   );

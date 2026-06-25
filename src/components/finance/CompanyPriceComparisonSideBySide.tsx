@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Box, MenuItem, TextField } from '@mui/material';
-import { ArrowLeftRight, Trophy } from 'lucide-react';
+import { ArrowLeftRight, GitCompareArrows, Trophy } from 'lucide-react';
+import { EmptyState } from '@/components/design-system';
 import type { CompanyPriceSnapshot, ComparisonSortKey } from '@/lib/company-price-comparison';
 import {
   buildSideBySideRows,
@@ -182,17 +183,21 @@ export default function CompanyPriceComparisonSideBySide({
 
   if (!leftCompany || !rightCompany) {
     return (
-      <Box sx={{ py: 4, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Choose a left and right company to run a side-by-side comparison.
-      </Box>
+      <EmptyState
+        icon={<GitCompareArrows />}
+        title="Choose two companies"
+        description="Select a left and right carrier to run a head-to-head price comparison."
+      />
     );
   }
 
   if (leftCompanyId === rightCompanyId) {
     return (
-      <Box sx={{ py: 4, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Select two different companies for side-by-side comparison.
-      </Box>
+      <EmptyState
+        icon={<ArrowLeftRight />}
+        title="Pick different companies"
+        description="Side-by-side comparison needs two distinct carriers to compare rates."
+      />
     );
   }
 
@@ -260,25 +265,41 @@ export default function CompanyPriceComparisonSideBySide({
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }, gap: 1 }}>
-        <Box sx={{ p: 1.25, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
-          <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Left wins</Box>
-          <Box sx={{ fontWeight: 700, fontSize: '1.1rem' }}>{summary.leftWins}</Box>
-        </Box>
-        <Box sx={{ p: 1.25, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
-          <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Right wins</Box>
-          <Box sx={{ fontWeight: 700, fontSize: '1.1rem' }}>{summary.rightWins}</Box>
-        </Box>
-        <Box sx={{ p: 1.25, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
-          <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Ties</Box>
-          <Box sx={{ fontWeight: 700, fontSize: '1.1rem' }}>{summary.ties}</Box>
-        </Box>
-        <Box sx={{ p: 1.25, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
-          <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Avg delta</Box>
-          <Box sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
-            {summary.averageDelta === null ? '—' : formatSignedCurrency(summary.averageDelta)}
+        {[
+          { label: 'Left wins', value: summary.leftWins, highlight: leftLeads, color: 'rgb(22, 163, 74)' },
+          { label: 'Right wins', value: summary.rightWins, highlight: rightLeads, color: 'rgb(22, 163, 74)' },
+          { label: 'Ties', value: summary.ties, highlight: false, color: 'var(--text-primary)' },
+          {
+            label: 'Avg delta',
+            value: summary.averageDelta === null ? '—' : formatSignedCurrency(summary.averageDelta),
+            highlight: false,
+            color: summary.averageDelta && summary.averageDelta < 0 ? 'rgb(22, 163, 74)' : summary.averageDelta && summary.averageDelta > 0 ? 'rgb(220, 38, 38)' : 'var(--text-primary)',
+          },
+        ].map((stat) => (
+          <Box
+            key={stat.label}
+            sx={{
+              p: 1.25,
+              borderRadius: 2,
+              border: stat.highlight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid var(--border)',
+              background: stat.highlight ? 'rgba(34, 197, 94, 0.06)' : 'var(--panel)',
+              transition: 'transform 0.15s ease',
+              '&:hover': { transform: 'translateY(-1px)' },
+            }}
+          >
+            <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{stat.label}</Box>
+            <Box sx={{ fontWeight: 700, fontSize: '1.1rem', color: stat.color }}>{stat.value}</Box>
           </Box>
-        </Box>
-        <Box sx={{ p: 1.25, borderRadius: 2, border: '1px solid rgba(var(--accent-gold-rgb), 0.35)', background: 'rgba(var(--accent-gold-rgb), 0.08)' }}>
+        ))}
+        <Box
+          sx={{
+            p: 1.25,
+            borderRadius: 2,
+            border: '1px solid rgba(var(--accent-gold-rgb), 0.35)',
+            background: 'rgba(var(--accent-gold-rgb), 0.08)',
+            gridColumn: { xs: 'span 2', md: 'auto' },
+          }}
+        >
           <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Trophy className="w-3.5 h-3.5" /> Leader
           </Box>
@@ -302,9 +323,11 @@ export default function CompanyPriceComparisonSideBySide({
           ))}
         </Box>
       ) : (
-        <Box sx={{ py: 4, textAlign: 'center', color: 'var(--text-secondary)' }}>
-          No matching rows for this side-by-side comparison. Try another rate type or loosen your filters.
-        </Box>
+        <EmptyState
+          icon={<GitCompareArrows />}
+          title="No matching rows"
+          description="Try another rate type, select different companies, or loosen your filters to find overlapping prices."
+        />
       )}
     </Box>
   );
