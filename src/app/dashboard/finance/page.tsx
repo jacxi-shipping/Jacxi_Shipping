@@ -26,7 +26,8 @@ import {
   CheckCircle,
     Building2,
         Truck,
-        HandCoins,
+    HandCoins,
+    GitCompareArrows,
 } from 'lucide-react';
 
 // Force dynamic rendering (requires database connection)
@@ -353,6 +354,18 @@ export default async function FinancePage() {
                                             <span className="font-semibold text-primary">Company Ledgers</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground">Manage partner company accounts</p>
+                                    </div>
+                                </Link>
+
+                                <Link href="/dashboard/finance/price-comparison">
+                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-teal-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-9 h-9 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform">
+                                                <GitCompareArrows className="w-5 h-5" />
+                                            </div>
+                                            <span className="font-semibold text-primary">Price Comparison</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Compare shipping rate sheets across companies</p>
                                     </div>
                                 </Link>
                             </>

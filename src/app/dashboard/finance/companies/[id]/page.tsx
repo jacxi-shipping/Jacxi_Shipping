@@ -16,7 +16,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { ArrowLeft, Building2, DollarSign, Eye, Landmark, Pencil, Plus, ReceiptText, Trash2, Truck, Upload } from 'lucide-react';
+import { ArrowLeft, Building2, DollarSign, Eye, GitCompareArrows, Landmark, Pencil, Plus, ReceiptText, Trash2, Truck, Upload } from 'lucide-react';
 import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
@@ -1181,6 +1181,11 @@ export default function CompanyLedgerDetailPage() {
         <DashboardPanel
           title="Company Price List"
           description="Upload and manage the rate sheet used by this company"
+          actions={
+            <Button variant="outline" icon={<GitCompareArrows className="w-4 h-4" />} onClick={() => router.push('/dashboard/finance/price-comparison')}>
+              Compare Prices
+            </Button>
+          }
         >
           <Box sx={{ display: 'grid', gap: 2.5 }}>
             <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid rgba(var(--accent-gold-rgb), 0.32)', background: 'rgba(var(--accent-gold-rgb), 0.08)' }}>

@@ -17,7 +17,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { Building2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Building2, GitCompareArrows, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import PermissionRoute from '@/components/auth/PermissionRoute';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast } from '@/components/design-system';
@@ -385,9 +385,14 @@ export default function CompanyFinancePage() {
           title="Company Finance Ledgers"
           description="Create and manage ledgers for partner companies"
           actions={
-            <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenCreate(true)}>
-              Add Company
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button variant="outline" icon={<GitCompareArrows className="w-4 h-4" />} onClick={() => router.push('/dashboard/finance/price-comparison')}>
+                Compare Prices
+              </Button>
+              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setOpenCreate(true)}>
+                Add Company
+              </Button>
+            </Box>
           }
         >
           <DashboardGrid className="grid-cols-1 md:grid-cols-4 mb-4">
