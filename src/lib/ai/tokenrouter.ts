@@ -1,4 +1,6 @@
-const TOKENROUTER_AI_URL = 'https://api.tokenrouter.com/v1/chat/completions';
+const ATOMESUS_API_BASE_URL = 'https://api.atomesus.com/v1';
+const ATOMESUS_MODELS_URL = `${ATOMESUS_API_BASE_URL}/models`;
+const ATOMESUS_CHAT_COMPLETIONS_URL = `${ATOMESUS_API_BASE_URL}/chat/completions`;
 
 type ChatMessageContent =
   | string
@@ -44,10 +46,27 @@ export async function createTokenRouterChatCompletion(
     throw new Error('TokenRouter AI is not configured. Set TOKENROUTER_API_KEY to enable AI features.');
   }
 
-  const response = await fetch(TOKENROUTER_AI_URL, {
+  const modelsResponse = await fetch(ATOMESUS_MODELS_URL, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!modelsResponse.ok) {
+    const modelsPayload = (await modelsResponse.json().catch(() => null)) as { error?: { message?: string } } | null;
+    const errorMessage = modelsPayload?.error?.message ?? `Atomesus models endpoint returned status ${modelsResponse.status}`;
+    throw new Error(errorMessage);
+  }
+
+  const response = await fetch(ATOMESUS_CHAT_COMPLETIONS_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Accept: 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
