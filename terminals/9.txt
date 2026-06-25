@@ -1,0 +1,7 @@
+---
+pid: 13320
+cwd: "C:\Users\hardyyyg\Desktop\Jacxi_Shipping"
+command: "npm run build 2>&1 | Tee-Object -FilePath build-output.log; if ($LASTEXITCODE -ne 0) { npx tsc --noEmit 2>&1 | Tee-Object -FilePath tsc-output.log }"
+started_at: 2026-06-25T03:17:04.716Z
+running_for_ms: 0        
+---

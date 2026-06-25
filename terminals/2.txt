@@ -1,0 +1,7 @@
+---
+pid: 17148
+cwd: "C:\Users\hardyyyg\Desktop\Jacxi_Shipping"
+command: "npm run build"
+started_at: 2026-06-25T03:13:18.097Z
+running_for_ms: 224994   
+---

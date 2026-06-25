@@ -228,6 +228,10 @@ export default function CompanyPriceComparisonPage() {
     }
   }, [referenceCompanyId, visibleCompanies]);
 
+  const sideBySideCandidates = useMemo(() => (
+    companies.filter((company) => !onlyWithPriceLists || company.hasPriceList)
+  ), [companies, onlyWithPriceLists]);
+
   useEffect(() => {
     if (viewMode !== 'side-by-side' || sideBySideCandidates.length < 2) return;
 
@@ -271,10 +275,6 @@ export default function CompanyPriceComparisonPage() {
     viewMode,
     visibleCompanies,
   ]);
-
-  const sideBySideCandidates = useMemo(() => (
-    companies.filter((company) => !onlyWithPriceLists || company.hasPriceList)
-  ), [companies, onlyWithPriceLists]);
 
   const currentPresetConfig = useMemo<ComparisonPresetConfig>(() => ({
     typeFilter,
@@ -432,7 +432,8 @@ export default function CompanyPriceComparisonPage() {
       return;
     }
 
-    const csv = exportComparisonCsv(visibleCompanies, comparisonRows, viewMode, {
+    const matrixViewMode = viewMode === 'lane' ? 'lane' : 'state';
+    const csv = exportComparisonCsv(visibleCompanies, comparisonRows, matrixViewMode, {
       referenceCompanyId: referenceCompanyId || undefined,
       vehicleLabel,
     });

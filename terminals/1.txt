@@ -1,0 +1,7 @@
+---
+pid: 2556
+cwd: "C:\Users\hardyyyg\Desktop\Jacxi_Shipping"
+command: "cmd.exe /c C:\\Users\\hardyyyg\\Desktop\\Jacxi_Shipping\\run-build.cmd"
+started_at: 2026-06-25T03:13:11.948Z
+running_for_ms: 229981   
+---
