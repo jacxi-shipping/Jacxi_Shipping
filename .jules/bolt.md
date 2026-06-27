@@ -18,3 +18,6 @@
 ## 2025-04-06 - Parallelize Independent Database Queries in React Server Components
 **Learning:** In Next.js Server Components that fetch data for dashboards (e.g., `src/app/dashboard/finance/page.tsx`), making sequential database queries (using `await` one after the other) causes total request latency to be the sum of all query times. Since these queries are independent (e.g., fetching a summary and counting active users), executing them sequentially is an anti-pattern.
 **Action:** When a Server Component requires multiple datasets that do not depend on each other, always group the Prisma queries into a single `Promise.all()` call to fetch them concurrently, reducing latency to the time of the single longest query.
+## 2026-06-27 - Reverting accidental lockfile commits during test suite runs
+**Learning:** When running the test suite locally in environments missing dependencies (e.g., `tsx`), running `pnpm install` can unintentionally generate untracked artifacts like `pnpm-lock.yaml` or modify `package.json`. These must be carefully excluded from the final PR to maintain project hygiene.
+**Action:** Always check `git status` before committing and run `git restore --staged <file>` and `rm <file>` for any accidentally generated package manager files or deleted baseline test output logs.
