@@ -19,6 +19,8 @@ type CompanyState = {
   code: string | null;
   isActive: boolean;
   companyType: 'SHIPPING' | 'DISPATCH' | 'TRANSIT';
+  priceListConfig?: Record<string, unknown>;
+  priceLists?: Array<Record<string, unknown>>;
 };
 
 type ShipmentState = {
@@ -34,6 +36,9 @@ type ShipmentState = {
   vehicleMake: string | null;
   vehicleModel: string | null;
   vehicleVIN: string | null;
+  purchaseLocation?: string | null;
+  price?: number | null;
+  priceListPricingSnapshot?: Record<string, unknown> | null;
   createdAt: string;
 };
 
@@ -152,8 +157,8 @@ function createState(): WorkflowState {
       'ops-1': { userId: 'ops-1', notifyShipmentPush: true },
     },
     companies: {
-      'dispatch-co': { id: 'dispatch-co', name: 'Dispatch Co', code: 'DSP', isActive: true, companyType: 'DISPATCH' },
-      'shipping-co': { id: 'shipping-co', name: 'Shipping Co', code: 'SHP', isActive: true, companyType: 'SHIPPING' },
+      'dispatch-co': { id: 'dispatch-co', name: 'Dispatch Co', code: 'DSP', isActive: true, companyType: 'DISPATCH', priceListConfig: { stateRates: { CA: 1000 } }, priceLists: [] },
+      'shipping-co': { id: 'shipping-co', name: 'Shipping Co', code: 'SHP', isActive: true, companyType: 'SHIPPING', priceListConfig: { stateRates: { CA: 1200 } }, priceLists: [] },
       'transit-co': { id: 'transit-co', name: 'Transit Co', code: 'TRN', isActive: true, companyType: 'TRANSIT' },
     },
     shipments: {
@@ -170,6 +175,9 @@ function createState(): WorkflowState {
         vehicleMake: 'Toyota',
         vehicleModel: 'Corolla',
         vehicleVIN: 'VIN-1',
+        purchaseLocation: 'CA',
+        price: null,
+        priceListPricingSnapshot: null,
         createdAt: new Date('2026-04-01T00:00:00.000Z').toISOString(),
       },
       s2: {
@@ -185,6 +193,9 @@ function createState(): WorkflowState {
         vehicleMake: 'Honda',
         vehicleModel: 'Civic',
         vehicleVIN: 'VIN-2',
+        purchaseLocation: 'CA',
+        price: null,
+        priceListPricingSnapshot: null,
         createdAt: new Date('2026-04-02T00:00:00.000Z').toISOString(),
       },
     },
@@ -584,7 +595,7 @@ function installRouteMocks(state: WorkflowState) {
   }) as unknown as typeof routeDeps.prisma.companyLedgerEntry.create;
   routeDeps.prisma.shipmentCharge.findFirst = (async ({ where }: any) => {
     return state.shipmentCharges.find((charge) => (
-      charge.shipmentId === where.shipmentId &&
+      (where.shipmentId ? charge.shipmentId === where.shipmentId : true) &&
       charge.sourceType === where.sourceType &&
       charge.sourceId === where.sourceId
     )) || null;
@@ -674,6 +685,10 @@ describe('workflow route integration', () => {
     assert.equal(response.status, 200);
     assert.equal(body.shipment.dispatchId, 'd1');
     assert.equal(state.shipments.s1.status, 'DISPATCHING');
+    assert.equal(state.shipments.s1.price, 1000);
+    assert.equal(state.shipmentCharges.length, 1);
+    assert.equal(state.shipmentCharges[0].chargeCode, 'PRICE_LIST_DISPATCH');
+    assert.equal(state.shipmentCharges[0].totalAmount, 300);
   });
 
   it('forbids dispatch assignment without workflow permissions', async () => {
@@ -772,6 +787,9 @@ describe('workflow route integration', () => {
     assert.equal(state.dispatchEvents.length, 1);
     assert.equal(state.containerAuditLogs.length, 1);
     assert.equal(state.shipmentAuditLogs.length, 1);
+    assert.equal(state.shipmentCharges.length, 1);
+    assert.equal(state.shipmentCharges[0].chargeCode, 'PRICE_LIST_SHIPPING');
+    assert.equal(state.shipmentCharges[0].totalAmount, 840);
   });
 
   it('supports split handoff across multiple containers with separate audit records', async () => {

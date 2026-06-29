@@ -4,6 +4,7 @@ import { routeDeps } from '@/lib/route-deps';
 import { isDispatchClosed } from '@/lib/dispatch-workflow';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 import { ensureWorkflowMoveAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
+import { postShipmentPriceListLifecycleCharge } from '@/lib/shipment-price-list-lifecycle';
 
 const addShipmentSchema = z.object({
   shipmentId: z.string().min(1),
@@ -78,6 +79,13 @@ export async function POST(
       where: { id: shipmentId },
       data: { dispatchId: params.id, status: 'DISPATCHING' },
       include: { user: { select: { id: true, name: true, email: true } } },
+    });
+
+    await postShipmentPriceListLifecycleCharge(routeDeps.prisma, {
+      shipmentId: updatedShipment.id,
+      companyId: updatedShipment.shippingCompanyId || dispatch.companyId,
+      phase: 'DISPATCH',
+      actorId: session.user.id as string,
     });
 
     const shipmentLabel = buildShipmentLabel(updatedShipment);

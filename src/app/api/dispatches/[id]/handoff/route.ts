@@ -4,6 +4,7 @@ import { routeDeps } from '@/lib/route-deps';
 import { isDispatchClosed } from '@/lib/dispatch-workflow';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 import { ensureWorkflowMoveAllowed, isClosedStageOverrideAllowed } from '@/lib/workflow-access';
+import { postShipmentPriceListLifecycleCharge } from '@/lib/shipment-price-list-lifecycle';
 
 const handoffSchema = z.object({
   containerId: z.string().min(1),
@@ -215,6 +216,15 @@ export async function POST(
           },
         })),
       });
+
+      await Promise.all(
+        selectedShipmentIds.map((shipmentId) => postShipmentPriceListLifecycleCharge(tx, {
+          shipmentId,
+          companyId: container.companyId,
+          phase: 'SHIPPING',
+          actorId,
+        })),
+      );
     });
 
     await sendShipmentWorkflowNotifications(

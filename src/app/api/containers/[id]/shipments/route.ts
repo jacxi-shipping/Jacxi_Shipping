@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { routeDeps } from '@/lib/route-deps';
 import { z } from 'zod';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
+import { postShipmentPriceListLifecycleCharge } from '@/lib/shipment-price-list-lifecycle';
 
 const assignShipmentsSchema = z.object({
   shipmentIds: z.array(z.string()),
@@ -160,6 +161,15 @@ export async function POST(
         shippingCompanyId: container.companyId,
       },
     });
+
+    await Promise.all(
+      shipmentIds.map((shipmentId) => postShipmentPriceListLifecycleCharge(routeDeps.prisma, {
+        shipmentId,
+        companyId: container.companyId,
+        phase: 'SHIPPING',
+        actorId: session.user.id as string,
+      })),
+    );
 
     // Update container count
     await routeDeps.prisma.container.update({
