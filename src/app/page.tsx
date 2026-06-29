@@ -8,6 +8,7 @@ import LandingScrollAnimator from '@/components/sections/home/LandingScrollAnima
 import MobileAppPromoSection from '@/components/sections/home/MobileAppPromoSection';
 import ProcessSection from '@/components/sections/home/ProcessSection';
 import ProvinceCoverageSection from '@/components/sections/home/ProvinceCoverageSection';
+import PublicRateCalculatorSection from '@/components/sections/PublicRateCalculatorSection';
 import RoutesAnimatedSection from '@/components/sections/RoutesAnimatedSection';
 import ServicesPreviewSection from '@/components/sections/home/ServicesPreviewSection';
 import TestimonialsSection from '@/components/sections/home/TestimonialsSection';
@@ -27,6 +28,7 @@ export default async function Home() {
         <ServicesPreviewSection />
         <ProcessSection />
         <ProvinceCoverageSection />
+        <PublicRateCalculatorSection />
         <MobileAppPromoSection />
         <TestimonialsSection />
         <QuoteFormSection />
