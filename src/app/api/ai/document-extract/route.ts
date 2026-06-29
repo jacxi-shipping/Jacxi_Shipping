@@ -10,7 +10,7 @@ import {
   buildInvoiceExtractionPrompt,
   documentExtractionRequestSchema,
   documentReviewResponseSchema,
-  extractDocumentText,
+  extractDocumentTextWithMetadata,
   invoiceDraftResponseSchema,
 } from '@/lib/ai/document-extraction';
 import { z } from 'zod';
@@ -45,14 +45,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const extractedText = await extractDocumentText(parsed.fileUrl, parsed.fileType).catch(() => '');
+    const extraction = await extractDocumentTextWithMetadata(parsed.fileUrl, parsed.fileType);
+    const extractedText = extraction.text;
 
     let result:
       | z.infer<typeof invoiceDraftResponseSchema>
       | z.infer<typeof documentReviewResponseSchema>;
     let model = parsed.mode === 'invoice-draft' ? 'deterministic-invoice-extraction' : 'deterministic-document-review';
     let source: 'tokenrouter-ai' | 'rules' = 'rules';
-    let failureReason: string | null = extractedText ? null : 'No text could be extracted from the document.';
+    let failureReason: string | null = extractedText ? null : extraction.failureReason || 'No text could be extracted from the document.';
     let prompt = parsed.mode === 'invoice-draft'
       ? buildInvoiceExtractionPrompt(parsed, extractedText)
       : buildDocumentReviewPrompt(parsed, extractedText);
@@ -102,10 +103,14 @@ export async function POST(request: NextRequest) {
         entityType: parsed.entityType,
         entityId: parsed.entityId,
         extractionTextLength: extractedText.length,
+        extractionMethod: extraction.method,
+        ocrAttempted: extraction.ocrAttempted,
       },
       responsePayload: {
         ...result,
         failureReason: source === 'rules' ? failureReason : null,
+        extractionMethod: extraction.method,
+        ocrAttempted: extraction.ocrAttempted,
       },
       status: source === 'tokenrouter-ai' ? 'SUCCESS' : 'FALLBACK',
     });
@@ -115,6 +120,8 @@ export async function POST(request: NextRequest) {
       aiInteractionLogId: aiLog.id,
       source,
       model,
+      extractionMethod: extraction.method,
+      ocrAttempted: extraction.ocrAttempted,
       failureReason: source === 'rules' ? failureReason : null,
     });
   } catch (error) {

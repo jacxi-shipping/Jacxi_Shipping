@@ -61,6 +61,8 @@ type ExtractionReview = {
   summary: string;
   extractedTextPreview: string;
   failureReason?: string | null;
+  extractionMethod?: string;
+  ocrAttempted?: boolean;
   aiInteractionLogId?: string;
 };
 
@@ -132,6 +134,8 @@ export function DocumentManager({
         summary: extracted.summary || 'No summary available.',
         extractedTextPreview: extracted.extractedTextPreview || 'No extracted text available.',
         failureReason: extracted.failureReason || null,
+        extractionMethod: extracted.extractionMethod,
+        ocrAttempted: Boolean(extracted.ocrAttempted),
         aiInteractionLogId: extracted.aiInteractionLogId,
       });
       setReviewTags(Array.isArray(extracted.tags) ? extracted.tags.join(', ') : '');
@@ -420,6 +424,14 @@ export function DocumentManager({
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                 AI Summary
               </Typography>
+              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1 }}>
+                {review.extractionMethod && (
+                  <Chip size="small" label={`Extraction: ${review.extractionMethod}`} />
+                )}
+                {review.ocrAttempted && (
+                  <Chip size="small" color="warning" label="OCR attempted" />
+                )}
+              </Box>
               <Typography variant="body2" sx={{ color: 'var(--text-secondary)', mb: 1.5 }}>
                 {review.summary}
               </Typography>

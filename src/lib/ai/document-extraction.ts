@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import JSZip from 'jszip';
-import { createCanvas } from '@napi-rs/canvas';
 import { createTokenRouterChatCompletion, isTokenRouterConfigured } from '@/lib/ai/tokenrouter';
 import { ensurePdfNodePolyfills } from '@/lib/pdf-node-polyfills';
 
@@ -34,6 +33,13 @@ export const invoiceDraftResponseSchema = z.object({
   confidenceNotes: z.string(),
   extractedTextPreview: z.string(),
 });
+
+export type DocumentTextExtractionResult = {
+  text: string;
+  method: 'pdf-text' | 'pdf-ocr' | 'image-ocr' | 'docx' | 'xlsx' | 'text' | 'unsupported' | 'failed';
+  failureReason: string | null;
+  ocrAttempted: boolean;
+};
 
 function truncateText(value: string, length: number) {
   return value.length > length ? `${value.slice(0, length)}...` : value;
@@ -119,7 +125,10 @@ async function ocrImageDataUrl(dataUrl: string) {
 
 async function renderPdfPageImages(buffer: Buffer, maxPages = 2) {
   await ensurePdfNodePolyfills();
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const [pdfjs, canvas] = await Promise.all([
+    import('pdfjs-dist/legacy/build/pdf.mjs'),
+    import('@napi-rs/canvas'),
+  ]);
   const document = await pdfjs.getDocument({
     data: new Uint8Array(buffer),
     disableWorker: true,
@@ -132,14 +141,14 @@ async function renderPdfPageImages(buffer: Buffer, maxPages = 2) {
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1.4 });
-      const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-      const context = canvas.getContext('2d');
+      const renderedCanvas = canvas.createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+      const context = renderedCanvas.getContext('2d');
       await page.render({
-        canvas: canvas as unknown as HTMLCanvasElement,
+        canvas: renderedCanvas as unknown as HTMLCanvasElement,
         canvasContext: context as unknown as CanvasRenderingContext2D,
         viewport,
       }).promise;
-      images.push(canvas.toDataURL('image/png'));
+      images.push(renderedCanvas.toDataURL('image/png'));
     }
   } finally {
     await document.destroy();
@@ -207,6 +216,113 @@ export async function extractDocumentText(fileUrl: string, fileType: string) {
   }
 
   return '';
+}
+
+export async function extractDocumentTextWithMetadata(fileUrl: string, fileType: string): Promise<DocumentTextExtractionResult> {
+  try {
+    const response = await fetch(fileUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      return {
+        text: '',
+        method: 'failed',
+        failureReason: 'Failed to fetch uploaded file for extraction.',
+        ocrAttempted: false,
+      };
+    }
+
+    if (fileType.includes('pdf')) {
+      await ensurePdfNodePolyfills();
+      const { PDFParse } = await import('pdf-parse');
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const parser = new PDFParse({ data: buffer });
+
+      try {
+        const parsed = await parser.getText();
+        const extractedText = normalizeExtractedText(parsed.text);
+        if (extractedText.length > 20) {
+          return {
+            text: extractedText,
+            method: 'pdf-text',
+            failureReason: null,
+            ocrAttempted: false,
+          };
+        }
+
+        const ocrText = await ocrPdfImages(buffer).catch(() => '');
+        return {
+          text: ocrText,
+          method: ocrText ? 'pdf-ocr' : 'failed',
+          failureReason: ocrText
+            ? null
+            : isTokenRouterConfigured()
+              ? 'No embedded PDF text was found and OCR did not return readable text.'
+              : 'No embedded PDF text was found. Configure TokenRouter to enable OCR fallback.',
+          ocrAttempted: true,
+        };
+      } finally {
+        await parser.destroy();
+      }
+    }
+
+    if (fileType.includes('image/')) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const text = await ocrImageDataUrl(`data:${fileType};base64,${buffer.toString('base64')}`).catch(() => '');
+      return {
+        text,
+        method: text ? 'image-ocr' : 'failed',
+        failureReason: text
+          ? null
+          : isTokenRouterConfigured()
+            ? 'Image OCR did not return readable text.'
+            : 'Configure TokenRouter to enable image OCR.',
+        ocrAttempted: true,
+      };
+    }
+
+    if (fileType.includes('wordprocessingml.document') || fileType.includes('application/msword')) {
+      const text = await extractDocxText(Buffer.from(await response.arrayBuffer()));
+      return {
+        text,
+        method: 'docx',
+        failureReason: text ? null : 'No readable DOCX text was found.',
+        ocrAttempted: false,
+      };
+    }
+
+    if (fileType.includes('spreadsheetml.sheet') || fileType.includes('application/vnd.ms-excel')) {
+      const text = await extractXlsxText(Buffer.from(await response.arrayBuffer()));
+      return {
+        text,
+        method: 'xlsx',
+        failureReason: text ? null : 'No readable spreadsheet text was found.',
+        ocrAttempted: false,
+      };
+    }
+
+    if (fileType.includes('csv') || fileType.includes('text')) {
+      const text = normalizeExtractedText(await response.text());
+      return {
+        text,
+        method: 'text',
+        failureReason: text ? null : 'No readable text was found.',
+        ocrAttempted: false,
+      };
+    }
+
+    return {
+      text: '',
+      method: 'unsupported',
+      failureReason: 'This file type is not supported for text extraction.',
+      ocrAttempted: false,
+    };
+  } catch (error) {
+    return {
+      text: '',
+      method: 'failed',
+      failureReason: error instanceof Error ? error.message : 'Document text extraction failed.',
+      ocrAttempted: false,
+    };
+  }
 }
 
 export function buildDocumentReviewPrompt(input: z.infer<typeof documentExtractionRequestSchema>, extractedText: string) {

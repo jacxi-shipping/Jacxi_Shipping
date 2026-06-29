@@ -10,6 +10,7 @@ import {
 	Box,
 	InputAdornment,
 	Typography,
+	Chip,
 } from '@mui/material';
 import { AlertTriangle, FileText, Upload } from 'lucide-react';
 import { Button, Modal, toast } from '@/components/design-system';
@@ -56,6 +57,8 @@ export default function AddInvoiceModal({
 		confidenceNotes: string;
 		extractedTextPreview: string;
 		failureReason?: string | null;
+		extractionMethod?: string;
+		ocrAttempted?: boolean;
 		aiInteractionLogId?: string;
 	} | null>(null);
 
@@ -203,6 +206,8 @@ export default function AddInvoiceModal({
 				confidenceNotes: extracted.confidenceNotes || 'Please verify the extracted invoice fields before saving.',
 				extractedTextPreview: extracted.extractedTextPreview || 'No extracted text available.',
 				failureReason: extracted.failureReason || null,
+				extractionMethod: extracted.extractionMethod,
+				ocrAttempted: Boolean(extracted.ocrAttempted),
 				aiInteractionLogId: extracted.aiInteractionLogId,
 			});
 
@@ -272,6 +277,14 @@ export default function AddInvoiceModal({
 
 						{invoiceSource && (
 							<Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+								<Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+									{invoiceSource.extractionMethod && (
+										<Chip size="small" label={`Extraction: ${invoiceSource.extractionMethod}`} />
+									)}
+									{invoiceSource.ocrAttempted && (
+										<Chip size="small" color="warning" label="OCR attempted" />
+									)}
+								</Box>
 								<Typography sx={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
 									{invoiceSource.confidenceNotes}
 								</Typography>
