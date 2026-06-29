@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { 
@@ -230,9 +230,22 @@ const statusConfig: Record<string, { label: string; color: 'success' | 'warning'
 	CLOSED: { label: 'Closed', color: 'default' },
 };
 
+const containerTabSlugs = [
+	'overview',
+	'shipments',
+	'expenses',
+	'damages',
+	'invoices',
+	'user-invoices',
+	'documents',
+	'tracking',
+	'activity',
+];
+
 export default function ContainerDetailPage() {
 	const params = useParams();
 	const router = useRouter();
+	const searchParams = useSearchParams();
     const { data: session } = useSession();
 	const userRole = session?.user?.role;
 	const isAdmin = userRole === 'admin';
@@ -273,6 +286,11 @@ export default function ContainerDetailPage() {
 	const [availableShipments, setAvailableShipments] = useState<any[]>([]);
 	const [selectedShipmentIds, setSelectedShipmentIds] = useState<string[]>([]);
 	const [loadingAvailableShipments, setLoadingAvailableShipments] = useState(false);
+
+	useEffect(() => {
+		const tab = searchParams.get('tab');
+		if (tab && containerTabSlugs.includes(tab) && tab !== activeTab) setActiveTab(tab);
+	}, [activeTab, searchParams]);
 	const [assigningShipments, setAssigningShipments] = useState(false);
 	const [shipmentSearchQuery, setShipmentSearchQuery] = useState('');
 
@@ -996,7 +1014,12 @@ export default function ContainerDetailPage() {
 				<Box sx={{ px: 2, mb: 2 }}>
 					<Tabs 
 						value={activeTab} 
-						onChange={(_, newValue) => setActiveTab(newValue)}
+						onChange={(_, newValue) => {
+							setActiveTab(newValue);
+							const nextParams = new URLSearchParams(searchParams.toString());
+							nextParams.set('tab', newValue);
+							router.replace(`?${nextParams.toString()}`, { scroll: false });
+						}}
 						variant="scrollable"
 						scrollButtons="auto"
 						sx={{

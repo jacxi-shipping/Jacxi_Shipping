@@ -4,6 +4,7 @@ import SiteLogo from '@/components/brand/SiteLogo';
 const navigationLinks = [
   { label: 'Services', href: '/#services' },
   { label: 'How It Works', href: '/#process' },
+  { label: 'Calculator', href: '/#calculator' },
   { label: 'Tracking', href: '/tracking' },
   { label: 'Testimonials', href: '/#testimonials' },
   { label: 'About', href: '/#about' },

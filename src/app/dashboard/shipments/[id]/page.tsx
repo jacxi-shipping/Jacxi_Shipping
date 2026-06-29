@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
@@ -74,6 +74,27 @@ const containerStatusColors: Record<string, StatusColors> = {
   'CLOSED': { bg: 'rgba(75, 85, 99, 0.15)', text: 'rgb(75, 85, 99)', border: 'rgba(75, 85, 99, 0.4)' },
 };
 
+const shipmentTabSlugs = [
+  'overview',
+  'timeline',
+  'photos',
+  'documents',
+  'financials',
+  'billing',
+  'damages',
+  'details',
+  'activity',
+  'customer',
+];
+
+function TabPanel({ children, value, index }: { children: React.ReactNode; value: number; index: number }) {
+  return (
+    <div role="tabpanel" hidden={value !== index} id={`shipment-tabpanel-${index}`} aria-labelledby={`shipment-tab-${index}`}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
+}
+
 const expenseSourceLabels: Record<ClassifiedExpenseSource, string> = {
   SHIPMENT: 'Shipping',
   DISPATCH: 'Dispatch',
@@ -125,6 +146,7 @@ function formatShortDate(value: string | null | undefined) {
 export default function ShipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,6 +171,12 @@ export default function ShipmentDetailPage() {
   const [expenseAction, setExpenseAction] = useState<ExpenseActionContext | null>(null);
   const [expenseSourceFilter, setExpenseSourceFilter] = useState<ExpenseSourceFilter>('ALL');
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const index = tab ? shipmentTabSlugs.indexOf(tab) : -1;
+    if (index >= 0 && index !== activeTab) setActiveTab(index);
+  }, [activeTab, searchParams]);
 
   const fetchShipment = useCallback(async () => {
     try {
@@ -812,14 +840,6 @@ export default function ShipmentDetailPage() {
 
   const totalEstimatedCost = (shipment?.price || 0) + (shipment?.insuranceValue || 0) + userLedgerDebitsTotal;
 
-  const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
-    return (
-      <div role="tabpanel" hidden={value !== index} id={`shipment-tabpanel-${index}`} aria-labelledby={`shipment-tab-${index}`}>
-        {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <ProtectedRoute>
@@ -1067,7 +1087,12 @@ export default function ShipmentDetailPage() {
         >
           <Tabs
             value={activeTab}
-            onChange={(_, newValue) => setActiveTab(newValue)}
+            onChange={(_, newValue) => {
+              setActiveTab(newValue);
+              const nextParams = new URLSearchParams(searchParams.toString());
+              nextParams.set('tab', shipmentTabSlugs[newValue] || shipmentTabSlugs[0]);
+              router.replace(`?${nextParams.toString()}`, { scroll: false });
+            }}
             variant="scrollable"
             scrollButtons="auto"
             sx={{

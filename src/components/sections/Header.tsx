@@ -27,6 +27,7 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
   const navLinks = [
     { name: 'Services', href: '/#services' },
     { name: 'How It Works', href: '/#process' },
+    { name: 'Calculator', href: '/#calculator' },
     { name: 'Testimonials', href: '/#testimonials' },
     { name: 'Tracking', href: '/tracking' },
     { name: 'About', href: '/#about' },
