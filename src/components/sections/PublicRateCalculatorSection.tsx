@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Calculator, Car, MapPin, Ship, Truck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
@@ -18,6 +18,12 @@ const destinationOptions = [
 
 const popularStates = ['CA', 'TX', 'NJ', 'GA', 'MD', 'FL', 'NY', 'PA', 'IL', 'OH'];
 
+type PublicAverageEstimate = {
+  averageBaseRate: number | null;
+  companyCount: number;
+  matchedAuctionRows: number;
+};
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -30,12 +36,14 @@ export default function PublicRateCalculatorSection() {
   const [originState, setOriginState] = useState('CA');
   const [vehicleType, setVehicleType] = useState(DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes[0]?.id || 'sedan');
   const [destination, setDestination] = useState(destinationOptions[0].id);
+  const [averageEstimate, setAverageEstimate] = useState<PublicAverageEstimate | null>(null);
+  const [loadingEstimate, setLoadingEstimate] = useState(false);
 
   const selectedState = US_STATES.find((state) => state.code === originState);
   const selectedVehicle = DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes.find((type) => type.id === vehicleType)
     || DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes[0];
   const selectedDestination = destinationOptions.find((option) => option.id === destination) || destinationOptions[0];
-  const baseRate = DEFAULT_SHIPPING_RATE_CONFIG.stateRates[originState] || DEFAULT_SHIPPING_RATE_CONFIG.fallbackRate;
+  const baseRate = averageEstimate?.averageBaseRate || DEFAULT_SHIPPING_RATE_CONFIG.stateRates[originState] || DEFAULT_SHIPPING_RATE_CONFIG.fallbackRate;
   const estimate = Math.round(baseRate * selectedVehicle.multiplier * selectedDestination.multiplier);
   const rangeLow = Math.round(estimate * 0.92);
   const rangeHigh = Math.round(estimate * 1.12);
@@ -48,6 +56,34 @@ export default function PublicRateCalculatorSection() {
     estimateHigh: String(rangeHigh),
   });
   const quoteHref = `?${quoteParams.toString()}#quote`;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoadingEstimate(true);
+
+    fetch(`/api/public/shipping-rate-estimate?originState=${encodeURIComponent(originState)}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (data?.estimate) {
+          setAverageEstimate(data.estimate);
+        } else {
+          setAverageEstimate(null);
+        }
+      })
+      .catch((error) => {
+        if (error?.name !== 'AbortError') {
+          setAverageEstimate(null);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingEstimate(false);
+      });
+
+    return () => controller.abort();
+  }, [originState]);
 
   const popularStateOptions = useMemo(
     () => popularStates
@@ -106,7 +142,11 @@ export default function PublicRateCalculatorSection() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-950">Shipping Calculator</h3>
-                  <p className="text-sm text-gray-500">Planning estimate in USD</p>
+                  <p className="text-sm text-gray-500">
+                    {averageEstimate?.companyCount
+                      ? `Average from ${averageEstimate.companyCount} company price list${averageEstimate.companyCount === 1 ? '' : 's'}`
+                      : 'Planning estimate in USD'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -162,7 +202,9 @@ export default function PublicRateCalculatorSection() {
             <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Estimated Range</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+                    {loadingEstimate ? 'Updating Estimate' : 'Estimated Range'}
+                  </p>
                   <p className="mt-2 text-3xl font-extrabold text-gray-950 sm:text-4xl">
                     {formatCurrency(rangeLow)} - {formatCurrency(rangeHigh)}
                   </p>
@@ -176,6 +218,11 @@ export default function PublicRateCalculatorSection() {
                 <ArrowRight className="h-4 w-4 text-[var(--accent-gold)]" />
                 <span>{selectedDestination.label}</span>
                 <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold">{selectedVehicle.label}</span>
+                {averageEstimate?.companyCount ? (
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold">
+                    {averageEstimate.matchedAuctionRows} matched rows
+                  </span>
+                ) : null}
               </div>
             </div>
 

@@ -20,6 +20,7 @@ import {
     type ShippingRateCalculatorConfig,
     normalizeShippingRateConfig,
 } from '@/lib/shipping-rate-calculator';
+import { buildAverageCompanyRateEstimate } from '@/lib/shipping-rate-average';
 
 type CompanyRateOption = {
     id: string;
@@ -46,6 +47,8 @@ type CalculationTrace = {
     rowSource: string;
     rowConfidence: string;
     laneLabel: string;
+    averagedCompanyCount?: number;
+    matchedAuctionRows?: number;
 };
 
 export default function ShipmentCalculator() {
@@ -62,6 +65,22 @@ export default function ShipmentCalculator() {
     const stateAuctionRates = config.auctionRates.filter((rate) => rate.stateCode === origin);
     const selectedCompany = companies.find((company) => company.id === companyId);
     const activeCompanyPriceList = selectedCompany?.priceLists?.[0];
+    const allCompanyEstimate = origin && !companyId
+        ? buildAverageCompanyRateEstimate(
+            companies.map((company) => {
+                const activeList = company.priceLists?.[0];
+                return {
+                    companyId: company.id,
+                    companyName: company.name,
+                    priceListId: activeList?.id || null,
+                    priceListName: activeList?.name || null,
+                    sourceFileName: activeList?.sourceFileName || null,
+                    config: company.priceListConfig,
+                };
+            }),
+            origin,
+        )
+        : null;
 
     useEffect(() => {
         let isMounted = true;
@@ -123,20 +142,25 @@ export default function ShipmentCalculator() {
         const selectedAuctionRate = pickupLocation
             ? stateAuctionRates[Number(pickupLocation)]
             : null;
-        const baseRate = selectedAuctionRate?.total || config.stateRates[origin] || config.fallbackRate;
+        const averagedBaseRate = !companyId ? allCompanyEstimate?.averageBaseRate : null;
+        const baseRate = averagedBaseRate || selectedAuctionRate?.total || config.stateRates[origin] || config.fallbackRate;
         const multiplier = config.vehicleTypes.find(v => v.id === vehicleType)?.multiplier || 1;
         
         setEstimatedCost(Math.round(baseRate * multiplier));
         setCalculationTrace({
-            companyName: selectedCompany?.name || 'Default dashboard rates',
+            companyName: selectedCompany?.name || (averagedBaseRate ? 'All active shipping companies' : 'Default dashboard rates'),
             priceListName: activeCompanyPriceList?.name || 'Default rate settings',
-            priceListId: activeCompanyPriceList?.id || 'settings',
-            sourceFileName: activeCompanyPriceList?.sourceFileName || config.updatedFromPdfName || 'manual settings',
+            priceListId: activeCompanyPriceList?.id || (averagedBaseRate ? 'average' : 'settings'),
+            sourceFileName: activeCompanyPriceList?.sourceFileName || (averagedBaseRate ? 'active company price lists' : config.updatedFromPdfName || 'manual settings'),
             baseRate,
             multiplier,
-            rowSource: selectedAuctionRate?.source || (selectedAuctionRate ? 'uploaded row' : config.stateRates[origin] ? 'state rate' : 'fallback rate'),
-            rowConfidence: selectedAuctionRate?.confidence || (selectedAuctionRate ? 'unknown' : 'high'),
-            laneLabel: selectedAuctionRate ? formatAuctionRateLabel(selectedAuctionRate) : `${origin} state rate`,
+            rowSource: averagedBaseRate ? 'company average' : selectedAuctionRate?.source || (selectedAuctionRate ? 'uploaded row' : config.stateRates[origin] ? 'state rate' : 'fallback rate'),
+            rowConfidence: averagedBaseRate ? 'high' : selectedAuctionRate?.confidence || (selectedAuctionRate ? 'unknown' : 'high'),
+            laneLabel: averagedBaseRate
+                ? `${origin} average from ${allCompanyEstimate?.companyCount || 0} company price list${allCompanyEstimate?.companyCount === 1 ? '' : 's'}`
+                : selectedAuctionRate ? formatAuctionRateLabel(selectedAuctionRate) : `${origin} state rate`,
+            averagedCompanyCount: allCompanyEstimate?.companyCount,
+            matchedAuctionRows: allCompanyEstimate?.matchedAuctionRows,
         });
     };
 
@@ -251,7 +275,7 @@ export default function ShipmentCalculator() {
                             }}
                             sx={{ bgcolor: 'var(--background)' }}
                         >
-                            <MenuItem value="">Default dashboard rates</MenuItem>
+                            <MenuItem value="">Average of all active company price lists</MenuItem>
                             {companies.map((company) => {
                                 const activeList = company.priceLists?.[0];
                                 const rowCount = activeList
@@ -350,7 +374,9 @@ export default function ShipmentCalculator() {
                     >
                         {activeCompanyPriceList
                             ? `Using ${activeCompanyPriceList.name} from ${activeCompanyPriceList.sourceFileName}.`
-                            : 'Rates update daily and include standard handling.'}
+                            : allCompanyEstimate?.companyCount
+                                ? `Averaging ${allCompanyEstimate.companyCount} active company price list${allCompanyEstimate.companyCount === 1 ? '' : 's'} for ${origin}.`
+                                : 'Rates update daily and include standard handling.'}
                         {!activeCompanyPriceList && config.updatedFromPdfName ? ` Last file: ${config.updatedFromPdfName}.` : ''}
                     </Typography>
                 </Box>
@@ -382,6 +408,7 @@ export default function ShipmentCalculator() {
                                 {calculationTrace && (
                                     <Typography variant="caption" sx={{ display: 'block', color: 'var(--text-secondary)', mt: 1 }}>
                                         Source: {calculationTrace.companyName} / {calculationTrace.priceListName} ({calculationTrace.priceListId}) / {calculationTrace.sourceFileName}. Base {formatCurrency(calculationTrace.baseRate)} x {calculationTrace.multiplier}; {calculationTrace.rowSource} / {calculationTrace.rowConfidence}.
+                                        {calculationTrace.averagedCompanyCount ? ` ${calculationTrace.averagedCompanyCount} companies, ${calculationTrace.matchedAuctionRows || 0} matched auction rows.` : ''}
                                     </Typography>
                                 )}
                             </Box>
