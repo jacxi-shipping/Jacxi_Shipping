@@ -31,6 +31,7 @@ type MaterializeContainerShipmentChargesInput = {
     serviceType: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
     purchasePrice: number | null;
     price: number | null;
+    priceListPricingSnapshot?: Prisma.JsonValue | null;
     insuranceValue: number | null;
     damageCredit: number | null;
     vehicleYear: number | null;
@@ -127,7 +128,9 @@ export async function materializeContainerShipmentCharges(
       await voidShipmentChargeSource(tx, 'SHIPMENT', purchaseSourceId);
     }
 
-    if ((shipment.price || 0) > 0) {
+    if (shipment.priceListPricingSnapshot) {
+      await voidShipmentChargeSource(tx, 'SHIPMENT', serviceSourceId);
+    } else if ((shipment.price || 0) > 0) {
       await upsertShipmentSystemCharge(tx, {
         shipmentId: shipment.id,
         userId: shipment.userId,

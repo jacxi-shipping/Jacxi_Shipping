@@ -138,6 +138,7 @@ export class AutoInvoiceService {
 						serviceType: shipment.serviceType,
 						purchasePrice: shipment.purchasePrice,
 						price: shipment.price,
+						priceListPricingSnapshot: shipment.priceListPricingSnapshot as Prisma.JsonValue | null,
 						insuranceValue: shipment.insuranceValue,
 						damageCredit: shipment.damageCredit,
 						vehicleYear: shipment.vehicleYear,

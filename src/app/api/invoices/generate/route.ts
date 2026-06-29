@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
       serviceType: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
       purchasePrice: number | null;
       price: number | null;
+      priceListPricingSnapshot: Prisma.JsonValue | null;
       insuranceValue: number | null;
       damageCredit: number | null;
       vehicleYear: number | null;
@@ -230,6 +231,7 @@ export async function POST(req: NextRequest) {
           serviceType: shipment.serviceType,
           purchasePrice: shipment.purchasePrice,
           price: shipment.price,
+          priceListPricingSnapshot: shipment.priceListPricingSnapshot as Prisma.JsonValue | null,
           insuranceValue: shipment.insuranceValue,
           damageCredit: shipment.damageCredit,
           vehicleYear: shipment.vehicleYear,
