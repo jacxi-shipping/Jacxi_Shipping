@@ -157,6 +157,7 @@ export async function GET(
             importMode: true,
             importedStateRateCount: true,
             importedAuctionRateCount: true,
+            config: true,
             warnings: true,
             isActive: true,
             effectiveFrom: true,

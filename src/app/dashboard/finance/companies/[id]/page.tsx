@@ -21,7 +21,7 @@ import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
-import type { AuctionRateEntry, ShippingRateCalculatorConfig } from '@/lib/shipping-rate-calculator';
+import { normalizeShippingRateConfig, type AuctionRateEntry, type ShippingRateCalculatorConfig } from '@/lib/shipping-rate-calculator';
 
 type PriceListImportMode = 'replace' | 'merge' | 'add_new';
 
@@ -132,6 +132,7 @@ interface CompanyPriceListSummary {
   importMode: string;
   importedStateRateCount: number;
   importedAuctionRateCount: number;
+  config?: unknown;
   warnings: string[] | null;
   isActive: boolean;
   effectiveFrom: string | null;
@@ -212,6 +213,48 @@ function summarizePreviewRowSources(rows: AuctionRateEntry[]) {
   }, {});
 }
 
+function priceListLaneKey(rate: AuctionRateEntry) {
+  return [
+    rate.stateCode,
+    rate.branch.trim().toLowerCase(),
+    rate.city.trim().toLowerCase(),
+    rate.loadingPoint?.trim().toLowerCase() || '',
+  ].join('|');
+}
+
+function buildPriceListVersionComparison(currentConfig: ShippingRateCalculatorConfig, targetConfig: ShippingRateCalculatorConfig) {
+  const stateCodes = Array.from(new Set([
+    ...Object.keys(currentConfig.stateRates || {}),
+    ...Object.keys(targetConfig.stateRates || {}),
+  ])).sort();
+  const changedStates = stateCodes
+    .map((stateCode) => ({
+      stateCode,
+      current: currentConfig.stateRates[stateCode] ?? null,
+      target: targetConfig.stateRates[stateCode] ?? null,
+    }))
+    .filter((row) => row.current !== row.target);
+
+  const currentLanes = new Map((currentConfig.auctionRates || []).map((rate) => [priceListLaneKey(rate), rate]));
+  const targetLanes = new Map((targetConfig.auctionRates || []).map((rate) => [priceListLaneKey(rate), rate]));
+  const laneKeys = Array.from(new Set([...currentLanes.keys(), ...targetLanes.keys()]));
+  const addedLanes = laneKeys.filter((key) => !currentLanes.has(key)).map((key) => targetLanes.get(key)).filter(Boolean) as AuctionRateEntry[];
+  const removedLanes = laneKeys.filter((key) => !targetLanes.has(key)).map((key) => currentLanes.get(key)).filter(Boolean) as AuctionRateEntry[];
+  const changedLanes = laneKeys
+    .filter((key) => currentLanes.has(key) && targetLanes.has(key) && currentLanes.get(key)?.total !== targetLanes.get(key)?.total)
+    .map((key) => ({
+      current: currentLanes.get(key) as AuctionRateEntry,
+      target: targetLanes.get(key) as AuctionRateEntry,
+    }));
+
+  return {
+    changedStates,
+    addedLanes,
+    removedLanes,
+    changedLanes,
+  };
+}
+
 export default function CompanyLedgerDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -238,6 +281,7 @@ export default function CompanyLedgerDetailPage() {
   const [priceListPreview, setPriceListPreview] = useState<PriceListPreview | null>(null);
   const [priceListSearch, setPriceListSearch] = useState('');
   const [activatingPriceListId, setActivatingPriceListId] = useState<string | null>(null);
+  const [priceListVersionReview, setPriceListVersionReview] = useState<CompanyPriceListSummary | null>(null);
   const [priceListForm, setPriceListForm] = useState({
     name: '',
     destinationLabel: '',
@@ -312,6 +356,14 @@ export default function CompanyLedgerDetailPage() {
     const activeList = company?.priceLists?.find((list) => list.isActive);
     return Array.isArray(activeList?.warnings) ? activeList.warnings : [];
   }, [company?.priceLists]);
+  const activePriceList = useMemo(() => company?.priceLists?.find((list) => list.isActive) || null, [company?.priceLists]);
+  const priceListVersionComparison = useMemo(() => {
+    if (!company || !priceListVersionReview) return null;
+    return buildPriceListVersionComparison(
+      normalizeShippingRateConfig(company.priceListConfig),
+      normalizeShippingRateConfig(priceListVersionReview.config),
+    );
+  }, [company, priceListVersionReview]);
 
   const companyTabs = useMemo(() => [
     { label: 'Ledger', icon: <ReceiptText className="h-4 w-4" /> },
@@ -735,6 +787,7 @@ export default function CompanyLedgerDetailPage() {
       }
 
       await fetchCompany();
+      setPriceListVersionReview(null);
       toast.success('Price list activated');
     } catch (error) {
       console.error(error);
@@ -1516,9 +1569,14 @@ export default function CompanyLedgerDetailPage() {
                         {list.sourceFileName} • {list.destinationLabel} • {list.importedAuctionRateCount || list.importedStateRateCount} rows • {new Date(list.createdAt).toLocaleString()}
                       </Box>
                     </Box>
-                    <Button variant="outline" size="sm" disabled={list.isActive || activatingPriceListId === list.id} onClick={() => void handleActivatePriceList(list.id)}>
-                      {activatingPriceListId === list.id ? 'Restoring...' : list.isActive ? 'Active' : 'Restore'}
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                      <Button variant="outline" size="sm" onClick={() => setPriceListVersionReview(list)}>
+                        Compare
+                      </Button>
+                      <Button variant="outline" size="sm" disabled={list.isActive || activatingPriceListId === list.id} onClick={() => setPriceListVersionReview(list)}>
+                        {activatingPriceListId === list.id ? 'Restoring...' : list.isActive ? 'Active' : 'Restore'}
+                      </Button>
+                    </Box>
                   </Box>
                 ))}
               </Box>
@@ -1950,6 +2008,77 @@ export default function CompanyLedgerDetailPage() {
             <Button variant="outline" onClick={() => { setOpenImportDialog(false); resetImportForm(); }} disabled={importing || previewingImport}>Cancel</Button>
             <Button variant="outline" onClick={handlePreviewBankCsv} disabled={importing || previewingImport}>{previewingImport ? 'Previewing...' : 'Preview CSV'}</Button>
             <Button variant="primary" onClick={handleImportBankCsv} disabled={importing || previewingImport || !importPreview}>{importing ? 'Importing...' : 'Import CSV'}</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={Boolean(priceListVersionReview)} onClose={() => !activatingPriceListId && setPriceListVersionReview(null)} maxWidth="md" fullWidth>
+          <DialogTitle>
+            {priceListVersionReview?.isActive ? 'Active Price List Details' : 'Review Price List Restore'}
+          </DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 2, pt: 1.5 }}>
+            {priceListVersionReview && priceListVersionComparison && (
+              <>
+                <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid var(--border)', background: 'var(--panel)' }}>
+                  <Box sx={{ fontWeight: 700 }}>{priceListVersionReview.name}</Box>
+                  <Box sx={{ mt: 0.5, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {priceListVersionReview.sourceFileName} - {priceListVersionReview.destinationLabel} - Imported {new Date(priceListVersionReview.createdAt).toLocaleString()}
+                  </Box>
+                  {!priceListVersionReview.isActive && activePriceList && (
+                    <Box sx={{ mt: 1, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      Restoring this version will replace the active version: <strong>{activePriceList.name}</strong>.
+                    </Box>
+                  )}
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 1 }}>
+                  {[
+                    { label: 'State changes', value: priceListVersionComparison.changedStates.length },
+                    { label: 'Added lanes', value: priceListVersionComparison.addedLanes.length },
+                    { label: 'Removed lanes', value: priceListVersionComparison.removedLanes.length },
+                    { label: 'Changed lanes', value: priceListVersionComparison.changedLanes.length },
+                  ].map((item) => (
+                    <Box key={item.label} sx={{ p: 1.25, borderRadius: 1.5, border: '1px solid var(--border)', background: 'var(--background)' }}>
+                      <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>{item.label}</Box>
+                      <Box sx={{ mt: 0.35, fontWeight: 800, fontSize: '1.15rem' }}>{item.value}</Box>
+                    </Box>
+                  ))}
+                </Box>
+
+                <Box sx={{ display: 'grid', gap: 1 }}>
+                  <Box sx={{ fontWeight: 700 }}>Sample Changes</Box>
+                  {priceListVersionComparison.changedStates.slice(0, 5).map((row) => (
+                    <Box key={row.stateCode} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, p: 1, borderRadius: 1.5, border: '1px solid var(--border)' }}>
+                      <Box sx={{ fontWeight: 700 }}>{row.stateCode}</Box>
+                      <Box sx={{ color: 'var(--text-secondary)' }}>
+                        {row.current ? formatCurrency(row.current) : 'Missing'} -&gt; {row.target ? formatCurrency(row.target) : 'Missing'}
+                      </Box>
+                    </Box>
+                  ))}
+                  {priceListVersionComparison.changedLanes.slice(0, 5).map(({ current, target }) => (
+                    <Box key={priceListLaneKey(target)} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, p: 1, borderRadius: 1.5, border: '1px solid var(--border)' }}>
+                      <Box>
+                        <Box sx={{ fontWeight: 700 }}>{target.stateCode} {target.branch || target.city}</Box>
+                        <Box sx={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{target.city || '-'}{target.loadingPoint ? ` - ${target.loadingPoint}` : ''}</Box>
+                      </Box>
+                      <Box sx={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatCurrency(current.total)} -&gt; {formatCurrency(target.total)}</Box>
+                    </Box>
+                  ))}
+                  {!priceListVersionComparison.changedStates.length && !priceListVersionComparison.changedLanes.length && (
+                    <Box sx={{ p: 1.25, borderRadius: 1.5, border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                      No changed prices were found between the active version and this version. Added or removed lanes may still apply.
+                    </Box>
+                  )}
+                </Box>
+              </>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button variant="outline" onClick={() => setPriceListVersionReview(null)} disabled={Boolean(activatingPriceListId)}>Close</Button>
+            {priceListVersionReview && !priceListVersionReview.isActive && (
+              <Button variant="primary" onClick={() => void handleActivatePriceList(priceListVersionReview.id)} disabled={activatingPriceListId === priceListVersionReview.id}>
+                {activatingPriceListId === priceListVersionReview.id ? 'Restoring...' : 'Restore This Version'}
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
 
