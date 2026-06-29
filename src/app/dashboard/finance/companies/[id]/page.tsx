@@ -138,6 +138,16 @@ interface PriceListPreview {
   totalStateRateCount: number;
   totalAuctionRateCount: number;
   warnings: string[];
+  parserStats?: {
+    columnRows: number;
+    flexibleRows: number;
+    directRows: number;
+    guessedRows: number;
+    aiRows: number;
+    totalRows: number;
+    confidence: 'high' | 'medium' | 'low';
+    notes: string[];
+  };
   rows: AuctionRateEntry[];
   stateRates: Record<string, number>;
   extractedTextPreview: string;
@@ -569,9 +579,17 @@ export default function CompanyLedgerDetailPage() {
       ['Mode', priceListPreview.mode],
       ['State Rates Found', String(priceListPreview.importedCount)],
       ['Auction Rows Found', String(priceListPreview.rows.length)],
+      ['Parser Confidence', priceListPreview.parserStats?.confidence || 'unknown'],
+      ['Column Rows', String(priceListPreview.parserStats?.columnRows ?? 0)],
+      ['Flexible Rows', String(priceListPreview.parserStats?.flexibleRows ?? 0)],
+      ['Guessed Rows', String(priceListPreview.parserStats?.guessedRows ?? 0)],
+      ['AI Rows', String(priceListPreview.parserStats?.aiRows ?? 0)],
       [],
       ['Warnings'],
       ...(priceListPreview.warnings.length ? priceListPreview.warnings.map((warning) => [warning]) : [['No warnings']]),
+      [],
+      ['Parser Notes'],
+      ...(priceListPreview.parserStats?.notes.length ? priceListPreview.parserStats.notes.map((note) => [note]) : [['No parser notes']]),
       [],
       ['State', 'Branch', 'City', 'Loading Point', 'Total'],
       ...priceListPreview.rows.map((row) => [
@@ -1290,6 +1308,23 @@ export default function CompanyLedgerDetailPage() {
                   <Box><Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700 }}>After Import Rows</Box><Box sx={{ fontWeight: 700 }}>{priceListPreview.totalAuctionRateCount}</Box></Box>
                   <Box><Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700 }}>Mode</Box><Box sx={{ fontWeight: 700 }}>{priceListPreview.mode}</Box></Box>
                 </Box>
+                {priceListPreview.parserStats && (
+                  <Box sx={{ display: 'grid', gap: 1, p: 1.25, borderRadius: 2, background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.22)' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <Box sx={{ fontWeight: 700 }}>Parser confidence: {priceListPreview.parserStats.confidence}</Box>
+                      <Box sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Direct {priceListPreview.parserStats.directRows} / Flexible {priceListPreview.parserStats.flexibleRows} / Guessed {priceListPreview.parserStats.guessedRows} / AI {priceListPreview.parserStats.aiRows}
+                      </Box>
+                    </Box>
+                    {priceListPreview.parserStats.notes.length > 0 && (
+                      <Box sx={{ display: 'grid', gap: 0.25 }}>
+                        {priceListPreview.parserStats.notes.map((note) => (
+                          <Box key={note} sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{note}</Box>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                )}
                 {priceListPreview.warnings.length > 0 && (
                   <Box sx={{ p: 1.25, borderRadius: 2, background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
                     {priceListPreview.warnings.map((warning) => (

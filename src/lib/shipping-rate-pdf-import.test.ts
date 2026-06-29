@@ -27,6 +27,8 @@ describe('company price-list PDF parsing', () => {
       ],
     );
     assert.match(result.text, /CALIFORNIA/);
+    assert.equal(result.parserStats.confidence, 'medium');
+    assert.equal(result.parserStats.columnRows, 2);
   });
 
   it('extracts rows from comma-delimited city/state/branch PDFs', async () => {
@@ -49,6 +51,8 @@ describe('company price-list PDF parsing', () => {
         { stateCode: 'TX', city: 'Houston', branch: 'Houston Branch', total: 1250 },
       ],
     );
+    assert.equal(result.parserStats.confidence, 'medium');
+    assert.equal(result.parserStats.directRows, 2);
   });
 
   it('extracts labeled branch/city/state/total rows', async () => {
@@ -70,5 +74,7 @@ describe('company price-list PDF parsing', () => {
         { stateCode: 'GA', city: 'Atlanta', branch: 'Atlanta Auction', total: 1000 },
       ],
     );
+    assert.equal(result.parserStats.confidence, 'medium');
+    assert.equal(result.parserStats.directRows, 2);
   });
 });

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import JSZip from 'jszip';
+import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 import { createSystemAuditLog } from '@/lib/system-audit';
+import { extractJsonObject } from '@/lib/ai/json';
+import { createTokenRouterChatCompletion, isTokenRouterConfigured } from '@/lib/ai/tokenrouter';
 import {
   type AuctionRateEntry,
   buildStateRatesFromAuctionRates,
@@ -12,7 +15,7 @@ import {
   parseShippingRatesFromText,
   US_STATES,
 } from '@/lib/shipping-rate-calculator';
-import { extractAuctionRatesFromPdf, getImportedRatesFromPdfText } from '@/lib/shipping-rate-pdf-import';
+import { extractAuctionRatesFromPdf, getImportedRatesFromPdfText, type PriceListParserStats } from '@/lib/shipping-rate-pdf-import';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -22,6 +25,23 @@ const stateCodes = new Set(US_STATES.map((state) => state.code));
 const stateNames = new Map(US_STATES.map((state) => [state.name.toUpperCase(), state.code]));
 
 type ImportMode = 'replace' | 'merge' | 'add_new';
+type ExtractedPriceList = {
+  entries: AuctionRateEntry[];
+  text: string;
+  parserStats?: PriceListParserStats;
+};
+
+const aiPriceListResponseSchema = z.object({
+  rows: z.array(z.object({
+    branch: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    state: z.string().nullable().optional(),
+    stateCode: z.string().nullable().optional(),
+    loadingPoint: z.string().nullable().optional(),
+    total: z.union([z.number(), z.string()]),
+  })).default([]),
+  notes: z.array(z.string()).optional().default([]),
+});
 
 function normalizeImportMode(value: FormDataEntryValue | null): ImportMode {
   const mode = String(value || 'merge');
@@ -51,6 +71,10 @@ function mergeAuctionRates(existing: AuctionRateEntry[], incoming: AuctionRateEn
     }
   }
   return next;
+}
+
+function mergeParsedAuctionRates(primary: AuctionRateEntry[], incoming: AuctionRateEntry[]) {
+  return mergeAuctionRates(primary, incoming, 'merge');
 }
 
 function buildStateRates(existing: Record<string, number>, imported: Record<string, number>, mode: ImportMode) {
@@ -253,7 +277,109 @@ function parseOverrideRows(value: FormDataEntryValue | null) {
   }
 }
 
-async function extractPriceListFromFile(file: File, buffer: Buffer) {
+function normalizeAiPriceListRows(rows: z.infer<typeof aiPriceListResponseSchema>['rows']) {
+  const normalizedRows: AuctionRateEntry[] = [];
+
+  for (const row of rows) {
+    const stateCode = resolveStateCode(String(row.stateCode || row.state || ''));
+    const total = typeof row.total === 'number' ? row.total : parseAmount(String(row.total));
+    const branch = normalizeCell(String(row.branch || row.city || stateCode || ''));
+    const city = normalizeCell(String(row.city || row.branch || stateCode || ''));
+
+    if (!stateCode || !total || (!branch && !city)) continue;
+
+    normalizedRows.push({
+      stateCode,
+      branch,
+      city,
+      loadingPoint: row.loadingPoint ? normalizeCell(row.loadingPoint) : null,
+      total: Math.round(total),
+    });
+  }
+
+  return normalizedRows;
+}
+
+async function extractPriceListRowsWithAi(text: string) {
+  const trimmedText = normalizeCell(text).slice(0, 12000);
+  if (!trimmedText) {
+    return { rows: [] as AuctionRateEntry[], notes: ['AI parser fallback skipped because no PDF text was extracted.'] };
+  }
+
+  if (!isTokenRouterConfigured()) {
+    return { rows: [] as AuctionRateEntry[], notes: ['AI parser fallback skipped because TokenRouter is not configured.'] };
+  }
+
+  try {
+    const response = await createTokenRouterChatCompletion([
+      {
+        role: 'system',
+        content: 'You extract shipping company price-list rows. Return JSON only. Do not include commentary.',
+      },
+      {
+        role: 'user',
+        content: `Extract every price-list row that has a branch, city, state, and total price from this text. Return exactly this JSON shape: {"rows":[{"branch":"string","city":"string","stateCode":"CA","loadingPoint":"string or null","total":1234}],"notes":["short warning if rows were ambiguous"]}. Use US two-letter state codes. Ignore rows without a total price.\n\n${trimmedText}`,
+      },
+    ], {
+      maxTokens: 2500,
+      temperature: 0.1,
+    });
+    const parsed = aiPriceListResponseSchema.parse(extractJsonObject(response.content));
+
+    return {
+      rows: normalizeAiPriceListRows(parsed.rows),
+      notes: [
+        `AI parser fallback ran with ${response.model}.`,
+        ...parsed.notes.map((note) => normalizeCell(note)).filter(Boolean).slice(0, 6),
+      ],
+    };
+  } catch (error) {
+    return {
+      rows: [] as AuctionRateEntry[],
+      notes: [`AI parser fallback failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
+    };
+  }
+}
+
+function defaultParserStats(rows: AuctionRateEntry[]): PriceListParserStats {
+  return {
+    columnRows: rows.length,
+    flexibleRows: 0,
+    directRows: rows.length,
+    guessedRows: 0,
+    aiRows: 0,
+    totalRows: rows.length,
+    confidence: rows.length > 0 ? 'high' : 'low',
+    notes: rows.length > 0 ? [`${rows.length} row${rows.length === 1 ? '' : 's'} parsed from the uploaded file.`] : [],
+  };
+}
+
+function buildFinalParserStats(
+  baseStats: PriceListParserStats | undefined,
+  deterministicRows: AuctionRateEntry[],
+  aiRows: AuctionRateEntry[],
+  finalRows: AuctionRateEntry[],
+  aiNotes: string[],
+  usedOverrideRows: boolean,
+): PriceListParserStats {
+  const base = baseStats ?? defaultParserStats(deterministicRows);
+  const notes = [...base.notes, ...aiNotes].filter(Boolean);
+  if (usedOverrideRows) notes.push('Manual preview edits were used for this import.');
+
+  return {
+    ...base,
+    aiRows: aiRows.length,
+    totalRows: finalRows.length,
+    confidence: base.confidence === 'high' || aiRows.length >= 3 || usedOverrideRows
+      ? 'high'
+      : finalRows.length > 0
+        ? 'medium'
+        : 'low',
+    notes: Array.from(new Set(notes)).slice(0, 10),
+  };
+}
+
+async function extractPriceListFromFile(file: File, buffer: Buffer): Promise<ExtractedPriceList | null> {
   const fileName = file.name.toLowerCase();
   if (file.type.includes('pdf') || fileName.endsWith('.pdf')) {
     return extractAuctionRatesFromPdf(buffer);
@@ -334,8 +460,22 @@ export async function POST(
     }
 
     const overrideRows = parseOverrideRows(formData.get('rowsJson'));
-    const auctionRates = overrideRows ?? extracted.entries;
     const extractedText = extracted.text;
+    const shouldRunAiFallback = !overrideRows
+      && (file.type.includes('pdf') || fileName.endsWith('.pdf'))
+      && (extracted.entries.length < 5 || extracted.parserStats?.confidence !== 'high');
+    const aiExtraction = shouldRunAiFallback
+      ? await extractPriceListRowsWithAi(extractedText)
+      : { rows: [] as AuctionRateEntry[], notes: [] as string[] };
+    const auctionRates = overrideRows ?? mergeParsedAuctionRates(extracted.entries, aiExtraction.rows);
+    const parserStats = buildFinalParserStats(
+      extracted.parserStats,
+      extracted.entries,
+      aiExtraction.rows,
+      auctionRates,
+      aiExtraction.notes,
+      Boolean(overrideRows),
+    );
     const importedRates = overrideRows
       ? buildStateRatesFromAuctionRates(overrideRows)
       : getImportedRatesFromPdfText(auctionRates, extractedText);
@@ -375,6 +515,7 @@ export async function POST(
       totalStateRateCount: Object.keys(config.stateRates).length,
       totalAuctionRateCount: config.auctionRates.length,
       warnings,
+      parserStats,
       rows: auctionRates.slice(0, 300),
       stateRates: finalImportedRates,
       extractedTextPreview: extractedText.slice(0, 700),
@@ -393,6 +534,7 @@ export async function POST(
           mode,
           importedStateRateCount: Object.keys(finalImportedRates).length,
           importedAuctionRateCount: auctionRates.length,
+          parserStats,
           warnings,
         },
       }).catch(() => null);
@@ -448,6 +590,7 @@ export async function POST(
         destinationLabel,
         importedStateRateCount: Object.keys(finalImportedRates).length,
         importedAuctionRateCount: auctionRates.length,
+        parserStats,
         warnings,
       },
     }).catch(() => null);

@@ -12,6 +12,17 @@ type PdfTextItem = {
   y: number;
 };
 
+export type PriceListParserStats = {
+  columnRows: number;
+  flexibleRows: number;
+  directRows: number;
+  guessedRows: number;
+  aiRows: number;
+  totalRows: number;
+  confidence: 'high' | 'medium' | 'low';
+  notes: string[];
+};
+
 const stateHeaderPattern = /^([A-Z][A-Z\s.]+)\(([A-Z]{2})\)$/;
 const stateCodes = new Set(US_STATES.map((state) => state.code));
 const stateNameToCode = new Map(US_STATES.map((state) => [state.name.toUpperCase(), state.code]));
@@ -247,6 +258,8 @@ function groupItemsIntoRows(items: PdfTextItem[]) {
 function parseAuctionRatesFromRows(rows: string[]) {
   const entries: AuctionRateEntry[] = [];
   let header: Array<string | null> | null = null;
+  let directRows = 0;
+  let guessedRows = 0;
 
   for (const rawLine of rows) {
     const line = normalizeText(rawLine);
@@ -258,14 +271,65 @@ function parseAuctionRatesFromRows(rows: string[]) {
       continue;
     }
 
-    const parsed = parseLabeledLine(line)
-      || parseCellsWithHeader(line, header)
-      || parseLooseLine(line);
+    const labeled = parseLabeledLine(line);
+    if (labeled) {
+      entries.push(labeled);
+      directRows += 1;
+      continue;
+    }
 
-    if (parsed) entries.push(parsed);
+    const cells = parseCellsWithHeader(line, header);
+    if (cells) {
+      entries.push(cells);
+      if (header) {
+        directRows += 1;
+      } else {
+        guessedRows += 1;
+      }
+      continue;
+    }
+
+    const loose = parseLooseLine(line);
+    if (loose) {
+      entries.push(loose);
+      guessedRows += 1;
+    }
   }
 
-  return entries;
+  return {
+    entries,
+    directRows,
+    guessedRows,
+  };
+}
+
+function buildParserStats(
+  columnRows: number,
+  fallback: { entries: AuctionRateEntry[]; directRows: number; guessedRows: number },
+  totalRows: number,
+): PriceListParserStats {
+  const notes: string[] = [];
+  const confidence: PriceListParserStats['confidence'] = columnRows >= 3 || fallback.directRows >= 3
+    ? 'high'
+    : totalRows > 0
+      ? 'medium'
+      : 'low';
+
+  if (columnRows > 0) notes.push(`${columnRows} row${columnRows === 1 ? '' : 's'} matched the column-based PDF layout.`);
+  if (fallback.directRows > 0) notes.push(`${fallback.directRows} row${fallback.directRows === 1 ? '' : 's'} matched labeled or header-based text.`);
+  if (fallback.guessedRows > 0) notes.push(`${fallback.guessedRows} row${fallback.guessedRows === 1 ? '' : 's'} came from loose text matching and should be reviewed.`);
+  if (totalRows === 0) notes.push('No branch/city rows were found in the extracted PDF text.');
+
+  return {
+    columnRows,
+    flexibleRows: fallback.entries.length,
+    directRows: columnRows + fallback.directRows,
+    guessedRows: fallback.guessedRows,
+    aiRows: 0,
+    totalRows,
+    confidence,
+    notes,
+  };
 }
 
 function findNearestText(items: PdfTextItem[], xMin: number, xMax: number, y: number) {
@@ -421,11 +485,13 @@ export async function extractAuctionRatesFromPdf(buffer: Buffer) {
   }
 
   await document.destroy();
-  const fallbackEntries = parseAuctionRatesFromRows(rowParts);
+  const fallback = parseAuctionRatesFromRows(rowParts);
+  const mergedEntries = mergeParsedRates(entries, fallback.entries);
 
   return {
-    entries: mergeParsedRates(entries, fallbackEntries),
+    entries: mergedEntries,
     text: textParts.join(' ').replace(/\s+/g, ' ').trim(),
+    parserStats: buildParserStats(entries.length, fallback, mergedEntries.length),
   };
 }
 
