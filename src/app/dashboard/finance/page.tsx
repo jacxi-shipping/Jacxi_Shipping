@@ -168,20 +168,20 @@ export default async function FinancePage() {
                     icon={<TrendingUp className="w-5 h-5" />}
                     title="Total Debit"
                     value={formatCurrency(data.ledger.totalDebit)}
-                    variant="error"
+                    variant="default"
                 />
                 <StatsCard
                     icon={<TrendingDown className="w-5 h-5" />}
                     title="Total Credit"
                     value={formatCurrency(data.ledger.totalCredit)}
-                    variant="success"
+                    variant="default"
                 />
                 <StatsCard
                     icon={<DollarSign className="w-5 h-5" />}
                     title="Net Balance"
                     value={formatCurrency(Math.abs(data.ledger.netBalance))}
                     subtitle={data.ledger.netBalance > 0 ? "Receivable" : "Payable"}
-                    variant={data.ledger.netBalance >= 0 ? 'success' : 'error'}
+                    variant="default"
                     trend={{ 
                         value: 0, 
                         isPositive: data.ledger.netBalance >= 0
@@ -191,7 +191,7 @@ export default async function FinancePage() {
                     icon={<Users className="w-5 h-5" />}
                     title={isAdmin ? "Users with Balance" : "Active Status"}
                     value={isAdmin ? data.userBalances.length : "Active"}
-                    variant="info"
+                    variant="default"
                 />
                 {isAdmin && (
                     <StatsCard
@@ -199,7 +199,7 @@ export default async function FinancePage() {
                         title="Active Dispatches"
                         value={data.dispatches.active}
                         subtitle="Origin to port workflow"
-                        variant="warning"
+                        variant="default"
                     />
                 )}
                 {isAdmin && (
@@ -208,7 +208,7 @@ export default async function FinancePage() {
                         title="Dispatch Spend"
                         value={formatCurrency(data.dispatches.totalSpend)}
                         subtitle={`${data.dispatches.expenseCount} expense entries`}
-                        variant="secondary"
+                        variant="default"
                     />
                 )}
             </DashboardGrid>
@@ -217,13 +217,13 @@ export default async function FinancePage() {
             <DashboardPanel title="Shipment Payment Status" description="Overview of paid and pending shipments">
                 <DashboardGrid className="grid-cols-1 md:grid-cols-2">
                     {/* Paid Shipments Box */}
-                    <div className="p-5 rounded-xl border border-green-200/50 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+                    <div className="p-5 rounded-xl border border-border bg-panel flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)]">
                             <CheckCircle className="w-6 h-6" />
                         </div>
                         <div className="flex-1">
                             <h4 className="text-sm font-semibold text-primary">Paid Shipments</h4>
-                            <div className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
+                            <div className="text-2xl font-bold text-primary mt-1">
                                 {data.shipments.paid.count}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
@@ -233,13 +233,13 @@ export default async function FinancePage() {
                     </div>
 
                     {/* Due Shipments Box */}
-                    <div className="p-5 rounded-xl border border-amber-200/50 bg-amber-50/50 dark:border-amber-800/30 dark:bg-amber-900/10 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <div className="p-5 rounded-xl border border-border bg-panel flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)]">
                             <AlertCircle className="w-6 h-6" />
                         </div>
                         <div className="flex-1">
                             <h4 className="text-sm font-semibold text-primary">Due Shipments</h4>
-                            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                            <div className="text-2xl font-bold text-primary mt-1">
                                 {data.shipments.due.count}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
@@ -253,13 +253,13 @@ export default async function FinancePage() {
             {isAdmin && (
                 <DashboardPanel title="Dispatch Finance Snapshot" description="Operational dispatch costs and workload">
                     <DashboardGrid className="grid-cols-1 md:grid-cols-2">
-                        <div className="p-5 rounded-xl border border-blue-200/50 bg-blue-50/50 dark:border-blue-800/30 dark:bg-blue-900/10 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                        <div className="p-5 rounded-xl border border-border bg-panel flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)]">
                                 <Truck className="w-6 h-6" />
                             </div>
                             <div className="flex-1">
                                 <h4 className="text-sm font-semibold text-primary">Active Dispatches</h4>
-                                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                                <div className="text-2xl font-bold text-primary mt-1">
                                     {data.dispatches.active}
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -268,13 +268,13 @@ export default async function FinancePage() {
                             </div>
                         </div>
 
-                        <div className="p-5 rounded-xl border border-rose-200/50 bg-rose-50/50 dark:border-rose-800/30 dark:bg-rose-900/10 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                        <div className="p-5 rounded-xl border border-border bg-panel flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)]">
                                 <HandCoins className="w-6 h-6" />
                             </div>
                             <div className="flex-1">
                                 <h4 className="text-sm font-semibold text-primary">Dispatch Expenses</h4>
-                                <div className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+                                <div className="text-2xl font-bold text-primary mt-1">
                                     {formatCurrency(data.dispatches.totalSpend)}
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -296,9 +296,9 @@ export default async function FinancePage() {
                 >
                     <div className="grid grid-cols-1 gap-3">
                          <Link href="/dashboard/finance/ledger">
-                            <div className="p-4 rounded-xl border border-border bg-panel hover:border-cyan-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="p-4 rounded-xl border border-border bg-panel hover:border-[var(--accent-gold)] hover:shadow-lg transition-all cursor-pointer group">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-9 h-9 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform">
+                                    <div className="w-9 h-9 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)] group-hover:scale-110 transition-transform">
                                         <FileText className="w-5 h-5" />
                                     </div>
                                     <span className="font-semibold text-primary">My Ledger</span>
@@ -308,9 +308,9 @@ export default async function FinancePage() {
                         </Link>
 
                         <Link href="/dashboard/finance/banking">
-                            <div className="p-4 rounded-xl border border-border bg-panel hover:border-emerald-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="p-4 rounded-xl border border-border bg-panel hover:border-[var(--accent-gold)] hover:shadow-lg transition-all cursor-pointer group">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                                    <div className="w-9 h-9 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)] group-hover:scale-110 transition-transform">
                                         <Landmark className="w-5 h-5" />
                                     </div>
                                     <span className="font-semibold text-primary">Banking</span>
@@ -322,9 +322,9 @@ export default async function FinancePage() {
                         {isAdmin && (
                             <>
                                 <Link href="/dashboard/finance/admin/ledgers">
-                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-amber-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-[var(--accent-gold)] hover:shadow-lg transition-all cursor-pointer group">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                                            <div className="w-9 h-9 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)] group-hover:scale-110 transition-transform">
                                                 <Users className="w-5 h-5" />
                                             </div>
                                             <span className="font-semibold text-primary">User Ledgers</span>
@@ -334,9 +334,9 @@ export default async function FinancePage() {
                                 </Link>
 
                                 <Link href="/dashboard/finance/reports">
-                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-purple-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-[var(--accent-gold)] hover:shadow-lg transition-all cursor-pointer group">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                                            <div className="w-9 h-9 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)] group-hover:scale-110 transition-transform">
                                                 <FileText className="w-5 h-5" />
                                             </div>
                                             <span className="font-semibold text-primary">Financial Reports</span>
@@ -346,9 +346,9 @@ export default async function FinancePage() {
                                 </Link>
 
                                 <Link href="/dashboard/finance/companies">
-                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-blue-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-[var(--accent-gold)] hover:shadow-lg transition-all cursor-pointer group">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                            <div className="w-9 h-9 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)] group-hover:scale-110 transition-transform">
                                                 <Building2 className="w-5 h-5" />
                                             </div>
                                             <span className="font-semibold text-primary">Company Ledgers</span>
@@ -358,9 +358,9 @@ export default async function FinancePage() {
                                 </Link>
 
                                 <Link href="/dashboard/finance/price-comparison">
-                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-teal-400/50 hover:shadow-lg transition-all cursor-pointer group">
+                                    <div className="p-4 rounded-xl border border-border bg-panel hover:border-[var(--accent-gold)] hover:shadow-lg transition-all cursor-pointer group">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-9 h-9 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform">
+                                            <div className="w-9 h-9 rounded-lg border border-border bg-[rgba(var(--accent-gold-rgb),0.12)] flex items-center justify-center text-[var(--accent-gold)] group-hover:scale-110 transition-transform">
                                                 <GitCompareArrows className="w-5 h-5" />
                                             </div>
                                             <span className="font-semibold text-primary">Price Comparison</span>
