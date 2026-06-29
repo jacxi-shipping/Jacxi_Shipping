@@ -15,6 +15,10 @@ type PdfTextItem = {
 const stateHeaderPattern = /^([A-Z][A-Z\s.]+)\(([A-Z]{2})\)$/;
 const stateCodes = new Set(US_STATES.map((state) => state.code));
 const stateNameToCode = new Map(US_STATES.map((state) => [state.name.toUpperCase(), state.code]));
+const stateNamePattern = new RegExp(
+  `\\b(${US_STATES.map((state) => state.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
+  'i',
+);
 
 function parseMoney(value: string) {
   const parsed = Number(value.replace(/[$,\s]/g, ''));
@@ -23,6 +27,245 @@ function parseMoney(value: string) {
 
 function isMoney(value: string) {
   return /^\$?\s*[0-9][0-9,]*(?:\.\d{1,2})?$/.test(value.trim());
+}
+
+function normalizeText(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function splitRowCells(line: string) {
+  return line
+    .split(/\s*\|\s*|\t+|\s*,\s*|\s{2,}/)
+    .map(normalizeText)
+    .filter(Boolean);
+}
+
+function resolveStateCode(value: string) {
+  const normalized = normalizeText(value).replace(/[().]/g, '').toUpperCase();
+  if (stateCodes.has(normalized)) return normalized;
+  return stateNameToCode.get(normalized) ?? null;
+}
+
+function findStateInText(line: string) {
+  const codeMatch = line.match(/\b([A-Z]{2})\b/);
+  if (codeMatch && stateCodes.has(codeMatch[1])) {
+    return {
+      stateCode: codeMatch[1],
+      matchText: codeMatch[0],
+      index: codeMatch.index ?? -1,
+    };
+  }
+
+  const nameMatch = line.match(stateNamePattern);
+  if (nameMatch) {
+    const stateCode = stateNameToCode.get(nameMatch[1].toUpperCase());
+    if (stateCode) {
+      return {
+        stateCode,
+        matchText: nameMatch[0],
+        index: nameMatch.index ?? -1,
+      };
+    }
+  }
+
+  return null;
+}
+
+function findMoneyInText(line: string) {
+  const matches = [...line.matchAll(/\$?\s*[0-9][0-9,]*(?:\.\d{1,2})?/g)]
+    .map((match) => ({
+      text: match[0],
+      index: match.index ?? -1,
+      amount: parseMoney(match[0]),
+    }))
+    .filter((match): match is { text: string; index: number; amount: number } => Boolean(match.amount && match.amount >= 500));
+
+  return matches.at(-1) ?? null;
+}
+
+function parseHeader(line: string) {
+  const cells = splitRowCells(line).map((cell) => cell.toLowerCase());
+  if (findMoneyInText(line) || !cells.some((cell) => /(branch|auction|location|city|state|total|price|rate|amount)/.test(cell))) {
+    return null;
+  }
+
+  const header = cells.map((cell) => {
+    if (/branch|auction|yard|location/.test(cell)) return 'branch';
+    if (/city/.test(cell)) return 'city';
+    if (/state/.test(cell)) return 'state';
+    if (/total|price|rate|amount|cost/.test(cell)) return 'total';
+    if (/loading|pickup|point/.test(cell)) return 'loadingPoint';
+    return null;
+  });
+
+  return header.filter(Boolean).length >= 2 ? header : null;
+}
+
+function parseLabeledLine(line: string): AuctionRateEntry | null {
+  const labelPattern = /\b(branch|city|state|loading point|pickup point|loading|total|price|rate|amount|cost)\b\s*[:#-]?/ig;
+  const labels = [...line.matchAll(labelPattern)].map((match) => ({
+    label: match[1].toLowerCase(),
+    start: match.index ?? 0,
+    valueStart: (match.index ?? 0) + match[0].length,
+  }));
+  if (labels.length < 2) return null;
+
+  const values = new Map<string, string>();
+  for (let index = 0; index < labels.length; index += 1) {
+    const current = labels[index];
+    const next = labels[index + 1];
+    const normalizedLabel = /branch/.test(current.label)
+      ? 'branch'
+      : /city/.test(current.label)
+        ? 'city'
+        : /state/.test(current.label)
+          ? 'state'
+          : /loading|pickup/.test(current.label)
+            ? 'loadingPoint'
+            : 'total';
+    values.set(normalizedLabel, normalizeText(line.slice(current.valueStart, next?.start ?? line.length).replace(/[|,;]+$/g, '')));
+  }
+
+  const total = parseMoney(values.get('total') || '');
+  const stateCode = resolveStateCode(values.get('state') || '') ?? findStateInText(line)?.stateCode ?? null;
+
+  if (!total || !stateCode) return null;
+
+  const branch = values.get('branch') || values.get('city') || stateCode;
+  const city = values.get('city') || values.get('branch') || stateCode;
+
+  return {
+    stateCode,
+    branch,
+    city,
+    loadingPoint: values.get('loadingPoint') || null,
+    total: Math.round(total),
+  };
+}
+
+function parseCellsWithHeader(line: string, header: Array<string | null> | null): AuctionRateEntry | null {
+  const cells = splitRowCells(line);
+  if (cells.length < 3) return null;
+
+  const byHeader = (name: string) => {
+    const index = header?.findIndex((cell) => cell === name) ?? -1;
+    return index >= 0 ? cells[index] : '';
+  };
+  const totalCell = byHeader('total') || cells.find((cell) => parseMoney(cell));
+  const stateCell = byHeader('state') || cells.find((cell) => resolveStateCode(cell));
+  const total = totalCell ? parseMoney(totalCell) : null;
+  const stateCode = stateCell ? resolveStateCode(stateCell) : null;
+
+  if (!total || !stateCode) return null;
+
+  if (header) {
+    return {
+      stateCode,
+      branch: byHeader('branch') || byHeader('city') || stateCode,
+      city: byHeader('city') || byHeader('branch') || stateCode,
+      loadingPoint: byHeader('loadingPoint') || null,
+      total: Math.round(total),
+    };
+  }
+
+  const remaining = cells.filter((cell) => cell !== totalCell && cell !== stateCell);
+  const branchIndex = remaining.findIndex((cell) => /\b(branch|auction|yard|copart|iaai|manheim|location)\b/i.test(cell));
+  const branch = branchIndex >= 0 ? remaining[branchIndex] : remaining[1] || remaining[0] || stateCode;
+  const city = branchIndex >= 0 ? remaining.find((_, index) => index !== branchIndex) || branch : remaining[0] || branch;
+
+  return {
+    stateCode,
+    branch,
+    city,
+    loadingPoint: null,
+    total: Math.round(total),
+  };
+}
+
+function parseLooseLine(line: string): AuctionRateEntry | null {
+  const money = findMoneyInText(line);
+  const state = findStateInText(line);
+  if (!money || !state) return null;
+
+  const beforeState = normalizeText(line.slice(0, state.index));
+  const afterState = normalizeText(line.slice(state.index + state.matchText.length, money.index));
+  const laneText = normalizeText(`${beforeState} ${afterState}`.replace(/\b(total|price|rate|amount|cost)\b\s*[:#-]?/ig, ''));
+  if (!laneText) return null;
+
+  const branchMatch = laneText.match(/^(.+\b(?:branch|auction|yard|location|copart|iaai|manheim)\b)\s+(.+)$/i);
+  const branch = normalizeText(branchMatch?.[1] || laneText);
+  const city = normalizeText(branchMatch?.[2] || laneText);
+
+  return {
+    stateCode: state.stateCode,
+    branch,
+    city,
+    loadingPoint: null,
+    total: Math.round(money.amount),
+  };
+}
+
+function uniqueAuctionKey(rate: AuctionRateEntry) {
+  return [
+    rate.stateCode,
+    rate.branch.trim().toLowerCase(),
+    rate.city.trim().toLowerCase(),
+    String(Math.round(rate.total)),
+    rate.loadingPoint?.trim().toLowerCase() || '',
+  ].join('|');
+}
+
+function mergeParsedRates(primary: AuctionRateEntry[], fallback: AuctionRateEntry[]) {
+  const seen = new Set(primary.map(uniqueAuctionKey));
+  const merged = [...primary];
+
+  for (const rate of fallback) {
+    const key = uniqueAuctionKey(rate);
+    if (seen.has(key)) continue;
+    merged.push(rate);
+    seen.add(key);
+  }
+
+  return merged;
+}
+
+function groupItemsIntoRows(items: PdfTextItem[]) {
+  const rows: PdfTextItem[][] = [];
+
+  for (const item of [...items].sort((left, right) => right.y - left.y || left.x - right.x)) {
+    const row = rows.find((candidate) => Math.abs(candidate[0].y - item.y) <= 4);
+    if (row) {
+      row.push(item);
+    } else {
+      rows.push([item]);
+    }
+  }
+
+  return rows.map((row) => row.sort((left, right) => left.x - right.x).map((item) => item.str).join(' '));
+}
+
+function parseAuctionRatesFromRows(rows: string[]) {
+  const entries: AuctionRateEntry[] = [];
+  let header: Array<string | null> | null = null;
+
+  for (const rawLine of rows) {
+    const line = normalizeText(rawLine);
+    if (!line) continue;
+
+    const detectedHeader = parseHeader(line);
+    if (detectedHeader?.some(Boolean)) {
+      header = detectedHeader;
+      continue;
+    }
+
+    const parsed = parseLabeledLine(line)
+      || parseCellsWithHeader(line, header)
+      || parseLooseLine(line);
+
+    if (parsed) entries.push(parsed);
+  }
+
+  return entries;
 }
 
 function findNearestText(items: PdfTextItem[], xMin: number, xMax: number, y: number) {
@@ -85,6 +328,7 @@ export async function extractAuctionRatesFromPdf(buffer: Buffer) {
   const document = await pdfjs.getDocument({ data }).promise;
   const entries: AuctionRateEntry[] = [];
   const textParts: string[] = [];
+  const rowParts: string[] = [];
   let carryStateCode: string | null = null;
   let carryLoadingPoint: string | null = null;
 
@@ -102,6 +346,7 @@ export async function extractAuctionRatesFromPdf(buffer: Buffer) {
       })
       .filter((item) => item.str);
     textParts.push(...items.map((item) => item.str));
+    rowParts.push(...groupItemsIntoRows(items));
 
     const headers = Array.from(
       new Map(
@@ -176,9 +421,10 @@ export async function extractAuctionRatesFromPdf(buffer: Buffer) {
   }
 
   await document.destroy();
+  const fallbackEntries = parseAuctionRatesFromRows(rowParts);
 
   return {
-    entries,
+    entries: mergeParsedRates(entries, fallbackEntries),
     text: textParts.join(' ').replace(/\s+/g, ' ').trim(),
   };
 }

@@ -28,4 +28,47 @@ describe('company price-list PDF parsing', () => {
     );
     assert.match(result.text, /CALIFORNIA/);
   });
+
+  it('extracts rows from comma-delimited city/state/branch PDFs', async () => {
+    const doc = new jsPDF({ unit: 'pt' });
+    doc.text('City, State, Branch, Total', 30, 60);
+    doc.text('Los Angeles, CA, Los Angeles Branch, $1300', 30, 90);
+    doc.text('Houston, TX, Houston Branch, 1250', 30, 120);
+
+    const result = await extractAuctionRatesFromPdf(Buffer.from(doc.output('arraybuffer')));
+
+    assert.deepEqual(
+      result.entries.map((entry) => ({
+        stateCode: entry.stateCode,
+        city: entry.city,
+        branch: entry.branch,
+        total: entry.total,
+      })),
+      [
+        { stateCode: 'CA', city: 'Los Angeles', branch: 'Los Angeles Branch', total: 1300 },
+        { stateCode: 'TX', city: 'Houston', branch: 'Houston Branch', total: 1250 },
+      ],
+    );
+  });
+
+  it('extracts labeled branch/city/state/total rows', async () => {
+    const doc = new jsPDF({ unit: 'pt' });
+    doc.text('Branch: Seattle Yard City: Seattle State: WA Total: $1450', 30, 60);
+    doc.text('Branch: Atlanta Auction City: Atlanta State: Georgia Rate: 1000', 30, 90);
+
+    const result = await extractAuctionRatesFromPdf(Buffer.from(doc.output('arraybuffer')));
+
+    assert.deepEqual(
+      result.entries.map((entry) => ({
+        stateCode: entry.stateCode,
+        city: entry.city,
+        branch: entry.branch,
+        total: entry.total,
+      })),
+      [
+        { stateCode: 'WA', city: 'Seattle', branch: 'Seattle Yard', total: 1450 },
+        { stateCode: 'GA', city: 'Atlanta', branch: 'Atlanta Auction', total: 1000 },
+      ],
+    );
+  });
 });
