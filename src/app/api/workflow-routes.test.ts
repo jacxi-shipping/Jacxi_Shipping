@@ -685,10 +685,8 @@ describe('workflow route integration', () => {
     assert.equal(response.status, 200);
     assert.equal(body.shipment.dispatchId, 'd1');
     assert.equal(state.shipments.s1.status, 'DISPATCHING');
-    assert.equal(state.shipments.s1.price, 1000);
-    assert.equal(state.shipmentCharges.length, 1);
-    assert.equal(state.shipmentCharges[0].chargeCode, 'PRICE_LIST_DISPATCH');
-    assert.equal(state.shipmentCharges[0].totalAmount, 300);
+    assert.equal(state.shipments.s1.price, null);
+    assert.equal(state.shipmentCharges.length, 0);
   });
 
   it('forbids dispatch assignment without workflow permissions', async () => {
@@ -787,9 +785,15 @@ describe('workflow route integration', () => {
     assert.equal(state.dispatchEvents.length, 1);
     assert.equal(state.containerAuditLogs.length, 1);
     assert.equal(state.shipmentAuditLogs.length, 1);
-    assert.equal(state.shipmentCharges.length, 1);
-    assert.equal(state.shipmentCharges[0].chargeCode, 'PRICE_LIST_SHIPPING');
-    assert.equal(state.shipmentCharges[0].totalAmount, 840);
+    assert.equal(state.shipments.s1.price, 1200);
+    assert.equal(state.shipmentCharges.length, 2);
+    assert.deepEqual(
+      state.shipmentCharges.map((charge) => [charge.chargeCode, charge.totalAmount]),
+      [
+        ['PRICE_LIST_DISPATCH', 360],
+        ['PRICE_LIST_SHIPPING', 840],
+      ],
+    );
   });
 
   it('supports split handoff across multiple containers with separate audit records', async () => {

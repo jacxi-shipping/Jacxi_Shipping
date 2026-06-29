@@ -83,7 +83,7 @@ export async function POST(
 
     await postShipmentPriceListLifecycleCharge(routeDeps.prisma, {
       shipmentId: updatedShipment.id,
-      companyId: updatedShipment.shippingCompanyId || dispatch.companyId,
+      companyId: updatedShipment.shippingCompanyId,
       phase: 'DISPATCH',
       actorId: session.user.id as string,
     });

@@ -218,12 +218,20 @@ export async function POST(
       });
 
       await Promise.all(
-        selectedShipmentIds.map((shipmentId) => postShipmentPriceListLifecycleCharge(tx, {
-          shipmentId,
-          companyId: container.companyId,
-          phase: 'SHIPPING',
-          actorId,
-        })),
+        selectedShipmentIds.flatMap((shipmentId) => [
+          postShipmentPriceListLifecycleCharge(tx, {
+            shipmentId,
+            companyId: container.companyId,
+            phase: 'DISPATCH',
+            actorId,
+          }),
+          postShipmentPriceListLifecycleCharge(tx, {
+            shipmentId,
+            companyId: container.companyId,
+            phase: 'SHIPPING',
+            actorId,
+          }),
+        ]),
       );
     });
 

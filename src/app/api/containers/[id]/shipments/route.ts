@@ -163,12 +163,20 @@ export async function POST(
     });
 
     await Promise.all(
-      shipmentIds.map((shipmentId) => postShipmentPriceListLifecycleCharge(routeDeps.prisma, {
-        shipmentId,
-        companyId: container.companyId,
-        phase: 'SHIPPING',
-        actorId: session.user.id as string,
-      })),
+      shipmentIds.flatMap((shipmentId) => [
+        postShipmentPriceListLifecycleCharge(routeDeps.prisma, {
+          shipmentId,
+          companyId: container.companyId,
+          phase: 'DISPATCH',
+          actorId: session.user.id as string,
+        }),
+        postShipmentPriceListLifecycleCharge(routeDeps.prisma, {
+          shipmentId,
+          companyId: container.companyId,
+          phase: 'SHIPPING',
+          actorId: session.user.id as string,
+        }),
+      ]),
     );
 
     // Update container count
