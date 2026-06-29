@@ -7,6 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const originState = searchParams.get('originState') || '';
+    const city = searchParams.get('city') || '';
+    const branch = searchParams.get('branch') || '';
+    const loadingPoint = searchParams.get('loadingPoint') || '';
 
     if (!/^[A-Za-z]{2}$/.test(originState.trim())) {
       return NextResponse.json({ error: 'originState must be a two-letter state code' }, { status: 400 });
@@ -51,11 +54,13 @@ export async function GET(request: NextRequest) {
         };
       }),
       originState,
+      { city, branch, loadingPoint },
     );
 
     return NextResponse.json({
       estimate: {
         originState: estimate.originState,
+        matchLevel: estimate.matchLevel,
         averageBaseRate: estimate.averageBaseRate,
         companyCount: estimate.companyCount,
         matchedAuctionRows: estimate.matchedAuctionRows,

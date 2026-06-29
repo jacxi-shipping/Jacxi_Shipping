@@ -8,7 +8,8 @@ import {
     Select, 
     InputLabel, 
     Typography,
-    Paper
+    Paper,
+    TextField
 } from '@mui/material';
 import { Button } from '@/components/design-system';
 import { Calculator, MapPin, Truck, ArrowRight } from 'lucide-react';
@@ -49,12 +50,15 @@ type CalculationTrace = {
     laneLabel: string;
     averagedCompanyCount?: number;
     matchedAuctionRows?: number;
+    matchLevel?: 'lane' | 'state' | 'none';
 };
 
 export default function ShipmentCalculator() {
     const [origin, setOrigin] = useState('');
     const [pickupLocation, setPickupLocation] = useState('');
     const [vehicleType, setVehicleType] = useState('sedan');
+    const [pickupCity, setPickupCity] = useState('');
+    const [pickupBranch, setPickupBranch] = useState('');
     const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
     const [config, setConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
     const [defaultConfig, setDefaultConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
@@ -79,6 +83,7 @@ export default function ShipmentCalculator() {
                 };
             }),
             origin,
+            { city: pickupCity, branch: pickupBranch },
         )
         : null;
 
@@ -134,6 +139,8 @@ export default function ShipmentCalculator() {
         setEstimatedCost(null);
         setCalculationTrace(null);
         setPickupLocation('');
+        setPickupCity('');
+        setPickupBranch('');
     }, [companies, companyId, defaultConfig]);
 
     const handleCalculate = () => {
@@ -157,10 +164,11 @@ export default function ShipmentCalculator() {
             rowSource: averagedBaseRate ? 'company average' : selectedAuctionRate?.source || (selectedAuctionRate ? 'uploaded row' : config.stateRates[origin] ? 'state rate' : 'fallback rate'),
             rowConfidence: averagedBaseRate ? 'high' : selectedAuctionRate?.confidence || (selectedAuctionRate ? 'unknown' : 'high'),
             laneLabel: averagedBaseRate
-                ? `${origin} average from ${allCompanyEstimate?.companyCount || 0} company price list${allCompanyEstimate?.companyCount === 1 ? '' : 's'}`
+                ? `${origin} ${allCompanyEstimate?.matchLevel === 'lane' ? 'lane' : 'state'} average from ${allCompanyEstimate?.companyCount || 0} company price list${allCompanyEstimate?.companyCount === 1 ? '' : 's'}`
                 : selectedAuctionRate ? formatAuctionRateLabel(selectedAuctionRate) : `${origin} state rate`,
             averagedCompanyCount: allCompanyEstimate?.companyCount,
             matchedAuctionRows: allCompanyEstimate?.matchedAuctionRows,
+            matchLevel: allCompanyEstimate?.matchLevel,
         });
     };
 
@@ -270,6 +278,8 @@ export default function ShipmentCalculator() {
                                 setCompanyId(e.target.value);
                                 setOrigin('');
                                 setPickupLocation('');
+                                setPickupCity('');
+                                setPickupBranch('');
                                 setEstimatedCost(null);
                                 setCalculationTrace(null);
                             }}
@@ -336,6 +346,35 @@ export default function ShipmentCalculator() {
                         </FormControl>
                     )}
 
+                    {!companyId && (
+                        <>
+                            <TextField
+                                label="Pickup City"
+                                size="small"
+                                value={pickupCity}
+                                onChange={(event) => {
+                                    setPickupCity(event.target.value);
+                                    setEstimatedCost(null);
+                                    setCalculationTrace(null);
+                                }}
+                                placeholder="Los Angeles"
+                                sx={{ bgcolor: 'var(--background)' }}
+                            />
+                            <TextField
+                                label="Auction Branch"
+                                size="small"
+                                value={pickupBranch}
+                                onChange={(event) => {
+                                    setPickupBranch(event.target.value);
+                                    setEstimatedCost(null);
+                                    setCalculationTrace(null);
+                                }}
+                                placeholder="Los Angeles"
+                                sx={{ bgcolor: 'var(--background)' }}
+                            />
+                        </>
+                    )}
+
                     <FormControl fullWidth size="small">
                         <InputLabel>Vehicle Type</InputLabel>
                         <Select
@@ -375,7 +414,7 @@ export default function ShipmentCalculator() {
                         {activeCompanyPriceList
                             ? `Using ${activeCompanyPriceList.name} from ${activeCompanyPriceList.sourceFileName}.`
                             : allCompanyEstimate?.companyCount
-                                ? `Averaging ${allCompanyEstimate.companyCount} active company price list${allCompanyEstimate.companyCount === 1 ? '' : 's'} for ${origin}.`
+                                ? `Averaging ${allCompanyEstimate.companyCount} active company price list${allCompanyEstimate.companyCount === 1 ? '' : 's'} for ${origin} using ${allCompanyEstimate.matchLevel === 'lane' ? 'matched lanes' : 'state rates'}.`
                                 : 'Rates update daily and include standard handling.'}
                         {!activeCompanyPriceList && config.updatedFromPdfName ? ` Last file: ${config.updatedFromPdfName}.` : ''}
                     </Typography>
@@ -408,7 +447,7 @@ export default function ShipmentCalculator() {
                                 {calculationTrace && (
                                     <Typography variant="caption" sx={{ display: 'block', color: 'var(--text-secondary)', mt: 1 }}>
                                         Source: {calculationTrace.companyName} / {calculationTrace.priceListName} ({calculationTrace.priceListId}) / {calculationTrace.sourceFileName}. Base {formatCurrency(calculationTrace.baseRate)} x {calculationTrace.multiplier}; {calculationTrace.rowSource} / {calculationTrace.rowConfidence}.
-                                        {calculationTrace.averagedCompanyCount ? ` ${calculationTrace.averagedCompanyCount} companies, ${calculationTrace.matchedAuctionRows || 0} matched auction rows.` : ''}
+                                        {calculationTrace.averagedCompanyCount ? ` ${calculationTrace.averagedCompanyCount} companies, ${calculationTrace.matchedAuctionRows || 0} matched auction rows, ${calculationTrace.matchLevel || 'state'} match.` : ''}
                                     </Typography>
                                 )}
                             </Box>

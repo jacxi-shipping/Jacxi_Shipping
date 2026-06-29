@@ -22,6 +22,7 @@ type PublicAverageEstimate = {
   averageBaseRate: number | null;
   companyCount: number;
   matchedAuctionRows: number;
+  matchLevel: 'lane' | 'state' | 'none';
 };
 
 function formatCurrency(amount: number) {
@@ -36,6 +37,8 @@ export default function PublicRateCalculatorSection() {
   const [originState, setOriginState] = useState('CA');
   const [vehicleType, setVehicleType] = useState(DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes[0]?.id || 'sedan');
   const [destination, setDestination] = useState(destinationOptions[0].id);
+  const [pickupCity, setPickupCity] = useState('');
+  const [pickupBranch, setPickupBranch] = useState('');
   const [averageEstimate, setAverageEstimate] = useState<PublicAverageEstimate | null>(null);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
 
@@ -50,6 +53,8 @@ export default function PublicRateCalculatorSection() {
   const quoteParams = new URLSearchParams({
     pickupState: originState,
     pickupStateName: selectedState?.name || originState,
+    pickupCity,
+    pickupBranch,
     destinationProvince: selectedDestination.label,
     vehicleType: selectedVehicle.label,
     estimateLow: String(rangeLow),
@@ -61,7 +66,13 @@ export default function PublicRateCalculatorSection() {
     const controller = new AbortController();
     setLoadingEstimate(true);
 
-    fetch(`/api/public/shipping-rate-estimate?originState=${encodeURIComponent(originState)}`, {
+    const params = new URLSearchParams({
+      originState,
+      city: pickupCity,
+      branch: pickupBranch,
+    });
+
+    fetch(`/api/public/shipping-rate-estimate?${params.toString()}`, {
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -83,7 +94,7 @@ export default function PublicRateCalculatorSection() {
       });
 
     return () => controller.abort();
-  }, [originState]);
+  }, [originState, pickupBranch, pickupCity]);
 
   const popularStateOptions = useMemo(
     () => popularStates
@@ -185,6 +196,26 @@ export default function PublicRateCalculatorSection() {
                 </select>
               </label>
 
+              <label className="grid gap-2">
+                <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Pickup City</span>
+                <input
+                  value={pickupCity}
+                  onChange={(event) => setPickupCity(event.target.value)}
+                  placeholder="Los Angeles"
+                  className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-gray-950"
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Auction Branch</span>
+                <input
+                  value={pickupBranch}
+                  onChange={(event) => setPickupBranch(event.target.value)}
+                  placeholder="Los Angeles"
+                  className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-gray-950"
+                />
+              </label>
+
               <label className="grid gap-2 sm:col-span-2">
                 <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Destination</span>
                 <select
@@ -217,10 +248,11 @@ export default function PublicRateCalculatorSection() {
                 <span>{selectedState?.name || originState}</span>
                 <ArrowRight className="h-4 w-4 text-[var(--accent-gold)]" />
                 <span>{selectedDestination.label}</span>
+                {pickupCity.trim() ? <span>{pickupCity.trim()}</span> : null}
                 <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold">{selectedVehicle.label}</span>
                 {averageEstimate?.companyCount ? (
                   <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold">
-                    {averageEstimate.matchedAuctionRows} matched rows
+                    {averageEstimate.matchLevel === 'lane' ? 'Lane matched' : 'State average'} - {averageEstimate.matchedAuctionRows} rows
                   </span>
                 ) : null}
               </div>
