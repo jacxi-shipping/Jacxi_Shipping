@@ -39,6 +39,15 @@ export default function PublicRateCalculatorSection() {
   const estimate = Math.round(baseRate * selectedVehicle.multiplier * selectedDestination.multiplier);
   const rangeLow = Math.round(estimate * 0.92);
   const rangeHigh = Math.round(estimate * 1.12);
+  const quoteParams = new URLSearchParams({
+    pickupState: originState,
+    pickupStateName: selectedState?.name || originState,
+    destinationProvince: selectedDestination.label,
+    vehicleType: selectedVehicle.label,
+    estimateLow: String(rangeLow),
+    estimateHigh: String(rangeHigh),
+  });
+  const quoteHref = `?${quoteParams.toString()}#quote`;
 
   const popularStateOptions = useMemo(
     () => popularStates
@@ -175,7 +184,7 @@ export default function PublicRateCalculatorSection() {
                 Final pricing depends on exact pickup, vehicle condition, title status, and customs details.
               </p>
               <a
-                href="#quote"
+                href={quoteHref}
                 className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-gold)] px-5 text-sm font-bold text-white transition hover:brightness-95"
               >
                 Get exact quote

@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   User, 
@@ -61,6 +61,17 @@ const DEFAULT_SETTINGS = {
   language: 'en',
   calculatorConfig: DEFAULT_SHIPPING_RATE_CONFIG,
 };
+
+const baseSettingsTabSlugs = ['profile', 'preferences', 'notifications', 'security'];
+const adminSettingsTabSlugs = ['ai', 'call-agent', 'price-calculator'];
+
+function TabPanel({ children, value, index }: { children: ReactNode; value: number; index: number }) {
+  return (
+    <div role="tabpanel" hidden={value !== index} id={`settings-tabpanel-${index}`} aria-labelledby={`settings-tab-${index}`}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
+}
 
 type ProfileData = {
   id: string;
@@ -168,6 +179,7 @@ const parseJsonResponse = async (response: Response) => {
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isAdmin = session?.user?.role === 'admin';
   const [activeTab, setActiveTab] = useState(0);
 
@@ -200,6 +212,13 @@ export default function SettingsPage() {
   const [importingRates, setImportingRates] = useState(false);
   const [refreshingAiConnectivity, setRefreshingAiConnectivity] = useState(false);
   const [testingAiConnectivity, setTestingAiConnectivity] = useState(false);
+
+  useEffect(() => {
+    const slugs = isAdmin ? [...baseSettingsTabSlugs, ...adminSettingsTabSlugs] : baseSettingsTabSlugs;
+    const tab = searchParams.get('tab');
+    const index = tab ? slugs.indexOf(tab) : -1;
+    if (index >= 0 && index !== activeTab) setActiveTab(index);
+  }, [activeTab, isAdmin, searchParams]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -566,14 +585,6 @@ export default function SettingsPage() {
     return tabs;
   }, [isAdmin]);
 
-  const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
-    return (
-      <div role="tabpanel" hidden={value !== index} id={`settings-tabpanel-${index}`} aria-labelledby={`settings-tab-${index}`}>
-        {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
-      </div>
-    );
-  };
-
   if (status === 'loading' || loading) {
     return <LoadingState fullScreen message="Loading settings..." />;
   }
@@ -603,7 +614,13 @@ export default function SettingsPage() {
       >
         <Tabs
           value={activeTab}
-          onChange={(_, newValue) => setActiveTab(newValue)}
+          onChange={(_, newValue) => {
+            setActiveTab(newValue);
+            const slugs = isAdmin ? [...baseSettingsTabSlugs, ...adminSettingsTabSlugs] : baseSettingsTabSlugs;
+            const nextParams = new URLSearchParams(searchParams.toString());
+            nextParams.set('tab', slugs[newValue] || slugs[0]);
+            router.replace(`?${nextParams.toString()}`, { scroll: false });
+          }}
           variant="scrollable"
           scrollButtons="auto"
           sx={{

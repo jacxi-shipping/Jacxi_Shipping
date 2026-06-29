@@ -246,6 +246,7 @@ export default function ContainerDetailPage() {
 	const [loading, setLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState('overview');
 	const [updating, setUpdating] = useState(false);
+	const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
 	const [expenseModalOpen, setExpenseModalOpen] = useState(false);
 	const [expenseView, setExpenseView] = useState<'CONTAINER' | 'SHIPMENT'>('CONTAINER');
 	const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
@@ -378,6 +379,7 @@ export default function ContainerDetailPage() {
 		
 		try {
 			setUpdating(true);
+			setStatusUpdateError(null);
 			const response = await fetch(`/api/containers/${params.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
@@ -394,10 +396,13 @@ export default function ContainerDetailPage() {
 				toast.success('Status updated successfully');
 				await fetchContainer();
 			} else {
-				toast.error(data.error || 'Failed to update status');
+				const message = data.error || 'Failed to update status';
+				setStatusUpdateError(message);
+				toast.error(message);
 			}
 		} catch (error) {
 			console.error('Error updating status:', error);
+			setStatusUpdateError(error instanceof Error ? error.message : 'An error occurred while updating status');
 			toast.error('An error occurred');
 		} finally {
 			setUpdating(false);
@@ -1245,6 +1250,22 @@ export default function ContainerDetailPage() {
 									title="Update Container Status"
 									description="Change the container's current status"
 								>
+									{isContainerWorkflowLocked && (
+										<Box sx={{ mb: 1.5, p: 1.25, borderRadius: 1.5, border: '1px solid rgba(234, 179, 8, 0.35)', background: 'rgba(234, 179, 8, 0.08)', display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+											<AlertTriangle className="w-4 h-4" style={{ color: 'rgb(180, 83, 9)', marginTop: 2 }} />
+											<Typography sx={{ fontSize: '0.85rem', color: 'rgb(146, 64, 14)' }}>
+												This container is closed. Status changes require workflow override permission.
+											</Typography>
+										</Box>
+									)}
+									{statusUpdateError && (
+										<Box sx={{ mb: 1.5, p: 1.25, borderRadius: 1.5, border: '1px solid rgba(220, 38, 38, 0.25)', background: 'rgba(220, 38, 38, 0.06)', display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+											<AlertTriangle className="w-4 h-4" style={{ color: 'rgb(185, 28, 28)', marginTop: 2 }} />
+											<Typography sx={{ fontSize: '0.85rem', color: 'rgb(153, 27, 27)' }}>
+												{statusUpdateError}
+											</Typography>
+										</Box>
+									)}
 									<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
 										{Object.entries(statusConfig).map(([status, config]) => (
 											<Button

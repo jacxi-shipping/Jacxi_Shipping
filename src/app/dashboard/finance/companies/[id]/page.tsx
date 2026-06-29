@@ -25,6 +25,16 @@ import type { AuctionRateEntry, ShippingRateCalculatorConfig } from '@/lib/shipp
 
 type PriceListImportMode = 'replace' | 'merge' | 'add_new';
 
+const companyTabSlugs = ['ledger', 'price-list', 'operations', 'reports'];
+
+function TabPanel({ children, value, index }: { children: ReactNode; value: number; index: number }) {
+  return (
+    <div role="tabpanel" hidden={value !== index} id={`company-tabpanel-${index}`} aria-labelledby={`company-tab-${index}`}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
+}
+
 interface Company {
   id: string;
   name: string;
@@ -266,6 +276,12 @@ export default function CompanyLedgerDetailPage() {
   const [focusedEntryLoading, setFocusedEntryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
 
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const index = tab ? companyTabSlugs.indexOf(tab) : -1;
+    if (index >= 0 && index !== activeTab) setActiveTab(index);
+  }, [activeTab, searchParams]);
+
   const companyTypeLabel =
     company?.companyType === 'SHIPPING'
       ? 'Shipping'
@@ -310,12 +326,6 @@ export default function CompanyLedgerDetailPage() {
     },
     { label: 'Reports', icon: <DollarSign className="h-4 w-4" /> },
   ], [companyTypeLabel]);
-
-  const TabPanel = ({ children, value, index }: { children: ReactNode; value: number; index: number }) => (
-    <div role="tabpanel" hidden={value !== index} id={`company-tabpanel-${index}`} aria-labelledby={`company-tab-${index}`}>
-      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
-    </div>
-  );
 
   const isExpenseRecoveryEntry = (row: LedgerEntry) => {
     const category = (row.category || '').toLowerCase();
@@ -1080,7 +1090,12 @@ export default function CompanyLedgerDetailPage() {
         >
           <Tabs
             value={activeTab}
-            onChange={(_, newValue) => setActiveTab(newValue)}
+            onChange={(_, newValue) => {
+              setActiveTab(newValue);
+              const nextParams = new URLSearchParams(searchParams.toString());
+              nextParams.set('tab', companyTabSlugs[newValue] || companyTabSlugs[0]);
+              router.replace(`?${nextParams.toString()}`, { scroll: false });
+            }}
             variant="scrollable"
             scrollButtons="auto"
             sx={{
@@ -1229,6 +1244,22 @@ export default function CompanyLedgerDetailPage() {
               <Box sx={{ mt: 0.5, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
                 Upload a PDF, CSV, TXT, or XLSX rate sheet with state, branch/city, and total price columns. Preview first, edit or delete rows if needed, then import to create a new active version. Older versions stay in Import History and can be restored.
               </Box>
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1 }}>
+              {[
+                ['1', 'Upload', priceListFile ? priceListFile.name : 'Choose a rate sheet file'],
+                ['2', 'Preview', priceListPreview ? `${priceListPreview.rows.length} editable rows found` : 'Check parser confidence before import'],
+                ['3', 'Review', priceListPreview?.parserStats ? `${priceListPreview.parserStats.confidence} confidence` : 'Edit/delete questionable rows'],
+                ['4', 'Activate', 'Save as a new active version'],
+              ].map(([step, title, detail]) => (
+                <Box key={step} sx={{ p: 1.25, borderRadius: 1.5, border: '1px solid var(--border)', background: 'var(--background)', display: 'grid', gap: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Box sx={{ width: 22, height: 22, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800, background: 'rgba(var(--accent-gold-rgb), 0.14)', color: 'var(--accent-gold)' }}>{step}</Box>
+                    <Box sx={{ fontWeight: 700, fontSize: '0.86rem' }}>{title}</Box>
+                  </Box>
+                  <Box sx={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{detail}</Box>
+                </Box>
+              ))}
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5 }}>

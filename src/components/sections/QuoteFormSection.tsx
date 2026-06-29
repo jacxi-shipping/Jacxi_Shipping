@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -22,6 +22,7 @@ const quoteSchema = z.object({
 type QuoteFormData = z.infer<typeof quoteSchema>;
 
 export default function QuoteFormSection() {
+	const didApplyCalculatorPrefill = useRef(false);
 	const [submitted, setSubmitted] = useState(false);
 	const [error, setError] = useState('');
 
@@ -33,6 +34,36 @@ export default function QuoteFormSection() {
 	} = useForm<QuoteFormData>({
 		resolver: zodResolver(quoteSchema),
 	});
+
+	useEffect(() => {
+		if (didApplyCalculatorPrefill.current) return;
+		if (typeof window === 'undefined') return;
+
+		const params = new URLSearchParams(window.location.search);
+		const pickupState = params.get('pickupState');
+		const pickupStateName = params.get('pickupStateName');
+		const destinationProvince = params.get('destinationProvince');
+		const vehicleType = params.get('vehicleType');
+		const estimateLow = params.get('estimateLow');
+		const estimateHigh = params.get('estimateHigh');
+		if (!pickupState && !destinationProvince && !vehicleType) return;
+
+		didApplyCalculatorPrefill.current = true;
+		reset({
+			fullName: '',
+			email: '',
+			phone: '',
+			vehicleMake: '',
+			vehicleModel: '',
+			vehicleYear: '',
+			pickupLocation: pickupStateName && pickupState ? `${pickupStateName} (${pickupState})` : pickupStateName || pickupState || '',
+			destinationProvince: destinationProvince || '',
+			additionalNotes: [
+				vehicleType ? `Calculator vehicle type: ${vehicleType}` : '',
+				estimateLow && estimateHigh ? `Calculator estimate range: $${Number(estimateLow).toLocaleString()} - $${Number(estimateHigh).toLocaleString()}` : '',
+			].filter(Boolean).join('\n'),
+		});
+	}, [reset]);
 
 	const onSubmit = async (data: QuoteFormData) => {
 		setError('');
