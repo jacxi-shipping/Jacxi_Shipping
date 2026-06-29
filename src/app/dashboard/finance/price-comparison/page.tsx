@@ -80,6 +80,14 @@ type CompanyPriceRecord = CompanyPriceSnapshot & {
 
 type DisplayMode = ComparisonDisplayMode;
 
+function TabPanel({ children, value, index }: { children: ReactNode; value: number; index: number }) {
+  return (
+    <div role="tabpanel" hidden={value !== index} id={`comparison-tabpanel-${index}`} aria-labelledby={`comparison-tab-${index}`}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
+}
+
 const TAB_OVERVIEW = 0;
 const TAB_STATE = 1;
 const TAB_LANE = 2;
@@ -429,12 +437,6 @@ export default function CompanyPriceComparisonPage() {
     { label: 'Side by Side', icon: <ArrowLeftRight className="h-4 w-4" /> },
     { label: 'Presets', icon: <Bookmark className="h-4 w-4" /> },
   ], []);
-
-  const TabPanel = ({ children, value, index }: { children: ReactNode; value: number; index: number }) => (
-    <div role="tabpanel" hidden={value !== index} id={`comparison-tabpanel-${index}`} aria-labelledby={`comparison-tab-${index}`}>
-      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
-    </div>
-  );
 
   const insights = useMemo(
     () => buildComparisonInsights(visibleCompanies, comparisonRows),
