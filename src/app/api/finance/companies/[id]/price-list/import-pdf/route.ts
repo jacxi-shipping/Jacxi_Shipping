@@ -201,6 +201,9 @@ function parseDelimitedPriceList(text: string) {
       city,
       loadingPoint,
       total,
+      source: 'imported',
+      confidence: 'high',
+      sourceNote: 'Parsed from CSV/TXT/XLSX row.',
     });
   }
 
@@ -269,6 +272,9 @@ function parseOverrideRows(value: FormDataEntryValue | null) {
           city: String(row.city || '').trim(),
           loadingPoint: row.loadingPoint ? String(row.loadingPoint).trim() : null,
           total: Number.isFinite(total) ? Math.round(total) : 0,
+          source: 'manual' as const,
+          confidence: 'high' as const,
+          sourceNote: 'Reviewed or edited in the import preview.',
         };
       })
       .filter((row) => stateCodes.has(row.stateCode) && row.total > 0 && (row.branch || row.city));
@@ -294,6 +300,9 @@ function normalizeAiPriceListRows(rows: z.infer<typeof aiPriceListResponseSchema
       city,
       loadingPoint: row.loadingPoint ? normalizeCell(row.loadingPoint) : null,
       total: Math.round(total),
+      source: 'ai',
+      confidence: 'medium',
+      sourceNote: 'Extracted by AI fallback. Review before import.',
     });
   }
 
@@ -377,6 +386,14 @@ function buildFinalParserStats(
         : 'low',
     notes: Array.from(new Set(notes)).slice(0, 10),
   };
+}
+
+function summarizeRateSources(rows: AuctionRateEntry[]) {
+  return rows.reduce<Record<string, number>>((summary, row) => {
+    const source = row.source || 'unknown';
+    summary[source] = (summary[source] || 0) + 1;
+    return summary;
+  }, {});
 }
 
 async function extractPriceListFromFile(file: File, buffer: Buffer): Promise<ExtractedPriceList | null> {
@@ -476,6 +493,8 @@ export async function POST(
       aiExtraction.notes,
       Boolean(overrideRows),
     );
+    parserStats.aiRows = auctionRates.filter((rate) => rate.source === 'ai').length;
+    const rowSourceSummary = summarizeRateSources(auctionRates);
     const importedRates = overrideRows
       ? buildStateRatesFromAuctionRates(overrideRows)
       : getImportedRatesFromPdfText(auctionRates, extractedText);
@@ -516,6 +535,7 @@ export async function POST(
       totalAuctionRateCount: config.auctionRates.length,
       warnings,
       parserStats,
+      rowSourceSummary,
       rows: auctionRates.slice(0, 300),
       stateRates: finalImportedRates,
       extractedTextPreview: extractedText.slice(0, 700),
@@ -535,6 +555,7 @@ export async function POST(
           importedStateRateCount: Object.keys(finalImportedRates).length,
           importedAuctionRateCount: auctionRates.length,
           parserStats,
+          rowSourceSummary,
           warnings,
         },
       }).catch(() => null);
@@ -591,6 +612,7 @@ export async function POST(
         importedStateRateCount: Object.keys(finalImportedRates).length,
         importedAuctionRateCount: auctionRates.length,
         parserStats,
+        rowSourceSummary,
         warnings,
       },
     }).catch(() => null);

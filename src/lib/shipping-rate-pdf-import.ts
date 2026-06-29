@@ -151,6 +151,9 @@ function parseLabeledLine(line: string): AuctionRateEntry | null {
     city,
     loadingPoint: values.get('loadingPoint') || null,
     total: Math.round(total),
+    source: 'flexible',
+    confidence: 'high',
+    sourceNote: 'Parsed from labeled PDF text.',
   };
 }
 
@@ -176,6 +179,9 @@ function parseCellsWithHeader(line: string, header: Array<string | null> | null)
       city: byHeader('city') || byHeader('branch') || stateCode,
       loadingPoint: byHeader('loadingPoint') || null,
       total: Math.round(total),
+      source: 'flexible',
+      confidence: 'high',
+      sourceNote: 'Parsed from PDF text with detected headers.',
     };
   }
 
@@ -190,6 +196,9 @@ function parseCellsWithHeader(line: string, header: Array<string | null> | null)
     city,
     loadingPoint: null,
     total: Math.round(total),
+    source: 'flexible',
+    confidence: 'medium',
+    sourceNote: 'Parsed from delimited PDF text without a detected header.',
   };
 }
 
@@ -213,6 +222,9 @@ function parseLooseLine(line: string): AuctionRateEntry | null {
     city,
     loadingPoint: null,
     total: Math.round(money.amount),
+    source: 'flexible',
+    confidence: 'low',
+    sourceNote: 'Guessed from loose PDF text. Review before import.',
   };
 }
 
@@ -473,6 +485,9 @@ export async function extractAuctionRatesFromPdf(buffer: Buffer) {
           city,
           total: Math.round(total),
           loadingPoint: group.loadingPoint,
+          source: 'column',
+          confidence: 'high',
+          sourceNote: 'Parsed from column-aligned PDF layout.',
         });
       }
     }

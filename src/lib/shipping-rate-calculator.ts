@@ -10,6 +10,9 @@ export type AuctionRateEntry = {
   city: string;
   total: number;
   loadingPoint?: string | null;
+  source?: 'column' | 'flexible' | 'ai' | 'manual' | 'imported' | null;
+  confidence?: 'high' | 'medium' | 'low' | null;
+  sourceNote?: string | null;
 };
 
 export type ShippingRateCalculatorConfig = {
@@ -107,6 +110,13 @@ export function normalizeShippingRateConfig(value: unknown): ShippingRateCalcula
           city,
           total,
           loadingPoint: typeof item?.loadingPoint === 'string' ? item.loadingPoint.trim() : null,
+          source: ['column', 'flexible', 'ai', 'manual', 'imported'].includes(String(item?.source ?? ''))
+            ? item.source as AuctionRateEntry['source']
+            : null,
+          confidence: ['high', 'medium', 'low'].includes(String(item?.confidence ?? ''))
+            ? item.confidence as AuctionRateEntry['confidence']
+            : null,
+          sourceNote: typeof item?.sourceNote === 'string' ? item.sourceNote.trim() : null,
         };
       })
       .filter((item) => stateCodes.has(item.stateCode) && item.total > 0 && (item.branch || item.city))

@@ -148,6 +148,7 @@ interface PriceListPreview {
     confidence: 'high' | 'medium' | 'low';
     notes: string[];
   };
+  rowSourceSummary?: Record<string, number>;
   rows: AuctionRateEntry[];
   stateRates: Record<string, number>;
   extractedTextPreview: string;
@@ -191,6 +192,14 @@ interface CompanyReport {
     credit: number;
     net: number;
   }>;
+}
+
+function summarizePreviewRowSources(rows: AuctionRateEntry[]) {
+  return rows.reduce<Record<string, number>>((summary, row) => {
+    const source = row.source || 'unknown';
+    summary[source] = (summary[source] || 0) + 1;
+    return summary;
+  }, {});
 }
 
 export default function CompanyLedgerDetailPage() {
@@ -545,6 +554,9 @@ export default function CompanyLedgerDetailPage() {
         return {
           ...row,
           [field]: field === 'total' ? Number(value) || 0 : value,
+          source: 'manual' as const,
+          confidence: 'high' as const,
+          sourceNote: 'Reviewed or edited in the import preview.',
         };
       });
 
@@ -552,6 +564,7 @@ export default function CompanyLedgerDetailPage() {
         ...preview,
         rows,
         importedAuctionRateCount: rows.length,
+        rowSourceSummary: summarizePreviewRowSources(rows),
       };
     });
   };
@@ -565,6 +578,7 @@ export default function CompanyLedgerDetailPage() {
         ...preview,
         rows,
         importedAuctionRateCount: rows.length,
+        rowSourceSummary: summarizePreviewRowSources(rows),
       };
     });
   };
@@ -584,6 +598,7 @@ export default function CompanyLedgerDetailPage() {
       ['Flexible Rows', String(priceListPreview.parserStats?.flexibleRows ?? 0)],
       ['Guessed Rows', String(priceListPreview.parserStats?.guessedRows ?? 0)],
       ['AI Rows', String(priceListPreview.parserStats?.aiRows ?? 0)],
+      ['Manual Rows', String(priceListPreview.rowSourceSummary?.manual ?? 0)],
       [],
       ['Warnings'],
       ...(priceListPreview.warnings.length ? priceListPreview.warnings.map((warning) => [warning]) : [['No warnings']]),
@@ -591,13 +606,16 @@ export default function CompanyLedgerDetailPage() {
       ['Parser Notes'],
       ...(priceListPreview.parserStats?.notes.length ? priceListPreview.parserStats.notes.map((note) => [note]) : [['No parser notes']]),
       [],
-      ['State', 'Branch', 'City', 'Loading Point', 'Total'],
+      ['State', 'Branch', 'City', 'Loading Point', 'Total', 'Source', 'Confidence', 'Note'],
       ...priceListPreview.rows.map((row) => [
         row.stateCode,
         row.branch,
         row.city,
         row.loadingPoint || '',
         String(row.total),
+        row.source || '',
+        row.confidence || '',
+        row.sourceNote || '',
       ]),
     ];
     const csv = rows
@@ -1316,6 +1334,15 @@ export default function CompanyLedgerDetailPage() {
                         Direct {priceListPreview.parserStats.directRows} / Flexible {priceListPreview.parserStats.flexibleRows} / Guessed {priceListPreview.parserStats.guessedRows} / AI {priceListPreview.parserStats.aiRows}
                       </Box>
                     </Box>
+                    {priceListPreview.rowSourceSummary && (
+                      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                        {Object.entries(priceListPreview.rowSourceSummary).map(([source, count]) => (
+                          <Box key={source} sx={{ px: 1, py: 0.35, borderRadius: 1, border: '1px solid rgba(59, 130, 246, 0.24)', fontSize: '0.76rem', fontWeight: 700 }}>
+                            {source}: {count}
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
                     {priceListPreview.parserStats.notes.length > 0 && (
                       <Box sx={{ display: 'grid', gap: 0.25 }}>
                         {priceListPreview.parserStats.notes.map((note) => (
@@ -1351,6 +1378,7 @@ export default function CompanyLedgerDetailPage() {
                           <th style={{ textAlign: 'left', padding: '10px 12px', minWidth: 150 }}>City</th>
                           <th style={{ textAlign: 'left', padding: '10px 12px', minWidth: 150 }}>Loading Point</th>
                           <th style={{ textAlign: 'right', padding: '10px 12px', minWidth: 110 }}>Total</th>
+                          <th style={{ textAlign: 'left', padding: '10px 12px', minWidth: 130 }}>Source</th>
                           <th style={{ textAlign: 'center', padding: '10px 12px', width: 80 }}>Action</th>
                         </tr>
                       </thead>
@@ -1372,6 +1400,29 @@ export default function CompanyLedgerDetailPage() {
                             <td style={{ padding: '8px 10px' }}>
                               <TextField size="small" type="number" value={row.total} onChange={(event) => handleUpdatePreviewRow(index, 'total', event.target.value)} inputProps={{ min: 1 }} />
                             </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <Box sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                px: 1,
+                                py: 0.35,
+                                borderRadius: 1,
+                                border: row.source === 'ai' ? '1px solid rgba(234, 179, 8, 0.5)' : '1px solid var(--border)',
+                                background: row.source === 'ai' ? 'rgba(234, 179, 8, 0.1)' : 'var(--panel)',
+                                color: 'var(--text-secondary)',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                              }}>
+                                {row.source || 'unknown'}{row.confidence ? ` / ${row.confidence}` : ''}
+                              </Box>
+                              {row.sourceNote && (
+                                <Box sx={{ mt: 0.35, fontSize: '0.72rem', color: 'var(--text-secondary)', maxWidth: 180 }}>
+                                  {row.sourceNote}
+                                </Box>
+                              )}
+                            </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                               <Button variant="outline" size="sm" onClick={() => handleDeletePreviewRow(index)}>
                                 Delete
@@ -1379,7 +1430,7 @@ export default function CompanyLedgerDetailPage() {
                             </td>
                           </tr>
                         )) : (
-                          <tr><td colSpan={6} style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>No editable branch/city rows were detected. Check state-level rates above or upload a more detailed file.</td></tr>
+                          <tr><td colSpan={7} style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>No editable branch/city rows were detected. Check state-level rates above or upload a more detailed file.</td></tr>
                         )}
                       </tbody>
                     </table>

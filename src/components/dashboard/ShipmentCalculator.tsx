@@ -36,6 +36,18 @@ type CompanyRateOption = {
     }>;
 };
 
+type CalculationTrace = {
+    companyName: string;
+    priceListName: string;
+    priceListId: string;
+    sourceFileName: string;
+    baseRate: number;
+    multiplier: number;
+    rowSource: string;
+    rowConfidence: string;
+    laneLabel: string;
+};
+
 export default function ShipmentCalculator() {
     const [origin, setOrigin] = useState('');
     const [pickupLocation, setPickupLocation] = useState('');
@@ -45,6 +57,7 @@ export default function ShipmentCalculator() {
     const [defaultConfig, setDefaultConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
     const [companies, setCompanies] = useState<CompanyRateOption[]>([]);
     const [companyId, setCompanyId] = useState('');
+    const [calculationTrace, setCalculationTrace] = useState<CalculationTrace | null>(null);
 
     const stateAuctionRates = config.auctionRates.filter((rate) => rate.stateCode === origin);
     const selectedCompany = companies.find((company) => company.id === companyId);
@@ -92,6 +105,7 @@ export default function ShipmentCalculator() {
         if (!companyId) {
             setConfig(defaultConfig);
             setEstimatedCost(null);
+            setCalculationTrace(null);
             setPickupLocation('');
             return;
         }
@@ -99,6 +113,7 @@ export default function ShipmentCalculator() {
         const selectedCompany = companies.find((company) => company.id === companyId);
         setConfig(normalizeShippingRateConfig(selectedCompany?.priceListConfig));
         setEstimatedCost(null);
+        setCalculationTrace(null);
         setPickupLocation('');
     }, [companies, companyId, defaultConfig]);
 
@@ -112,6 +127,17 @@ export default function ShipmentCalculator() {
         const multiplier = config.vehicleTypes.find(v => v.id === vehicleType)?.multiplier || 1;
         
         setEstimatedCost(Math.round(baseRate * multiplier));
+        setCalculationTrace({
+            companyName: selectedCompany?.name || 'Default dashboard rates',
+            priceListName: activeCompanyPriceList?.name || 'Default rate settings',
+            priceListId: activeCompanyPriceList?.id || 'settings',
+            sourceFileName: activeCompanyPriceList?.sourceFileName || config.updatedFromPdfName || 'manual settings',
+            baseRate,
+            multiplier,
+            rowSource: selectedAuctionRate?.source || (selectedAuctionRate ? 'uploaded row' : config.stateRates[origin] ? 'state rate' : 'fallback rate'),
+            rowConfidence: selectedAuctionRate?.confidence || (selectedAuctionRate ? 'unknown' : 'high'),
+            laneLabel: selectedAuctionRate ? formatAuctionRateLabel(selectedAuctionRate) : `${origin} state rate`,
+        });
     };
 
     const formatAuctionRateLabel = (rate: AuctionRateEntry) => {
@@ -221,6 +247,7 @@ export default function ShipmentCalculator() {
                                 setOrigin('');
                                 setPickupLocation('');
                                 setEstimatedCost(null);
+                                setCalculationTrace(null);
                             }}
                             sx={{ bgcolor: 'var(--background)' }}
                         >
@@ -248,6 +275,7 @@ export default function ShipmentCalculator() {
                                 setOrigin(e.target.value);
                                 setPickupLocation('');
                                 setEstimatedCost(null); // Reset on change
+                                setCalculationTrace(null);
                             }}
                             sx={{ bgcolor: 'var(--background)' }}
                         >
@@ -268,6 +296,7 @@ export default function ShipmentCalculator() {
                                 onChange={(e) => {
                                     setPickupLocation(e.target.value);
                                     setEstimatedCost(null);
+                                    setCalculationTrace(null);
                                 }}
                                 sx={{ bgcolor: 'var(--background)' }}
                             >
@@ -291,6 +320,7 @@ export default function ShipmentCalculator() {
                             onChange={(e) => {
                                 setVehicleType(e.target.value);
                                 setEstimatedCost(null); // Reset on change
+                                setCalculationTrace(null);
                             }}
                             sx={{ bgcolor: 'var(--background)' }}
                         >
@@ -349,6 +379,11 @@ export default function ShipmentCalculator() {
                                 <Typography variant="caption" sx={{ display: 'block', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                                     *Rates are subject to change. Includes ocean freight & standard handling.
                                 </Typography>
+                                {calculationTrace && (
+                                    <Typography variant="caption" sx={{ display: 'block', color: 'var(--text-secondary)', mt: 1 }}>
+                                        Source: {calculationTrace.companyName} / {calculationTrace.priceListName} ({calculationTrace.priceListId}) / {calculationTrace.sourceFileName}. Base {formatCurrency(calculationTrace.baseRate)} x {calculationTrace.multiplier}; {calculationTrace.rowSource} / {calculationTrace.rowConfidence}.
+                                    </Typography>
+                                )}
                             </Box>
                         </motion.div>
                     )}
