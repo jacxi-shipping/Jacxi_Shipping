@@ -162,6 +162,15 @@ function formatLabel(value: string) {
   return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatChargeCode(value: string) {
+  const friendlyChargeCodes: Record<string, string> = {
+    PRICE_LIST_DISPATCH: 'Dispatch portion from price list',
+    PRICE_LIST_SHIPPING: 'Shipping portion from price list',
+  };
+
+  return friendlyChargeCodes[value] || formatLabel(value);
+}
+
 function isActionableCharge(charge: ShipmentCharge) {
   return !charge.invoice && !['INVOICED', 'PAID', 'VOID'].includes(charge.status);
 }
@@ -650,7 +659,7 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey, purchasePri
                       {charge.description}
                     </p>
                     <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                      Code {charge.chargeCode} · {formatLabel(charge.category)}
+                      {formatChargeCode(charge.chargeCode)} · {formatLabel(charge.category)}
                       {charge.billableAt ? ` · ${new Date(charge.billableAt).toLocaleDateString()}` : ''}
                     </p>
                     {charge.auditLogs.length > 0 && (

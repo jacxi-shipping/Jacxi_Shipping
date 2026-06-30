@@ -75,6 +75,33 @@ export interface Shipment {
   auctionName: string | null;
   status: string;
   price: number | null;
+  priceListPricingSnapshot?: {
+    source?: string;
+    companyId?: string;
+    companyName?: string;
+    priceListId?: string | null;
+    priceListName?: string | null;
+    sourceFileName?: string | null;
+    destinationLabel?: string | null;
+    totalPrice?: number;
+    dispatchAmount?: number;
+    shippingAmount?: number;
+    dispatchShare?: number;
+    currency?: string;
+    calculatedAt?: string;
+    matchedLane?: {
+      stateCode?: string | null;
+      branch?: string | null;
+      city?: string | null;
+      loadingPoint?: string | null;
+      source?: string | null;
+      confidence?: string | null;
+    };
+    posted?: {
+      dispatch?: { chargeId?: string; postedAt?: string };
+      shipping?: { chargeId?: string; postedAt?: string };
+    };
+  } | null;
   companyShippingFare?: number | null;
   damageCost?: number | null;
   damageCredit: number | null;

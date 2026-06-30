@@ -1,6 +1,6 @@
 'use client';
 
-import { DollarSign, Ship, Trash2, Truck } from 'lucide-react';
+import { CheckCircle2, DollarSign, ReceiptText, Ship, Trash2, Truck } from 'lucide-react';
 import { DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Button } from '@/components/design-system';
 import { cn } from '@/lib/utils';
@@ -48,6 +48,24 @@ type ShipmentFinancialsTabProps = {
   onDeleteExpense: (entryId: string) => void;
 };
 
+function formatSnapshotMoney(amount?: number | null, currency = 'USD') {
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
+    return '-';
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'USD',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatPriceListLane(snapshot: Shipment['priceListPricingSnapshot']) {
+  const lane = snapshot?.matchedLane;
+  const parts = [lane?.stateCode, lane?.branch, lane?.city, lane?.loadingPoint].filter(Boolean);
+  return parts.length > 0 ? parts.join(' / ') : snapshot?.destinationLabel || 'No lane matched yet';
+}
+
 export default function ShipmentFinancialsTab({
   shipment,
   canManageShipmentExpenses,
@@ -81,6 +99,12 @@ export default function ShipmentFinancialsTab({
   onOpenCompanyLedgerEntry,
   onDeleteExpense,
 }: ShipmentFinancialsTabProps) {
+  const priceListSnapshot = shipment.priceListPricingSnapshot;
+  const priceListCurrency = priceListSnapshot?.currency || 'USD';
+  const priceListDispatchPosted = Boolean(priceListSnapshot?.posted?.dispatch?.chargeId);
+  const priceListShippingPosted = Boolean(priceListSnapshot?.posted?.shipping?.chargeId);
+  const hasPriceListPricing = typeof priceListSnapshot?.totalPrice === 'number' && priceListSnapshot.totalPrice > 0;
+
   return (
     <DashboardPanel
       title="Shipment Financials"
@@ -102,6 +126,73 @@ export default function ShipmentFinancialsTab({
       }
     >
       <div className="space-y-4">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg border border-[rgba(var(--accent-gold-rgb),0.25)] bg-[rgba(var(--accent-gold-rgb),0.10)] p-2 text-[var(--accent-gold)]">
+                <ReceiptText className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)]">Price List Automation</h3>
+                {hasPriceListPricing ? (
+                  <p className="mt-1 text-sm text-[var(--text-primary)]">
+                    Using {priceListSnapshot?.companyName || 'the shipping company'} price list
+                    {priceListSnapshot?.priceListName ? `: ${priceListSnapshot.priceListName}` : ''}.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-[var(--text-primary)]">
+                    No company price list has been matched yet.
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                  {hasPriceListPricing
+                    ? `Matched lane: ${formatPriceListLane(priceListSnapshot)}. Dispatch and shipping are posted from this same company price list.`
+                    : 'Assign the shipment to a container with a shipping company that has an active price list, or add the shipping company before dispatch.'}
+                </p>
+              </div>
+            </div>
+
+            {hasPriceListPricing ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide',
+                  priceListDispatchPosted && priceListShippingPosted
+                    ? 'border-[rgba(34,197,94,0.34)] bg-[rgba(34,197,94,0.12)] text-[rgb(21,128,61)]'
+                    : 'border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] text-[rgb(180,83,9)]'
+                )}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {priceListDispatchPosted && priceListShippingPosted ? 'Fully Posted' : 'Partially Posted'}
+              </span>
+            ) : null}
+          </div>
+
+          {hasPriceListPricing && (
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Full Price</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                  {formatSnapshotMoney(priceListSnapshot?.totalPrice, priceListCurrency)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Dispatch Portion</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                  {formatSnapshotMoney(priceListSnapshot?.dispatchAmount, priceListCurrency)}
+                </p>
+                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{priceListDispatchPosted ? 'Posted to billing' : 'Waiting for dispatch handoff'}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Shipping Portion</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                  {formatSnapshotMoney(priceListSnapshot?.shippingAmount, priceListCurrency)}
+                </p>
+                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{priceListShippingPosted ? 'Posted to billing' : 'Waiting for container assignment'}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
           <h3 className="mb-2 text-sm font-semibold uppercase text-[var(--text-secondary)]">Expense Actions</h3>
           <p className="text-sm text-[var(--text-secondary)]">{expenseActionHelpText}</p>
@@ -209,7 +300,7 @@ export default function ShipmentFinancialsTab({
           <h3 className="mb-3 text-sm font-semibold uppercase text-[var(--text-secondary)]">Base Costs</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-[var(--text-primary)]">Vehicle Price</span>
+              <span className="text-sm text-[var(--text-primary)]">Shipment Price</span>
               <span className="text-sm font-medium">{shipment.price ? `$${shipment.price.toFixed(2)}` : '-'}</span>
             </div>
             <div className="flex justify-between">
