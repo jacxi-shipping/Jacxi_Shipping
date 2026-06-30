@@ -73,6 +73,7 @@ export interface Shipment {
   vehicleColor: string | null;
   lotNumber: string | null;
   auctionName: string | null;
+  purchaseLocation?: string | null;
   status: string;
   price: number | null;
   priceListPricingSnapshot?: {

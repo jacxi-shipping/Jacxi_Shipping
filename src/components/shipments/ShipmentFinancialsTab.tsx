@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, DollarSign, ReceiptText, Ship, Trash2, Truck } from 'lucide-react';
+import { CheckCircle2, CircleDashed, DollarSign, ReceiptText, Ship, Trash2, Truck } from 'lucide-react';
 import { DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Button } from '@/components/design-system';
 import { cn } from '@/lib/utils';
@@ -66,6 +66,19 @@ function formatPriceListLane(snapshot: Shipment['priceListPricingSnapshot']) {
   return parts.length > 0 ? parts.join(' / ') : snapshot?.destinationLabel || 'No lane matched yet';
 }
 
+function formatSnapshotDate(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleString();
+}
+
 export default function ShipmentFinancialsTab({
   shipment,
   canManageShipmentExpenses,
@@ -104,6 +117,44 @@ export default function ShipmentFinancialsTab({
   const priceListDispatchPosted = Boolean(priceListSnapshot?.posted?.dispatch?.chargeId);
   const priceListShippingPosted = Boolean(priceListSnapshot?.posted?.shipping?.chargeId);
   const hasPriceListPricing = typeof priceListSnapshot?.totalPrice === 'number' && priceListSnapshot.totalPrice > 0;
+  const hasPriceListCompany = Boolean(priceListSnapshot?.companyName || shipment.container?.shippingLine);
+  const hasPriceListLaneInput = Boolean(
+    shipment.purchaseLocation ||
+      shipment.auctionName ||
+      priceListSnapshot?.matchedLane?.stateCode ||
+      priceListSnapshot?.matchedLane?.branch ||
+      priceListSnapshot?.matchedLane?.city
+  );
+  const priceListCalculatedAt = formatSnapshotDate(priceListSnapshot?.calculatedAt);
+  const priceListChecklist = [
+    {
+      label: 'Company selected',
+      done: hasPriceListCompany,
+      detail: priceListSnapshot?.companyName || shipment.container?.shippingLine || 'Choose a container or shipping company with an active price list.',
+    },
+    {
+      label: 'Pickup lane available',
+      done: hasPriceListLaneInput,
+      detail: shipment.purchaseLocation || shipment.auctionName || formatPriceListLane(priceListSnapshot),
+    },
+    {
+      label: 'Price matched',
+      done: hasPriceListPricing,
+      detail: hasPriceListPricing
+        ? `${formatSnapshotMoney(priceListSnapshot?.totalPrice, priceListCurrency)} from ${priceListSnapshot?.priceListName || 'active price list'}`
+        : 'Upload/activate a company price list that contains this lane.',
+    },
+    {
+      label: 'Dispatch charge',
+      done: priceListDispatchPosted,
+      detail: priceListDispatchPosted ? 'Posted to billing.' : 'Posts at dispatch handoff when pricing is matched.',
+    },
+    {
+      label: 'Shipping charge',
+      done: priceListShippingPosted,
+      detail: priceListShippingPosted ? 'Posted to billing.' : 'Posts when the shipment is assigned to a container.',
+    },
+  ];
 
   return (
     <DashboardPanel
@@ -168,29 +219,54 @@ export default function ShipmentFinancialsTab({
           </div>
 
           {hasPriceListPricing && (
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Full Price</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-                  {formatSnapshotMoney(priceListSnapshot?.totalPrice, priceListCurrency)}
-                </p>
+            <>
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Full Price</p>
+                  <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                    {formatSnapshotMoney(priceListSnapshot?.totalPrice, priceListCurrency)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
+                    {priceListSnapshot?.sourceFileName || 'Active company price list'}
+                    {priceListCalculatedAt ? ` · ${priceListCalculatedAt}` : ''}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Dispatch Portion</p>
+                  <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                    {formatSnapshotMoney(priceListSnapshot?.dispatchAmount, priceListCurrency)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{priceListDispatchPosted ? 'Posted to billing' : 'Waiting for dispatch handoff'}</p>
+                </div>
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Shipping Portion</p>
+                  <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                    {formatSnapshotMoney(priceListSnapshot?.shippingAmount, priceListCurrency)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{priceListShippingPosted ? 'Posted to billing' : 'Waiting for container assignment'}</p>
+                </div>
               </div>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Dispatch Portion</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-                  {formatSnapshotMoney(priceListSnapshot?.dispatchAmount, priceListCurrency)}
-                </p>
-                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{priceListDispatchPosted ? 'Posted to billing' : 'Waiting for dispatch handoff'}</p>
-              </div>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Shipping Portion</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-                  {formatSnapshotMoney(priceListSnapshot?.shippingAmount, priceListCurrency)}
-                </p>
-                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{priceListShippingPosted ? 'Posted to billing' : 'Waiting for container assignment'}</p>
-              </div>
-            </div>
+            </>
           )}
+
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Pricing Checklist</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-5">
+              {priceListChecklist.map((item) => (
+                <div key={item.label} className="rounded-md border border-[var(--border)] bg-[var(--background)] p-3">
+                  <div className="flex items-center gap-2">
+                    {item.done ? (
+                      <CheckCircle2 className="h-4 w-4 text-[rgb(21,128,61)]" />
+                    ) : (
+                      <CircleDashed className="h-4 w-4 text-[var(--text-secondary)]" />
+                    )}
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-primary)]">{item.label}</p>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-5 text-[var(--text-secondary)]">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
