@@ -96,6 +96,36 @@ function TabPanel({ children, value, index }: { children: React.ReactNode; value
   );
 }
 
+type ShipmentTabLabelTone = 'neutral' | 'ready' | 'warning' | 'danger';
+
+function ShipmentTabLabel({
+  label,
+  meta,
+  tone = 'neutral',
+}: {
+  label: string;
+  meta?: string;
+  tone?: ShipmentTabLabelTone;
+}) {
+  const toneClassNames: Record<ShipmentTabLabelTone, string> = {
+    neutral: 'border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)]',
+    ready: 'border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] text-[rgb(21,128,61)]',
+    warning: 'border-[rgba(var(--warning-rgb),0.32)] bg-[rgba(var(--warning-rgb),0.12)] text-[var(--warning)]',
+    danger: 'border-[rgba(var(--error-rgb),0.32)] bg-[rgba(var(--error-rgb),0.12)] text-[var(--error)]',
+  };
+
+  return (
+    <span className="flex items-center gap-2">
+      <span>{label}</span>
+      {meta ? (
+        <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${toneClassNames[tone]}`}>
+          {meta}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 const expenseSourceLabels: Record<ClassifiedExpenseSource, string> = {
   SHIPMENT: 'Shipping',
   DISPATCH: 'Dispatch',
@@ -892,6 +922,17 @@ export default function ShipmentDetailPage() {
     ? 'Transit'
     : 'Movement';
   const serviceLabel = shipment.serviceType === 'PURCHASE_AND_SHIPPING' ? 'Purchase + Shipping' : 'Shipping Only';
+  const photoCount = (shipment.vehiclePhotos?.length || 0) + arrivalPhotos.length;
+  const documentCount = shipment.documents?.length || 0;
+  const damageCount = shipment.containerDamages?.length || 0;
+  const priceListDispatchPosted = Boolean(shipment.priceListPricingSnapshot?.posted?.dispatch?.chargeId);
+  const priceListShippingPosted = Boolean(shipment.priceListPricingSnapshot?.posted?.shipping?.chargeId);
+  const priceListMatched = typeof shipment.priceListPricingSnapshot?.totalPrice === 'number' && shipment.priceListPricingSnapshot.totalPrice > 0;
+  const priceListFullyPosted = priceListDispatchPosted && priceListShippingPosted;
+  const priceListTabMeta = priceListFullyPosted ? 'posted' : priceListMatched ? 'matched' : 'setup';
+  const priceListTabTone: ShipmentTabLabelTone = priceListFullyPosted ? 'ready' : priceListMatched ? 'warning' : 'neutral';
+  const billingTabMeta = priceListFullyPosted ? 'ready' : shipment.paymentStatus ? formatStatus(shipment.paymentStatus) : 'review';
+  const billingTabTone: ShipmentTabLabelTone = shipment.paymentStatus === 'OVERDUE' || shipment.paymentStatus === 'FAILED' ? 'danger' : priceListFullyPosted ? 'ready' : 'neutral';
 
   return (
     <ProtectedRoute>
@@ -1145,11 +1186,11 @@ export default function ShipmentDetailPage() {
           >
             <Tab icon={<Info className="h-4 w-4" />} iconPosition="start" label="Overview" />
             <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Timeline" />
-            <Tab icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label={`Photos (${(shipment.vehiclePhotos?.length || 0) + arrivalPhotos.length})`} />
-            <Tab icon={<FileText className="h-4 w-4" />} iconPosition="start" label={`Documents (${shipment.documents?.length || 0})`} />
-            <Tab icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label="Financials" />
-            <Tab icon={<Wallet className="h-4 w-4" />} iconPosition="start" label="Billing" />
-            <Tab icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={`Damages (${shipment.containerDamages?.length || 0})`} />
+            <Tab icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Photos" meta={String(photoCount)} tone={photoCount > 0 ? 'ready' : 'neutral'} />} />
+            <Tab icon={<FileText className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Documents" meta={String(documentCount)} tone={documentCount > 0 ? 'ready' : 'warning'} />} />
+            <Tab icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Financials" meta={priceListTabMeta} tone={priceListTabTone} />} />
+            <Tab icon={<Wallet className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Billing" meta={billingTabMeta} tone={billingTabTone} />} />
+            <Tab icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Damages" meta={String(damageCount)} tone={damageCount > 0 ? 'danger' : 'ready'} />} />
             <Tab icon={<PackageCheck className="h-4 w-4" />} iconPosition="start" label="Details" />
             {isAdmin && <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
             {isAdmin && <Tab icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
