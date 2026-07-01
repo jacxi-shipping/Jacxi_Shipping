@@ -17,6 +17,7 @@ import {
   MapPin,
   PackageCheck,
   PenLine,
+  ReceiptText,
   Trash2,
   Truck,
   Wallet,
@@ -933,6 +934,17 @@ export default function ShipmentDetailPage() {
   const priceListTabTone: ShipmentTabLabelTone = priceListFullyPosted ? 'ready' : priceListMatched ? 'warning' : 'neutral';
   const billingTabMeta = priceListFullyPosted ? 'ready' : shipment.paymentStatus ? formatStatus(shipment.paymentStatus) : 'review';
   const billingTabTone: ShipmentTabLabelTone = shipment.paymentStatus === 'OVERDUE' || shipment.paymentStatus === 'FAILED' ? 'danger' : priceListFullyPosted ? 'ready' : 'neutral';
+  const priceListHeaderStatus = priceListFullyPosted ? 'Posted' : priceListMatched ? 'Matched' : 'Needs Setup';
+  const priceListHeaderDetail = priceListFullyPosted
+    ? 'Dispatch and shipping posted'
+    : priceListMatched
+    ? `${formatMoney(shipment.priceListPricingSnapshot?.totalPrice || 0)} matched`
+    : 'No active match yet';
+  const priceListHeaderClass = priceListFullyPosted
+    ? 'border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.10)]'
+    : priceListMatched
+    ? 'border-[rgba(var(--warning-rgb),0.32)] bg-[rgba(var(--warning-rgb),0.10)]'
+    : 'border-[var(--border)] bg-[var(--background)]';
 
   return (
     <ProtectedRoute>
@@ -1026,7 +1038,7 @@ export default function ShipmentDetailPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[var(--text-secondary)]">
                       <User className="h-4 w-4" />
@@ -1062,6 +1074,19 @@ export default function ShipmentDetailPage() {
                     <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{formatMoney(netUserCharged)}</div>
                     <div className="text-xs text-[var(--text-secondary)]">Expenses {formatMoney(classifiedShipmentExpenseData.total)}</div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => openShipmentTab(4)}
+                    className={`rounded-lg border p-3 text-left transition-colors hover:border-[rgba(var(--accent-gold-rgb),0.45)] ${priceListHeaderClass}`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[var(--text-secondary)]">
+                      <ReceiptText className="h-4 w-4" />
+                      Price List
+                    </div>
+                    <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{priceListHeaderStatus}</div>
+                    <div className="truncate text-xs text-[var(--text-secondary)]">{priceListHeaderDetail}</div>
+                  </button>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
