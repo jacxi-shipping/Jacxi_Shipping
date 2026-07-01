@@ -10,6 +10,7 @@ import DashboardAiBrief from '@/components/dashboard/DashboardAiBrief';
 import DashboardChartsSection from '@/components/dashboard/DashboardChartsSection';
 import DashboardKpiGrid from '@/components/dashboard/DashboardKpiGrid';
 import DashboardOperationsSection from '@/components/dashboard/DashboardOperationsSection';
+import DashboardTodayWork from '@/components/dashboard/DashboardTodayWork';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
 
 // Force dynamic rendering (requires database connection)
@@ -106,6 +107,10 @@ async function getDashboardData(
         containerUtilization,
         dispatchStats,
         recentDispatches,
+        overdueInvoicesCount,
+        pendingInvoicesCount,
+        failedAiJobsCount,
+        recentShipmentActivity,
     ] = await Promise.all([
         // 1. KPI Stats
         prisma.shipment.count({
@@ -258,6 +263,50 @@ async function getDashboardData(
                 take: 4,
             })
             : Promise.resolve([]),
+
+        prisma.userInvoice.count({
+            where: {
+                ...invoiceUserFilter,
+                status: 'OVERDUE',
+            },
+        }),
+
+        prisma.userInvoice.count({
+            where: {
+                ...invoiceUserFilter,
+                status: 'PENDING',
+            },
+        }),
+
+        prisma.aiInteractionLog.count({
+            where: {
+                status: 'FAILED',
+                ...(canReadAllShipments ? {} : { actorUserId: effectiveUserId }),
+            },
+        }),
+
+        prisma.shipmentAuditLog.findMany({
+            where: canReadAllShipments ? {} : { shipment: { userId: effectiveUserId } },
+            select: {
+                id: true,
+                action: true,
+                description: true,
+                timestamp: true,
+                shipment: {
+                    select: {
+                        id: true,
+                        vehicleYear: true,
+                        vehicleMake: true,
+                        vehicleModel: true,
+                        vehicleVIN: true,
+                    },
+                },
+            },
+            orderBy: {
+                timestamp: 'desc',
+            },
+            take: 5,
+        }),
     ]);
 
     const shipmentTrendMap = new Map<string, { shipments: number; inTransit: number }>();
@@ -294,7 +343,13 @@ async function getDashboardData(
         isPositive: currentCount > priorCount,
     };
 
-    const buildShipmentLabel = (shipment: (typeof shipmentWorkflowRecords)[number]) => {
+    const buildVehicleLabel = (shipment: {
+        id: string;
+        vehicleYear: number | null;
+        vehicleMake: string | null;
+        vehicleModel: string | null;
+        vehicleVIN: string | null;
+    }) => {
         const vehicleLabel = [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel]
             .filter(Boolean)
             .join(' ')
@@ -306,6 +361,8 @@ async function getDashboardData(
 
         return shipment.vehicleVIN || vehicleLabel || `Shipment ${shipment.id.slice(0, 8)}`;
     };
+
+    const buildShipmentLabel = (shipment: (typeof shipmentWorkflowRecords)[number]) => buildVehicleLabel(shipment);
 
     const now = new Date();
     const dispatchExceptions: DashboardExceptionItem[] = shipmentWorkflowRecords
@@ -450,6 +507,19 @@ async function getDashboardData(
             totalExceptions: dashboardExceptions.length,
             exceptions: dashboardExceptions,
         },
+        todayWork: {
+            overdueInvoicesCount,
+            pendingInvoicesCount,
+            failedAiJobsCount,
+            workItems: dashboardExceptions.slice(0, 4),
+            recentActivity: recentShipmentActivity.map((activity) => ({
+                id: activity.id,
+                label: activity.action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()),
+                description: activity.description || buildVehicleLabel(activity.shipment),
+                href: `/dashboard/shipments/${activity.shipment.id}`,
+                timestamp: activity.timestamp.toISOString(),
+            })),
+        },
         canManageDispatches,
     };
 }
@@ -509,6 +579,15 @@ export default async function DashboardPage() {
                     actions={<OnboardingTour autoStart={true} />}
                 />
             </div>
+
+            <DashboardTodayWork
+                role={role}
+                workItems={data.todayWork.workItems}
+                overdueInvoicesCount={data.todayWork.overdueInvoicesCount}
+                pendingInvoicesCount={data.todayWork.pendingInvoicesCount}
+                failedAiJobsCount={data.todayWork.failedAiJobsCount}
+                recentActivity={data.todayWork.recentActivity}
+            />
 
             <DashboardKpiGrid
                 activeShipmentsCount={data.activeShipmentsCount}
