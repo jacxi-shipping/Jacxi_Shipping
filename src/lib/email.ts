@@ -1,15 +1,4 @@
-import { Resend } from 'resend';
-
-// Initialize Resend only if API key is available
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-function checkEmailConfigured() {
-  if (!resend) {
-    console.warn('Resend API key not configured, skipping email send');
-    return false;
-  }
-  return true;
-}
+import { sendConfiguredEmail } from '@/lib/communication-settings';
 
 export async function sendInvoiceEmail({
   to,
@@ -24,12 +13,8 @@ export async function sendInvoiceEmail({
   dueDate: string;
   pdfUrl: string;
 }) {
-  if (!checkEmailConfigured()) {
-    return { success: false, error: 'Email service not configured' };
-  }
-  
   try {
-    await resend!.emails.send({
+    return await sendConfiguredEmail({
       from: 'invoices@jacxishipping.com',
       to,
       subject: `Invoice ${invoiceNumber} - $${amount.toFixed(2)}`,
@@ -67,7 +52,6 @@ export async function sendInvoiceEmail({
         </div>
       `,
     });
-    return { success: true };
   } catch (error) {
     console.error('Email send failed:', error);
     return { success: false, error };
@@ -87,12 +71,8 @@ export async function sendStatusUpdateEmail({
   message: string;
   trackingUrl?: string;
 }) {
-  if (!checkEmailConfigured()) {
-    return { success: false, error: 'Email service not configured' };
-  }
-  
   try {
-    await resend!.emails.send({
+    return await sendConfiguredEmail({
       from: 'tracking@jacxishipping.com',
       to,
       subject: `Container ${containerNumber} - ${status}`,
@@ -118,7 +98,6 @@ export async function sendStatusUpdateEmail({
         </div>
       `,
     });
-    return { success: true };
   } catch (error) {
     console.error('Email send failed:', error);
     return { success: false, error };
@@ -140,15 +119,11 @@ export async function sendPaymentReminderEmail({
   daysOverdue: number;
   pdfUrl: string;
 }) {
-  if (!checkEmailConfigured()) {
-    return { success: false, error: 'Email service not configured' };
-  }
-  
   try {
     const urgencyLevel = daysOverdue >= 30 ? 'urgent' : daysOverdue >= 14 ? 'high' : 'normal';
     const urgencyColor = urgencyLevel === 'urgent' ? '#dc2626' : urgencyLevel === 'high' ? '#ea580c' : '#f59e0b';
     
-    await resend!.emails.send({
+    return await sendConfiguredEmail({
       from: 'invoices@jacxishipping.com',
       to,
       subject: `${urgencyLevel === 'urgent' ? 'URGENT: ' : ''}Payment Reminder - Invoice ${invoiceNumber}`,
@@ -189,7 +164,6 @@ export async function sendPaymentReminderEmail({
         </div>
       `,
     });
-    return { success: true };
   } catch (error) {
     console.error('Payment reminder email send failed:', error);
     return { success: false, error };
@@ -207,12 +181,8 @@ export async function sendShipmentCreatedEmail({
   vehicleInfo: string;
   trackingUrl?: string;
 }) {
-  if (!checkEmailConfigured()) {
-    return { success: false, error: 'Email service not configured' };
-  }
-  
   try {
-    await resend!.emails.send({
+    return await sendConfiguredEmail({
       from: 'notifications@jacxishipping.com',
       to,
       subject: 'Shipment Created - Jacxi Shipping',
@@ -242,7 +212,6 @@ export async function sendShipmentCreatedEmail({
         </div>
       `,
     });
-    return { success: true };
   } catch (error) {
     console.error('Shipment created email send failed:', error);
     return { success: false, error };

@@ -504,6 +504,24 @@ model AiProviderSettings {
   updatedAt          DateTime @updatedAt
 }
 
+model CommunicationProviderSettings {
+  id                    String   @id @default(cuid())
+  scope                 String   @unique @default("default")
+  emailEnabled          Boolean  @default(false)
+  emailProvider         String   @default("resend")
+  emailApiKey           String?
+  emailFromAddress      String?
+  emailReplyToAddress   String?
+  smsEnabled            Boolean  @default(false)
+  smsProvider           String   @default("twilio")
+  smsAccountSid         String?
+  smsAuthToken          String?
+  smsFromNumber         String?
+  smsMessagingServiceSid String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
 model Contact {
   id        String        @id @default(cuid())
   name      String

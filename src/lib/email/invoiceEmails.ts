@@ -1,3 +1,5 @@
+import { sendConfiguredEmail } from '@/lib/communication-settings';
+
 /**
  * Email Notification System for Invoices
  * 
@@ -376,33 +378,12 @@ export async function sendEmail({
   html: string;
   text?: string;
 }) {
-  // TODO: Implement email sending with your preferred service
-  // For now, just log to console
-  console.log('📧 Email would be sent:');
-  console.log('To:', to);
-  console.log('Subject:', subject);
-  console.log('---');
-  
-  // Uncomment and modify when ready to send real emails:
-  /*
   try {
-    // Example with Resend:
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    // await resend.emails.send({
-    //   from: process.env.EMAIL_FROM || 'noreply@yourcompany.com',
-    //   to,
-    //   subject,
-    //   html,
-    // });
-    
-    return { success: true };
+    return await sendConfiguredEmail({ to, subject, html, text });
   } catch (error) {
     console.error('Error sending email:', error);
     return { success: false, error };
   }
-  */
-  
-  return { success: true }; // Return success for now
 }
 
 /**

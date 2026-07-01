@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   PlugZap,
   XCircle,
+  Mail,
+  MessageSquare,
 } from 'lucide-react';
 import { Box, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
 
@@ -63,7 +65,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const baseSettingsTabSlugs = ['profile', 'preferences', 'notifications', 'security'];
-const adminSettingsTabSlugs = ['ai', 'call-agent', 'price-calculator'];
+const adminSettingsTabSlugs = ['ai', 'communications', 'call-agent', 'price-calculator'];
 
 function TabPanel({ children, value, index }: { children: ReactNode; value: number; index: number }) {
   return (
@@ -166,6 +168,46 @@ type AiProviderSettingsData = {
   temperature: number;
 };
 
+type CommunicationSettingsData = {
+  emailEnabled: boolean;
+  emailProvider: string;
+  emailApiKey: string;
+  emailApiKeyConfigured: boolean;
+  emailApiKeyMasked: string;
+  emailFromAddress: string;
+  emailReplyToAddress: string;
+  emailConfigured: boolean;
+  smsEnabled: boolean;
+  smsProvider: string;
+  smsAccountSid: string;
+  smsAuthToken: string;
+  smsAuthTokenConfigured: boolean;
+  smsAuthTokenMasked: string;
+  smsFromNumber: string;
+  smsMessagingServiceSid: string;
+  smsConfigured: boolean;
+};
+
+const DEFAULT_COMMUNICATION_SETTINGS: CommunicationSettingsData = {
+  emailEnabled: false,
+  emailProvider: 'resend',
+  emailApiKey: '',
+  emailApiKeyConfigured: false,
+  emailApiKeyMasked: '',
+  emailFromAddress: 'notifications@jacxishipping.com',
+  emailReplyToAddress: 'support@jacxishipping.com',
+  emailConfigured: false,
+  smsEnabled: false,
+  smsProvider: 'twilio',
+  smsAccountSid: '',
+  smsAuthToken: '',
+  smsAuthTokenConfigured: false,
+  smsAuthTokenMasked: '',
+  smsFromNumber: '',
+  smsMessagingServiceSid: '',
+  smsConfigured: false,
+};
+
 const DEFAULT_AI_PROVIDER_SETTINGS: AiProviderSettingsData = {
   enabled: true,
   provider: 'tokenrouter-ai',
@@ -229,6 +271,8 @@ export default function SettingsPage() {
   const [rateConfig, setRateConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
   const [aiConnectivity, setAiConnectivity] = useState<AiConnectivityStatus | null>(null);
   const [aiProviderSettings, setAiProviderSettings] = useState<AiProviderSettingsData>(DEFAULT_AI_PROVIDER_SETTINGS);
+  const [communicationSettings, setCommunicationSettings] = useState<CommunicationSettingsData>(DEFAULT_COMMUNICATION_SETTINGS);
+  const [communicationTestTarget, setCommunicationTestTarget] = useState({ email: '', sms: '' });
   const [aiTestResult, setAiTestResult] = useState<{
     latencyMs: number;
     responsePreview: string;
@@ -246,6 +290,8 @@ export default function SettingsPage() {
   const [refreshingAiConnectivity, setRefreshingAiConnectivity] = useState(false);
   const [testingAiConnectivity, setTestingAiConnectivity] = useState(false);
   const [savingAiProviderSettings, setSavingAiProviderSettings] = useState(false);
+  const [savingCommunicationSettings, setSavingCommunicationSettings] = useState(false);
+  const [testingCommunicationChannel, setTestingCommunicationChannel] = useState<'email' | 'sms' | null>(null);
 
   useEffect(() => {
     const slugs = isAdmin ? [...baseSettingsTabSlugs, ...adminSettingsTabSlugs] : baseSettingsTabSlugs;
@@ -265,12 +311,13 @@ export default function SettingsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [profileRes, settingsRes, backupRes, aiConnectivityRes, aiProviderRes] = await Promise.all([
+        const [profileRes, settingsRes, backupRes, aiConnectivityRes, aiProviderRes, communicationRes] = await Promise.all([
           fetch('/api/profile'),
           fetch('/api/settings'),
           isAdmin ? fetch('/api/settings/backup', { cache: 'no-store' }) : Promise.resolve(null),
           isAdmin ? fetch('/api/settings/ai-connectivity', { cache: 'no-store' }) : Promise.resolve(null),
           isAdmin ? fetch('/api/settings/ai-provider', { cache: 'no-store' }) : Promise.resolve(null),
+          isAdmin ? fetch('/api/settings/communications', { cache: 'no-store' }) : Promise.resolve(null),
         ]);
 
         if (profileRes.ok) {
@@ -331,6 +378,11 @@ export default function SettingsPage() {
         if (aiProviderRes?.ok) {
           const data = await aiProviderRes.json();
           setAiProviderSettings({ ...DEFAULT_AI_PROVIDER_SETTINGS, ...data.settings });
+        }
+
+        if (communicationRes?.ok) {
+          const data = await communicationRes.json();
+          setCommunicationSettings({ ...DEFAULT_COMMUNICATION_SETTINGS, ...data.settings });
         }
       } catch (error) {
         console.error('Error fetching settings data:', error);
@@ -635,6 +687,69 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCommunicationFieldChange = <T extends keyof CommunicationSettingsData>(
+    field: T,
+    value: CommunicationSettingsData[T],
+  ) => {
+    setCommunicationSettings((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveCommunicationSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      setSavingCommunicationSettings(true);
+      const response = await fetch('/api/settings/communications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailEnabled: communicationSettings.emailEnabled,
+          emailProvider: communicationSettings.emailProvider,
+          emailApiKey: communicationSettings.emailApiKey,
+          emailFromAddress: communicationSettings.emailFromAddress,
+          emailReplyToAddress: communicationSettings.emailReplyToAddress,
+          smsEnabled: communicationSettings.smsEnabled,
+          smsProvider: communicationSettings.smsProvider,
+          smsAccountSid: communicationSettings.smsAccountSid,
+          smsAuthToken: communicationSettings.smsAuthToken,
+          smsFromNumber: communicationSettings.smsFromNumber,
+          smsMessagingServiceSid: communicationSettings.smsMessagingServiceSid,
+        }),
+      });
+      const data = await parseJsonResponse(response);
+      if (!response.ok) throw new Error(data?.message || 'Failed to save communication settings');
+      setCommunicationSettings({ ...DEFAULT_COMMUNICATION_SETTINGS, ...data.settings });
+      toast.success('Communication settings saved');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save communication settings');
+    } finally {
+      setSavingCommunicationSettings(false);
+    }
+  };
+
+  const handleTestCommunication = async (channel: 'email' | 'sms') => {
+    const to = communicationTestTarget[channel].trim();
+    if (!to) {
+      toast.error(channel === 'email' ? 'Enter a test email address' : 'Enter a test phone number');
+      return;
+    }
+
+    try {
+      setTestingCommunicationChannel(channel);
+      const response = await fetch('/api/settings/communications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, to }),
+      });
+      const data = await parseJsonResponse(response);
+      if (!response.ok) throw new Error(data?.message || 'Communication test failed');
+      toast.success(`${channel === 'email' ? 'Email' : 'SMS'} test sent`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Communication test failed');
+    } finally {
+      setTestingCommunicationChannel(null);
+    }
+  };
+
   const notificationSummary = useMemo(() => {
     const channels = [];
     if (settingsForm.notifyShipmentEmail || settingsForm.notifyPaymentEmail) channels.push('Email');
@@ -654,6 +769,7 @@ export default function SettingsPage() {
     if (isAdmin) {
       tabs.push(
         { label: 'AI', icon: <Bot className="h-4 w-4" /> },
+        { label: 'Communications', icon: <Mail className="h-4 w-4" /> },
         { label: 'Call Agent', icon: <PhoneCall className="h-4 w-4" /> },
         { label: 'Price Calculator', icon: <DollarSign className="h-4 w-4" /> },
       );
@@ -743,7 +859,7 @@ export default function SettingsPage() {
         </Tabs>
       </Box>
 
-      <TabPanel value={activeTab} index={5}>
+      <TabPanel value={activeTab} index={6}>
       {isAdmin ? (
         <DashboardPanel
           title="Call Agent"
@@ -764,6 +880,144 @@ export default function SettingsPage() {
                 Open Call Agent
               </Button>
             </Link>
+          </Box>
+        </DashboardPanel>
+      ) : null}
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={5}>
+      {isAdmin ? (
+        <DashboardPanel
+          title="Communications"
+          description="Configure email and SMS/message providers for invoices, reminders, and customer notifications."
+          actions={
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<Mail className="w-4 h-4" />}
+                onClick={() => void handleTestCommunication('email')}
+                loading={testingCommunicationChannel === 'email'}
+                disabled={!communicationSettings.emailConfigured}
+              >
+                Test Email
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<MessageSquare className="w-4 h-4" />}
+                onClick={() => void handleTestCommunication('sms')}
+                loading={testingCommunicationChannel === 'sms'}
+                disabled={!communicationSettings.smsConfigured}
+              >
+                Test SMS
+              </Button>
+            </Box>
+          }
+        >
+          <Box component="form" onSubmit={handleSaveCommunicationSettings} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <DashboardGrid className="grid-cols-1 md:grid-cols-2">
+              <StatsCard
+                icon={communicationSettings.emailConfigured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
+                title="Email Provider"
+                value={communicationSettings.emailConfigured ? 'Configured' : 'Needs Setup'}
+                subtitle={communicationSettings.emailProvider}
+                variant={communicationSettings.emailConfigured ? 'success' : 'warning'}
+                size="md"
+              />
+              <StatsCard
+                icon={communicationSettings.smsConfigured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
+                title="SMS Provider"
+                value={communicationSettings.smsConfigured ? 'Configured' : 'Needs Setup'}
+                subtitle={communicationSettings.smsProvider}
+                variant={communicationSettings.smsConfigured ? 'success' : 'warning'}
+                size="md"
+              />
+            </DashboardGrid>
+
+            <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: 2, bgcolor: 'var(--background)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: { xs: 'flex-start', md: 'center' }, flexDirection: { xs: 'column', md: 'row' }, mb: 2 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Mail className="w-4 h-4" />
+                    Email API
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                    Used by invoice generation, payment reminders, shipment emails, and invoice templates.
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{communicationSettings.emailEnabled ? 'Enabled' : 'Disabled'}</Typography>
+                  <Switch checked={communicationSettings.emailEnabled} onChange={(event) => handleCommunicationFieldChange('emailEnabled', event.target.checked)} disabled={savingCommunicationSettings} />
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+                <TextField size="small" label="Email Provider" value={communicationSettings.emailProvider} onChange={(event) => handleCommunicationFieldChange('emailProvider', event.target.value)} disabled={savingCommunicationSettings} />
+                <TextField
+                  size="small"
+                  label="Resend API Key"
+                  type="password"
+                  value={communicationSettings.emailApiKey}
+                  onChange={(event) => handleCommunicationFieldChange('emailApiKey', event.target.value)}
+                  placeholder={communicationSettings.emailApiKeyConfigured ? `Saved: ${communicationSettings.emailApiKeyMasked}` : 'Paste API key'}
+                  helperText={communicationSettings.emailApiKeyConfigured ? 'Leave blank to keep the saved encrypted key.' : 'Saved encrypted using the app secret.'}
+                  disabled={savingCommunicationSettings}
+                />
+                <TextField size="small" label="From Email" value={communicationSettings.emailFromAddress} onChange={(event) => handleCommunicationFieldChange('emailFromAddress', event.target.value)} disabled={savingCommunicationSettings} />
+                <TextField size="small" label="Reply-To Email" value={communicationSettings.emailReplyToAddress} onChange={(event) => handleCommunicationFieldChange('emailReplyToAddress', event.target.value)} disabled={savingCommunicationSettings} />
+                <TextField
+                  size="small"
+                  label="Test Email Recipient"
+                  value={communicationTestTarget.email}
+                  onChange={(event) => setCommunicationTestTarget((prev) => ({ ...prev, email: event.target.value }))}
+                  placeholder="admin@example.com"
+                  sx={{ gridColumn: { xs: '1', md: '1 / -1' } }}
+                />
+              </Box>
+            </Box>
+
+            <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: 2, bgcolor: 'var(--background)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: { xs: 'flex-start', md: 'center' }, flexDirection: { xs: 'column', md: 'row' }, mb: 2 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <MessageSquare className="w-4 h-4" />
+                    SMS / Number Messages
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                    Used for critical alerts and future customer number-message workflows.
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{communicationSettings.smsEnabled ? 'Enabled' : 'Disabled'}</Typography>
+                  <Switch checked={communicationSettings.smsEnabled} onChange={(event) => handleCommunicationFieldChange('smsEnabled', event.target.checked)} disabled={savingCommunicationSettings} />
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+                <TextField size="small" label="SMS Provider" value={communicationSettings.smsProvider} onChange={(event) => handleCommunicationFieldChange('smsProvider', event.target.value)} disabled={savingCommunicationSettings} />
+                <TextField size="small" label="Twilio Account SID" value={communicationSettings.smsAccountSid} onChange={(event) => handleCommunicationFieldChange('smsAccountSid', event.target.value)} disabled={savingCommunicationSettings} />
+                <TextField
+                  size="small"
+                  label="Twilio Auth Token"
+                  type="password"
+                  value={communicationSettings.smsAuthToken}
+                  onChange={(event) => handleCommunicationFieldChange('smsAuthToken', event.target.value)}
+                  placeholder={communicationSettings.smsAuthTokenConfigured ? `Saved: ${communicationSettings.smsAuthTokenMasked}` : 'Paste auth token'}
+                  helperText={communicationSettings.smsAuthTokenConfigured ? 'Leave blank to keep the saved encrypted token.' : 'Saved encrypted using the app secret.'}
+                  disabled={savingCommunicationSettings}
+                />
+                <TextField size="small" label="From Number" value={communicationSettings.smsFromNumber} onChange={(event) => handleCommunicationFieldChange('smsFromNumber', event.target.value)} disabled={savingCommunicationSettings} />
+                <TextField size="small" label="Messaging Service SID" value={communicationSettings.smsMessagingServiceSid} onChange={(event) => handleCommunicationFieldChange('smsMessagingServiceSid', event.target.value)} disabled={savingCommunicationSettings} />
+                <TextField size="small" label="Test Phone Number" value={communicationTestTarget.sms} onChange={(event) => setCommunicationTestTarget((prev) => ({ ...prev, sms: event.target.value }))} placeholder="+15555555555" />
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button type="submit" variant="primary" loading={savingCommunicationSettings} icon={<CheckCircle2 className="w-4 h-4" />}>
+                Save Communications
+              </Button>
+            </Box>
           </Box>
         </DashboardPanel>
       ) : null}
@@ -1259,7 +1513,7 @@ export default function SettingsPage() {
         ) : null}
       </DashboardGrid>
 
-      <TabPanel value={activeTab} index={6}>
+      <TabPanel value={activeTab} index={7}>
       {isAdmin ? (
         <DashboardPanel
           title="Price Calculator"
