@@ -37,6 +37,7 @@ import ShipmentDetailsTab from '@/components/shipments/ShipmentDetailsTab';
 import ShipmentBillingTab from '@/components/shipments/ShipmentBillingTab';
 import ShipmentDocumentsTab from '@/components/shipments/ShipmentDocumentsTab';
 import ShipmentFinancialsTab from '@/components/shipments/ShipmentFinancialsTab';
+import ShipmentNextActionPanel from '@/components/shipments/ShipmentNextActionPanel';
 import ShipmentOverviewTab from '@/components/shipments/ShipmentOverviewTab';
 import ShipmentPhotosTab from '@/components/shipments/ShipmentPhotosTab';
 import ShipmentTimelineTab from '@/components/shipments/ShipmentTimelineTab';
@@ -647,6 +648,12 @@ export default function ShipmentDetailPage() {
   const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.dispatchId || (shipment?.transitId && shipment?.transit?.currentCompany));
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
   const canAddTransitExpense = Boolean(shipment?.transitId && shipment?.transit?.currentCompany);
+  const openShipmentTab = useCallback((index: number) => {
+    setActiveTab(index);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set('tab', shipmentTabSlugs[index] || shipmentTabSlugs[0]);
+    router.replace(`?${nextParams.toString()}`, { scroll: false });
+  }, [router, searchParams]);
   const expenseContextType = shipment?.containerId
     ? 'CONTAINER'
     : shipment?.transitId
@@ -1072,6 +1079,20 @@ export default function ShipmentDetailPage() {
           transitReference={shipment.transit?.referenceNumber}
         />
 
+        <ShipmentNextActionPanel
+          shipment={shipment}
+          canAssignDispatch={canAssignDispatch}
+          canManageWorkflow={canManageWorkflow}
+          isReleasedForTransit={isReleasedForTransit}
+          creatingReleaseToken={creatingReleaseToken}
+          onAssignDispatch={() => setOpenAssignDispatch(true)}
+          onAssignTransit={() => setOpenAssignTransit(true)}
+          onGenerateReleaseToken={handleGenerateReleaseToken}
+          onOpenFinancials={() => openShipmentTab(4)}
+          onOpenBilling={() => openShipmentTab(5)}
+          onOpenDetails={() => openShipmentTab(7)}
+        />
+
         {/* Tabs Navigation */}
         <Box
           sx={{
@@ -1088,10 +1109,7 @@ export default function ShipmentDetailPage() {
           <Tabs
             value={activeTab}
             onChange={(_, newValue) => {
-              setActiveTab(newValue);
-              const nextParams = new URLSearchParams(searchParams.toString());
-              nextParams.set('tab', shipmentTabSlugs[newValue] || shipmentTabSlugs[0]);
-              router.replace(`?${nextParams.toString()}`, { scroll: false });
+              openShipmentTab(newValue);
             }}
             variant="scrollable"
             scrollButtons="auto"
