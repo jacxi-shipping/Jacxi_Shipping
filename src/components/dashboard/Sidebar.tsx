@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, TrendingUp, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore, AdminPanelSettings, MoreHoriz, CompareArrows } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore, AdminPanelSettings, CompareArrows, Settings } from '@mui/icons-material';
 import { signOut, useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography, Collapse, IconButton, Avatar, Button } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
@@ -42,60 +42,6 @@ const shipmentNavigation: NavigationItem[] = [
 		icon: Inventory2,
 		requiredPermission: 'shipments:view',
 	},
-];
-
-const financeNavigation: NavigationItem[] = [
-	{
-		name: 'Finance',
-		href: '/dashboard/finance',
-		icon: AccountBalance,
-		requiredPermission: 'finance:view',
-	},
-	{
-		name: 'Banking',
-		href: '/dashboard/finance/banking',
-		icon: Payment,
-		requiredPermission: 'finance:view',
-	},
-	{
-		name: 'Company Ledgers',
-		href: '/dashboard/finance/companies',
-		icon: Business,
-		requiredPermission: 'finance:manage',
-	},
-	{
-		name: 'Price Comparison',
-		href: '/dashboard/finance/price-comparison',
-		icon: CompareArrows,
-		requiredPermission: 'finance:view',
-	},
-];
-
-const adminNavigation: NavigationItem[] = [
-	{
-		name: 'Analytics',
-		href: '/dashboard/analytics',
-		icon: Analytics,
-		requiredPermission: 'analytics:view',
-	},
-	{
-		name: 'Customers',
-		href: '/dashboard/customers',
-		icon: Group,
-		requiredPermission: 'customers:view',
-	},
-	{
-		name: 'Partner Portals',
-		href: '/dashboard/partner-portals',
-		icon: Group,
-		requiredPermission: 'customers:manage',
-	},
-	{
-		name: 'Users',
-		href: '/dashboard/users',
-		icon: Group,
-		requiredPermission: 'users:manage',
-	},
 	{
 		name: 'Containers',
 		href: '/dashboard/containers',
@@ -115,10 +61,67 @@ const adminNavigation: NavigationItem[] = [
 		requiredPermission: 'transits:manage',
 	},
 	{
+		name: 'Track Shipments',
+		href: '/dashboard/tracking',
+		icon: Search,
+		requiredPermission: 'tracking:view',
+	},
+];
+
+const financeNavigation: NavigationItem[] = [
+	{
+		name: 'Finance',
+		href: '/dashboard/finance',
+		icon: AccountBalance,
+		requiredPermission: 'finance:view',
+	},
+	{
+		name: 'Banking',
+		href: '/dashboard/finance/banking',
+		icon: Payment,
+		requiredPermission: 'finance:view',
+	},
+	{
 		name: 'Invoices',
 		href: '/dashboard/invoices',
 		icon: Receipt,
 		requiredPermission: 'invoices:view',
+	},
+	{
+		name: 'Company Ledgers',
+		href: '/dashboard/finance/companies',
+		icon: Business,
+		requiredPermission: 'finance:manage',
+	},
+	{
+		name: 'Price Comparison',
+		href: '/dashboard/finance/price-comparison',
+		icon: CompareArrows,
+		requiredPermission: 'finance:view',
+	},
+];
+
+const companyNavigation: NavigationItem[] = [
+	{
+		name: 'Customers',
+		href: '/dashboard/customers',
+		icon: Group,
+		requiredPermission: 'customers:view',
+	},
+	{
+		name: 'Partner Portals',
+		href: '/dashboard/partner-portals',
+		icon: Group,
+		requiredPermission: 'customers:manage',
+	},
+];
+
+const aiDocumentNavigation: NavigationItem[] = [
+	{
+		name: 'Documents',
+		href: '/dashboard/documents',
+		icon: Description,
+		requiredPermission: 'documents:view',
 	},
 	{
 		name: 'AI Logs',
@@ -135,18 +138,27 @@ const adminNavigation: NavigationItem[] = [
 	},
 ];
 
-const otherNavigation: NavigationItem[] = [
+const settingsNavigation: NavigationItem[] = [
 	{
-		name: 'Track Shipments',
-		href: '/dashboard/tracking',
-		icon: Search,
-		requiredPermission: 'tracking:view',
+		name: 'Settings',
+		href: '/dashboard/settings',
+		icon: Settings,
+		requiredPermission: 'users:manage',
+	},
+];
+
+const adminNavigation: NavigationItem[] = [
+	{
+		name: 'Analytics',
+		href: '/dashboard/analytics',
+		icon: Analytics,
+		requiredPermission: 'analytics:view',
 	},
 	{
-		name: 'Documents',
-		href: '/dashboard/documents',
-		icon: Description,
-		requiredPermission: 'documents:view',
+		name: 'Users',
+		href: '/dashboard/users',
+		icon: Group,
+		requiredPermission: 'users:manage',
 	},
 ];
 
@@ -364,15 +376,21 @@ type NavSectionProps = {
 const ADMIN_SECTION_STORAGE_KEY = 'sidebar_admin_collapsed';
 
 const sectionIcons: Partial<Record<string, typeof Inventory2>> = {
-	Shipments: Inventory2,
+	Operations: Inventory2,
 	Finance: AccountBalance,
+	'Companies & Customers': Business,
+	'AI & Documents': SmartToy,
+	Settings,
 	Admin: AdminPanelSettings,
-	Other: MoreHoriz,
 };
 
 function isNavigationItemActive(pathname: string, href: string) {
 	if (href === '/dashboard') {
 		return pathname === '/dashboard';
+	}
+
+	if (href === '/dashboard/finance' || href === '/dashboard/settings') {
+		return pathname === href;
 	}
 
 	return pathname.startsWith(href);
@@ -587,17 +605,23 @@ function SidebarContent({
 				{/* Main */}
 				<NavSection items={mainNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
-				{/* Shipments */}
-				<NavSection title="Shipments" items={shipmentNavigation} role={userRole} isActive={isActive} badgeMap={badgeMap} onNavClick={onNavClick} />
+				{/* Operations */}
+				<NavSection title="Operations" items={shipmentNavigation} role={userRole} isActive={isActive} badgeMap={badgeMap} onNavClick={onNavClick} />
 
 				{/* Finance */}
-				<NavSection title="Finance" items={financeNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
+				<NavSection title="Finance" items={financeNavigation} role={userRole} isActive={isActive} badgeMap={badgeMap} onNavClick={onNavClick} />
+
+				{/* Companies & Customers */}
+				<NavSection title="Companies & Customers" items={companyNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
+
+				{/* AI & Documents */}
+				<NavSection title="AI & Documents" items={aiDocumentNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
+
+				{/* Settings */}
+				<NavSection title="Settings" items={settingsNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 				{/* Admin / Internal Section */}
 				<CollapsibleAdminSection items={adminNavigation} role={userRole} isActive={isActive} badgeMap={badgeMap} onNavClick={onNavClick} collapsed={adminCollapsed} onToggleCollapsed={onToggleAdminCollapsed} />
-
-				{/* Other */}
-				<NavSection title="Other" items={otherNavigation} role={userRole} isActive={isActive} onNavClick={onNavClick} />
 
 			</Box>
 			<Box
