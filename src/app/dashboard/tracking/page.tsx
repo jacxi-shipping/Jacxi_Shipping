@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Box, Typography } from '@mui/material';
-import { AlertCircle, CheckCircle2, Clock, MapPin, Search, Package, Ship, Calendar, TrendingUp } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle2, Clock, Copy, MapPin, Package, Search, Ship, XCircle } from 'lucide-react';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
-import { PageHeader, Button, EmptyState, LoadingState, FormField, Breadcrumbs, toast, StatusBadge , DashboardPageSkeleton, DetailPageSkeleton, FormPageSkeleton} from '@/components/design-system';
+import { PageHeader, Button, EmptyState, FormField, Breadcrumbs, toast, DashboardPageSkeleton } from '@/components/design-system';
 
 interface TrackingEventEntry {
 	id: string;
@@ -52,6 +52,19 @@ const formatDisplayDate = (value?: string) => {
 	});
 };
 
+const RECENT_TRACKING_KEY = 'jacxi.recentTrackingNumbers';
+
+function getStoredTrackingNumbers() {
+	if (typeof window === 'undefined') return [];
+	try {
+		const value = window.localStorage.getItem(RECENT_TRACKING_KEY);
+		const parsed = value ? JSON.parse(value) : [];
+		return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string').slice(0, 6) : [];
+	} catch {
+		return [];
+	}
+}
+
 export default function DashboardTrackingPage() {
 	const { data: session, status } = useSession();
 	const router = useRouter();
@@ -59,6 +72,7 @@ export default function DashboardTrackingPage() {
 	const [trackingDetails, setTrackingDetails] = useState<TrackingDetails | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [recentTrackingNumbers, setRecentTrackingNumbers] = useState<string[]>([]);
 
 	useEffect(() => {
 		if (status === 'unauthenticated') {
@@ -66,14 +80,39 @@ export default function DashboardTrackingPage() {
 		}
 	}, [status, router]);
 
-	const handleTrack = async () => {
-		const value = trackingNumber.trim();
+	useEffect(() => {
+		setRecentTrackingNumbers(getStoredTrackingNumbers());
+	}, []);
+
+	const saveRecentTrackingNumber = (value: string) => {
+		const next = [value, ...recentTrackingNumbers.filter((item) => item.toLowerCase() !== value.toLowerCase())].slice(0, 6);
+		setRecentTrackingNumbers(next);
+		window.localStorage.setItem(RECENT_TRACKING_KEY, JSON.stringify(next));
+	};
+
+	const clearRecentTrackingNumbers = () => {
+		setRecentTrackingNumbers([]);
+		window.localStorage.removeItem(RECENT_TRACKING_KEY);
+	};
+
+	const copyTrackingNumber = async (value: string) => {
+		try {
+			await navigator.clipboard.writeText(value);
+			toast.success('Tracking number copied');
+		} catch {
+			toast.error('Unable to copy tracking number');
+		}
+	};
+
+	const handleTrack = async (overrideNumber?: string) => {
+		const value = (overrideNumber || trackingNumber).trim();
 		if (!value) {
 			setErrorMessage('Enter a container or tracking number to continue.');
 			setTrackingDetails(null);
 			return;
 		}
 
+		setTrackingNumber(value);
 		setIsLoading(true);
 		setErrorMessage(null);
 		setTrackingDetails(null);
@@ -104,6 +143,7 @@ export default function DashboardTrackingPage() {
 			}
 
 			setTrackingDetails(details);
+			saveRecentTrackingNumber(value);
 		} catch (error: unknown) {
 			console.error('Dashboard tracking error:', error);
 			setErrorMessage(error instanceof Error ? error.message : 'Failed to fetch tracking information.');
@@ -152,7 +192,7 @@ export default function DashboardTrackingPage() {
 							leftIcon={<Search style={{ fontSize: 20, color: 'var(--text-secondary)' }} />}
 							onKeyPress={(e) => {
 								if (e.key === 'Enter') {
-									handleTrack();
+									void handleTrack();
 								}
 							}}
 						/>
@@ -160,12 +200,66 @@ export default function DashboardTrackingPage() {
 					<Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
 						<Button
 							variant="primary"
-							onClick={handleTrack}
+							onClick={() => void handleTrack()}
 							disabled={isLoading}
 							icon={isLoading ? <Clock className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
 						>
 							{isLoading ? 'Tracking...' : 'Track'}
 						</Button>
+					</Box>
+				</Box>
+
+				<Box
+					sx={{
+						mt: 2,
+						display: 'grid',
+						gridTemplateColumns: { xs: '1fr', lg: '1.2fr 0.8fr' },
+						gap: 2,
+					}}
+				>
+					<Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: 2, bgcolor: 'var(--background)' }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1.25 }}>
+							<Typography sx={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+								Recent lookups
+							</Typography>
+							{recentTrackingNumbers.length > 0 && (
+								<Button variant="ghost" size="sm" icon={<XCircle className="w-4 h-4" />} onClick={clearRecentTrackingNumbers}>
+									Clear
+								</Button>
+							)}
+						</Box>
+						{recentTrackingNumbers.length === 0 ? (
+							<Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+								Successful tracking searches will appear here for fast repeat checks.
+							</Typography>
+						) : (
+							<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+								{recentTrackingNumbers.map((number) => (
+									<Button
+										key={number}
+										variant="outline"
+										size="sm"
+										icon={<Clock className="w-4 h-4" />}
+										onClick={() => void handleTrack(number)}
+										disabled={isLoading}
+									>
+										{number}
+									</Button>
+								))}
+							</Box>
+						)}
+					</Box>
+
+					<Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: 2, bgcolor: 'var(--background)' }}>
+						<Typography sx={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', mb: 1 }}>
+							Tracking readiness
+						</Typography>
+						<Typography sx={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+							Container number, booking number, or carrier tracking ID
+						</Typography>
+						<Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+							Results include carrier milestones, route, ETA, and progress when the provider returns those fields.
+						</Typography>
 					</Box>
 				</Box>
 
@@ -203,6 +297,15 @@ export default function DashboardTrackingPage() {
 								<Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
 									{trackingDetails.containerNumber}
 								</Typography>
+								<Button
+									variant="ghost"
+									size="sm"
+									icon={<Copy className="w-4 h-4" />}
+									onClick={() => void copyTrackingNumber(trackingDetails.containerNumber)}
+									sx={{ mt: 1 }}
+								>
+									Copy
+								</Button>
 								{trackingDetails.company?.name && (
 									<Typography sx={{ fontSize: '0.75rem', color: 'var(--text-secondary)', mt: 0.5 }}>
 										Carrier: {trackingDetails.company.name}
