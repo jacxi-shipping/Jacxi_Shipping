@@ -16,7 +16,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { ArrowLeft, Building2, DollarSign, Eye, GitCompareArrows, Landmark, Pencil, Plus, ReceiptText, Trash2, Truck, Upload } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, DollarSign, Eye, GitCompareArrows, Landmark, Pencil, Plus, ReceiptText, Trash2, Truck, Upload } from 'lucide-react';
 import PermissionRoute from "@/components/auth/PermissionRoute";
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, StatsCard, toast, TableSkeleton } from '@/components/design-system';
@@ -357,6 +357,12 @@ export default function CompanyLedgerDetailPage() {
     return Array.isArray(activeList?.warnings) ? activeList.warnings : [];
   }, [company?.priceLists]);
   const activePriceList = useMemo(() => company?.priceLists?.find((list) => list.isActive) || null, [company?.priceLists]);
+  const activePriceListStateCount = useMemo(() => Object.keys(company?.priceListConfig?.stateRates || {}).length, [company?.priceListConfig?.stateRates]);
+  const activePriceListLaneCount = company?.priceListConfig?.auctionRates?.length || 0;
+  const priceListHistoryCount = company?.priceLists?.length || 0;
+  const scrollToPriceListSection = (sectionId: string) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const priceListVersionComparison = useMemo(() => {
     if (!company || !priceListVersionReview) return null;
     return buildPriceListVersionComparison(
@@ -1292,13 +1298,62 @@ export default function CompanyLedgerDetailPage() {
           }
         >
           <Box sx={{ display: 'grid', gap: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.4fr 1fr' }, gap: 1.5 }}>
+              <Box sx={{ p: 2, borderRadius: 2, border: activePriceList ? '1px solid rgba(34, 197, 94, 0.34)' : '1px solid rgba(var(--warning-rgb), 0.34)', background: activePriceList ? 'rgba(34, 197, 94, 0.08)' : 'rgba(var(--warning-rgb), 0.08)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
+                    <Box sx={{ mt: 0.25, width: 34, height: 34, borderRadius: 1.5, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel)', color: activePriceList ? '#15803d' : 'var(--warning)', border: '1px solid var(--border)' }}>
+                      {activePriceList ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+                    </Box>
+                    <Box>
+                      <Box sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.08em' }}>Price List Status</Box>
+                      <Box sx={{ mt: 0.35, fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {activePriceList ? activePriceList.name : 'No active price list'}
+                      </Box>
+                      <Box sx={{ mt: 0.35, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                        {activePriceList
+                          ? `${activePriceList.sourceFileName} • ${activePriceList.destinationLabel} • active since ${new Date(activePriceList.createdAt).toLocaleDateString()}`
+                          : 'Upload and import a PDF, CSV, TXT, or XLSX rate sheet to activate company pricing.'}
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/finance/price-comparison')}>
+                    Test / Compare
+                  </Button>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}>
+                {[
+                  { label: 'State Rates', value: activePriceListStateCount },
+                  { label: 'Lane Rows', value: activePriceListLaneCount },
+                  { label: 'Warnings', value: activePriceListWarnings.length },
+                  { label: 'Versions', value: priceListHistoryCount },
+                ].map((item) => (
+                  <Box key={item.label} sx={{ p: 1.25, borderRadius: 1.5, border: '1px solid var(--border)', background: 'var(--background)' }}>
+                    <Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 800 }}>{item.label}</Box>
+                    <Box sx={{ mt: 0.25, fontSize: '1.15rem', fontWeight: 800, color: item.label === 'Warnings' && item.value > 0 ? 'var(--warning)' : 'var(--text-primary)' }}>{item.value}</Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button variant="outline" size="sm" onClick={() => scrollToPriceListSection('price-list-upload-flow')}>Upload</Button>
+              <Button variant="outline" size="sm" onClick={() => scrollToPriceListSection('price-list-rate-lookup')}>Rate Lookup</Button>
+              <Button variant="outline" size="sm" onClick={() => scrollToPriceListSection('price-list-import-history')}>Import History</Button>
+              {activePriceListWarnings.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => scrollToPriceListSection('price-list-warnings')}>Warnings</Button>
+              )}
+            </Box>
+
             <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid rgba(var(--accent-gold-rgb), 0.32)', background: 'rgba(var(--accent-gold-rgb), 0.08)' }}>
               <Box sx={{ fontWeight: 700, color: 'var(--text-primary)' }}>How to upload</Box>
               <Box sx={{ mt: 0.5, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
                 Upload a PDF, CSV, TXT, or XLSX rate sheet with state, branch/city, and total price columns. Preview first, edit or delete rows if needed, then import to create a new active version. Older versions stay in Import History and can be restored.
               </Box>
             </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1 }}>
+            <Box id="price-list-upload-flow" sx={{ scrollMarginTop: 96, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1 }}>
               {[
                 ['1', 'Upload', priceListFile ? priceListFile.name : 'Choose a rate sheet file'],
                 ['2', 'Preview', priceListPreview ? `${priceListPreview.rows.length} editable rows found` : 'Check parser confidence before import'],
@@ -1331,7 +1386,7 @@ export default function CompanyLedgerDetailPage() {
             </Box>
 
             {activePriceListWarnings.length > 0 && (
-              <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid rgba(234, 179, 8, 0.35)', background: 'rgba(234, 179, 8, 0.08)', color: 'var(--text-primary)' }}>
+              <Box id="price-list-warnings" sx={{ scrollMarginTop: 96, p: 1.5, borderRadius: 2, border: '1px solid rgba(234, 179, 8, 0.35)', background: 'rgba(234, 179, 8, 0.08)', color: 'var(--text-primary)' }}>
                 <Box sx={{ fontWeight: 700, mb: 0.75 }}>Import Warnings</Box>
                 {activePriceListWarnings.map((warning) => (
                   <Box key={warning} sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{warning}</Box>
@@ -1523,7 +1578,7 @@ export default function CompanyLedgerDetailPage() {
               </Box>
             )}
 
-            <Box sx={{ display: 'grid', gap: 1.5 }}>
+            <Box id="price-list-rate-lookup" sx={{ scrollMarginTop: 96, display: 'grid', gap: 1.5 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Box sx={{ fontWeight: 700 }}>Rate Lookup</Box>
                 <TextField size="small" placeholder="Search state, branch, city" value={priceListSearch} onChange={(event) => setPriceListSearch(event.target.value)} />
@@ -1559,7 +1614,7 @@ export default function CompanyLedgerDetailPage() {
             </Box>
 
             {company.priceLists && company.priceLists.length > 0 && (
-              <Box sx={{ display: 'grid', gap: 1 }}>
+              <Box id="price-list-import-history" sx={{ scrollMarginTop: 96, display: 'grid', gap: 1 }}>
                 <Box sx={{ fontWeight: 700 }}>Import History</Box>
                 {company.priceLists.map((list) => (
                   <Box key={list.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto' }, gap: 1.5, alignItems: 'center', p: 1.5, border: '1px solid var(--border)', borderRadius: 2, background: list.isActive ? 'rgba(34, 197, 94, 0.08)' : 'var(--panel)' }}>
