@@ -443,6 +443,13 @@ export default function InvoicesPage() {
 			stats.overdue++;
 		}
 	}
+	const quickStatusFilters = [
+		{ value: 'all', label: 'All', count: pagination.totalAll },
+		{ value: 'overdue', label: 'Overdue', count: stats.overdue },
+		{ value: 'pending', label: 'Pending', count: stats.pending },
+		{ value: 'paid', label: 'Paid', count: stats.paid },
+		{ value: 'draft', label: 'Draft', count: invoices.filter((invoice) => invoice.status === 'DRAFT').length },
+	];
 
 	if (loading) {
 		return <DashboardPageSkeleton />;
@@ -512,6 +519,38 @@ export default function InvoicesPage() {
 					variant="error"
 				/>
 			</Box>
+
+			<DashboardPanel title="Invoice Health" description="Jump straight to the invoice queue that needs attention.">
+				<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.25fr 1fr' }, gap: 2 }}>
+					<Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+						{quickStatusFilters.map((filter) => {
+							const active = statusFilter === filter.value;
+							return (
+								<Button
+									key={filter.value}
+									variant={active ? 'primary' : 'outline'}
+									size="sm"
+									onClick={() => setStatusFilter(filter.value)}
+								>
+									{filter.label} ({filter.count})
+								</Button>
+							);
+						})}
+					</Box>
+					<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1 }}>
+						{[
+							{ label: 'Open Amount', value: formatCurrency(Math.max(stats.totalAmount - stats.paidAmount, 0)) },
+							{ label: 'Paid Amount', value: formatCurrency(stats.paidAmount) },
+							{ label: 'Visible Total', value: formatCurrency(stats.totalAmount) },
+						].map((item) => (
+							<Box key={item.label} sx={{ p: 1.25, borderRadius: 1.5, border: '1px solid var(--border)', background: 'var(--background)' }}>
+								<Box sx={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 800 }}>{item.label}</Box>
+								<Box sx={{ mt: 0.25, fontWeight: 800, color: 'var(--text-primary)' }}>{item.value}</Box>
+							</Box>
+						))}
+					</Box>
+				</Box>
+			</DashboardPanel>
 
 			{/* Main Content */}
 			<DashboardSurface>
@@ -594,7 +633,7 @@ export default function InvoicesPage() {
 									<TableRow>
 										<TableCell sx={{ fontWeight: 600 }}>Invoice #</TableCell>
 										{isAdmin && <TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>}
-										<TableCell sx={{ fontWeight: 600 }}>Container</TableCell>
+										<TableCell sx={{ fontWeight: 600 }}>Shipment / Container</TableCell>
 										<TableCell sx={{ fontWeight: 600 }}>Issue Date</TableCell>
 										<TableCell sx={{ fontWeight: 600 }}>Due Date</TableCell>
 										<TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
