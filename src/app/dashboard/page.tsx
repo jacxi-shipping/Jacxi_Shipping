@@ -58,6 +58,21 @@ type DashboardExceptionItem = {
     ageDays: number;
 };
 
+function DashboardSectionLabel({
+    title,
+    description,
+}: {
+    title: string;
+    description: string;
+}) {
+    return (
+        <div className="mt-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-gold)]">{title}</p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p>
+        </div>
+    );
+}
+
 async function getDashboardData(
     userId: string | undefined,
     options: {
@@ -580,13 +595,9 @@ export default async function DashboardPage() {
                 />
             </div>
 
-            <DashboardTodayWork
-                role={role}
-                workItems={data.todayWork.workItems}
-                overdueInvoicesCount={data.todayWork.overdueInvoicesCount}
-                pendingInvoicesCount={data.todayWork.pendingInvoicesCount}
-                failedAiJobsCount={data.todayWork.failedAiJobsCount}
-                recentActivity={data.todayWork.recentActivity}
+            <DashboardSectionLabel
+                title="At a glance"
+                description="The few numbers that tell you whether operations and cash are moving."
             />
 
             <DashboardKpiGrid
@@ -596,6 +607,25 @@ export default async function DashboardPage() {
                 shipmentTrend={data.shipmentTrend}
                 canManageDispatches={data.canManageDispatches}
                 activeDispatchesCount={data.activeDispatchesCount}
+            />
+
+            <DashboardSectionLabel
+                title="Work queue"
+                description="Clear urgent exceptions first, then continue with common daily actions."
+            />
+
+            <DashboardTodayWork
+                role={role}
+                workItems={data.todayWork.workItems}
+                overdueInvoicesCount={data.todayWork.overdueInvoicesCount}
+                pendingInvoicesCount={data.todayWork.pendingInvoicesCount}
+                failedAiJobsCount={data.todayWork.failedAiJobsCount}
+                recentActivity={data.todayWork.recentActivity}
+            />
+
+            <DashboardSectionLabel
+                title="Exceptions"
+                description="Aging and handoff issues that can block billing, dispatch, or delivery."
             />
 
             <DashboardAgingExceptionsPanel
@@ -609,20 +639,34 @@ export default async function DashboardPage() {
                 exceptions={data.agingMetrics.exceptions}
             />
 
+            <DashboardSectionLabel
+                title="Trends"
+                description="Shipment movement and container capacity without opening separate reports."
+            />
+
             <DashboardChartsSection
                 shipmentTrends={data.shipmentTrends}
                 containerUtilization={data.containerUtilization}
             />
 
-            <DashboardAiBrief aiEnabled={aiEnabled} payload={aiBriefPayload} />
+            <DashboardSectionLabel
+                title="Tools"
+                description="Estimate prices and inspect the active shipment/dispatch mix."
+            />
 
             <DashboardOperationsSection
-                role={role}
                 canManageDispatches={data.canManageDispatches}
                 shipmentStats={data.shipmentStats}
                 dispatchStats={data.dispatchStats}
                 recentDispatches={data.recentDispatches}
             />
+
+            <DashboardSectionLabel
+                title="AI"
+                description="Optional assistant brief for the current dashboard snapshot."
+            />
+
+            <DashboardAiBrief aiEnabled={aiEnabled} payload={aiBriefPayload} />
         </DashboardSurface>
     );
 }

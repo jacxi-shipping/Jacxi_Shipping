@@ -1,9 +1,8 @@
 import Link from 'next/link';
-import { Activity, DollarSign, Package, Ship, Truck } from 'lucide-react';
+import { Truck } from 'lucide-react';
 import { Button, EmptyState } from '@/components/design-system';
 import { DashboardGrid, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import ShipmentCalculator from '@/components/dashboard/ShipmentCalculator';
-import { hasPermission } from '@/lib/rbac';
 
 type ShipmentStatusStat = {
   status: string;
@@ -31,7 +30,6 @@ type RecentDispatch = {
 };
 
 type DashboardOperationsSectionProps = {
-  role: string | undefined;
   canManageDispatches: boolean;
   shipmentStats: ShipmentStatusStat[];
   dispatchStats: DispatchStat[];
@@ -39,7 +37,6 @@ type DashboardOperationsSectionProps = {
 };
 
 export default function DashboardOperationsSection({
-  role,
   canManageDispatches,
   shipmentStats,
   dispatchStats,
@@ -52,79 +49,7 @@ export default function DashboardOperationsSection({
       </div>
 
       <div className="space-y-6">
-        <div id="quick-actions">
-          <DashboardPanel title="Quick Actions" noBodyPadding>
-            <div className="divide-y divide-border">
-              {hasPermission(role, 'shipments:manage') && (
-                <Link href="/dashboard/shipments/new" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500 transition-colors group-hover:bg-blue-500 group-hover:text-white">
-                      <Package className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-primary">New Shipment</p>
-                      <p className="text-xs text-muted-foreground">Add a vehicle to inventory</p>
-                    </div>
-                  </div>
-                </Link>
-              )}
-
-              {hasPermission(role, 'containers:manage') && (
-                <Link href="/dashboard/containers/new" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-500 transition-colors group-hover:bg-indigo-500 group-hover:text-white">
-                      <Ship className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-primary">New Container</p>
-                      <p className="text-xs text-muted-foreground">Create shipping container</p>
-                    </div>
-                  </div>
-                </Link>
-              )}
-
-              {canManageDispatches && (
-                <Link href="/dashboard/dispatches" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
-                      <Truck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-primary">Manage Dispatches</p>
-                      <p className="text-xs text-muted-foreground">Track yard-to-port movement</p>
-                    </div>
-                  </div>
-                </Link>
-              )}
-
-              <Link href="/dashboard/finance" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-green-500/10 p-2 text-green-500 transition-colors group-hover:bg-green-500 group-hover:text-white">
-                    <DollarSign className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Finance</p>
-                    <p className="text-xs text-muted-foreground">View ledgers & invoices</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link href="/dashboard/shipments" className="group block border-l-[3px] border-l-transparent p-4 transition-all duration-200 hover:translate-x-1 hover:bg-background/50 hover:[border-left-color:var(--accent-gold)]">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-amber-500/10 p-2 text-amber-500 transition-colors group-hover:bg-amber-500 group-hover:text-white">
-                    <Activity className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Track Shipments</p>
-                    <p className="text-xs text-muted-foreground">View all shipment statuses</p>
-                  </div>
-                </div>
-              </Link>
-            </div>
-          </DashboardPanel>
-        </div>
-
-        <DashboardPanel title="Shipment Status">
+        <DashboardPanel title="Shipment Mix" description="Current workload by status.">
           <div className="grid grid-cols-2 gap-3">
             {shipmentStats.map((stat) => (
               <div key={stat.status} className="flex flex-col rounded-lg border border-border bg-background p-3">
@@ -136,7 +61,7 @@ export default function DashboardOperationsSection({
         </DashboardPanel>
 
         {canManageDispatches && (
-          <DashboardPanel title="Dispatch Pipeline" description="Current origin-to-port workload">
+          <DashboardPanel title="Dispatch Pipeline" description="Current origin-to-port workload.">
             {dispatchStats.length === 0 ? (
               <EmptyState
                 icon={<Truck className="w-8 h-8" />}
