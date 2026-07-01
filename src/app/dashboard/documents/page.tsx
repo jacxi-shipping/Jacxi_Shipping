@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { FileText, ShieldCheck, Download, Upload, Search as SearchIcon, Folder, Trash2 } from 'lucide-react';
+import { AlertTriangle, Brain, CheckCircle2, FileText, Folder, Search as SearchIcon, ShieldCheck, Upload } from 'lucide-react';
 import { Box, Typography } from '@mui/material';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { 
@@ -31,6 +31,41 @@ interface Document {
     createdAt: string;
     updatedAt?: string;
     status?: string;
+}
+
+type ExtractionResult = {
+    suggestedName?: string;
+    suggestedCategory?: string;
+    description?: string;
+    tags?: string[];
+    summary?: string;
+    extractedTextPreview?: string;
+    failureReason?: string | null;
+    extractionMethod?: string;
+    ocrAttempted?: boolean;
+    aiInteractionLogId?: string;
+};
+
+const DOCUMENT_CATEGORY_OPTIONS = [
+    { value: 'INVOICE', label: 'Invoice' },
+    { value: 'BILL_OF_LADING', label: 'Bill of Lading' },
+    { value: 'CUSTOMS', label: 'Customs' },
+    { value: 'INSURANCE', label: 'Insurance' },
+    { value: 'TITLE', label: 'Title' },
+    { value: 'INSPECTION_REPORT', label: 'Inspection Report' },
+    { value: 'EXPORT_DOCUMENT', label: 'Export Document' },
+    { value: 'PACKING_LIST', label: 'Packing List' },
+    { value: 'CONTRACT', label: 'Contract' },
+    { value: 'PHOTO', label: 'Photo' },
+    { value: 'OTHER', label: 'Other' },
+];
+
+const DOCUMENT_CATEGORY_VALUES = new Set(DOCUMENT_CATEGORY_OPTIONS.map((option) => option.value));
+
+function getSafeDocumentCategory(value: string | undefined, fallback: string) {
+    return value && DOCUMENT_CATEGORY_VALUES.has(value)
+        ? value
+        : fallback;
 }
 
 type DocumentCategory = {
@@ -107,14 +142,43 @@ export default function DocumentsPage() {
     
           const { url } = await uploadRes.json();
     
-          // 2. Create document record
+          const extractRes = await fetch('/api/ai/document-extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                mode: 'document-review',
+                fileUrl: url,
+                fileName: file.name,
+                fileType: file.type,
+                entityType: 'DOCUMENT',
+                categoryHint: category,
+            }),
+          });
+
+          const extracted = (await extractRes.json().catch(() => ({}))) as ExtractionResult & { error?: string };
+          if (!extractRes.ok) {
+            throw new Error(extracted.error || 'Document was uploaded, but AI extraction failed before it could be saved.');
+          }
+
+          const extractionNotes = [
+            extracted.summary,
+            extracted.failureReason ? `AI extraction note: ${extracted.failureReason}` : null,
+            extracted.extractionMethod ? `Extraction method: ${extracted.extractionMethod}` : null,
+            extracted.ocrAttempted ? 'OCR was attempted for this file.' : null,
+            extracted.aiInteractionLogId ? `AI log: ${extracted.aiInteractionLogId}` : null,
+          ].filter(Boolean).join('\n\n');
+          const description = [extracted.description, extractionNotes].filter(Boolean).join('\n\n') || null;
+
+          // 2. Create document record with reviewed AI metadata
           const payload = {
-            name: file.name,
+            name: extracted.suggestedName || file.name,
             fileUrl: url,
             fileType: file.type,
             fileSize: file.size,
-            category: category,
-            userId: session?.user?.id
+            category: getSafeDocumentCategory(extracted.suggestedCategory, category),
+            description,
+            tags: Array.isArray(extracted.tags) ? extracted.tags : [],
+            userId: session?.user?.id,
           };
     
           const createRes = await fetch('/api/documents', {
@@ -128,6 +192,12 @@ export default function DocumentsPage() {
             throw new Error(error.error || error.message || 'Failed to save document metadata');
           }
     
+          if (extracted.failureReason) {
+            toast.warning('Document saved with AI extraction note', { description: extracted.failureReason });
+          } else {
+            toast.success('Document saved with AI details');
+          }
+
           fetchDocuments();
     
         } catch (error: any) {
@@ -379,38 +449,74 @@ export default function DocumentsPage() {
                 open={isUploadOpen}
                 onClose={() => !isProcessing && setIsUploadOpen(false)}
                 title="Upload Document"
+                description="AI will read trusted uploaded files, suggest the document name/category, and store searchable metadata."
                 disableBackdropClick={true}
                 showCloseButton={!isProcessing}
             >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <Box
+                        sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+                            gap: 1.5,
+                        }}
+                    >
+                        {[
+                            {
+                                icon: <Brain className="w-4 h-4" />,
+                                title: 'AI review',
+                                text: 'Suggests name, category, description, tags, and summary before saving.',
+                            },
+                            {
+                                icon: <CheckCircle2 className="w-4 h-4" />,
+                                title: 'File coverage',
+                                text: 'Reads text PDFs, OCR-ready images, DOCX, XLSX, CSV, and plain text.',
+                            },
+                            {
+                                icon: <AlertTriangle className="w-4 h-4" />,
+                                title: 'Failure reason',
+                                text: 'If AI falls back or extraction is partial, the exact reason is saved with the document.',
+                            },
+                        ].map((item) => (
+                            <Box
+                                key={item.title}
+                                sx={{
+                                    p: 1.5,
+                                    border: '1px solid var(--border)',
+                                    borderRadius: 2,
+                                    bgcolor: 'var(--background)',
+                                }}
+                            >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: 'var(--accent-gold)', mb: 0.75 }}>
+                                    {item.icon}
+                                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {item.title}
+                                    </Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                                    {item.text}
+                                </Typography>
+                            </Box>
+                        ))}
+                    </Box>
+
                     <FormField label="Category">
                         <Select
                             label="Category"
                             value={category}
                             onChange={(e) => setCategory(String(e))}
                             disabled={isProcessing}
-                            options={[
-                                { value: 'INVOICE', label: 'Invoice' },
-                                { value: 'BILL_OF_LADING', label: 'Bill of Lading' },
-                                { value: 'CUSTOMS', label: 'Customs' },
-                                { value: 'INSURANCE', label: 'Insurance' },
-                                { value: 'TITLE', label: 'Title' },
-                                { value: 'INSPECTION_REPORT', label: 'Inspection Report' },
-                                { value: 'EXPORT_DOCUMENT', label: 'Export Document' },
-                                { value: 'PACKING_LIST', label: 'Packing List' },
-                                { value: 'CONTRACT', label: 'Contract' },
-                                { value: 'PHOTO', label: 'Photo' },
-                                { value: 'OTHER', label: 'Other' },
-                            ]}
+                            options={DOCUMENT_CATEGORY_OPTIONS}
                         />
                     </FormField>
 
                     <FileUpload 
                         multiple={true}
                         maxFiles={5}
+                        maxSize={5}
                         uploadHandler={handleFileUpload}
                         onProcessingChange={setIsProcessing}
-                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                        accept=".pdf,.jpg,.jpeg,.png,.csv,.doc,.docx,.xls,.xlsx"
                     />
 
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
