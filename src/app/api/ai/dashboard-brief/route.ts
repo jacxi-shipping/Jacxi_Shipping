@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     let model = 'deterministic-ops-fallback';
     let status = 'FALLBACK';
 
-    if (!isTokenRouterConfigured()) {
+    if (!(await isTokenRouterConfigured())) {
       const aiLog = await createAiInteractionLog({
         feature: 'dashboard-ops-brief',
         entityType: 'DASHBOARD',

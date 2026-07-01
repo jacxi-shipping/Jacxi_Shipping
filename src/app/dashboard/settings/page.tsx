@@ -24,7 +24,7 @@ import {
   PlugZap,
   XCircle,
 } from 'lucide-react';
-import { Box, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
 
 import { 
   DashboardSurface, 
@@ -116,7 +116,13 @@ type BackupState = {
 type AiConnectivityStatus = {
   provider: string;
   configured: boolean;
+  enabled?: boolean;
   model: string;
+  chatCompletionsUrl?: string;
+  modelsUrl?: string;
+  maxTokens?: number;
+  temperature?: number;
+  maskedApiKey?: string;
   lookbackHours: number;
   stats: {
     totalRuns: number;
@@ -145,6 +151,32 @@ type AiConnectivityStatus = {
     reason: string | null;
     createdAt: string;
   } | null;
+};
+
+type AiProviderSettingsData = {
+  enabled: boolean;
+  provider: string;
+  apiKey: string;
+  apiKeyMasked: string;
+  apiKeyConfigured: boolean;
+  chatCompletionsUrl: string;
+  modelsUrl: string;
+  model: string;
+  maxTokens: number;
+  temperature: number;
+};
+
+const DEFAULT_AI_PROVIDER_SETTINGS: AiProviderSettingsData = {
+  enabled: true,
+  provider: 'tokenrouter-ai',
+  apiKey: '',
+  apiKeyMasked: '',
+  apiKeyConfigured: false,
+  chatCompletionsUrl: 'https://api.tokenrouter.com/v1/chat/completions',
+  modelsUrl: 'https://api.tokenrouter.com/v1/models',
+  model: 'MiniMax-M3',
+  maxTokens: 500,
+  temperature: 0.3,
 };
 
 const formatRelativeTime = (value?: string | null) => {
@@ -196,6 +228,7 @@ export default function SettingsPage() {
   const [ratePdfFile, setRatePdfFile] = useState<File | null>(null);
   const [rateConfig, setRateConfig] = useState<ShippingRateCalculatorConfig>(DEFAULT_SHIPPING_RATE_CONFIG);
   const [aiConnectivity, setAiConnectivity] = useState<AiConnectivityStatus | null>(null);
+  const [aiProviderSettings, setAiProviderSettings] = useState<AiProviderSettingsData>(DEFAULT_AI_PROVIDER_SETTINGS);
   const [aiTestResult, setAiTestResult] = useState<{
     latencyMs: number;
     responsePreview: string;
@@ -212,6 +245,7 @@ export default function SettingsPage() {
   const [importingRates, setImportingRates] = useState(false);
   const [refreshingAiConnectivity, setRefreshingAiConnectivity] = useState(false);
   const [testingAiConnectivity, setTestingAiConnectivity] = useState(false);
+  const [savingAiProviderSettings, setSavingAiProviderSettings] = useState(false);
 
   useEffect(() => {
     const slugs = isAdmin ? [...baseSettingsTabSlugs, ...adminSettingsTabSlugs] : baseSettingsTabSlugs;
@@ -231,11 +265,12 @@ export default function SettingsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [profileRes, settingsRes, backupRes, aiConnectivityRes] = await Promise.all([
+        const [profileRes, settingsRes, backupRes, aiConnectivityRes, aiProviderRes] = await Promise.all([
           fetch('/api/profile'),
           fetch('/api/settings'),
           isAdmin ? fetch('/api/settings/backup', { cache: 'no-store' }) : Promise.resolve(null),
           isAdmin ? fetch('/api/settings/ai-connectivity', { cache: 'no-store' }) : Promise.resolve(null),
+          isAdmin ? fetch('/api/settings/ai-provider', { cache: 'no-store' }) : Promise.resolve(null),
         ]);
 
         if (profileRes.ok) {
@@ -291,6 +326,11 @@ export default function SettingsPage() {
         if (aiConnectivityRes?.ok) {
           const data = await aiConnectivityRes.json();
           setAiConnectivity(data);
+        }
+
+        if (aiProviderRes?.ok) {
+          const data = await aiProviderRes.json();
+          setAiProviderSettings({ ...DEFAULT_AI_PROVIDER_SETTINGS, ...data.settings });
         }
       } catch (error) {
         console.error('Error fetching settings data:', error);
@@ -558,6 +598,43 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAiProviderFieldChange = <T extends keyof AiProviderSettingsData>(
+    field: T,
+    value: AiProviderSettingsData[T],
+  ) => {
+    setAiProviderSettings((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveAiProviderSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      setSavingAiProviderSettings(true);
+      const response = await fetch('/api/settings/ai-provider', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: aiProviderSettings.enabled,
+          provider: aiProviderSettings.provider,
+          apiKey: aiProviderSettings.apiKey,
+          chatCompletionsUrl: aiProviderSettings.chatCompletionsUrl,
+          modelsUrl: aiProviderSettings.modelsUrl,
+          model: aiProviderSettings.model,
+          maxTokens: Number(aiProviderSettings.maxTokens),
+          temperature: Number(aiProviderSettings.temperature),
+        }),
+      });
+      const data = await parseJsonResponse(response);
+      if (!response.ok) throw new Error(data?.message || 'Failed to save AI provider settings');
+      setAiProviderSettings({ ...DEFAULT_AI_PROVIDER_SETTINGS, ...data.settings });
+      await refreshAiConnectivity(false);
+      toast.success('AI provider settings saved');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save AI provider settings');
+    } finally {
+      setSavingAiProviderSettings(false);
+    }
+  };
+
   const notificationSummary = useMemo(() => {
     const channels = [];
     if (settingsForm.notifyShipmentEmail || settingsForm.notifyPaymentEmail) channels.push('Email');
@@ -722,11 +799,119 @@ export default function SettingsPage() {
           }
         >
           <div className="space-y-4">
+            <Box
+              component="form"
+              onSubmit={handleSaveAiProviderSettings}
+              sx={{
+                p: 2,
+                border: '1px solid var(--border)',
+                borderRadius: 2,
+                bgcolor: 'var(--background)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Editable AI Provider
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 0.5 }}>
+                    These values power dashboard AI, document extraction, OCR, and price-list parsing. Environment variables are only used as fallback defaults.
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {aiProviderSettings.enabled ? 'Enabled' : 'Disabled'}
+                  </Typography>
+                  <Switch
+                    checked={aiProviderSettings.enabled}
+                    onChange={(event) => handleAiProviderFieldChange('enabled', event.target.checked)}
+                    disabled={savingAiProviderSettings}
+                  />
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+                <TextField
+                  size="small"
+                  label="Provider"
+                  value={aiProviderSettings.provider}
+                  onChange={(event) => handleAiProviderFieldChange('provider', event.target.value)}
+                  disabled={savingAiProviderSettings}
+                />
+                <TextField
+                  size="small"
+                  label="Model"
+                  value={aiProviderSettings.model}
+                  onChange={(event) => handleAiProviderFieldChange('model', event.target.value)}
+                  disabled={savingAiProviderSettings}
+                />
+                <TextField
+                  size="small"
+                  label="API Key"
+                  type="password"
+                  value={aiProviderSettings.apiKey}
+                  onChange={(event) => handleAiProviderFieldChange('apiKey', event.target.value)}
+                  placeholder={aiProviderSettings.apiKeyConfigured ? `Saved: ${aiProviderSettings.apiKeyMasked}` : 'Paste API key'}
+                  helperText={aiProviderSettings.apiKeyConfigured ? 'Leave blank to keep the saved encrypted key.' : 'Saved encrypted using the app secret.'}
+                  disabled={savingAiProviderSettings}
+                />
+                <TextField
+                  size="small"
+                  label="Max Tokens"
+                  type="number"
+                  value={aiProviderSettings.maxTokens}
+                  onChange={(event) => handleAiProviderFieldChange('maxTokens', Number(event.target.value))}
+                  inputProps={{ min: 1, max: 4000 }}
+                  disabled={savingAiProviderSettings}
+                />
+                <TextField
+                  size="small"
+                  label="Chat Completions URL"
+                  value={aiProviderSettings.chatCompletionsUrl}
+                  onChange={(event) => handleAiProviderFieldChange('chatCompletionsUrl', event.target.value)}
+                  disabled={savingAiProviderSettings}
+                  sx={{ gridColumn: { xs: '1', md: '1 / -1' } }}
+                />
+                <TextField
+                  size="small"
+                  label="Models URL"
+                  value={aiProviderSettings.modelsUrl}
+                  onChange={(event) => handleAiProviderFieldChange('modelsUrl', event.target.value)}
+                  disabled={savingAiProviderSettings}
+                  sx={{ gridColumn: { xs: '1', md: '1 / -1' } }}
+                />
+                <TextField
+                  size="small"
+                  label="Temperature"
+                  type="number"
+                  value={aiProviderSettings.temperature}
+                  onChange={(event) => handleAiProviderFieldChange('temperature', Number(event.target.value))}
+                  inputProps={{ min: 0, max: 2, step: 0.1 }}
+                  disabled={savingAiProviderSettings}
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  loading={savingAiProviderSettings}
+                  icon={<CheckCircle2 className="w-4 h-4" />}
+                >
+                  Save AI Settings
+                </Button>
+              </Box>
+            </Box>
+
             <DashboardGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
               <StatsCard
                 icon={aiConnectivity?.configured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
                 title="TokenRouter"
-                value={aiConnectivity?.configured ? 'Connected' : 'Missing Key'}
+                value={aiConnectivity?.configured ? 'Configured' : 'Needs Setup'}
                 subtitle={aiConnectivity?.model || 'MiniMax-M3'}
                 variant={aiConnectivity?.configured ? 'success' : 'error'}
                 size="md"

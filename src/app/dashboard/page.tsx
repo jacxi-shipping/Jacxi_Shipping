@@ -12,6 +12,7 @@ import DashboardKpiGrid from '@/components/dashboard/DashboardKpiGrid';
 import DashboardOperationsSection from '@/components/dashboard/DashboardOperationsSection';
 import DashboardTodayWork from '@/components/dashboard/DashboardTodayWork';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
+import { getEffectiveAiProviderSettings, isAiProviderConfigured } from '@/lib/ai/provider-settings';
 
 // Force dynamic rendering (requires database connection)
 export const dynamic = 'force-dynamic';
@@ -552,7 +553,7 @@ export default async function DashboardPage() {
         canReadAllInvoices,
         canManageDispatches,
     });
-    const aiEnabled = Boolean(process.env.TOKENROUTER_API_KEY);
+    const aiEnabled = isAiProviderConfigured(await getEffectiveAiProviderSettings());
     const aiBriefPayload = {
         activeShipmentsCount: data.activeShipmentsCount,
         activeContainersCount: data.activeContainersCount,

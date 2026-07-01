@@ -184,7 +184,7 @@ export default function DashboardAiBrief({ aiEnabled, payload }: DashboardAiBrie
             <p className="text-xs text-muted-foreground">
               {aiEnabled
                 ? 'TokenRouter AI is enabled. If the model request fails, the assistant falls back to a rule-based ops summary.'
-                : 'TokenRouter AI is not configured. The assistant will use the built-in rule-based fallback until TOKENROUTER_API_KEY is set.'}
+                : 'TokenRouter AI is not configured. The assistant will use the built-in rule-based fallback until AI provider settings are saved.'}
             </p>
           </div>
         </div>

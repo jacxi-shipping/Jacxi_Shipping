@@ -99,7 +99,7 @@ async function extractXlsxText(buffer: Buffer) {
 }
 
 async function ocrImageDataUrl(dataUrl: string) {
-  if (!isTokenRouterConfigured()) {
+  if (!(await isTokenRouterConfigured())) {
     return '';
   }
 
@@ -158,7 +158,7 @@ async function renderPdfPageImages(buffer: Buffer, maxPages = 2) {
 }
 
 async function ocrPdfImages(buffer: Buffer) {
-  if (!isTokenRouterConfigured()) {
+  if (!(await isTokenRouterConfigured())) {
     return '';
   }
 
@@ -254,7 +254,7 @@ export async function extractDocumentTextWithMetadata(fileUrl: string, fileType:
           method: ocrText ? 'pdf-ocr' : 'failed',
           failureReason: ocrText
             ? null
-            : isTokenRouterConfigured()
+            : await isTokenRouterConfigured()
               ? 'No embedded PDF text was found and OCR did not return readable text.'
               : 'No embedded PDF text was found. Configure TokenRouter to enable OCR fallback.',
           ocrAttempted: true,
@@ -272,7 +272,7 @@ export async function extractDocumentTextWithMetadata(fileUrl: string, fileType:
         method: text ? 'image-ocr' : 'failed',
         failureReason: text
           ? null
-          : isTokenRouterConfigured()
+          : await isTokenRouterConfigured()
             ? 'Image OCR did not return readable text.'
             : 'Configure TokenRouter to enable image OCR.',
         ocrAttempted: true,

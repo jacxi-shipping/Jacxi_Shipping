@@ -2,15 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createTokenRouterChatCompletion, isTokenRouterConfigured } from '@/lib/ai/tokenrouter';
+import { getEffectiveAiProviderSettings, isAiProviderConfigured, maskSecret } from '@/lib/ai/provider-settings';
 
 export const dynamic = 'force-dynamic';
 
 const TOKENROUTER_PROVIDER = 'tokenrouter-ai';
 const LOOKBACK_HOURS = 24;
-
-function getModelName() {
-  return process.env.TOKENROUTER_MODEL || 'MiniMax-M3';
-}
 
 async function requireAdmin() {
   const session = await auth();
@@ -22,6 +19,7 @@ async function requireAdmin() {
 }
 
 async function buildAiConnectivityStatus() {
+  const providerSettings = await getEffectiveAiProviderSettings();
   const since = new Date(Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000);
   const [recentLogs, latestLog, latestSuccess, latestFailure] = await Promise.all([
     prisma.aiInteractionLog.findMany({
@@ -74,9 +72,15 @@ async function buildAiConnectivityStatus() {
   const tokenRouterRuns = recentLogs.filter((log) => log.provider === TOKENROUTER_PROVIDER);
 
   return {
-    provider: TOKENROUTER_PROVIDER,
-    configured: isTokenRouterConfigured(),
-    model: getModelName(),
+    provider: providerSettings.provider || TOKENROUTER_PROVIDER,
+    configured: isAiProviderConfigured(providerSettings),
+    enabled: providerSettings.enabled,
+    model: providerSettings.model,
+    chatCompletionsUrl: providerSettings.chatCompletionsUrl,
+    modelsUrl: providerSettings.modelsUrl,
+    maxTokens: providerSettings.maxTokens,
+    temperature: providerSettings.temperature,
+    maskedApiKey: maskSecret(providerSettings.apiKey),
     lookbackHours: LOOKBACK_HOURS,
     stats: {
       totalRuns: recentLogs.length,
@@ -145,10 +149,10 @@ export async function POST(_request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!isTokenRouterConfigured()) {
+    if (!(await isTokenRouterConfigured())) {
       return NextResponse.json(
         {
-          message: 'TOKENROUTER_API_KEY is not configured.',
+          message: 'AI provider is not configured. Save an enabled API key and endpoint in Settings > AI.',
           status: await buildAiConnectivityStatus(),
         },
         { status: 400 },
@@ -208,6 +212,7 @@ export async function POST(_request: NextRequest) {
     );
   } catch (error) {
     const latencyMs = Date.now() - startedAt;
+    const providerSettings = await getEffectiveAiProviderSettings();
     const message = error instanceof Error ? error.message : 'AI connectivity test failed.';
 
     try {
@@ -218,11 +223,11 @@ export async function POST(_request: NextRequest) {
           entityType: 'SETTINGS',
           actorUserId: session?.user?.id ?? null,
           provider: TOKENROUTER_PROVIDER,
-          model: getModelName(),
+          model: providerSettings.model,
           prompt: 'Reply with exactly: AI connectivity ok',
           response: message,
           requestPayload: {
-            model: getModelName(),
+            model: providerSettings.model,
             maxTokens: 20,
             temperature: 0,
           },

@@ -315,7 +315,7 @@ async function extractPriceListRowsWithAi(text: string) {
     return { rows: [] as AuctionRateEntry[], notes: ['AI parser fallback skipped because no PDF text was extracted.'] };
   }
 
-  if (!isTokenRouterConfigured()) {
+  if (!(await isTokenRouterConfigured())) {
     return { rows: [] as AuctionRateEntry[], notes: ['AI parser fallback skipped because TokenRouter is not configured.'] };
   }
 

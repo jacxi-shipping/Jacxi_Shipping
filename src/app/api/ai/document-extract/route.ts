@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       ? buildFallbackInvoiceExtraction(parsed, extractedText)
       : buildFallbackDocumentReview(parsed, extractedText);
 
-    if (isTokenRouterConfigured() && extractedText) {
+    if ((await isTokenRouterConfigured()) && extractedText) {
       try {
         const completion = await createTokenRouterChatCompletion(
           [

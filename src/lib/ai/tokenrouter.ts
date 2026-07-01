@@ -1,6 +1,4 @@
-const ATOMESUS_API_BASE_URL = 'https://api.atomesus.com/v1';
-const ATOMESUS_MODELS_URL = `${ATOMESUS_API_BASE_URL}/models`;
-const ATOMESUS_CHAT_COMPLETIONS_URL = `${ATOMESUS_API_BASE_URL}/chat/completions`;
+import { getEffectiveAiProviderSettings, isAiProviderConfigured } from '@/lib/ai/provider-settings';
 
 type ChatMessageContent =
   | string
@@ -31,22 +29,23 @@ type ChatCompletionResponse = {
   };
 };
 
-export function isTokenRouterConfigured() {
-  return Boolean(process.env.TOKENROUTER_API_KEY?.trim());
+export async function isTokenRouterConfigured() {
+  return isAiProviderConfigured(await getEffectiveAiProviderSettings());
 }
 
 export async function createTokenRouterChatCompletion(
   messages: ChatMessage[],
   options: ChatCompletionOptions = {},
 ) {
-  const apiKey = process.env.TOKENROUTER_API_KEY?.trim();
-  const model = options.model ?? process.env.TOKENROUTER_MODEL ?? 'MiniMax-M3';
+  const settings = await getEffectiveAiProviderSettings();
+  const apiKey = settings.apiKey.trim();
+  const model = options.model ?? settings.model;
 
-  if (!apiKey) {
-    throw new Error('TokenRouter AI is not configured. Set TOKENROUTER_API_KEY to enable AI features.');
+  if (!isAiProviderConfigured(settings)) {
+    throw new Error('TokenRouter AI is not configured. Save an enabled API key and endpoint in Settings > AI.');
   }
 
-  const modelsResponse = await fetch(ATOMESUS_MODELS_URL, {
+  const modelsResponse = await fetch(settings.modelsUrl, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -58,11 +57,11 @@ export async function createTokenRouterChatCompletion(
 
   if (!modelsResponse.ok) {
     const modelsPayload = (await modelsResponse.json().catch(() => null)) as { error?: { message?: string } } | null;
-    const errorMessage = modelsPayload?.error?.message ?? `Atomesus models endpoint returned status ${modelsResponse.status}`;
+    const errorMessage = modelsPayload?.error?.message ?? `AI models endpoint returned status ${modelsResponse.status}`;
     throw new Error(errorMessage);
   }
 
-  const response = await fetch(ATOMESUS_CHAT_COMPLETIONS_URL, {
+  const response = await fetch(settings.chatCompletionsUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -72,8 +71,8 @@ export async function createTokenRouterChatCompletion(
     body: JSON.stringify({
       model,
       messages,
-      max_tokens: options.maxTokens ?? 500,
-      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? settings.maxTokens,
+      temperature: options.temperature ?? settings.temperature,
     }),
     cache: 'no-store',
     signal: AbortSignal.timeout(25000),
