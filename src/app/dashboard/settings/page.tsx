@@ -188,6 +188,70 @@ type CommunicationSettingsData = {
   smsConfigured: boolean;
 };
 
+type CallAgentSettingsData = {
+  twilioAccountSid: string;
+  twilioAuthToken: string;
+  twilioApiKey: string;
+  twilioApiSecret: string;
+  twilioPhoneNumber: string;
+  twilioPhoneNumberSid: string;
+  geminiApiKey: string;
+  geminiLiveApiKey: string;
+  geminiVoiceModel: string;
+  geminiLiveModel: string;
+};
+
+type CallAgentConfig = {
+  urls: {
+    preferredBaseUrl: string;
+    configuredBaseUrl: string | null;
+    detectedBaseUrl: string;
+    source: 'NEXT_PUBLIC_APP_URL' | 'request';
+    webhookUrl: string;
+    websocketUrl: string;
+    webhookMethod: 'POST';
+  };
+  status: {
+    voiceWebhookTokenConfigured: boolean;
+    geminiStandardConfigured: boolean;
+    geminiLiveConfigured: boolean;
+    geminiVoiceModel: string;
+    geminiLiveModel: string;
+    twilioAccountSidConfigured: boolean;
+    twilioAuthTokenConfigured: boolean;
+    twilioApiKeyConfigured: boolean;
+    twilioApiSecretConfigured: boolean;
+    twilioAuthMode: 'auth-token' | 'api-key' | 'missing';
+    twilioConfigured: boolean;
+    twilioPhoneNumberConfigured: boolean;
+    twilioPhoneNumberSidConfigured: boolean;
+  };
+  twilioValues: Pick<CallAgentSettingsData, 'twilioAccountSid' | 'twilioAuthToken' | 'twilioApiKey' | 'twilioApiSecret' | 'twilioPhoneNumber' | 'twilioPhoneNumberSid'>;
+  geminiValues: Pick<CallAgentSettingsData, 'geminiApiKey' | 'geminiLiveApiKey' | 'geminiVoiceModel' | 'geminiLiveModel'>;
+  twilioInspection: {
+    inspected: boolean;
+    matchesExpectedWebhook: boolean | null;
+    phoneNumber: string | null;
+    target: string | null;
+    voiceUrl: string | null;
+    voiceMethod: string | null;
+    error: string | null;
+  };
+};
+
+const DEFAULT_CALL_AGENT_SETTINGS: CallAgentSettingsData = {
+  twilioAccountSid: '',
+  twilioAuthToken: '',
+  twilioApiKey: '',
+  twilioApiSecret: '',
+  twilioPhoneNumber: '',
+  twilioPhoneNumberSid: '',
+  geminiApiKey: '',
+  geminiLiveApiKey: '',
+  geminiVoiceModel: 'gemini-2.5-flash',
+  geminiLiveModel: 'gemini-3.1-flash-live-preview',
+};
+
 const DEFAULT_COMMUNICATION_SETTINGS: CommunicationSettingsData = {
   emailEnabled: false,
   emailProvider: 'resend',
@@ -273,6 +337,8 @@ export default function SettingsPage() {
   const [aiProviderSettings, setAiProviderSettings] = useState<AiProviderSettingsData>(DEFAULT_AI_PROVIDER_SETTINGS);
   const [communicationSettings, setCommunicationSettings] = useState<CommunicationSettingsData>(DEFAULT_COMMUNICATION_SETTINGS);
   const [communicationTestTarget, setCommunicationTestTarget] = useState({ email: '', sms: '' });
+  const [callAgentConfig, setCallAgentConfig] = useState<CallAgentConfig | null>(null);
+  const [callAgentSettings, setCallAgentSettings] = useState<CallAgentSettingsData>(DEFAULT_CALL_AGENT_SETTINGS);
   const [aiTestResult, setAiTestResult] = useState<{
     latencyMs: number;
     responsePreview: string;
@@ -292,6 +358,7 @@ export default function SettingsPage() {
   const [savingAiProviderSettings, setSavingAiProviderSettings] = useState(false);
   const [savingCommunicationSettings, setSavingCommunicationSettings] = useState(false);
   const [testingCommunicationChannel, setTestingCommunicationChannel] = useState<'email' | 'sms' | null>(null);
+  const [savingCallAgentSettings, setSavingCallAgentSettings] = useState(false);
 
   useEffect(() => {
     const slugs = isAdmin ? [...baseSettingsTabSlugs, ...adminSettingsTabSlugs] : baseSettingsTabSlugs;
@@ -311,13 +378,14 @@ export default function SettingsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [profileRes, settingsRes, backupRes, aiConnectivityRes, aiProviderRes, communicationRes] = await Promise.all([
+        const [profileRes, settingsRes, backupRes, aiConnectivityRes, aiProviderRes, communicationRes, callAgentRes] = await Promise.all([
           fetch('/api/profile'),
           fetch('/api/settings'),
           isAdmin ? fetch('/api/settings/backup', { cache: 'no-store' }) : Promise.resolve(null),
           isAdmin ? fetch('/api/settings/ai-connectivity', { cache: 'no-store' }) : Promise.resolve(null),
           isAdmin ? fetch('/api/settings/ai-provider', { cache: 'no-store' }) : Promise.resolve(null),
           isAdmin ? fetch('/api/settings/communications', { cache: 'no-store' }) : Promise.resolve(null),
+          isAdmin ? fetch('/api/settings/call-agent', { cache: 'no-store' }) : Promise.resolve(null),
         ]);
 
         if (profileRes.ok) {
@@ -383,6 +451,16 @@ export default function SettingsPage() {
         if (communicationRes?.ok) {
           const data = await communicationRes.json();
           setCommunicationSettings({ ...DEFAULT_COMMUNICATION_SETTINGS, ...data.settings });
+        }
+
+        if (callAgentRes?.ok) {
+          const data = await callAgentRes.json() as CallAgentConfig;
+          setCallAgentConfig(data);
+          setCallAgentSettings({
+            ...DEFAULT_CALL_AGENT_SETTINGS,
+            ...data.twilioValues,
+            ...data.geminiValues,
+          });
         }
       } catch (error) {
         console.error('Error fetching settings data:', error);
@@ -750,6 +828,40 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCallAgentFieldChange = <T extends keyof CallAgentSettingsData>(
+    field: T,
+    value: CallAgentSettingsData[T],
+  ) => {
+    setCallAgentSettings((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveCallAgentSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      setSavingCallAgentSettings(true);
+      const response = await fetch('/api/settings/call-agent', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(callAgentSettings),
+      });
+      const data = await parseJsonResponse(response);
+      if (!response.ok) throw new Error(data?.message || 'Failed to save live call agent settings');
+
+      const config = data as CallAgentConfig;
+      setCallAgentConfig(config);
+      setCallAgentSettings({
+        ...DEFAULT_CALL_AGENT_SETTINGS,
+        ...config.twilioValues,
+        ...config.geminiValues,
+      });
+      toast.success('Live call agent settings saved');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save live call agent settings');
+    } finally {
+      setSavingCallAgentSettings(false);
+    }
+  };
+
   const notificationSummary = useMemo(() => {
     const channels = [];
     if (settingsForm.notifyShipmentEmail || settingsForm.notifyPaymentEmail) channels.push('Email');
@@ -862,24 +974,118 @@ export default function SettingsPage() {
       <TabPanel value={activeTab} index={6}>
       {isAdmin ? (
         <DashboardPanel
-          title="Call Agent"
-          description="Open the dedicated voice settings screen for Twilio endpoint URLs, Gemini readiness, and webhook status."
-        >
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 2 }}>
-            <Box>
-              <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PhoneCall className="w-4 h-4" />
-                Voice webhook and live media setup
-              </Typography>
-              <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', mt: 1, lineHeight: 1.7 }}>
-                Review the Twilio webhook URL, the live stream WebSocket URL, and whether Gemini Live and webhook protection are configured.
-              </Typography>
-            </Box>
+          title="Live Call Agent"
+          description="Configure Twilio voice routing, Gemini Live audio, and webhook readiness from one place."
+          actions={
             <Link href="/dashboard/settings/call-agent" style={{ textDecoration: 'none' }}>
-              <Button variant="primary" icon={<ArrowRight className="w-4 h-4" />}>
-                Open Call Agent
+              <Button variant="outline" size="sm" icon={<ArrowRight className="w-4 h-4" />}>
+                Advanced View
               </Button>
             </Link>
+          }
+        >
+          <Box component="form" onSubmit={handleSaveCallAgentSettings} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <DashboardGrid className="grid-cols-1 md:grid-cols-4">
+              <StatsCard
+                icon={callAgentConfig?.status.geminiLiveConfigured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
+                title="Gemini Live"
+                value={callAgentConfig?.status.geminiLiveConfigured ? 'Ready' : 'Needs Setup'}
+                subtitle={callAgentConfig?.status.geminiLiveModel || callAgentSettings.geminiLiveModel}
+                variant={callAgentConfig?.status.geminiLiveConfigured ? 'success' : 'warning'}
+                size="md"
+              />
+              <StatsCard
+                icon={callAgentConfig?.status.geminiStandardConfigured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
+                title="Fallback AI"
+                value={callAgentConfig?.status.geminiStandardConfigured ? 'Ready' : 'Needs Setup'}
+                subtitle={callAgentConfig?.status.geminiVoiceModel || callAgentSettings.geminiVoiceModel}
+                variant={callAgentConfig?.status.geminiStandardConfigured ? 'success' : 'warning'}
+                size="md"
+              />
+              <StatsCard
+                icon={callAgentConfig?.status.twilioConfigured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
+                title="Twilio API"
+                value={callAgentConfig?.status.twilioConfigured ? 'Configured' : 'Manual Only'}
+                subtitle={callAgentConfig?.status.twilioAuthMode === 'auth-token' ? 'Auth token mode' : callAgentConfig?.status.twilioAuthMode === 'api-key' ? 'API key mode' : 'No API credentials'}
+                variant={callAgentConfig?.status.twilioConfigured ? 'success' : 'warning'}
+                size="md"
+              />
+              <StatsCard
+                icon={callAgentConfig?.status.voiceWebhookTokenConfigured ? <CheckCircle2 style={{ fontSize: 18 }} /> : <XCircle style={{ fontSize: 18 }} />}
+                title="Webhook Token"
+                value={callAgentConfig?.status.voiceWebhookTokenConfigured ? 'Protected' : 'Missing'}
+                subtitle={callAgentConfig?.urls.source === 'NEXT_PUBLIC_APP_URL' ? 'Fixed app URL' : 'Request host'}
+                variant={callAgentConfig?.status.voiceWebhookTokenConfigured ? 'success' : 'warning'}
+                size="md"
+              />
+            </DashboardGrid>
+
+            <DashboardGrid className="grid-cols-1 lg:grid-cols-2">
+              <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: '8px', bgcolor: 'var(--background)' }}>
+                <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <PhoneCall className="w-4 h-4" />
+                  Twilio Voice
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                  <TextField size="small" label="Account SID" value={callAgentSettings.twilioAccountSid} onChange={(event) => handleCallAgentFieldChange('twilioAccountSid', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="Auth Token" type="password" value={callAgentSettings.twilioAuthToken} onChange={(event) => handleCallAgentFieldChange('twilioAuthToken', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="API Key" value={callAgentSettings.twilioApiKey} onChange={(event) => handleCallAgentFieldChange('twilioApiKey', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="API Secret" type="password" value={callAgentSettings.twilioApiSecret} onChange={(event) => handleCallAgentFieldChange('twilioApiSecret', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="Phone Number" value={callAgentSettings.twilioPhoneNumber} onChange={(event) => handleCallAgentFieldChange('twilioPhoneNumber', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="Phone Number SID" value={callAgentSettings.twilioPhoneNumberSid} onChange={(event) => handleCallAgentFieldChange('twilioPhoneNumberSid', event.target.value)} disabled={savingCallAgentSettings} />
+                </Box>
+                <Typography sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)', mt: 2, lineHeight: 1.6 }}>
+                  Use either Account SID + Auth Token or Account SID + API Key + API Secret. The phone number fields help the app inspect the live Twilio webhook target.
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: '8px', bgcolor: 'var(--background)' }}>
+                <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Bot className="w-4 h-4" />
+                  Gemini Live
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                  <TextField size="small" label="Gemini API Key" type="password" value={callAgentSettings.geminiApiKey} onChange={(event) => handleCallAgentFieldChange('geminiApiKey', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="Gemini Live API Key" type="password" value={callAgentSettings.geminiLiveApiKey} onChange={(event) => handleCallAgentFieldChange('geminiLiveApiKey', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="Fallback Voice Model" value={callAgentSettings.geminiVoiceModel} onChange={(event) => handleCallAgentFieldChange('geminiVoiceModel', event.target.value)} disabled={savingCallAgentSettings} />
+                  <TextField size="small" label="Live Audio Model" value={callAgentSettings.geminiLiveModel} onChange={(event) => handleCallAgentFieldChange('geminiLiveModel', event.target.value)} disabled={savingCallAgentSettings} />
+                </Box>
+                <Typography sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)', mt: 2, lineHeight: 1.6 }}>
+                  The live key and model power the caller audio bridge. The fallback key/model handle the IVR assistant when live audio is unavailable.
+                </Typography>
+              </Box>
+            </DashboardGrid>
+
+            <Box sx={{ p: 2, border: '1px solid var(--border)', borderRadius: '8px', bgcolor: 'var(--background)', display: 'grid', gap: 2 }}>
+              <Box>
+                <Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Inbound Voice Webhook</Typography>
+                <Typography sx={{ fontSize: '0.86rem', color: 'var(--text-primary)', wordBreak: 'break-all', mt: 0.5 }}>
+                  {callAgentConfig?.urls.webhookUrl || 'Load settings to see the webhook URL'}
+                </Typography>
+                <Typography sx={{ fontSize: '0.78rem', color: 'var(--text-secondary)', mt: 0.5 }}>Method: {callAgentConfig?.urls.webhookMethod || 'POST'}</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Live Media WebSocket</Typography>
+                <Typography sx={{ fontSize: '0.86rem', color: 'var(--text-primary)', wordBreak: 'break-all', mt: 0.5 }}>
+                  {callAgentConfig?.urls.websocketUrl || 'Load settings to see the WebSocket URL'}
+                </Typography>
+              </Box>
+              {callAgentConfig?.twilioInspection.error ? (
+                <Typography sx={{ fontSize: '0.82rem', color: 'var(--warning)', lineHeight: 1.6 }}>
+                  Twilio inspection: {callAgentConfig.twilioInspection.error}
+                </Typography>
+              ) : (
+                <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Twilio inspection: {callAgentConfig?.twilioInspection.inspected ? `${callAgentConfig.twilioInspection.phoneNumber || callAgentConfig.twilioInspection.target || 'Configured number'} is ${callAgentConfig.twilioInspection.matchesExpectedWebhook ? 'pointing to this webhook' : 'not pointing to this webhook yet'}.` : 'Add Twilio credentials and a phone target to inspect webhook routing.'}
+                </Typography>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button type="submit" variant="primary" loading={savingCallAgentSettings}>
+                Save Live Call Agent
+              </Button>
+            </Box>
           </Box>
         </DashboardPanel>
       ) : null}
