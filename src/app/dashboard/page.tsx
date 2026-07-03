@@ -5,12 +5,10 @@ import {
     DashboardSurface, 
     DashboardHeader 
 } from '@/components/dashboard/DashboardSurface';
-import DashboardAgingExceptionsPanel from '@/components/dashboard/DashboardAgingExceptionsPanel';
-import DashboardAiBrief from '@/components/dashboard/DashboardAiBrief';
-import DashboardChartsSection from '@/components/dashboard/DashboardChartsSection';
 import DashboardKpiGrid from '@/components/dashboard/DashboardKpiGrid';
-import DashboardOperationsSection from '@/components/dashboard/DashboardOperationsSection';
 import DashboardTodayWork from '@/components/dashboard/DashboardTodayWork';
+import DashboardMore from '@/components/dashboard/DashboardMore';
+import QuickCalculatorButton from '@/components/dashboard/QuickCalculatorButton';
 import OnboardingTour from '@/components/onboarding/OnboardingTour';
 import { getEffectiveAiProviderSettings, isAiProviderConfigured } from '@/lib/ai/provider-settings';
 
@@ -58,21 +56,6 @@ type DashboardExceptionItem = {
     severityLabel: string;
     ageDays: number;
 };
-
-function DashboardSectionLabel({
-    title,
-    description,
-}: {
-    title: string;
-    description: string;
-}) {
-    return (
-        <div className="mt-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-gold)]">{title}</p>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p>
-        </div>
-    );
-}
 
 async function getDashboardData(
     userId: string | undefined,
@@ -585,22 +568,22 @@ export default async function DashboardPage() {
     };
 
     return (
-        <DashboardSurface>
-            
-            {/* Header Section */}
+        <DashboardSurface className="gap-4 pt-3 pb-6">
+            {/* Header */}
             <div id="dashboard-header">
                 <DashboardHeader
                     title="Overview"
-                    description="Welcome back to Jacxi Shipping."
-                    actions={<OnboardingTour autoStart={true} />}
+                    description="Operations at a glance."
+                    actions={
+                      <>
+                        <QuickCalculatorButton />
+                        <OnboardingTour autoStart={true} />
+                      </>
+                    }
                 />
             </div>
 
-            <DashboardSectionLabel
-                title="At a glance"
-                description="The few numbers that tell you whether operations and cash are moving."
-            />
-
+            {/* Compact KPIs */}
             <DashboardKpiGrid
                 activeShipmentsCount={data.activeShipmentsCount}
                 activeContainersCount={data.activeContainersCount}
@@ -610,11 +593,7 @@ export default async function DashboardPage() {
                 activeDispatchesCount={data.activeDispatchesCount}
             />
 
-            <DashboardSectionLabel
-                title="Work queue"
-                description="Clear urgent exceptions first, then continue with common daily actions."
-            />
-
+            {/* Light Priority Work */}
             <DashboardTodayWork
                 role={role}
                 workItems={data.todayWork.workItems}
@@ -624,50 +603,14 @@ export default async function DashboardPage() {
                 recentActivity={data.todayWork.recentActivity}
             />
 
-            <DashboardSectionLabel
-                title="Exceptions"
-                description="Aging and handoff issues that can block billing, dispatch, or delivery."
-            />
-
-            <DashboardAgingExceptionsPanel
-                dispatchStuckCount={data.agingMetrics.dispatchStuckCount}
-                dispatchThresholdDays={data.agingMetrics.dispatchThresholdDays}
-                containerPastEtaCount={data.agingMetrics.containerPastEtaCount}
-                releasedAwaitingTransitCount={data.agingMetrics.releasedAwaitingTransitCount}
-                releasedAwaitingTransitThresholdDays={data.agingMetrics.releasedAwaitingTransitThresholdDays}
-                transitsOverdueCount={data.agingMetrics.transitsOverdueCount}
-                totalExceptions={data.agingMetrics.totalExceptions}
-                exceptions={data.agingMetrics.exceptions}
-            />
-
-            <DashboardSectionLabel
-                title="Trends"
-                description="Shipment movement and container capacity without opening separate reports."
-            />
-
-            <DashboardChartsSection
-                shipmentTrends={data.shipmentTrends}
-                containerUtilization={data.containerUtilization}
-            />
-
-            <DashboardSectionLabel
-                title="Tools"
-                description="Estimate prices and inspect the active shipment/dispatch mix."
-            />
-
-            <DashboardOperationsSection
+            {/* Remaining sections are accessible here — trends, calculator, pipeline, AI */}
+            <DashboardMore
+                aiEnabled={aiEnabled}
+                aiBriefPayload={aiBriefPayload}
                 canManageDispatches={data.canManageDispatches}
                 shipmentStats={data.shipmentStats}
-                dispatchStats={data.dispatchStats}
-                recentDispatches={data.recentDispatches}
+                activeDispatchesCount={data.activeDispatchesCount}
             />
-
-            <DashboardSectionLabel
-                title="AI"
-                description="Optional assistant brief for the current dashboard snapshot."
-            />
-
-            <DashboardAiBrief aiEnabled={aiEnabled} payload={aiBriefPayload} />
         </DashboardSurface>
     );
 }
