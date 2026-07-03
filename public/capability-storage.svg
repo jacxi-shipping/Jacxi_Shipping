@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#F3E5AB" stop-opacity="0.2"/>
+    </linearGradient>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#161616"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg-grad)"/>
+
+  <!-- Warehouse / Storage Grid Matrix -->
+  <g opacity="0.1" stroke="#D4AF37" stroke-width="1">
+    <line x1="0" y1="150" x2="800" y2="150" />
+    <line x1="0" y1="300" x2="800" y2="300" />
+    <line x1="0" y1="450" x2="800" y2="450" />
+    
+    <line x1="150" y1="0" x2="150" y2="600" />
+    <line x1="300" y1="0" x2="300" y2="600" />
+    <line x1="450" y1="0" x2="450" y2="600" />
+    <line x1="600" y1="0" x2="600" y2="600" />
+  </g>
+
+  <!-- Isometric Warehouse Structure / Stacking -->
+  <g transform="translate(400, 300) scale(1.5)">
+    <!-- Bottom layer -->
+    <polygon points="0,0 80,40 0,80 -80,40" fill="#161616" stroke="url(#gold-grad)" stroke-width="2" opacity="0.5"/>
+    <polygon points="80,40 80,-20 0,-60 0,0" fill="#161616" stroke="#D4AF37" stroke-width="1" opacity="0.3"/>
+    <polygon points="0,0 0,-60 -80,-20 -80,40" fill="#161616" stroke="#D4AF37" stroke-width="1" opacity="0.2"/>
+
+    <!-- Middle layer offset -->
+    <polygon points="20,-20 80,10 20,40 -40,10" fill="#161616" stroke="url(#gold-grad)" stroke-width="2" opacity="0.8"/>
+    <polygon points="80,10 80,-30 20,-60 20,-20" fill="#161616" stroke="#D4AF37" stroke-width="1" opacity="0.4"/>
+    <polygon points="20,-20 20,-60 -40,-30 -40,10" fill="#161616" stroke="#D4AF37" stroke-width="1" opacity="0.3"/>
+    
+    <!-- Top glowing package -->
+    <polygon points="0,-40 60,-10 0,20 -60,-10" fill="#D4AF37" opacity="0.2" stroke="#D4AF37" stroke-width="2"/>
+    <polygon points="60,-10 60,-40 0,-70 0,-40" fill="#D4AF37" opacity="0.1" stroke="#D4AF37" stroke-width="1"/>
+    <polygon points="0,-40 0,-70 -60,-40 -60,-10" fill="#D4AF37" opacity="0.05" stroke="#D4AF37" stroke-width="1"/>
+  </g>
+
+  <!-- Connection / Security lines -->
+  <path d="M200,450 L350,375" fill="none" stroke="#D4AF37" stroke-width="2" opacity="0.4" stroke-dasharray="5 5"/>
+  <path d="M600,450 L450,375" fill="none" stroke="#D4AF37" stroke-width="2" opacity="0.4" stroke-dasharray="5 5"/>
+  
+  <circle cx="200" cy="450" r="6" fill="#D4AF37" opacity="0.6"/>
+  <circle cx="600" cy="450" r="6" fill="#D4AF37" opacity="0.6"/>
+</svg>

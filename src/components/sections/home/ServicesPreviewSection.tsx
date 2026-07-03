@@ -130,11 +130,10 @@ function ServiceCard({ service, index, progress, total }: { service: any, index:
             {/* Fallback pattern since real images might be missing */}
             <div className="absolute inset-0 bg-[#161616] z-0">
                {/* Use available background images depending on the index to give some variety, default to world map if nothing else matches */}
-               {index === 0 && <div className="absolute inset-0 bg-[url('/hero-car-carrier.png')] bg-cover bg-center mix-blend-overlay opacity-30" />}
-               {index === 1 && <div className="absolute inset-0 bg-[url('/hero-shipping.jpg')] bg-cover bg-center mix-blend-overlay opacity-30" />}
-               {index === 2 && <div className="absolute inset-0 bg-[url('/hero-bentley.png')] bg-cover bg-center mix-blend-overlay opacity-30" />}
-               {index === 3 && <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-cover bg-center mix-blend-overlay opacity-30" />}
-               <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 mix-blend-overlay" />
+               {index === 0 && <div className="absolute inset-0 bg-[url('/capability-vehicle.svg')] bg-cover bg-center mix-blend-overlay opacity-80" />}
+               {index === 1 && <div className="absolute inset-0 bg-[url('/capability-ocean.svg')] bg-cover bg-center mix-blend-overlay opacity-80" />}
+               {index === 2 && <div className="absolute inset-0 bg-[url('/capability-customs.svg')] bg-cover bg-center mix-blend-overlay opacity-80" />}
+               {index === 3 && <div className="absolute inset-0 bg-[url('/capability-storage.svg')] bg-cover bg-center mix-blend-overlay opacity-80" />}
                <div className="w-full h-full flex items-center justify-center text-[#D4AF37] opacity-20 transform scale-[5]">
                  {service.icon}
                </div>

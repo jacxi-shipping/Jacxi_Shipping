@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#F3E5AB" stop-opacity="0.2"/>
+    </linearGradient>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#161616"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg-grad)"/>
+
+  <!-- Scanning / Document Grid -->
+  <g opacity="0.1" stroke="#D4AF37" stroke-width="1">
+    <rect x="250" y="100" width="300" height="400" fill="none" stroke-width="2"/>
+    <line x1="250" y1="150" x2="550" y2="150" stroke-dasharray="4 4"/>
+    <line x1="250" y1="200" x2="550" y2="200" stroke-dasharray="4 4"/>
+    <line x1="250" y1="250" x2="550" y2="250" stroke-dasharray="4 4"/>
+    <line x1="250" y1="300" x2="550" y2="300" stroke-dasharray="4 4"/>
+    <line x1="250" y1="350" x2="550" y2="350" stroke-dasharray="4 4"/>
+    <line x1="250" y1="400" x2="550" y2="400" stroke-dasharray="4 4"/>
+    <line x1="250" y1="450" x2="550" y2="450" stroke-dasharray="4 4"/>
+  </g>
+
+  <!-- Hexagonal security / verification theme -->
+  <polygon points="400,200 486,250 486,350 400,400 314,350 314,250" fill="none" stroke="url(#gold-grad)" stroke-width="4" opacity="0.4"/>
+  <polygon points="400,220 468,260 468,340 400,380 332,340 332,260" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.2"/>
+  
+  <g transform="translate(400, 300)">
+    <!-- Shield / Checkmark -->
+    <path d="M-30,-20 L0,-40 L30,-20 L30,10 C30,30 10,40 0,50 C-10,40 -30,30 -30,10 Z" fill="#161616" stroke="url(#gold-grad)" stroke-width="3" opacity="0.9"/>
+    <path d="M-15,5 L-5,15 L15,-10" fill="none" stroke="#D4AF37" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+  </g>
+
+  <!-- Verification Scanning Line -->
+  <line x1="200" y1="200" x2="600" y2="200" stroke="url(#gold-grad)" stroke-width="4" opacity="0.6">
+    <animate attributeName="y1" values="150;450;150" dur="4s" repeatCount="indefinite"/>
+    <animate attributeName="y2" values="150;450;150" dur="4s" repeatCount="indefinite"/>
+  </line>
+  
+  <circle cx="200" cy="200" r="4" fill="#D4AF37">
+    <animate attributeName="cy" values="150;450;150" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="600" cy="200" r="4" fill="#D4AF37">
+    <animate attributeName="cy" values="150;450;150" dur="4s" repeatCount="indefinite"/>
+  </circle>
+</svg>
