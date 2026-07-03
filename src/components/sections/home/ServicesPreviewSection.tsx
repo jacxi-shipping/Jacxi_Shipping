@@ -129,8 +129,13 @@ function ServiceCard({ service, index, progress, total }: { service: any, index:
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 z-10" />
             {/* Fallback pattern since real images might be missing */}
             <div className="absolute inset-0 bg-[#161616] z-0">
+               {/* Use available background images depending on the index to give some variety, default to world map if nothing else matches */}
+               {index === 0 && <div className="absolute inset-0 bg-[url('/hero-car-carrier.png')] bg-cover bg-center mix-blend-overlay opacity-30" />}
+               {index === 1 && <div className="absolute inset-0 bg-[url('/hero-shipping.jpg')] bg-cover bg-center mix-blend-overlay opacity-30" />}
+               {index === 2 && <div className="absolute inset-0 bg-[url('/hero-bentley.png')] bg-cover bg-center mix-blend-overlay opacity-30" />}
+               {index === 3 && <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-cover bg-center mix-blend-overlay opacity-30" />}
                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 mix-blend-overlay" />
-               <div className="w-full h-full flex items-center justify-center text-gray-900/5">
+               <div className="w-full h-full flex items-center justify-center text-[#D4AF37] opacity-20 transform scale-[5]">
                  {service.icon}
                </div>
             </div>
