@@ -3,7 +3,17 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, Variants } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Container, MapPin, ShieldCheck, Ship, Truck } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  CirclePlay,
+  Clock,
+  MapPin,
+  Navigation,
+  ShieldCheck,
+  Ship,
+  Truck,
+} from 'lucide-react';
 
 const stats = [
   { label: 'Vehicles delivered', value: '12,000+' },
@@ -13,16 +23,29 @@ const stats = [
 ];
 
 const trustPoints = [
-  { label: 'Insured vehicle handling', icon: ShieldCheck },
-  { label: 'Customs documentation', icon: CheckCircle2 },
-  { label: 'Port-to-door coordination', icon: Truck },
+  {
+    title: '100% safe',
+    detail: 'Your car in trusted hands.',
+    icon: ShieldCheck,
+  },
+  {
+    title: 'On-time delivery',
+    detail: 'Milestones handled clearly.',
+    icon: Clock,
+  },
+  {
+    title: 'Multiple routes',
+    detail: 'Via Mersin or UAE.',
+    icon: Navigation,
+  },
 ];
 
-const routePoints = [
-  { label: 'USA / Canada', detail: 'Pickup and port loading' },
-  { label: 'Mersin', detail: 'Turkey port handoff' },
-  { label: 'UAE', detail: 'Transit coordination' },
-  { label: 'Afghanistan', detail: 'Customs and delivery' },
+const routeStops = [
+  { code: 'US', label: 'USA', x: '12%', y: '20%' },
+  { code: 'CA', label: 'Canada', x: '31%', y: '13%' },
+  { code: 'TR', label: 'Mersin', x: '51%', y: '24%' },
+  { code: 'AE', label: 'UAE', x: '72%', y: '39%' },
+  { code: 'AF', label: 'Afghanistan', x: '91%', y: '54%' },
 ];
 
 const containerVariants: Variants = {
@@ -44,116 +67,154 @@ const itemVariants: Variants = {
 
 export default function HeroSection() {
   return (
-    <section className="relative isolate overflow-hidden bg-[var(--background)] px-4 pb-10 pt-28 text-[var(--text-primary)] sm:px-6 sm:pb-12 sm:pt-32 lg:px-8">
-      <Image
-        src="/hero-bentley.png"
-        alt="Premium vehicle prepared for international shipping"
-        fill
-        priority
-        sizes="100vw"
-        className="absolute inset-0 -z-30 object-cover object-[68%_50%] opacity-[0.26]"
-      />
-      <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,var(--background)_0%,rgba(var(--background-rgb),0.95)_43%,rgba(var(--background-rgb),0.72)_70%,var(--background)_100%)]" />
-      <div className="absolute inset-0 -z-20 bg-[linear-gradient(180deg,rgba(var(--background-rgb),0.88)_0%,rgba(var(--background-rgb),0.62)_56%,var(--background)_100%)]" />
-      <div className="absolute inset-0 -z-10 bg-[url('/grid.svg')] bg-[length:38px_38px] opacity-[0.18]" />
+    <section className="relative isolate overflow-hidden bg-[var(--background)] px-4 pb-10 pt-28 text-[var(--text-primary)] sm:px-6 sm:pb-14 sm:pt-32 lg:min-h-[calc(100svh-1rem)] lg:px-8">
+      <div className="absolute inset-0 -z-20 bg-[url('/grid.svg')] bg-[length:38px_38px] opacity-[0.16]" />
+      <div className="absolute right-[-18rem] top-20 -z-10 h-[42rem] w-[42rem] rounded-full bg-[rgba(var(--accent-gold-rgb),0.10)] blur-3xl" />
+      <div className="absolute bottom-[-14rem] left-[28%] -z-10 h-[30rem] w-[30rem] rounded-full bg-[rgba(var(--text-primary-rgb),0.05)] blur-3xl" />
 
-      <div className="mx-auto grid max-w-7xl gap-8 lg:min-h-[calc(82svh-8rem)] lg:grid-cols-[minmax(0,0.98fr)_minmax(360px,0.72fr)] lg:items-center">
+      <div className="mx-auto grid max-w-7xl gap-10 lg:min-h-[calc(100svh-10rem)] lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="max-w-4xl self-center lg:pb-10"
+          className="relative z-10 max-w-2xl lg:pb-6"
         >
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.78)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] backdrop-blur-xl">
-            <span className="h-2 w-2 rounded-full bg-[var(--accent-gold)] shadow-[0_0_16px_rgba(var(--accent-gold-rgb),0.45)]" />
-            USA and Canada to Afghanistan vehicle logistics
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--accent-gold)] shadow-sm">
+              <ShieldCheck className="h-6 w-6" />
+            </span>
+            <span className="text-sm font-black uppercase tracking-[0.34em] text-[var(--text-primary)]">
+              Safe. Fast. Reliable.
+            </span>
           </motion.div>
 
-          <motion.h1 variants={itemVariants} className="mt-7 max-w-4xl text-4xl font-black leading-[1.08] text-[var(--text-primary)] sm:text-6xl sm:leading-[1.02] lg:text-7xl">
-            Premium vehicle shipping to Afghanistan
+          <motion.h1 variants={itemVariants} className="mt-8 max-w-3xl text-5xl font-black leading-[0.98] text-[var(--text-primary)] sm:text-6xl lg:text-[5.6rem]">
+            We ship{' '}
+            <span className="block text-[var(--accent-gold)]">your car</span>
           </motion.h1>
 
-          <motion.p variants={itemVariants} className="mt-6 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg sm:leading-8">
-            JACXI Shipping moves cars from the USA and Canada through Mersin, Turkey and UAE corridors, then into Afghanistan with port coordination, customs support, tracking, and door-to-door delivery.
+          <motion.p variants={itemVariants} className="mt-6 max-w-xl text-lg leading-8 text-[var(--text-secondary)] sm:text-xl">
+            From <strong className="text-[var(--text-primary)]">USA and Canada</strong> to{' '}
+            <strong className="text-[var(--accent-gold)]">Afghanistan</strong> via Mersin and UAE with complete care.
           </motion.p>
 
-          <motion.div variants={itemVariants} className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/#quote"
-              className="group inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-sm font-black text-white shadow-[0_18px_42px_rgba(var(--accent-gold-rgb),0.20)] transition-all hover:-translate-y-0.5 hover:brightness-105"
-            >
-              Get a free quote
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              href="/tracking"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.82)] px-6 py-4 text-sm font-bold text-[var(--text-primary)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-[var(--accent-gold)]"
-            >
-              Track shipment
-              <MapPin className="h-4 w-4 text-[var(--accent-gold)]" />
-            </Link>
-          </motion.div>
-
-          <motion.div variants={itemVariants} className="mt-7 grid gap-2 sm:grid-cols-3">
+          <motion.div variants={itemVariants} className="mt-8 grid gap-4 sm:grid-cols-3">
             {trustPoints.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.label} className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.76)] px-3 py-3 text-sm font-semibold text-[var(--text-secondary)] backdrop-blur-md">
-                  <Icon className="h-4 w-4 shrink-0 text-[var(--accent-gold)]" />
-                  <span>{item.label}</span>
+                <div key={item.title} className="flex items-start gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)] shadow-sm">
+                    <Icon className="h-5 w-5 text-[var(--accent-gold)]" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-black text-[var(--text-primary)]">{item.title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{item.detail}</span>
+                  </span>
                 </div>
               );
             })}
           </motion.div>
+
+          <motion.div variants={itemVariants} className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link
+              href="/#quote"
+              className="group inline-flex h-14 items-center justify-center gap-3 rounded-lg bg-[var(--accent-gold)] px-7 text-base font-black text-white shadow-[0_18px_42px_rgba(var(--accent-gold-rgb),0.22)] transition-all hover:-translate-y-0.5 hover:brightness-105"
+            >
+              Get a free quote
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(var(--panel-rgb),0.22)]">
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </Link>
+            <Link
+              href="/#process"
+              className="inline-flex h-14 items-center justify-center gap-3 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.82)] px-6 text-sm font-black text-[var(--text-primary)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-[var(--accent-gold)]"
+            >
+              <CirclePlay className="h-5 w-5 text-[var(--accent-gold)]" />
+              How it works
+            </Link>
+          </motion.div>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.66, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden lg:block"
+          initial={{ opacity: 0, x: 28 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.76, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="relative min-h-[420px] lg:min-h-[680px]"
         >
-          <div className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.78)] p-4 shadow-[0_28px_80px_rgba(var(--text-primary-rgb),0.10)] backdrop-blur-2xl">
-            <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="absolute left-[-8%] top-3 z-20 hidden h-40 w-[92%] lg:block">
+            <svg viewBox="0 0 1000 220" className="h-full w-full overflow-visible" aria-hidden="true">
+              <path
+                d="M 95 86 C 220 34 315 92 420 88 S 640 120 728 154 S 860 198 940 174"
+                fill="none"
+                stroke="rgba(var(--text-primary-rgb),0.62)"
+                strokeDasharray="6 8"
+                strokeLinecap="round"
+                strokeWidth="2"
+              />
+              <motion.path
+                d="M 95 86 C 220 34 315 92 420 88 S 640 120 728 154 S 860 198 940 174"
+                fill="none"
+                stroke="var(--accent-gold)"
+                strokeDasharray="90 740"
+                strokeLinecap="round"
+                strokeWidth="3"
+                animate={{ strokeDashoffset: [0, -820] }}
+                transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+              />
+            </svg>
+          </div>
+
+          {routeStops.map((stop, index) => (
+            <motion.div
+              key={stop.label}
+              initial={{ opacity: 0, y: 12, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.42, delay: 0.42 + index * 0.08 }}
+              className="absolute z-30 hidden -translate-x-1/2 lg:block"
+              style={{ left: stop.x, top: stop.y }}
+            >
+              <div className="flex flex-col items-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.94)] text-sm font-black text-[var(--text-primary)] shadow-[0_14px_34px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl">
+                  {stop.code}
+                </div>
+                <MapPin className="mt-1 h-4 w-4 fill-[var(--text-primary)] text-[var(--text-primary)]" />
+                <span className="mt-1 rounded-md bg-[rgba(var(--panel-rgb),0.86)] px-2 py-1 text-xs font-black text-[var(--text-primary)] shadow-sm backdrop-blur-xl">
+                  {stop.label}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+
+          <div className="absolute inset-x-0 bottom-0 top-16 overflow-hidden rounded-[36px] border border-[var(--border)] bg-[var(--panel)] shadow-[0_30px_90px_rgba(var(--text-primary-rgb),0.14)] lg:left-[8%] lg:right-[-7rem] lg:top-24 lg:rounded-l-[220px] lg:rounded-r-[28px]">
+            <Image
+              src="/hero-car-carrier.png"
+              alt="Car carrier transporting vehicles on an international shipping route"
+              fill
+              priority
+              sizes="(min-width: 1024px) 62vw, 100vw"
+              className="object-cover object-[62%_58%]"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(var(--panel-rgb),0.88)_0%,rgba(var(--panel-rgb),0.26)_30%,rgba(var(--panel-rgb),0)_62%)] lg:bg-[linear-gradient(90deg,rgba(var(--panel-rgb),0.82)_0%,rgba(var(--panel-rgb),0.12)_28%,rgba(var(--panel-rgb),0)_55%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--panel-rgb),0.72)_0%,rgba(var(--panel-rgb),0)_22%,rgba(var(--text-primary-rgb),0.10)_100%)]" />
+          </div>
+
+          <div className="absolute bottom-5 left-5 right-5 z-30 grid grid-cols-3 gap-2 lg:hidden">
+            {routeStops.slice(0, 3).map((stop) => (
+              <div key={stop.label} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] px-3 py-2 text-center text-xs font-black text-[var(--text-primary)] backdrop-blur-xl">
+                {stop.label}
+              </div>
+            ))}
+          </div>
+
+          <div className="absolute bottom-0 left-0 z-30 hidden rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] p-4 shadow-[0_16px_42px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl lg:block">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
+                <Ship className="h-5 w-5" />
+              </span>
               <div>
-                <p className="text-sm font-bold text-[var(--text-primary)]">Active corridor</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">Multi-port routing with live handoff stages</p>
+                <p className="text-sm font-black text-[var(--text-primary)]">USA / Canada to Afghanistan</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Mersin and UAE corridor support</p>
               </div>
-              <Ship className="h-5 w-5 text-[var(--accent-gold)]" />
-            </div>
-
-            <div className="relative overflow-hidden rounded-lg border border-[var(--border)] bg-[rgba(var(--background-rgb),0.74)] p-4">
-              <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-contain bg-center bg-no-repeat opacity-[0.08]" />
-              <div className="relative space-y-3">
-                {routePoints.map((point, index) => (
-                  <div key={point.label} className="grid grid-cols-[1.6rem_1fr] gap-3">
-                    <div className="relative flex justify-center">
-                      <span className="mt-1 h-3 w-3 rounded-full border border-[var(--accent-gold)] bg-[var(--panel)] shadow-[0_0_16px_rgba(var(--accent-gold-rgb),0.35)]" />
-                      {index < routePoints.length - 1 ? <span className="absolute top-5 h-[calc(100%+0.5rem)] w-px bg-[linear-gradient(180deg,var(--accent-gold),rgba(var(--border-rgb),0.75))]" /> : null}
-                    </div>
-                    <div className="rounded-md border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.72)] px-3 py-2">
-                      <p className="text-sm font-bold text-[var(--text-primary)]">{point.label}</p>
-                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{point.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {[
-                { icon: Container, label: 'Containerized' },
-                { icon: Ship, label: 'Ocean freight' },
-                { icon: Truck, label: 'Final delivery' },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label} className="rounded-md border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.70)] p-3 text-center">
-                    <Icon className="mx-auto h-4 w-4 text-[var(--accent-gold)]" />
-                    <p className="mt-2 text-[11px] font-bold text-[var(--text-secondary)]">{item.label}</p>
-                  </div>
-                );
-              })}
             </div>
           </div>
         </motion.div>
@@ -166,7 +227,7 @@ export default function HeroSection() {
         className="mx-auto mt-8 grid max-w-7xl grid-cols-2 gap-2 sm:grid-cols-4 lg:mt-0"
       >
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.76)] px-4 py-4 backdrop-blur-xl">
+          <div key={stat.label} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.82)] px-4 py-4 backdrop-blur-xl">
             <p className="text-2xl font-black text-[var(--text-primary)] sm:text-3xl">{stat.value}</p>
             <p className="mt-1 text-xs font-semibold text-[var(--text-secondary)]">{stat.label}</p>
           </div>
