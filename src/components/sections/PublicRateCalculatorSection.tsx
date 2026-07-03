@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Calculator, Car, MapPin, Ship, Truck } from 'lucide-react';
+import { ArrowRight, Calculator, Car, FileCheck, MapPin, Ship, Truck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   DEFAULT_SHIPPING_RATE_CONFIG,
@@ -32,6 +32,10 @@ function formatCurrency(amount: number) {
     maximumFractionDigits: 0,
   }).format(amount);
 }
+
+const inputClassName = 'h-12 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 text-sm font-bold text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-secondary)] focus:border-[var(--accent-gold)] focus:ring-4 focus:ring-[rgba(var(--accent-gold-rgb),0.16)]';
+const labelClassName = 'grid gap-2';
+const labelTextClassName = 'text-xs font-black uppercase text-[var(--text-secondary)]';
 
 export default function PublicRateCalculatorSection() {
   const [originState, setOriginState] = useState('CA');
@@ -104,35 +108,34 @@ export default function PublicRateCalculatorSection() {
   );
 
   return (
-    <section id="calculator" className="relative overflow-hidden bg-white py-28">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]">
+    <section id="calculator" className="relative overflow-hidden bg-[var(--background)] py-20 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.86fr_1.14fr]">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.6 }}
           >
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]">
-              Instant Estimate
-            </p>
-            <h2 className="max-w-xl text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl lg:text-5xl">
-              Price your vehicle shipment before you request a quote.
+            <p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Instant estimate</p>
+            <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
+              Price the route before you request a formal quote.
             </h2>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">
-              Select a pickup state, vehicle type, and Afghanistan destination to get a quick planning estimate for the route.
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
+              Use the public calculator to plan pickup, vehicle type, and Afghanistan destination. The final quote is confirmed after exact pickup, condition, and customs details.
             </p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:max-w-xl">
               {[
                 { icon: Truck, label: 'US pickup' },
                 { icon: Ship, label: 'Ocean freight' },
-                { icon: MapPin, label: 'Afghanistan delivery' },
+                { icon: FileCheck, label: 'Customs support' },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <div key={item.label} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm">
                     <Icon className="h-5 w-5 text-[var(--accent-gold)]" />
-                    <span className="text-sm font-semibold text-gray-700">{item.label}</span>
+                    <p className="mt-3 text-sm font-black text-[var(--text-primary)]">{item.label}</p>
                   </div>
                 );
               })}
@@ -143,131 +146,140 @@ export default function PublicRateCalculatorSection() {
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="rounded-2xl border border-gray-200 bg-[var(--background)] p-5 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-7"
+            transition={{ duration: 0.6, delay: 0.08 }}
+            className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-[0_24px_80px_rgba(var(--text-primary-rgb),0.10)]"
           >
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent-gold)] text-white">
-                  <Calculator className="h-5 w-5" />
+            <div className="border-b border-[var(--border)] bg-[var(--background)] p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
+                    <Calculator className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-[var(--text-primary)]">Shipping calculator</h3>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                      {averageEstimate?.companyCount
+                        ? `Average from ${averageEstimate.companyCount} company price list${averageEstimate.companyCount === 1 ? '' : 's'}`
+                        : 'Planning estimate in USD'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-950">Shipping Calculator</h3>
-                  <p className="text-sm text-gray-500">
-                    {averageEstimate?.companyCount
-                      ? `Average from ${averageEstimate.companyCount} company price list${averageEstimate.companyCount === 1 ? '' : 's'}`
-                      : 'Planning estimate in USD'}
-                  </p>
+                <div className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm font-bold text-[var(--text-primary)]">
+                  <MapPin className="h-4 w-4 text-[var(--accent-gold)]" />
+                  Afghanistan lanes
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Pickup State</span>
-                <select
-                  value={originState}
-                  onChange={(event) => setOriginState(event.target.value)}
-                  className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-gray-950"
-                >
-                  <optgroup label="Popular">
-                    {popularStateOptions.map((state) => (
-                      <option key={state.code} value={state.code}>{state.name} ({state.code})</option>
+            <div className="p-5 sm:p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className={labelClassName}>
+                  <span className={labelTextClassName}>US pickup state</span>
+                  <select
+                    value={originState}
+                    onChange={(event) => setOriginState(event.target.value)}
+                    className={inputClassName}
+                  >
+                    <optgroup label="Popular">
+                      {popularStateOptions.map((state) => (
+                        <option key={state.code} value={state.code}>{state.name} ({state.code})</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="All states">
+                      {US_STATES.map((state) => (
+                        <option key={state.code} value={state.code}>{state.name} ({state.code})</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </label>
+
+                <label className={labelClassName}>
+                  <span className={labelTextClassName}>Vehicle type</span>
+                  <select
+                    value={vehicleType}
+                    onChange={(event) => setVehicleType(event.target.value)}
+                    className={inputClassName}
+                  >
+                    {DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes.map((type) => (
+                      <option key={type.id} value={type.id}>{type.label}</option>
                     ))}
-                  </optgroup>
-                  <optgroup label="All states">
-                    {US_STATES.map((state) => (
-                      <option key={state.code} value={state.code}>{state.name} ({state.code})</option>
+                  </select>
+                </label>
+
+                <label className={labelClassName}>
+                  <span className={labelTextClassName}>Pickup city</span>
+                  <input
+                    value={pickupCity}
+                    onChange={(event) => setPickupCity(event.target.value)}
+                    placeholder="Los Angeles"
+                    className={inputClassName}
+                  />
+                </label>
+
+                <label className={labelClassName}>
+                  <span className={labelTextClassName}>Auction branch</span>
+                  <input
+                    value={pickupBranch}
+                    onChange={(event) => setPickupBranch(event.target.value)}
+                    placeholder="Los Angeles"
+                    className={inputClassName}
+                  />
+                </label>
+
+                <label className={`${labelClassName} sm:col-span-2`}>
+                  <span className={labelTextClassName}>Destination</span>
+                  <select
+                    value={destination}
+                    onChange={(event) => setDestination(event.target.value)}
+                    className={inputClassName}
+                  >
+                    {destinationOptions.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}, Afghanistan</option>
                     ))}
-                  </optgroup>
-                </select>
-              </label>
+                  </select>
+                </label>
+              </div>
 
-              <label className="grid gap-2">
-                <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Vehicle Type</span>
-                <select
-                  value={vehicleType}
-                  onChange={(event) => setVehicleType(event.target.value)}
-                  className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-gray-950"
-                >
-                  {DEFAULT_SHIPPING_RATE_CONFIG.vehicleTypes.map((type) => (
-                    <option key={type.id} value={type.id}>{type.label}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Pickup City</span>
-                <input
-                  value={pickupCity}
-                  onChange={(event) => setPickupCity(event.target.value)}
-                  placeholder="Los Angeles"
-                  className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-gray-950"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Auction Branch</span>
-                <input
-                  value={pickupBranch}
-                  onChange={(event) => setPickupBranch(event.target.value)}
-                  placeholder="Los Angeles"
-                  className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-gray-950"
-                />
-              </label>
-
-              <label className="grid gap-2 sm:col-span-2">
-                <span className="text-xs font-bold uppercase tracking-[0.14em] text-gray-600">Destination</span>
-                <select
-                  value={destination}
-                  onChange={(event) => setDestination(event.target.value)}
-                  className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-gray-950"
-                >
-                  {destinationOptions.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}, Afghanistan</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
-                    {loadingEstimate ? 'Updating Estimate' : 'Estimated Range'}
-                  </p>
-                  <p className="mt-2 text-3xl font-extrabold text-gray-950 sm:text-4xl">
-                    {formatCurrency(rangeLow)} - {formatCurrency(rangeHigh)}
-                  </p>
+              <div className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--background)] p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase text-[var(--text-secondary)]">
+                      {loadingEstimate ? 'Updating estimate' : 'Estimated range'}
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-[var(--text-primary)] sm:text-4xl">
+                      {formatCurrency(rangeLow)} - {formatCurrency(rangeHigh)}
+                    </p>
+                  </div>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
+                    <Car className="h-6 w-6" />
+                  </div>
                 </div>
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gray-950 text-white">
-                  <Car className="h-6 w-6" />
+
+                <div className="mt-5 flex flex-wrap items-center gap-2 text-sm text-[var(--text-secondary)]">
+                  <span className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1 font-bold">{selectedState?.name || originState}</span>
+                  <ArrowRight className="h-4 w-4 text-[var(--accent-gold)]" />
+                  <span className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1 font-bold">{selectedDestination.label}</span>
+                  {pickupCity.trim() ? <span className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1 font-bold">{pickupCity.trim()}</span> : null}
+                  <span className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1 font-bold">{selectedVehicle.label}</span>
+                  {averageEstimate?.companyCount ? (
+                    <span className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1 font-bold">
+                      {averageEstimate.matchLevel === 'lane' ? 'Lane matched' : 'State average'} - {averageEstimate.matchedAuctionRows} rows
+                    </span>
+                  ) : null}
                 </div>
               </div>
-              <div className="mt-5 flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                <span>{selectedState?.name || originState}</span>
-                <ArrowRight className="h-4 w-4 text-[var(--accent-gold)]" />
-                <span>{selectedDestination.label}</span>
-                {pickupCity.trim() ? <span>{pickupCity.trim()}</span> : null}
-                <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold">{selectedVehicle.label}</span>
-                {averageEstimate?.companyCount ? (
-                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold">
-                    {averageEstimate.matchLevel === 'lane' ? 'Lane matched' : 'State average'} - {averageEstimate.matchedAuctionRows} rows
-                  </span>
-                ) : null}
-              </div>
-            </div>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm leading-6 text-gray-500">
-                Final pricing depends on exact pickup, vehicle condition, title status, and customs details.
-              </p>
-              <a
-                href={quoteHref}
-                className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-gold)] px-5 text-sm font-bold text-white transition hover:brightness-95"
-              >
-                Get exact quote
-              </a>
+              <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm leading-6 text-[var(--text-secondary)]">
+                  Final pricing depends on exact pickup, vehicle condition, title status, and customs details.
+                </p>
+                <a
+                  href={quoteHref}
+                  className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-gold)] px-5 text-sm font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105"
+                >
+                  Get exact quote
+                </a>
+              </div>
             </div>
           </motion.div>
         </div>

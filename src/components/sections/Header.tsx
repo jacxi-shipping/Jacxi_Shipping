@@ -1,124 +1,133 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, ArrowRight } from 'lucide-react';
-import SiteLogo from '@/components/brand/SiteLogo';
+import { ArrowRight, Menu, X } from 'lucide-react';
+import { SiteMark } from '@/components/brand/SiteLogo';
 
 interface HeaderProps {
   isAuthenticated?: boolean;
 }
 
+const navLinks = [
+  { name: 'Services', href: '/#services' },
+  { name: 'Route', href: '/#route' },
+  { name: 'Process', href: '/#process' },
+  { name: 'Calculator', href: '/#calculator' },
+  { name: 'FAQ', href: '/#faq' },
+  { name: 'Tracking', href: '/tracking' },
+  { name: 'Contact', href: '/#contact' },
+];
+
 export default function Header({ isAuthenticated = false }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const ctaHref = isAuthenticated ? '/dashboard' : '/auth/signin';
-  const ctaLabel = isAuthenticated ? 'Dashboard' : 'Get a Quote';
+  const ctaHref = isAuthenticated ? '/dashboard' : '/#quote';
+  const ctaLabel = isAuthenticated ? 'Dashboard' : 'Get quote';
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 18);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
-    { name: 'Services', href: '/#services' },
-    { name: 'How It Works', href: '/#process' },
-    { name: 'Calculator', href: '/#calculator' },
-    { name: 'Testimonials', href: '/#testimonials' },
-    { name: 'Tracking', href: '/tracking' },
-    { name: 'About', href: '/#about' },
-    { name: 'Contact', href: '/#contact' },
-  ];
-
   return (
     <>
-      <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 will-change-[background-color,backdrop-filter,padding] ${
-          isScrolled
-            ? 'border-b border-[var(--border)] bg-white/70 py-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] backdrop-blur-2xl'
-            : 'bg-transparent py-8'
-        }`}
-      >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-6">
-            <Link href="/" className="flex items-center">
-              <SiteLogo variant="header" className="w-[108px] sm:w-[124px]" priority />
+      <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5">
+        <div
+          className={`mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.86)] px-4 py-3 backdrop-blur-2xl transition-all duration-300 sm:px-5 ${
+            isScrolled ? 'shadow-[0_18px_60px_rgba(var(--text-primary-rgb),0.12)]' : 'shadow-[0_14px_46px_rgba(var(--text-primary-rgb),0.08)]'
+          }`}
+        >
+          <Link href="/" className="flex min-w-0 items-center" aria-label="Jacxi Shipping home">
+            <span className="flex items-center gap-3">
+              <SiteMark size={40} className="!h-10 !w-10" priority />
+              <span className="hidden leading-none text-[var(--text-primary)] sm:block">
+                <span className="block text-sm font-black">JACXI</span>
+                <span className="block text-[11px] font-bold uppercase text-[var(--accent-gold)]">Shipping</span>
+              </span>
+            </span>
+          </Link>
+
+          <nav className="hidden items-center gap-1 lg:flex">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="rounded-md px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href={ctaHref}
+              className="hidden h-11 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-4 text-sm font-bold text-[var(--text-primary)] transition-all hover:-translate-y-0.5 hover:brightness-105 md:inline-flex"
+            >
+              {ctaLabel}
+              <ArrowRight className="h-4 w-4" />
             </Link>
 
-            <nav className="hidden items-center gap-8 md:flex">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className="text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <Link
-                href={ctaHref}
-                className="hidden items-center gap-2 rounded-full bg-[#0f172a] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 md:inline-flex"
-              >
-                {ctaLabel}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-
-              <button
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="rounded-lg p-2 text-[var(--text-primary)] transition-colors hover:bg-[var(--panel)] md:hidden"
-              >
-                <Menu className="h-6 w-6" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)] transition-colors lg:hidden"
+              aria-label="Open navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </header>
 
       {isMobileMenuOpen ? (
-        <div className="fixed inset-0 z-[60] bg-white/95 backdrop-blur-xl md:hidden">
-          <div className="p-6 h-full flex flex-col">
-            <div className="flex items-center justify-between mb-12">
+        <div className="fixed inset-0 z-[60] bg-[var(--background)] text-[var(--text-primary)] lg:hidden">
+          <div className="flex h-full flex-col px-5 py-5">
+            <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center" onClick={() => setIsMobileMenuOpen(false)}>
-                <SiteLogo variant="header" className="w-[108px]" priority />
+                <span className="flex items-center gap-3">
+                  <SiteMark size={42} className="!h-11 !w-11" priority />
+                  <span className="leading-none text-[var(--text-primary)]">
+                    <span className="block text-base font-black">JACXI</span>
+                    <span className="block text-xs font-bold uppercase text-[var(--accent-gold)]">Shipping</span>
+                  </span>
+                </span>
               </Link>
               <button
+                type="button"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--panel)] rounded-full"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)]"
+                aria-label="Close navigation"
               >
-                <X className="w-6 h-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <nav className="flex flex-col gap-6 text-center">
+            <nav className="mt-12 grid gap-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block py-2 text-3xl font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--accent-gold)]"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--panel)] px-4 py-4 text-2xl font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--accent-gold)]"
                 >
                   {link.name}
                 </Link>
               ))}
             </nav>
 
-            <div className="mt-auto pb-8">
-              <Link
-                href={ctaHref}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f172a] px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-slate-800"
-              >
-                {ctaLabel}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
+            <Link
+              href={ctaHref}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="mt-auto inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 text-base font-bold text-[var(--text-primary)]"
+            >
+              {ctaLabel}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       ) : null}

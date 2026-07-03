@@ -1,290 +1,238 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MapPin, Ship, Truck, CheckCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Container, MapPin, Ship, Truck } from 'lucide-react';
 
 const journeySteps = [
   {
-    step: 1,
-    icon: MapPin,
-    location: 'United States',
-    title: 'Pickup & Loading',
-    description: 'We collect your vehicle, inspect it, and safely load it at the port.',
-    duration: '1-3 days',
-  },
-  {
-    step: 2,
-    icon: Ship,
-    location: 'Ocean Transit',
-    title: 'USA to Mersin',
-    description: 'Secure ocean freight to the port of Mersin, Turkey.',
-    duration: '18-24 days',
-  },
-  {
-    step: 3,
+    step: '01',
     icon: Truck,
-    location: 'Land Transport',
-    title: 'Mersin to Herat',
-    description: 'Overland transport traversing through Turkey and Iran to Herat, Afghanistan.',
-    duration: '10-14 days',
+    location: 'USA / Canada',
+    title: 'Pickup and export prep',
+    description: 'Vehicle intake, inspection, auction or home pickup, title checks, and port loading.',
+    duration: '1-5 days',
   },
   {
-    step: 4,
-    icon: CheckCircle,
-    location: 'Herat, Afghanistan',
-    title: 'Customs & Delivery',
-    description: 'Final customs clearance and safe door-to-door delivery.',
-    duration: '2-4 days',
+    step: '02',
+    icon: Ship,
+    location: 'Mersin, Turkey',
+    title: 'Ocean freight corridor',
+    description: 'Container movement through the Mediterranean with port handoff visibility.',
+    duration: '18-28 days',
+  },
+  {
+    step: '03',
+    icon: Container,
+    location: 'UAE transit',
+    title: 'Hub coordination',
+    description: 'Documentation, routing control, inspection support, and onward shipment planning.',
+    duration: '3-7 days',
+  },
+  {
+    step: '04',
+    icon: CheckCircle2,
+    location: 'Afghanistan',
+    title: 'Customs and delivery',
+    description: 'Final customs support and delivery to Herat, Kabul, Kandahar, Mazar, and beyond.',
+    duration: '2-6 days',
   },
 ];
 
+const nodes = [
+  { id: 'canada', x: 250, y: 168, label: 'Canada' },
+  { id: 'usa', x: 230, y: 222, label: 'USA' },
+  { id: 'mersin', x: 555, y: 230, label: 'Mersin' },
+  { id: 'uae', x: 604, y: 306, label: 'UAE' },
+  { id: 'afghanistan', x: 632, y: 250, label: 'Afghanistan' },
+];
+
+const paths = [
+  { path: 'M 250 168 Q 390 92 555 230', delay: 0, duration: 5 },
+  { path: 'M 230 222 Q 398 150 555 230', delay: 0.4, duration: 5 },
+  { path: 'M 555 230 Q 590 260 604 306', delay: 2.7, duration: 3 },
+  { path: 'M 604 306 Q 632 290 632 250', delay: 4.2, duration: 2.4 },
+];
+
+const movers = [
+  { cx: [250, 350, 470, 555], cy: [168, 98, 148, 230], delay: 0.3, icon: Ship },
+  { cx: [230, 352, 468, 555], cy: [222, 156, 172, 230], delay: 1.0, icon: Ship },
+  { cx: [555, 578, 594, 604], cy: [230, 252, 282, 306], delay: 3.1, icon: Container },
+  { cx: [604, 620, 632], cy: [306, 286, 250], delay: 4.7, icon: Truck },
+];
+
 export default function RoutesAnimatedSection() {
-  const nodes = [
-    { id: 'USA', x: 230, y: 220, label: 'USA Port' },
-    { id: 'Mersin', x: 555, y: 230, label: 'Mersin Port' }, 
-    { id: 'Herat', x: 620, y: 245, label: 'Herat' }
-  ];
-
-  const paths = [
-    // USA to Mersin (Ship)
-    { 
-      path: "M 230 220 Q 400 130 555 230",
-      delay: 0,
-      duration: 4,
-      type: 'ship'
-    },
-    // Mersin to Herat (Truck)
-    {
-      path: "M 555 230 Q 580 220 620 245",
-      delay: 3,
-      duration: 2,
-      type: 'truck'
-    }
-  ];
-
   return (
-    <section className="relative bg-white py-24 sm:py-32 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
-        {/* Header */}
-        <div className="text-center mb-16 max-w-3xl mx-auto">
-          <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)]">
-            Our Shipping Route
-          </h2>
-          <p className="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            USA to Herat via Mersin
-          </p>
-          <p className="mt-4 text-lg text-gray-600">
-            A faster, safer, and highly transparent route ensuring your vehicle arrives securely to its destination.
-          </p>
-          <div className="mt-6 inline-flex items-center gap-2 bg-[var(--text-primary)] text-white px-6 py-3 rounded-xl shadow-lg border border-[var(--text-secondary)]">
-            <span className="font-semibold text-sm">Total Estimated Time: 30-45 Days</span>
-          </div>
-        </div>
+    <section id="route" className="relative overflow-hidden bg-[var(--background)] py-20 sm:py-24">
+      <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(var(--accent-gold-rgb),0.65),transparent)]" />
 
-        {/* Map Animation Container */}
-        <div className="relative w-full rounded-[2.5rem] bg-slate-900 overflow-hidden shadow-2xl border-4 border-white ring-1 ring-black/5 mb-16 aspect-[16/9] md:aspect-[21/9]">
-          
-          {/* Map Base Image */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-30 mix-blend-screen">
-            <div 
-              className="w-full h-full max-w-[1200px] bg-no-repeat bg-center bg-contain" 
-              style={{ backgroundImage: "url('/world-map.svg')", filter: "invert(1) brightness(0.7)" }} 
-            />
-          </div>
-
-          <svg
-            viewBox="0 0 950 620"
-            className="absolute inset-0 w-full h-full object-contain object-center scale-110 sm:scale-100"
-            preserveAspectRatio="xMidYMid meet"
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-end">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.62 }}
           >
-            <defs>
-              <linearGradient id="route-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="var(--accent-gold)" stopOpacity="0.2" />
-                <stop offset="50%" stopColor="var(--accent-gold)" stopOpacity="1" />
-                <stop offset="100%" stopColor="var(--accent-gold)" stopOpacity="0.2" />
-              </linearGradient>
-              
-              <filter id="route-glow">
-                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                <feMerge>
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
+            <p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Global route</p>
+            <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
+              Built for the real corridor into Afghanistan.
+            </h2>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
+              Your vehicle moves through a planned logistics chain: North American pickup, ocean freight to Mersin, UAE coordination when needed, and final customs-backed delivery across Afghanistan.
+            </p>
 
-            {/* Static Ghost Paths */}
-            {paths.map((p, i) => (
-               <path
-                  key={`ghost-path-${i}`}
-                  d={p.path}
-                  fill="none"
-                  stroke="rgba(255,255,255,0.1)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray="4 4"
-               />
-            ))}
+            <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {[
+                { label: 'Primary route', value: 'USA / Canada to Mersin' },
+                { label: 'Transit control', value: 'Turkey and UAE handoffs' },
+                { label: 'Final mile', value: 'All Afghan provinces' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm">
+                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)]">{item.label}</p>
+                  <p className="mt-1 text-sm font-black text-[var(--text-primary)]">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
-            {/* Animated Paths and Vehicles */}
-            {paths.map((p, i) => (
-              <g key={`route-path-${i}`}>
-                <motion.path
-                  d={p.path}
-                  fill="none"
-                  stroke="url(#route-line-gradient)"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  filter="url(#route-glow)"
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ 
-                    pathLength: [0, 1, 1],
-                    opacity: [0, 1, 0]
-                  }}
-                  transition={{
-                    duration: p.duration * 2,
-                    delay: p.delay,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                    repeatDelay: 1
-                  }}
-                />
-                
-                {/* Vehicle SVG moving along the path */}
-                <motion.g
-                  initial={{ opacity: 0 }}
-                  animate={{
-                    opacity: [0, 1, 1, 0],
-                    offsetDistance: ["0%", "100%", "100%", "100%"]
-                  }}
-                  transition={{
-                    duration: p.duration * 2,
-                    delay: p.delay,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                    repeatDelay: 1
-                  }}
-                  style={{ offsetPath: `path('${p.path}')` } as any}
-                >
-                  {p.type === 'ship' ? (
-                    // Cargo Ship SVG
-                    <g transform="translate(-15, -15) scale(0.8)">
-                      <path 
-                        d="M32 18H29V14C29 12.8954 28.1046 12 27 12H13C11.8954 12 11 12.8954 11 14V18H8C6.67157 18 5.43432 18.7369 4.81977 19.897L2.1795 24.8841C1.94248 25.3318 2.26873 25.8696 2.77663 25.8696H37.2234C37.7313 25.8696 38.0575 25.3318 37.8205 24.8841L35.1802 19.897C34.5657 18.7369 33.3284 18 32 18Z" 
-                        fill="var(--accent-gold)"
-                        filter="url(#route-glow)"
-                      />
-                    </g>
-                  ) : (
-                    // Truck SVG
-                    <g transform="translate(-15, -15) scale(0.7)">
-                      <path 
-                        d="M8 10H24V26H8V10ZM24 14H30C32.2091 14 34 15.7909 34 18V26H24V14ZM6 26C6 28.2091 7.79086 30 10 30C12.2091 30 14 28.2091 14 26H26C26 28.2091 27.7909 30 30 30C32.2091 30 34 28.2091 34 26H38V22H34V18H38V14H36C36 10.6863 33.3137 8 30 8H22C22 5.79086 20.2091 4 18 4H10C7.79086 4 6 5.79086 6 8V26Z" 
-                        fill="var(--accent-gold)"
-                        filter="url(#route-glow)"
-                      />
-                    </g>
-                  )}
-                </motion.g>
-              </g>
-            ))}
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.72, delay: 0.1 }}
+            className="relative overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-[0_30px_90px_rgba(var(--text-primary-rgb),0.10)]"
+          >
+            <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-contain bg-center bg-no-repeat opacity-[0.12]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--panel-rgb),0.42),rgba(var(--panel-rgb),0.88))]" />
 
-            {/* Map Nodes */}
-            {nodes.map((node, i) => (
-              <g key={`route-node-${i}`}>
-                {/* Node Pin */}
-                <motion.circle
-                  cx={node.x}
-                  cy={node.y}
-                  r="5"
-                  fill="#FFF"
-                  initial={{ scale: 0 }}
-                  whileInView={{ scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ type: "spring", delay: 0.5 + i * 0.2 }}
-                />
-                <motion.circle
-                  cx={node.x}
-                  cy={node.y}
-                  r="9"
-                  fill="none"
-                  stroke="var(--accent-gold)"
-                  strokeWidth="2"
-                  filter="url(#route-glow)"
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: [1, 2.5], opacity: [1, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.5 }}
-                />
-                {/* Text Label */}
-                <motion.text
-                  x={node.x}
-                  y={node.y - 15}
-                  fill="#FFFFFF"
-                  className="text-xs font-bold tracking-wider"
-                  textAnchor="middle"
-                  initial={{ opacity: 0, y: 5 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.7 + i * 0.2 }}
-                >
-                  {node.label}
-                </motion.text>
-              </g>
-            ))}
-          </svg>
+            <div className="relative aspect-[1.15/1] sm:aspect-[16/9]">
+              <svg viewBox="0 0 950 620" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                  <linearGradient id="premium-route-line" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="rgba(var(--accent-gold-rgb),0.22)" />
+                    <stop offset="50%" stopColor="var(--accent-gold)" />
+                    <stop offset="100%" stopColor="rgba(var(--accent-gold-rgb),0.36)" />
+                  </linearGradient>
+                  <filter id="premium-route-glow">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
 
-          {/* Vignette edges */}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-transparent to-slate-900/80 pointer-events-none" />
+                {paths.map((path) => (
+                  <path
+                    key={`ghost-${path.path}`}
+                    d={path.path}
+                    fill="none"
+                    stroke="rgba(var(--text-primary-rgb),0.12)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="7 9"
+                  />
+                ))}
+
+                {paths.map((path) => (
+                  <motion.path
+                    key={path.path}
+                    d={path.path}
+                    fill="none"
+                    stroke="url(#premium-route-line)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    filter="url(#premium-route-glow)"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    whileInView={{ pathLength: [0, 1, 1], opacity: [0, 1, 0.75] }}
+                    viewport={{ once: false }}
+                    transition={{ duration: path.duration, delay: path.delay, repeat: Infinity, repeatDelay: 1.4, ease: 'easeInOut' }}
+                  />
+                ))}
+
+                {movers.map((mover, index) => {
+                  const Icon = mover.icon;
+                  return (
+                    <motion.g
+                      key={`mover-${index}`}
+                      animate={{ x: mover.cx, y: mover.cy, opacity: [0, 1, 1, 0] }}
+                      transition={{ duration: 6.4, delay: mover.delay, repeat: Infinity, repeatDelay: 1.2, ease: 'easeInOut' }}
+                    >
+                      <circle r="17" fill="rgba(var(--accent-gold-rgb),0.16)" stroke="rgba(var(--accent-gold-rgb),0.42)" />
+                      <foreignObject x="-10" y="-10" width="20" height="20">
+                        <Icon className="h-5 w-5 text-[var(--accent-gold)]" />
+                      </foreignObject>
+                    </motion.g>
+                  );
+                })}
+
+                {nodes.map((node, index) => (
+                  <g key={node.id}>
+                    <motion.circle
+                      cx={node.x}
+                      cy={node.y}
+                      r="7"
+                      fill="var(--accent-gold)"
+                      initial={{ scale: 0, opacity: 0 }}
+                      whileInView={{ scale: 1, opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.2 + index * 0.08, type: 'spring', stiffness: 260, damping: 18 }}
+                    />
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r="13"
+                      fill="none"
+                      stroke="rgba(var(--accent-gold-rgb),0.45)"
+                      strokeWidth="2"
+                    />
+                    <text x={node.x} y={node.y - 18} fill="var(--text-primary)" fontSize="13" fontWeight="800" textAnchor="middle">
+                      {node.label}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+
+              <div className="absolute left-4 top-4 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.82)] px-4 py-3 text-[var(--text-primary)] backdrop-blur-xl sm:left-6 sm:top-6">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase text-[var(--text-secondary)]">
+                  <Clock className="h-3.5 w-3.5 text-[var(--accent-gold)]" />
+                  Estimated corridor
+                </div>
+                <p className="mt-1 text-lg font-black">30-45 days</p>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
-        {/* Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-          {/* Animated Connectors behind the cards */}
-          <div className="hidden lg:block absolute top-[4rem] left-1/2 -ml-[45%] w-[90%] h-1 border-t-2 border-dashed border-gray-200 z-0 opacity-50" />
-
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {journeySteps.map((step, index) => {
             const Icon = step.icon;
             return (
-              <motion.div 
-                key={index} 
-                className="relative z-10 w-full"
-                initial={{ opacity: 0, y: 20 }}
+              <motion.article
+                key={step.step}
+                initial={{ opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true, margin: '-80px' }}
+                transition={{ duration: 0.45, delay: index * 0.07 }}
+                className="group rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-[rgba(var(--accent-gold-rgb),0.55)] hover:shadow-[0_18px_38px_rgba(var(--text-primary-rgb),0.10)]"
               >
-                {/* Icon Container */}
-                <div className="mb-4 relative">
-                  <div className="w-16 h-16 rounded-2xl bg-white border border-gray-100 shadow-xl shadow-gray-200/50 flex items-center justify-center text-gray-900 mx-auto transition-transform hover:-translate-y-1">
-                    <Icon className="w-8 h-8" />
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
+                    <Icon className="h-5 w-5" />
                   </div>
-                  {/* Step Badge */}
-                  <div className="absolute -top-2 right-1/2 translate-x-8 w-6 h-6 rounded-full bg-[var(--text-primary)] text-white flex items-center justify-center text-[10px] font-bold shadow-md">
-                    {step.step}
-                  </div>
+                  <span className="text-sm font-black text-[rgba(var(--text-primary-rgb),0.18)]">{step.step}</span>
                 </div>
-
-                <div className="text-center bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all h-full">
-                  <div className="inline-block px-3 py-1 mb-3 bg-[var(--text-primary)]/5 text-[var(--text-primary)] text-[10px] font-bold uppercase tracking-wider rounded-full">
-                    {step.location}
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    {step.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4 h-[40px]">
-                    {step.description}
-                  </p>
-                  <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--accent-gold)]">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    {step.duration}
-                  </div>
+                <p className="mt-5 text-xs font-bold uppercase text-[var(--accent-gold)]">{step.location}</p>
+                <h3 className="mt-2 text-lg font-black text-[var(--text-primary)]">{step.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{step.description}</p>
+                <div className="mt-5 inline-flex items-center gap-2 rounded-md bg-[var(--background)] px-3 py-2 text-xs font-bold text-[var(--text-secondary)]">
+                  <MapPin className="h-3.5 w-3.5 text-[var(--accent-gold)]" />
+                  {step.duration}
                 </div>
-              </motion.div>
+              </motion.article>
             );
           })}
         </div>
-
       </div>
     </section>
   );

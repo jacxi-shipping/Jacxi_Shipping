@@ -3,6 +3,7 @@ import Footer from '@/components/sections/Footer';
 import AboutMiniSection from '@/components/sections/AboutMiniSection';
 import QuoteFormSection from '@/components/sections/QuoteFormSection';
 import ContactSection from '@/components/sections/home/ContactSection';
+import FAQSection from '@/components/sections/home/FAQSection';
 import HeroSection from '@/components/sections/home/HeroSection';
 import LandingScrollAnimator from '@/components/sections/home/LandingScrollAnimator';
 import MobileAppPromoSection from '@/components/sections/home/MobileAppPromoSection';
@@ -31,6 +32,7 @@ export default async function Home() {
         <PublicRateCalculatorSection />
         <MobileAppPromoSection />
         <TestimonialsSection />
+        <FAQSection />
         <QuoteFormSection />
         <AboutMiniSection />
         <ContactSection isAuthenticated={isAuthenticated} />

@@ -1,104 +1,176 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { motion, Variants } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
-import AnimatedWorldMap from '@/components/ui/AnimatedWorldMap';
+import { ArrowRight, CheckCircle2, Container, MapPin, ShieldCheck, Ship, Truck } from 'lucide-react';
 
 const stats = [
-  { label: 'Active Countries', value: '45+' },
-  { label: 'Vehicles Shipped', value: '12,000+' },
-  { label: 'On-Time Delivery', value: '99.8%' },
-  { label: 'Client Satisfaction', value: '4.9/5' },
+  { label: 'Vehicles delivered', value: '12,000+' },
+  { label: 'Years operating', value: '14+' },
+  { label: 'Afghan provinces', value: '34' },
+  { label: 'Customer rating', value: '4.9/5' },
 ];
 
 const trustPoints = [
-  { title: 'Licensed Customs Broker', detail: 'Fully accredited' },
-  { title: 'Insured & Bonded', detail: 'Full coverage' },
-  { title: 'Door-to-Door Service', detail: 'All Afghan provinces' },
-  { title: 'Real-Time GPS Tracking', detail: 'Live updates' },
-  { title: '14+ Years Experience', detail: 'Industry veteran' },
+  { label: 'Insured vehicle handling', icon: ShieldCheck },
+  { label: 'Customs documentation', icon: CheckCircle2 },
+  { label: 'Port-to-door coordination', icon: Truck },
 ];
 
-const staggerVariants: Variants = {
+const routePoints = [
+  { label: 'USA / Canada', detail: 'Pickup and port loading' },
+  { label: 'Mersin', detail: 'Turkey port handoff' },
+  { label: 'UAE', detail: 'Transit coordination' },
+  { label: 'Afghanistan', detail: 'Customs and delivery' },
+];
+
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.2 }
-  }
+    transition: { staggerChildren: 0.08, delayChildren: 0.12 },
+  },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.58, ease: [0.22, 1, 0.36, 1] },
+  },
 };
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-[var(--background)] pt-32 pb-24 lg:pt-40">
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center mix-blend-multiply opacity-50 z-0">
-        <AnimatedWorldMap />
-      </div>
+    <section className="relative isolate overflow-hidden bg-[var(--background)] px-4 pb-10 pt-28 text-[var(--text-primary)] sm:px-6 sm:pb-12 sm:pt-32 lg:px-8">
+      <Image
+        src="/hero-bentley.png"
+        alt="Premium vehicle prepared for international shipping"
+        fill
+        priority
+        sizes="100vw"
+        className="absolute inset-0 -z-30 object-cover object-[68%_50%] opacity-[0.26]"
+      />
+      <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,var(--background)_0%,rgba(var(--background-rgb),0.95)_43%,rgba(var(--background-rgb),0.72)_70%,var(--background)_100%)]" />
+      <div className="absolute inset-0 -z-20 bg-[linear-gradient(180deg,rgba(var(--background-rgb),0.88)_0%,rgba(var(--background-rgb),0.62)_56%,var(--background)_100%)]" />
+      <div className="absolute inset-0 -z-10 bg-[url('/grid.svg')] bg-[length:38px_38px] opacity-[0.18]" />
 
-      <div className="absolute top-0 right-0 -mr-32 -mt-32 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[var(--accent-gold)]/20 to-transparent blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-slate-300/40 to-transparent blur-[100px] pointer-events-none" />
-
-      <motion.div 
-        variants={staggerVariants}
-        initial="hidden"
-        animate="visible"
-        className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8"
-      >
-        <div className="mx-auto max-w-5xl text-center">
-          <motion.div variants={itemVariants} className="inline-block mb-6 px-4 py-1.5 rounded-full border border-[var(--border)] bg-white/50 backdrop-blur-md">
-            <span className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--accent-gold)]">
-              Shipping Beyond Boundaries
-            </span>
+      <div className="mx-auto grid max-w-7xl gap-8 lg:min-h-[calc(82svh-8rem)] lg:grid-cols-[minmax(0,0.98fr)_minmax(360px,0.72fr)] lg:items-center">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="max-w-4xl self-center lg:pb-10"
+        >
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.78)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] backdrop-blur-xl">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-gold)] shadow-[0_0_16px_rgba(var(--accent-gold-rgb),0.45)]" />
+            USA and Canada to Afghanistan vehicle logistics
           </motion.div>
 
-          <motion.h1 variants={itemVariants} className="mx-auto text-5xl font-extrabold leading-[1.05] tracking-tight text-[var(--text-primary)] sm:text-6xl lg:text-[7rem]">
-            Global Transit, <br className="hidden md:block"/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-gold)] to-yellow-600">Local Precision.</span>
+          <motion.h1 variants={itemVariants} className="mt-7 max-w-4xl text-4xl font-black leading-[1.08] text-[var(--text-primary)] sm:text-6xl sm:leading-[1.02] lg:text-7xl">
+            Premium vehicle shipping to Afghanistan
           </motion.h1>
 
-          <motion.p variants={itemVariants} className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl">
-            The most trusted vehicle shipping service adapting to your behavior in real-time. Door-to-door delivery with full customs clearance and white-glove service.
+          <motion.p variants={itemVariants} className="mt-6 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg sm:leading-8">
+            JACXI Shipping moves cars from the USA and Canada through Mersin, Turkey and UAE corridors, then into Afghanistan with port coordination, customs support, tracking, and door-to-door delivery.
           </motion.p>
-          
-          <motion.div variants={itemVariants} className="mt-10 flex flex-col justify-center gap-4 sm:flex-row items-center">
+
+          <motion.div variants={itemVariants} className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/#quote"
-              className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-[var(--accent-gold)] px-8 py-4 text-base font-semibold text-white transition-all hover:scale-105 active:scale-95 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)]"
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-sm font-black text-[var(--text-primary)] shadow-[0_18px_42px_rgba(var(--accent-gold-rgb),0.20)] transition-all hover:-translate-y-0.5 hover:brightness-105"
             >
-              <span className="relative z-10">Get a Free Quote</span>
-              <div className="absolute inset-0 z-0 bg-gradient-to-r from-yellow-500 to-[var(--accent-gold)] opacity-0 transition-opacity group-hover:opacity-100" />
+              Get a free quote
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
             <Link
               href="/tracking"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-white/60 backdrop-blur-md px-8 py-4 text-base font-semibold text-[var(--text-primary)] transition-all hover:bg-white hover:border-slate-300 shadow-[0_8px_32px_0_rgba(31,38,135,0.05)]"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.82)] px-6 py-4 text-sm font-bold text-[var(--text-primary)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-[var(--accent-gold)]"
             >
-              Track Shipment
-              <ArrowRight className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-1" />
+              Track shipment
+              <MapPin className="h-4 w-4 text-[var(--accent-gold)]" />
             </Link>
           </motion.div>
 
-          <motion.div variants={itemVariants} className="mt-20 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
-            {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className="relative overflow-hidden rounded-[2rem] border border-[var(--border)] bg-white/60 backdrop-blur-2xl px-6 py-6 text-center shadow-[0_8px_32px_0_rgba(0,0,0,0.04)]"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-50 z-0"/>
-                <p className="relative z-10 text-3xl font-bold tracking-tight text-[var(--text-primary)]">{stat.value}</p>
-                <p className="relative z-10 mt-2 text-xs font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">{stat.label}</p>
-              </div>
-            ))}
+          <motion.div variants={itemVariants} className="mt-7 grid gap-2 sm:grid-cols-3">
+            {trustPoints.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.76)] px-3 py-3 text-sm font-semibold text-[var(--text-secondary)] backdrop-blur-md">
+                  <Icon className="h-4 w-4 shrink-0 text-[var(--accent-gold)]" />
+                  <span>{item.label}</span>
+                </div>
+              );
+            })}
           </motion.div>
+        </motion.div>
 
-          <motion.p variants={itemVariants} className="mt-12 text-sm font-medium tracking-[0.15em] text-[var(--text-secondary)] uppercase">
-            USA → Mersin, Turkey → Herat, Afghanistan
-          </motion.p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.66, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          className="hidden lg:block"
+        >
+          <div className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.78)] p-4 shadow-[0_28px_80px_rgba(var(--text-primary-rgb),0.10)] backdrop-blur-2xl">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-[var(--text-primary)]">Active corridor</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Multi-port routing with live handoff stages</p>
+              </div>
+              <Ship className="h-5 w-5 text-[var(--accent-gold)]" />
+            </div>
+
+            <div className="relative overflow-hidden rounded-lg border border-[var(--border)] bg-[rgba(var(--background-rgb),0.74)] p-4">
+              <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-contain bg-center bg-no-repeat opacity-[0.08]" />
+              <div className="relative space-y-3">
+                {routePoints.map((point, index) => (
+                  <div key={point.label} className="grid grid-cols-[1.6rem_1fr] gap-3">
+                    <div className="relative flex justify-center">
+                      <span className="mt-1 h-3 w-3 rounded-full border border-[var(--accent-gold)] bg-[var(--panel)] shadow-[0_0_16px_rgba(var(--accent-gold-rgb),0.35)]" />
+                      {index < routePoints.length - 1 ? <span className="absolute top-5 h-[calc(100%+0.5rem)] w-px bg-[linear-gradient(180deg,var(--accent-gold),rgba(var(--border-rgb),0.75))]" /> : null}
+                    </div>
+                    <div className="rounded-md border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.72)] px-3 py-2">
+                      <p className="text-sm font-bold text-[var(--text-primary)]">{point.label}</p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{point.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { icon: Container, label: 'Containerized' },
+                { icon: Ship, label: 'Ocean freight' },
+                { icon: Truck, label: 'Final delivery' },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-md border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.70)] p-3 text-center">
+                    <Icon className="mx-auto h-4 w-4 text-[var(--accent-gold)]" />
+                    <p className="mt-2 text-[11px] font-bold text-[var(--text-secondary)]">{item.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.58, delay: 0.46 }}
+        className="mx-auto mt-8 grid max-w-7xl grid-cols-2 gap-2 sm:grid-cols-4 lg:mt-0"
+      >
+        {stats.map((stat) => (
+          <div key={stat.label} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.76)] px-4 py-4 backdrop-blur-xl">
+            <p className="text-2xl font-black text-[var(--text-primary)] sm:text-3xl">{stat.value}</p>
+            <p className="mt-1 text-xs font-semibold text-[var(--text-secondary)]">{stat.label}</p>
+          </div>
+        ))}
       </motion.div>
     </section>
   );

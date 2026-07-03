@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { ArrowRight, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 
 interface ContactSectionProps {
   isAuthenticated?: boolean;
@@ -14,9 +15,11 @@ const socialLinks = [
 ];
 
 const contactNumbers = [
-  { href: 'tel:+19252008927', label: '+1(925)2008927' },
-  { href: 'tel:+93704117413', label: '+93704117413' },
+  { href: 'tel:+19252008927', label: '+1 (925) 200-8927' },
+  { href: 'tel:+93704117413', label: '+93 704 117 413' },
 ];
+
+const inputClassName = 'w-full rounded-lg border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-secondary)] focus:border-[var(--accent-gold)] focus:ring-4 focus:ring-[rgba(var(--accent-gold-rgb),0.16)]';
 
 export default function ContactSection({ isAuthenticated = false }: ContactSectionProps) {
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
@@ -50,7 +53,7 @@ export default function ContactSection({ isAuthenticated = false }: ContactSecti
       }
 
       setSubmitted(true);
-  setFormState({ name: '', email: '', message: '' });
+      setFormState({ name: '', email: '', message: '' });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Failed to send message');
     } finally {
@@ -59,112 +62,134 @@ export default function ContactSection({ isAuthenticated = false }: ContactSecti
   };
 
   return (
-    <section id="contact" className="bg-[var(--background)] py-28">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="landing-reveal mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[var(--accent-gold)]" style={{ animationDelay: '60ms' }}>Contact Us</p>
-          <h2 className="landing-reveal text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl lg:text-[3.2rem]" style={{ animationDelay: '140ms' }}>Get In Touch</h2>
-          <p className="landing-reveal mt-5 text-lg leading-8 text-[var(--text-secondary)]" style={{ animationDelay: '220ms' }}>
-            Ready to ship your vehicle? Have questions? Our team is here to help.
-          </p>
-        </div>
+    <section id="contact" className="relative overflow-hidden bg-[var(--panel)] py-20 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+          <div>
+            <p className="landing-reveal text-sm font-bold uppercase text-[var(--accent-gold)]">Contact</p>
+            <h2 className="landing-reveal mt-4 max-w-xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
+              Talk to a shipping coordinator.
+            </h2>
+            <p className="landing-reveal mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
+              Ready to ship your vehicle or need route clarity? Reach the team by phone, WhatsApp, email, or the message form.
+            </p>
 
-        <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="landing-reveal rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5" style={{ animationDelay: '300ms' }}>
-            <h3 className="text-2xl font-bold text-[var(--text-primary)]">Contact Information</h3>
-            <div className="mt-8 space-y-6">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-secondary)]">Address</p>
-                <p className="mt-2 text-[var(--text-primary)]">Herat Customs Department<br />Herat, Afghanistan</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-secondary)]">Phone</p>
-                <div className="mt-2 space-y-1">
-                  {contactNumbers.map((number) => (
-                    <a key={number.href} href={number.href} className="block text-[var(--text-primary)] hover:text-[var(--accent-gold)]">
-                      {number.label}
-                    </a>
-                  ))}
+            <div className="landing-reveal mt-8 grid gap-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-5">
+                <div className="flex gap-4">
+                  <MapPin className="mt-1 h-5 w-5 text-[var(--accent-gold)]" />
+                  <div>
+                    <p className="font-black text-[var(--text-primary)]">Address</p>
+                    <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">Herat Customs Department, Herat, Afghanistan</p>
+                  </div>
                 </div>
               </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-secondary)]">Email</p>
-                <a href="mailto:info@jacxi.com" className="mt-2 block text-[var(--text-primary)] hover:text-[var(--accent-gold)]">info@jacxi.com</a>
+
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-5">
+                <div className="flex gap-4">
+                  <Phone className="mt-1 h-5 w-5 text-[var(--accent-gold)]" />
+                  <div>
+                    <p className="font-black text-[var(--text-primary)]">Phone</p>
+                    <div className="mt-1 space-y-1">
+                      {contactNumbers.map((number) => (
+                        <a key={number.href} href={number.href} className="block text-sm font-bold text-[var(--text-primary)] hover:text-[var(--accent-gold)]">
+                          {number.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-secondary)]">Business Hours</p>
-                <p className="mt-2 text-[var(--text-primary)]">Mon - Sat, 8am - 6pm Afghanistan Time (AFT/UTC+4:30)</p>
+
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-5">
+                <div className="flex gap-4">
+                  <Mail className="mt-1 h-5 w-5 text-[var(--accent-gold)]" />
+                  <div>
+                    <p className="font-black text-[var(--text-primary)]">Email</p>
+                    <a href="mailto:info@jacxi.com" className="mt-1 block text-sm font-bold text-[var(--text-primary)] hover:text-[var(--accent-gold)]">info@jacxi.com</a>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="mt-10 border-t border-[var(--border)] pt-6">
-              <div className="flex flex-wrap gap-3">
-                {socialLinks.map((link) => (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-full border border-[var(--border)] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)]"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-              <div className="mt-6">
-                <Link
-                  href={isAuthenticated ? '/dashboard' : '/auth/signin'}
-                  className="inline-flex items-center justify-center rounded-xl bg-[var(--accent-gold)] px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+            <div className="landing-reveal mt-6 flex flex-wrap gap-3">
+              {socialLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-xs font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)]"
                 >
-                  {isAuthenticated ? 'Open Dashboard' : 'Customer Portal'}
-                </Link>
-              </div>
+                  {link.label}
+                </a>
+              ))}
+              <Link
+                href={isAuthenticated ? '/dashboard' : '/auth/signin'}
+                className="inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent-gold)] px-4 text-xs font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105"
+              >
+                {isAuthenticated ? 'Open dashboard' : 'Customer portal'}
+              </Link>
             </div>
           </div>
 
-          <div className="landing-reveal rounded-[2rem] border border-[var(--border)] bg-white p-8 shadow-sm shadow-slate-900/5" style={{ animationDelay: '420ms' }}>
-            <h3 className="text-2xl font-bold text-[var(--text-primary)]">Send a Message</h3>
-            {submitted ? (
-              <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6 text-green-800">
-                Your message has been sent. Our team will respond shortly.
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-                <div className="grid gap-5 md:grid-cols-2">
-                  <input
-                    value={formState.name}
-                    onChange={(event) => handleChange('name', event.target.value)}
-                    placeholder="Your Name"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 text-base outline-none transition-colors focus:border-[var(--accent-gold)]"
-                    required
-                  />
-                  <input
-                    value={formState.email}
-                    onChange={(event) => handleChange('email', event.target.value)}
-                    placeholder="Email Address"
-                    type="email"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 text-base outline-none transition-colors focus:border-[var(--accent-gold)]"
-                    required
-                  />
+          <div className="landing-reveal overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-[0_24px_80px_rgba(var(--text-primary-rgb),0.10)]">
+            <div className="border-b border-[var(--border)] bg-[var(--background)] p-5 sm:p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
+                  <MessageCircle className="h-5 w-5" />
                 </div>
-                <textarea
-                  value={formState.message}
-                  onChange={(event) => handleChange('message', event.target.value)}
-                  placeholder="Message"
-                  rows={6}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-base outline-none transition-colors focus:border-[var(--accent-gold)]"
-                  required
-                />
-                {error ? <p className="text-sm text-red-600">{error}</p> : null}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#0f172a] px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
-                >
-                  {submitting ? 'Sending...' : 'Send Message ->'}
-                </button>
-              </form>
-            )}
+                <div>
+                  <h3 className="text-xl font-black text-[var(--text-primary)]">Send a message</h3>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">We usually respond within one business day.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 sm:p-6 lg:p-8">
+              {submitted ? (
+                <div className="rounded-lg border border-[rgba(var(--success-rgb),0.3)] bg-[var(--success-light)] p-6 text-[var(--success-dark)]">
+                  Your message has been sent. Our team will respond shortly.
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <input
+                      value={formState.name}
+                      onChange={(event) => handleChange('name', event.target.value)}
+                      placeholder="Your name"
+                      className={inputClassName}
+                      required
+                    />
+                    <input
+                      value={formState.email}
+                      onChange={(event) => handleChange('email', event.target.value)}
+                      placeholder="Email address"
+                      type="email"
+                      className={inputClassName}
+                      required
+                    />
+                  </div>
+                  <textarea
+                    value={formState.message}
+                    onChange={(event) => handleChange('message', event.target.value)}
+                    placeholder="Message"
+                    rows={6}
+                    className={`${inputClassName} resize-none`}
+                    required
+                  />
+                  {error ? <p className="text-sm text-[var(--error)]">{error}</p> : null}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-base font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
+                  >
+                    {submitting ? 'Sending...' : 'Send message'}
+                    {!submitting ? <ArrowRight className="h-5 w-5" /> : null}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </div>

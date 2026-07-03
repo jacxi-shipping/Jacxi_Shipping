@@ -1,31 +1,31 @@
 'use client';
 
-import { FileText, PackageCheck, PlaneTakeoff, Truck } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
+import { ArrowRight, CheckCircle2, FileText, PackageCheck, Ship, Truck } from 'lucide-react';
 
 const steps = [
   {
     number: '01',
-    title: 'Request a Quote',
-    description: 'Fill out our simple form with your vehicle details and destination. We\'ll send you a competitive, transparent quote within 24 hours.',
+    title: 'Quote and route review',
+    description: 'Share vehicle details, pickup location, destination province, and timing. We confirm the lane, paperwork needs, and estimated cost.',
     icon: FileText,
   },
   {
     number: '02',
-    title: 'Vehicle Pickup',
-    description: 'Our team collects your vehicle from anywhere in the United States. We handle loading, securing, and all pre-departure documentation.',
+    title: 'Pickup and inspection',
+    description: 'Your vehicle is collected, photographed, inspected, secured, and prepared for export or container loading.',
     icon: PackageCheck,
   },
   {
     number: '03',
-    title: 'Dubai Transit Hub',
-    description: 'Your vehicle passes through our state-of-the-art Dubai hub with expert care, inspection, and customs processing handled by our specialists.',
-    icon: PlaneTakeoff,
+    title: 'Port and transit control',
+    description: 'We coordinate ocean freight through Mersin and UAE route handoffs with visibility at each operational milestone.',
+    icon: Ship,
   },
   {
     number: '04',
-    title: 'Afghanistan Delivery',
-    description: 'Door-to-door delivery to your chosen province with full customs clearance. We notify you at every milestone of the journey.',
+    title: 'Customs and delivery',
+    description: 'Our team supports final customs clearance and delivery to the chosen Afghan city or province.',
     icon: Truck,
   },
 ];
@@ -34,74 +34,72 @@ const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.15 }
-  }
+    transition: { staggerChildren: 0.1 },
+  },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 280, damping: 20 } }
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.46, ease: [0.22, 1, 0.36, 1] } },
 };
 
 export default function ProcessSection() {
   return (
-    <section id="process" className="relative py-32 overflow-hidden bg-[var(--background)]">
-      <div className="absolute top-1/2 left-0 -ml-[20%] -mt-[20%] w-[60%] h-[60%] bg-[var(--accent-gold)]/5 rounded-full blur-[150px] pointer-events-none" />
+    <section id="process" className="relative overflow-hidden bg-[var(--background)] py-20 text-[var(--text-primary)] sm:py-24">
+      <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(var(--accent-gold-rgb),0.55),transparent)]" />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.7 }}
-          className="mx-auto max-w-3xl text-center mb-20"
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.6 }}
+          className="grid gap-6 lg:grid-cols-[0.82fr_1fr] lg:items-end"
         >
-          <span className="mb-4 inline-block text-xs font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)]">
-            The Process
-          </span>
-          <h2 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-5xl lg:text-6xl mb-6">
-            Ship Your Vehicle in <br className="hidden sm:block" />
-            <span className="text-[var(--accent-gold)]">4 Simple Steps</span>
-          </h2>
-          <p className="text-lg leading-relaxed text-[var(--text-secondary)] opacity-80 max-w-2xl mx-auto">
-            We&apos;ve engineered every step to be transparent, predictable, and stress-free. Our system adapts to your vehicle footprint automatically.
+          <div>
+            <p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Shipping process</p>
+            <h2 className="mt-4 max-w-2xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
+              A calm, visible workflow from pickup to keys-in-hand.
+            </h2>
+          </div>
+          <p className="max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg lg:justify-self-end">
+            Each stage is designed to reduce uncertainty: clear milestones, document guidance, route visibility, and human support from quote to final delivery.
           </p>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4"
+          viewport={{ once: true, margin: '-80px' }}
+          className="mt-10 grid gap-3 md:grid-cols-2 xl:grid-cols-4"
         >
           {steps.map((step, index) => {
             const Icon = step.icon;
 
             return (
-              <motion.article 
-                key={step.number} 
+              <motion.article
+                key={step.number}
                 variants={itemVariants}
-                whileHover={{ y: -8, scale: 1.02 }}
-                className="group relative flex flex-col rounded-[2.5rem] border border-[var(--border)] bg-white/80 backdrop-blur-xl p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.03)] transition-all overflow-hidden"
+                className="group relative rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-[rgba(var(--accent-gold-rgb),0.55)] hover:shadow-[0_18px_38px_rgba(var(--text-primary-rgb),0.10)]"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[rgba(var(--accent-gold-rgb),0.05)] z-0" />
-                
-                <div className="relative z-10 flex items-center justify-between mb-8">
-                  <span className="text-[3rem] font-extrabold leading-none text-[var(--accent-gold)] opacity-40 transition-all group-hover:opacity-100">
-                    {step.number}
-                  </span>
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm transition-transform group-hover:rotate-12 group-hover:scale-110">
-                    <Icon className="h-7 w-7 text-[var(--accent-gold)]" strokeWidth={1.5} />
+                {index < steps.length - 1 ? (
+                  <div className="absolute right-[-1.1rem] top-10 z-10 hidden text-[var(--border)] xl:block">
+                    <ArrowRight className="h-5 w-5" />
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between">
+                  <span className="text-4xl font-black text-[rgba(var(--text-primary-rgb),0.14)] transition-colors group-hover:text-[rgba(var(--accent-gold-rgb),0.55)]">{step.number}</span>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
+                    <Icon className="h-5 w-5" />
                   </div>
                 </div>
-
-                <h3 className="relative z-10 mt-auto text-2xl font-bold tracking-tight text-[var(--text-primary)] mb-4">
-                  {step.title}
-                </h3>
-                <p className="relative z-10 leading-relaxed text-[var(--text-secondary)] opacity-90">
-                  {step.description}
-                </p>
+                <h3 className="mt-8 text-xl font-black text-[var(--text-primary)]">{step.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{step.description}</p>
+                <div className="mt-6 flex items-center gap-2 text-sm font-bold text-[var(--accent-gold)]">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Managed by JACXI
+                </div>
               </motion.article>
             );
           })}
