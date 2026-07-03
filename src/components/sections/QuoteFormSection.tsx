@@ -21,8 +21,8 @@ const quoteSchema = z.object({
 
 type QuoteFormData = z.infer<typeof quoteSchema>;
 
-const fieldClassName = 'w-full rounded-lg border bg-[var(--panel)] px-4 py-3 text-base text-[var(--text-primary)] outline-none transition focus:border-[var(--accent-gold)] focus:ring-4 focus:ring-[rgba(var(--accent-gold-rgb),0.16)]';
-const labelClassName = 'mb-2 block text-sm font-black uppercase text-[var(--text-secondary)]';
+const fieldClassName = 'w-full rounded-xl border border-[rgba(var(--border-rgb),0.6)] bg-white/70 px-4 py-3.5 text-base text-[var(--text-primary)] shadow-inner outline-none transition-all duration-300 focus:border-[var(--accent-gold)] focus:ring-4 focus:ring-[rgba(var(--accent-gold-rgb),0.1)] focus:bg-white placeholder:text-gray-400';
+const labelClassName = 'mb-2.5 block text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]';
 
 const quoteHighlights = [
 	{ icon: PackageCheck, title: 'Origin pickup details', detail: 'Auction, dealer, home pickup, city, and branch.' },
@@ -397,7 +397,12 @@ export default function QuoteFormSection() {
 										disabled={isSubmitting}
 										aria-busy={isSubmitting}
 										aria-label={isSubmitting ? 'Submitting quote request' : 'Submit quote request'}
-										className="inline-flex w-full items-center justify-center rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-base font-black text-white transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
+										className="group relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl bg-[var(--accent-gold)] px-6 py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(var(--accent-gold-rgb),0.2)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_25px_rgba(var(--accent-gold-rgb),0.3)] disabled:opacity-60 disabled:hover:translate-y-0"
+									>
+										<span className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] skew-x-[-20deg] group-hover:animate-[shimmer_1.5s_ease-out_infinite]" />
+										<span className="relative z-10">{isSubmitting ? 'Sending Request...' : 'Send Quote Request'}</span>
+										{!isSubmitting && <ArrowRight className="relative z-10 ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+									</button>
 									>
 										{isSubmitting ? (
 											<span className="flex items-center justify-center">Submitting...</span>

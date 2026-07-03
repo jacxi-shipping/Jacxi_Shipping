@@ -57,19 +57,24 @@ export default function TestimonialsSection() {
             transition={{ duration: 0.6 }}
             className="lg:sticky lg:top-28"
           >
-            <p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Client proof</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
-              Trusted by customers shipping high-value vehicles.
+            <p className="text-sm font-extrabold uppercase tracking-widest text-[var(--accent-gold)]">Client proof</p>
+            <h2 className="mt-4 max-w-xl text-[2rem] font-extrabold leading-[1.1] tracking-tight text-[var(--text-primary)] sm:text-[3rem] lg:text-[3.5rem]">
+              Trusted by customers shipping <br className="hidden lg:block"/>
+              <span className="text-[var(--text-secondary)]">high-value vehicles.</span>
             </h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-              International vehicle shipping requires trust. Customers choose JACXI for clear communication, careful handling, and route expertise.
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl">
+              International vehicle shipping requires trust. Customers choose <span className="font-semibold text-[var(--text-primary)]">JACXI</span> for clear communication, careful handling, and route expertise.
             </p>
 
-            <div className="mt-7 grid gap-2">
+            <div className="mt-8 grid gap-4">
               {proof.map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3">
-                  <CheckCircle2 className="h-4 w-4 text-[var(--accent-gold)]" />
-                  <span className="text-sm font-bold text-[var(--text-primary)]">{item}</span>
+                <div key={item} className="group relative overflow-hidden rounded-xl border border-[rgba(var(--border-rgb),0.5)] bg-white/50 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:border-[var(--accent-gold)] hover:shadow-md">
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(var(--accent-gold-rgb),0.1)] group-hover:bg-[var(--accent-gold)] transition-colors duration-300">
+                      <CheckCircle2 className="h-4.5 w-4.5 text-[var(--accent-gold)] group-hover:text-white transition-colors duration-300" />
+                    </div>
+                    <span className="text-sm font-bold block text-[var(--text-primary)]">{item}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -80,31 +85,37 @@ export default function TestimonialsSection() {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, margin: '-80px' }}
-            className="grid gap-3 md:grid-cols-2"
+            className="grid gap-6 md:grid-cols-2 mt-8 lg:mt-0"
           >
             {testimonials.map((item) => (
               <motion.article
                 key={item.name}
                 variants={itemVariants}
-                className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-[rgba(var(--accent-gold-rgb),0.55)] hover:shadow-[0_18px_42px_rgba(var(--text-primary-rgb),0.10)]"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[rgba(var(--border-rgb),0.6)] bg-white p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1.5 hover:border-[var(--accent-gold)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <Quote className="h-7 w-7 text-[var(--accent-gold)]" />
-                  <div className="flex items-center gap-1 text-[var(--accent-gold)]">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Star key={index} className="h-3.5 w-3.5 fill-current" />
-                    ))}
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--accent-gold)] to-yellow-200 transform origin-left scale-x-0 transition-transform duration-500 ease-out group-hover:scale-x-100" />
+                
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between gap-4 mb-6">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[rgba(var(--accent-gold-rgb),0.08)] text-[var(--accent-gold)] shadow-inner">
+                      <Quote className="h-5 w-5" />
+                    </div>
+                    <div className="flex items-center gap-1 text-[var(--accent-gold)] bg-[rgba(var(--accent-gold-rgb),0.05)] px-2 py-1 rounded-full border border-[rgba(var(--accent-gold-rgb),0.2)]">
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Star key={index} className="h-3 w-3 fill-current" />
+                      ))}
+                    </div>
                   </div>
+                  <p className="mt-4 text-[1.05rem] leading-relaxed text-[var(--text-secondary)] tracking-wide mb-8 italic outline-none">&ldquo;{item.quote}&rdquo;</p>
                 </div>
-                <p className="mt-6 text-base leading-7 text-[var(--text-primary)]">&ldquo;{item.quote}&rdquo;</p>
 
-                <div className="mt-8 flex items-center gap-3 border-t border-[var(--border)] pt-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-sm font-black text-[var(--accent-gold)]">
+                <div className="relative z-10 mt-auto flex items-center gap-4 border-t border-[rgba(var(--border-rgb),0.5)] pt-6">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-gold)] text-lg font-extrabold text-white shadow-md">
                     {item.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-black text-[var(--text-primary)]">{item.name}</p>
-                    <p className="text-sm text-[var(--text-secondary)]">{item.role}</p>
+                    <p className="font-extrabold tracking-tight text-[var(--text-primary)] leading-tight">{item.name}</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-80 mt-1">{item.role}</p>
                   </div>
                 </div>
               </motion.article>

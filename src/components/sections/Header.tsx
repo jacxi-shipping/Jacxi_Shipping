@@ -42,23 +42,26 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
           }`}
         >
           <Link href="/" className="flex min-w-0 items-center" aria-label="Jacxi Shipping home">
-            <span className="flex items-center gap-3">
-              <SiteMark size={40} className="!h-10 !w-10" priority />
+            <span className="flex items-center gap-3 group">
+              <span className="transition-transform duration-300 group-hover:scale-105">
+                <SiteMark size={40} className="!h-10 !w-10" priority />
+              </span>
               <span className="hidden leading-none text-[var(--text-primary)] sm:block">
-                <span className="block text-sm font-black">JACXI</span>
-                <span className="block text-[11px] font-bold uppercase text-[var(--accent-gold)]">Shipping</span>
+                <span className="block text-[1.05rem] font-extrabold tracking-tight">JACXI</span>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)] mt-[2px]">Shipping</span>
               </span>
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden items-center gap-8 lg:flex">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className="rounded-md px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                className="relative px-1 py-2 text-[13px] font-semibold tracking-wide text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] group"
               >
                 {link.name}
+                <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-[var(--accent-gold)] transform scale-x-0 transition-transform origin-left group-hover:scale-x-100" />
               </Link>
             ))}
           </nav>

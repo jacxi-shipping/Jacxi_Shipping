@@ -73,23 +73,25 @@ export default function RoutesAnimatedSection() {
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.62 }}
           >
-            <p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Global route</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
-              Built for the real corridor into Afghanistan.
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent-gold)]">Global route</p>
+            <h2 className="mt-4 max-w-xl text-[2rem] font-extrabold leading-[1.1] tracking-tight text-[var(--text-primary)] sm:text-[3rem] lg:text-[3.5rem]">
+              Built for the real corridor into <br/>
+              <span className="text-[var(--text-secondary)]">Afghanistan.</span>
             </h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-              Your vehicle can move from anywhere in the USA or Canada to Afghanistan through one of two planned routes: the Mersin route or the UAE route.
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl">
+              Your vehicle can move from anywhere in the <span className="font-semibold text-[var(--text-primary)]">USA or Canada</span> to <span className="font-semibold text-[var(--text-primary)]">Afghanistan</span> through one of two planned routes: the <span className="font-semibold text-[var(--text-primary)]">Mersin route</span> or the <span className="font-semibold text-[var(--text-primary)]">UAE route</span>.
             </p>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="mt-10 grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
               {[
                 { label: 'Origin coverage', value: 'All USA and Canada pickup lanes' },
                 { label: 'Route options', value: 'Mersin route or UAE route' },
                 { label: 'Final mile', value: 'All Afghan provinces' },
               ].map((item) => (
-                <div key={item.label} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm">
-                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)]">{item.label}</p>
-                  <p className="mt-1 text-sm font-black text-[var(--text-primary)]">{item.value}</p>
+                <div key={item.label} className="group relative overflow-hidden rounded-xl border border-[rgba(var(--border-rgb),0.5)] bg-white/50 p-5 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:shadow-md">
+                  <div className="absolute left-0 top-0 h-full w-1 bg-[var(--accent-gold)] scale-y-0 origin-bottom transition-transform duration-300 group-hover:scale-y-100" />
+                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">{item.label}</p>
+                  <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">{item.value}</p>
                 </div>
               ))}
             </div>
@@ -100,7 +102,7 @@ export default function RoutesAnimatedSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.72, delay: 0.1 }}
-            className="relative overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-[0_30px_90px_rgba(var(--text-primary-rgb),0.10)]"
+            className="relative overflow-hidden rounded-3xl border border-[rgba(var(--border-rgb),0.6)] bg-white shadow-[0_40px_100px_rgba(0,0,0,0.06)] lg:ml-auto w-full max-w-[800px]"
           >
             <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-contain bg-center bg-no-repeat opacity-[0.12]" />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--panel-rgb),0.42),rgba(var(--panel-rgb),0.88))]" />

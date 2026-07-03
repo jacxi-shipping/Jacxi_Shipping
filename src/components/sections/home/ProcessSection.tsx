@@ -75,24 +75,25 @@ export default function ProcessSection() {
           className="grid gap-6 lg:grid-cols-[0.82fr_1fr] lg:items-end"
         >
           <div>
-            <p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Shipping process</p>
-            <h2 className="mt-4 max-w-2xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
-              A route-selected timeline from pickup to Afghan customs.
+            <p className="text-sm font-extrabold uppercase tracking-widest text-[var(--accent-gold)]">Shipping process</p>
+            <h2 className="mt-4 max-w-2xl text-[2rem] font-extrabold leading-[1.1] tracking-tight text-[var(--text-primary)] sm:text-[3rem] lg:text-[3.5rem]">
+              A route-selected timeline from pickup to <br className="hidden lg:block"/>
+              <span className="text-[var(--text-secondary)]">Afghan customs.</span>
             </h2>
           </div>
-          <p className="max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg lg:justify-self-end">
-            Every milestone maps to the real workflow: pickup anywhere in the USA or Canada, export loading, one selected route through Mersin or UAE, then Afghanistan customs and delivery.
+          <p className="max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl lg:justify-self-end">
+            Every milestone maps to the real workflow: pickup anywhere in the <span className="font-semibold text-[var(--text-primary)]">USA or Canada</span>, export loading, one selected route through <span className="font-semibold text-[var(--text-primary)]">Mersin</span> or <span className="font-semibold text-[var(--text-primary)]">UAE</span>, then <span className="font-semibold text-[var(--text-primary)]">Afghanistan</span> customs and delivery.
           </p>
         </motion.div>
 
-        <div className="mt-8 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 shadow-sm">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 rounded-2xl border border-[rgba(var(--border-rgb),0.5)] bg-white/50 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:shadow-md">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {corridor.map((stop, index) => (
-              <div key={stop} className="relative rounded-md bg-[var(--background)] px-3 py-3 text-center">
+              <div key={stop} className="relative rounded-xl border border-[rgba(var(--border-rgb),0.6)] bg-white px-4 py-4 text-center shadow-sm">
                 {index < corridor.length - 1 ? (
-                  <ArrowRight className="absolute right-[-0.75rem] top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 text-[var(--accent-gold)] lg:block" />
+                  <ArrowRight className="absolute right-[-1.15rem] top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 text-[var(--accent-gold)] opacity-70 lg:block" />
                 ) : null}
-                <p className="text-xs font-black uppercase text-[var(--text-primary)]">{stop}</p>
+                <p className="text-sm font-extrabold uppercase tracking-wide text-[var(--text-primary)]">{stop}</p>
               </div>
             ))}
           </div>
@@ -103,7 +104,7 @@ export default function ProcessSection() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: '-80px' }}
-          className="mt-8 grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+          className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
           {steps.map((step, index) => {
             const Icon = step.icon;
@@ -112,28 +113,37 @@ export default function ProcessSection() {
               <motion.article
                 key={step.number}
                 variants={itemVariants}
-                className="group relative rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-[rgba(var(--accent-gold-rgb),0.55)] hover:shadow-[0_18px_38px_rgba(var(--text-primary-rgb),0.10)]"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[rgba(var(--border-rgb),0.6)] bg-white p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1.5 hover:border-[var(--accent-gold)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
               >
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--accent-gold)] to-yellow-200 transform origin-left scale-x-0 transition-transform duration-500 ease-out group-hover:scale-x-100" />
+                
                 {index < steps.length - 1 && (index + 1) % 3 !== 0 ? (
-                  <div className="absolute right-[-1.1rem] top-10 z-10 hidden text-[var(--border)] xl:block">
-                    <ArrowRight className="h-5 w-5" />
+                  <div className="absolute right-[-1.5rem] top-1/2 z-10 hidden text-[var(--border)] xl:block">
+                    <ArrowRight className="h-6 w-6" />
                   </div>
                 ) : null}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-4xl font-black text-[rgba(var(--text-primary-rgb),0.14)] transition-colors group-hover:text-[rgba(var(--accent-gold-rgb),0.55)]">{step.number}</span>
-                    <p className="mt-1 text-xs font-black uppercase text-[var(--accent-gold)]">{step.location}</p>
+                
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-8">
+                    <div>
+                      <span className="text-[3.5rem] font-extrabold text-[rgba(var(--text-primary-rgb),0.06)] leading-none transition-colors duration-300 group-hover:text-[rgba(var(--accent-gold-rgb),0.4)]">{step.number}</span>
+                      <p className="mt-2 text-[10px] font-extrabold uppercase tracking-widest text-[var(--accent-gold)]">{step.location}</p>
+                    </div>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(var(--accent-gold-rgb),0.08)] group-hover:bg-[var(--accent-gold)] transition-colors duration-300 shadow-inner">
+                      <Icon className="h-6 w-6 text-[var(--accent-gold)] group-hover:text-white transition-colors duration-300" />
+                    </div>
                   </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
-                    <Icon className="h-5 w-5" />
-                  </div>
+                  <h3 className="text-xl font-extrabold leading-tight text-[var(--text-primary)] mb-3">{step.title}</h3>
+                  <p className="text-sm leading-relaxed text-[var(--text-secondary)] mb-6">{step.description}</p>
                 </div>
-                <h3 className="mt-6 text-xl font-black text-[var(--text-primary)]">{step.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{step.description}</p>
-                <div className="mt-6 flex items-center gap-2 rounded-md bg-[rgba(var(--accent-gold-rgb),0.08)] px-3 py-2 text-sm font-bold text-[var(--text-primary)]">
-                  <CheckCircle2 className="h-4 w-4" />
+                
+                <div className="relative z-10 mt-auto flex items-center gap-2.5 rounded-xl bg-[rgba(var(--accent-gold-rgb),0.06)] px-4 py-3 text-sm font-bold text-[var(--accent-gold)] shadow-sm border border-[rgba(var(--accent-gold-rgb),0.2)]">
+                  <CheckCircle2 className="h-4.5 w-4.5" />
                   {step.checkpoint}
                 </div>
+                
+                {/* Elegant decorative background blur */}
+                <div className="absolute -bottom-12 -right-12 h-32 w-32 rounded-full bg-[rgba(var(--accent-gold-rgb),0.04)] blur-[30px] transition-all duration-500 group-hover:bg-[rgba(var(--accent-gold-rgb),0.08)] group-hover:scale-150" />
               </motion.article>
             );
           })}
