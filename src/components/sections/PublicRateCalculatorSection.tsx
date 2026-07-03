@@ -54,7 +54,7 @@ export default function PublicRateCalculatorSection() {
           </p>
         </div>
 
-        <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr] items-start">
+        <div className="grid gap-12 lg:grid-cols-[2fr_1fr] items-start">
           
           <div className="space-y-12">
             
@@ -125,7 +125,7 @@ export default function PublicRateCalculatorSection() {
           </div>
 
           <motion.div 
-            className="sticky top-32 rounded-[3rem] border border-black/5 bg-[#F9FAFB] p-10 shadow-2xl relative overflow-hidden"
+            className="sticky top-32 rounded-[3rem] border border-black/5 bg-[#F9FAFB] p-8 shadow-2xl relative overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[#D4AF37]/5 to-transparent pointer-events-none" />
             
