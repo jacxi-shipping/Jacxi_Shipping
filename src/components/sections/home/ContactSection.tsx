@@ -126,7 +126,7 @@ export default function ContactSection({ isAuthenticated = false }: ContactSecti
               ))}
               <Link
                 href={isAuthenticated ? '/dashboard' : '/auth/signin'}
-                className="inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent-gold)] px-4 text-xs font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105"
+                className="inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent-gold)] px-4 text-xs font-black text-white transition hover:-translate-y-0.5 hover:brightness-105"
               >
                 {isAuthenticated ? 'Open dashboard' : 'Customer portal'}
               </Link>
@@ -182,7 +182,7 @@ export default function ContactSection({ isAuthenticated = false }: ContactSecti
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-base font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-base font-black text-white transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
                   >
                     {submitting ? 'Sending...' : 'Send message'}
                     {!submitting ? <ArrowRight className="h-5 w-5" /> : null}

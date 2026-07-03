@@ -66,7 +66,7 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
           <div className="flex items-center gap-2">
             <Link
               href={ctaHref}
-              className="hidden h-11 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-4 text-sm font-bold text-[var(--text-primary)] transition-all hover:-translate-y-0.5 hover:brightness-105 md:inline-flex"
+              className="hidden h-11 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-4 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:brightness-105 md:inline-flex"
             >
               {ctaLabel}
               <ArrowRight className="h-4 w-4" />
@@ -123,7 +123,7 @@ export default function Header({ isAuthenticated = false }: HeaderProps) {
             <Link
               href={ctaHref}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="mt-auto inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 text-base font-bold text-[var(--text-primary)]"
+              className="mt-auto inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 text-base font-bold text-white"
             >
               {ctaLabel}
               <ArrowRight className="h-4 w-4" />

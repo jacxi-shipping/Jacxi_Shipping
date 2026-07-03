@@ -53,7 +53,7 @@ export default function MobileAppPromoSection() {
 
           <Link
             href="/auth/signin"
-            className="mt-8 inline-flex h-12 items-center gap-2 rounded-lg bg-[var(--accent-gold)] px-5 text-sm font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105"
+            className="mt-8 inline-flex h-12 items-center gap-2 rounded-lg bg-[var(--accent-gold)] px-5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:brightness-105"
           >
             Access portal
             <ChevronRight className="h-4 w-4" />

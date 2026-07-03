@@ -352,7 +352,7 @@ export default function QuoteFormSection() {
 										disabled={isSubmitting}
 										aria-busy={isSubmitting}
 										aria-label={isSubmitting ? 'Submitting quote request' : 'Submit quote request'}
-										className="inline-flex w-full items-center justify-center rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-base font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
+										className="inline-flex w-full items-center justify-center rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-base font-black text-white transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
 									>
 										{isSubmitting ? (
 											<span className="flex items-center justify-center">Submitting...</span>

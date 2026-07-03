@@ -275,7 +275,7 @@ export default function PublicRateCalculatorSection() {
                 </p>
                 <a
                   href={quoteHref}
-                  className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-gold)] px-5 text-sm font-black text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:brightness-105"
+                  className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-gold)] px-5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:brightness-105"
                 >
                   Get exact quote
                 </a>

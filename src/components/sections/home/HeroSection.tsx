@@ -80,7 +80,7 @@ export default function HeroSection() {
           <motion.div variants={itemVariants} className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/#quote"
-              className="group inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-sm font-black text-[var(--text-primary)] shadow-[0_18px_42px_rgba(var(--accent-gold-rgb),0.20)] transition-all hover:-translate-y-0.5 hover:brightness-105"
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 py-4 text-sm font-black text-white shadow-[0_18px_42px_rgba(var(--accent-gold-rgb),0.20)] transition-all hover:-translate-y-0.5 hover:brightness-105"
             >
               Get a free quote
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
