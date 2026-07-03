@@ -6,7 +6,6 @@ import {
   ArrowRight,
   CirclePlay,
   FileCheck,
-  MapPin,
   ShieldCheck,
   Ship,
   Truck,
@@ -18,14 +17,6 @@ const stats = [
   { label: 'Years operating', value: '14+' },
   { label: 'Afghan provinces', value: '34' },
   { label: 'Customer rating', value: '4.9/5' },
-];
-
-const routeStops = [
-  { code: 'USA', label: 'United States', detail: 'Auction, dealer, or home pickup', x: '12%', y: '20%' },
-  { code: 'CAN', label: 'Canada', detail: 'Dealer and private pickup lanes', x: '31%', y: '13%' },
-  { code: 'TR', label: 'Mersin route', detail: 'Route option through Turkey', x: '55%', y: '18%' },
-  { code: 'UAE', label: 'UAE route', detail: 'Route option through UAE', x: '77%', y: '23%' },
-  { code: 'AFG', label: 'Afghanistan', detail: 'Customs and final delivery', x: '94%', y: '31%' },
 ];
 
 const corridorCards = [
@@ -179,41 +170,11 @@ export default function HeroSection() {
             </svg>
           </div>
 
-          {routeStops.map((stop, index) => (
-            <motion.div
-              key={stop.label}
-              initial={{ opacity: 0, y: 12, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.42, delay: 0.42 + index * 0.08 }}
-              className="absolute z-30 hidden -translate-x-1/2 lg:block"
-              style={{ left: stop.x, top: stop.y }}
-            >
-              <div className="flex flex-col items-center">
-                <div className="flex h-14 min-w-14 items-center justify-center rounded-full border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.94)] px-3 text-sm font-black text-[var(--text-primary)] shadow-[0_14px_34px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl">
-                  {stop.code}
-                </div>
-                <MapPin className="mt-1 h-4 w-4 fill-[var(--text-primary)] text-[var(--text-primary)]" />
-                <span className="mt-1 max-w-32 rounded-md bg-[rgba(var(--panel-rgb),0.90)] px-2 py-1 text-center text-xs font-black text-[var(--text-primary)] shadow-sm backdrop-blur-xl">
-                  {stop.label}
-                  <span className="mt-0.5 block text-[10px] font-semibold leading-3 text-[var(--text-secondary)]">{stop.detail}</span>
-                </span>
-              </div>
-            </motion.div>
-          ))}
-
           <div className="absolute inset-x-[-1.25rem] bottom-[-1rem] top-10 z-10 overflow-visible lg:left-[2rem] lg:right-[-3rem] lg:top-16">
             <div className="absolute inset-x-[10%] bottom-[8%] h-24 rounded-full bg-[rgba(var(--text-primary-rgb),0.10)] blur-2xl" />
             <div className="absolute right-[2%] top-[5%] h-[78%] w-[78%] rounded-full bg-[radial-gradient(circle,rgba(var(--accent-gold-rgb),0.16),transparent_62%)]" />
             <div className="absolute left-[8%] top-[18%] h-[62%] w-[74%] rounded-full bg-[radial-gradient(circle,rgba(var(--panel-rgb),0.92),rgba(var(--panel-rgb),0)_66%)]" />
             <ShippingCapsuleScene className="absolute inset-0" />
-          </div>
-
-          <div className="absolute bottom-5 left-4 right-4 z-30 grid grid-cols-5 gap-1 lg:hidden">
-            {routeStops.map((stop) => (
-              <div key={stop.label} className="rounded-md border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] px-1.5 py-2 text-center text-[10px] font-black text-[var(--text-primary)] backdrop-blur-xl">
-                {stop.code}
-              </div>
-            ))}
           </div>
 
           <div className="absolute bottom-0 left-0 z-30 hidden rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] p-4 shadow-[0_16px_42px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl lg:block">
