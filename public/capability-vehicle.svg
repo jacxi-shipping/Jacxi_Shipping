@@ -1,50 +1,94 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%">
   <defs>
-    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#D4AF37" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold-line" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.8"/>
-      <stop offset="100%" stop-color="#F3E5AB" stop-opacity="0.2"/>
+      <stop offset="50%" stop-color="#FFDF73" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.8"/>
     </linearGradient>
-    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#161616"/>
-      <stop offset="100%" stop-color="#0a0a0a"/>
+    <linearGradient id="cyber-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#050505"/>
+      <stop offset="100%" stop-color="#111111"/>
     </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#D4AF37" stroke-width="0.5" stroke-opacity="0.1"/>
+    </pattern>
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <rect width="100%" height="100%" fill="url(#bg-grad)"/>
-  
-  <g opacity="0.05" stroke="#D4AF37" stroke-width="1">
-    <line x1="0" y1="100" x2="800" y2="100" />
-    <line x1="0" y1="200" x2="800" y2="200" />
-    <line x1="0" y1="300" x2="800" y2="300" />
-    <line x1="0" y1="400" x2="800" y2="400" />
-    <line x1="0" y1="500" x2="800" y2="500" />
-    <line x1="100" y1="0" x2="100" y2="600" />
-    <line x1="200" y1="0" x2="200" y2="600" />
-    <line x1="300" y1="0" x2="300" y2="600" />
-    <line x1="400" y1="0" x2="400" y2="600" />
-    <line x1="500" y1="0" x2="500" y2="600" />
-    <line x1="600" y1="0" x2="600" y2="600" />
-    <line x1="700" y1="0" x2="700" y2="600" />
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="url(#cyber-bg)"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+
+  <!-- Glowing Center -->
+  <circle cx="600" cy="400" r="300" fill="url(#glow)"/>
+
+  <!-- Rotating Abstract Rings -->
+  <g transform="translate(600, 400)">
+    <!-- Outer Ring -->
+    <circle cx="0" cy="0" r="280" fill="none" stroke="#D4AF37" stroke-width="1" stroke-dasharray="10 30" opacity="0.3">
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="40s" repeatCount="indefinite"/>
+    </circle>
+    <!-- Middle Ring -->
+    <circle cx="0" cy="0" r="240" fill="none" stroke="url(#gold-line)" stroke-width="2" stroke-dasharray="100 20 20 20" opacity="0.5">
+      <animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="25s" repeatCount="indefinite"/>
+    </circle>
+    <!-- Inner Ring -->
+    <circle cx="0" cy="0" r="180" fill="none" stroke="#D4AF37" stroke-width="3" stroke-dasharray="40 10" opacity="0.7">
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="15s" repeatCount="indefinite"/>
+    </circle>
   </g>
 
-  <!-- Abstract curved roads/paths -->
-  <path d="M-100,500 C200,500 300,100 900,200" fill="none" stroke="url(#gold-grad)" stroke-width="4" opacity="0.5"/>
-  <path d="M-100,550 C250,550 350,150 900,250" fill="none" stroke="url(#gold-grad)" stroke-width="2" opacity="0.3"/>
-  <path d="M-100,600 C300,600 400,200 900,300" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.1"/>
-  
-  <!-- Glowing nodes -->
-  <circle cx="250" cy="300" r="6" fill="#D4AF37" opacity="0.8">
-    <animate attributeName="r" values="6;10;6" dur="3s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="550" cy="180" r="4" fill="#D4AF37" opacity="0.6"/>
-  <circle cx="350" cy="380" r="5" fill="#D4AF37" opacity="0.4"/>
-  
-  <!-- Abstract car silhouette / transport module -->
-  <path d="M350,300 L380,280 L450,280 L480,300 L500,320 L330,320 Z" fill="#161616" stroke="url(#gold-grad)" stroke-width="2" opacity="0.9"/>
-  <circle cx="380" cy="320" r="8" fill="#161616" stroke="#D4AF37" stroke-width="2"/>
-  <circle cx="450" cy="320" r="8" fill="#161616" stroke="#D4AF37" stroke-width="2"/>
-  
-  <!-- Speed lines -->
-  <line x1="300" y1="290" x2="150" y2="290" stroke="#D4AF37" stroke-width="2" opacity="0.3" stroke-dasharray="10 5"/>
-  <line x1="320" y1="310" x2="100" y2="310" stroke="#D4AF37" stroke-width="2" opacity="0.2" stroke-dasharray="20 10"/>
-  <line x1="520" y1="300" x2="600" y2="300" stroke="#D4AF37" stroke-width="1" opacity="0.2" stroke-dasharray="5 5"/>
+  <!-- 3D Abstract Vehicle Shape -->
+  <g transform="translate(600, 400) scale(1.2)" filter="url(#neon-glow)">
+    <path d="M -150,20 L -120,-30 L -50,-60 L 50,-60 L 120,-30 L 150,20 L 130,50 L 100,50 L 80,20 L -80,20 L -100,50 L -130,50 Z" 
+          fill="none" stroke="#D4AF37" stroke-width="4" stroke-linejoin="round"/>
+    
+    <!-- Wheels Outline -->
+    <circle cx="-100" cy="50" r="20" fill="none" stroke="#D4AF37" stroke-width="3"/>
+    <circle cx="100" cy="50" r="20" fill="none" stroke="#D4AF37" stroke-width="3"/>
+    
+    <!-- Inner Details (Doors/Windows) -->
+    <path d="M -110,-20 L -50,-50 L 0,-50 L 0,-10 L -120,-10 Z" fill="none" stroke="#D4AF37" stroke-width="1.5" opacity="0.6"/>
+    <path d="M 110,-20 L 50,-50 L 0,-50 L 0,-10 L 120,-10 Z" fill="none" stroke="#D4AF37" stroke-width="1.5" opacity="0.6"/>
+    
+    <!-- Dynamic Lines behind Vehicle -->
+    <line x1="-250" y1="20" x2="-160" y2="20" stroke="#D4AF37" stroke-width="2" opacity="0.5">
+       <animate attributeName="x2" values="-160;-200;-160" dur="1.5s" repeatCount="indefinite"/>
+    </line>
+    <line x1="-300" y1="0" x2="-140" y2="0" stroke="#D4AF37" stroke-width="1" opacity="0.3">
+       <animate attributeName="x2" values="-140;-250;-140" dur="2s" repeatCount="indefinite"/>
+    </line>
+  </g>
+
+  <!-- High-Tech Nodes and Connections -->
+  <g opacity="0.6">
+    <!-- Top Left -->
+    <circle cx="250" cy="200" r="6" fill="#D4AF37"/>
+    <circle cx="350" cy="150" r="4" fill="#D4AF37"/>
+    <line x1="250" y1="200" x2="350" y2="150" stroke="#D4AF37" stroke-width="1"/>
+    <line x1="350" y1="150" x2="480" y2="280" stroke="#D4AF37" stroke-width="1" stroke-dasharray="5 5"/>
+
+    <!-- Bottom Right -->
+    <circle cx="900" cy="600" r="8" fill="#D4AF37"/>
+    <circle cx="950" cy="500" r="4" fill="#D4AF37"/>
+    <line x1="900" y1="600" x2="950" y2="500" stroke="#D4AF37" stroke-width="1"/>
+    <line x1="950" y1="500" x2="780" y2="520" stroke="#D4AF37" stroke-width="1" stroke-dasharray="5 5"/>
+  </g>
+
+  <!-- Overlay UI elements -->
+  <g transform="translate(100, 100)" font-family="monospace" font-size="12" fill="#D4AF37" opacity="0.5">
+    <text x="0" y="0">SYS.TRANSPORT.NODE</text>
+    <text x="0" y="20">STATUS: OPTIMAL</text>
+    <text x="0" y="40">ROUTING: MAPPED</text>
+  </g>
 </svg>
