@@ -1,84 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
   <defs>
-    <radialGradient id="cyber-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.15"/>
-      <stop offset="100%" stop-color="#111111" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="scan-line" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0"/>
-      <stop offset="50%" stop-color="#D4AF37" stop-opacity="0.8"/>
-      <stop offset="100%" stop-color="#D4AF37" stop-opacity="0"/>
+    <linearGradient id="customs-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="50%" stop-color="#F9FAFB" />
+      <stop offset="100%" stop-color="#E5E7EB" />
     </linearGradient>
-    <pattern id="hex-grid" width="40" height="69.282" patternUnits="userSpaceOnUse" patternTransform="scale(0.5)">
-      <path d="M 40 17.321 L 20 5.774 L 0 17.321 L 0 40.415 L 20 51.962 L 40 40.415 Z" fill="none" stroke="#D4AF37" stroke-width="0.5" stroke-opacity="0.2"/>
-      <path d="M 40 63.507 L 20 51.962 L 0 63.507 L 0 86.601 L 20 98.148 L 40 86.601 Z" fill="none" stroke="#D4AF37" stroke-width="0.5" stroke-opacity="0.2" transform="translate(20, 34.641)"/>
-    </pattern>
-    <filter id="glow-effect" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="5" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    <filter id="soft-shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="20" stdDeviation="25" flood-color="#000" flood-opacity="0.05" />
+    </filter>
+    <filter id="blur-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
-  <rect width="100%" height="100%" fill="#0A0A0A"/>
-  <rect width="100%" height="100%" fill="url(#hex-grid)"/>
-  
-  <circle cx="600" cy="400" r="350" fill="url(#cyber-glow)"/>
+  <rect width="100%" height="100%" fill="url(#customs-bg)" />
 
-  <!-- Rotating DNA / Data Helix Abstraction -->
-  <g transform="translate(600, 400)">
-    <g opacity="0.4">
-      <path d="M -200,-150 Q 0,0 200,-150 T 200,150 Q 0,0 -200,150 T -200,-150" fill="none" stroke="#D4AF37" stroke-width="1.5" stroke-dasharray="10 5">
-         <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="20s" repeatCount="indefinite"/>
-      </path>
-      <path d="M 0,-250 Q -150,0 0,250 T 0,-250" fill="none" stroke="#D4AF37" stroke-width="1">
-         <animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="30s" repeatCount="indefinite"/>
-      </path>
-    </g>
-  </g>
-
-  <!-- Central Security Shield 3D Abstraction -->
-  <g transform="translate(600, 400)" filter="url(#glow-effect)">
-    <!-- Outer Shield Frame -->
-    <path d="M 0,-180 L 150,-120 L 150,50 Q 150,150 0,220 Q -150,150 -150,50 L -150,-120 Z" fill="none" stroke="#D4AF37" stroke-width="3" opacity="0.6"/>
-    <path d="M 0,-160 L 130,-100 L 130,40 Q 130,130 0,190 Q -130,130 -130,40 L -130,-100 Z" fill="none" stroke="#D4AF37" stroke-width="1.5" opacity="0.3"/>
-    
-    <!-- Central Checkmark / Authorization Symbol -->
-    <path d="M -50,10 L -10,50 L 70,-40" fill="none" stroke="#D4AF37" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- Data Node Ring Processing -->
-    <circle cx="0" cy="0" r="100" fill="none" stroke="#D4AF37" stroke-width="1" stroke-dasharray="2 8" opacity="0.8">
-      <animateTransform attributeName="transform" type="rotate" from="0" to="-360" dur="10s" repeatCount="indefinite"/>
+  <!-- Abstract Biometric/Data Rings -->
+  <g transform="translate(800, 500)" stroke="#111827" fill="none">
+    <circle cx="0" cy="0" r="280" stroke-width="1" stroke-dasharray="2 10" opacity="0.1">
+       <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="40s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="0" cy="0" r="320" stroke-width="2" stroke-dasharray="50 150 20 80" opacity="0.15">
+       <animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="25s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="0" cy="0" r="360" stroke-width="3" stroke-dasharray="200 400" stroke="#D4AF37" opacity="0.3">
+       <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="15s" repeatCount="indefinite" />
     </circle>
   </g>
 
-  <!-- Scanning Laser -->
+  <!-- Massive glowing security shield background -->
+  <g transform="translate(800, 500)" fill="#FFFFFF" filter="url(#soft-shadow)">
+    <path d="M 0,-400 L 350,-200 L 350,150 C 350,300 0,450 0,450 C 0,450 -350,300 -350,150 L -350,-200 Z" stroke="#E5E7EB" stroke-width="5" />
+    <path d="M 0,-350 L 300,-170 L 300,130 C 300,260 0,390 0,390 C 0,390 -300,260 -300,130 L -300,-170 Z" fill="#F9FAFB" stroke="#D4AF37" stroke-width="3" />
+  </g>
+
+  <!-- Scanning laser array sweeping across -->
   <g>
-    <line x1="200" y1="0" x2="1000" y2="0" stroke="url(#scan-line)" stroke-width="4" filter="url(#glow-effect)">
-      <animate attributeName="y1" values="100;700;100" dur="5s" repeatCount="indefinite" keyTimes="0;0.5;1" calcMode="linear"/>
-      <animate attributeName="y2" values="100;700;100" dur="5s" repeatCount="indefinite" keyTimes="0;0.5;1" calcMode="linear"/>
+    <line x1="0" y1="200" x2="1600" y2="200" stroke="#D4AF37" stroke-width="4" opacity="0.6" filter="url(#blur-shadow)">
+      <animate attributeName="y1" values="-100; 1100; -100" dur="6s" repeatCount="indefinite" ease="linear"/>
+      <animate attributeName="y2" values="-100; 1100; -100" dur="6s" repeatCount="indefinite" ease="linear"/>
     </line>
-    <!-- Scanning data particles -->
-    <circle cx="600" cy="0" r="3" fill="#D4AF37" filter="url(#glow-effect)">
-      <animate attributeName="cy" values="100;700;100" dur="5s" repeatCount="indefinite"/>
-    </circle>
+    <rect x="0" y="200" width="1600" height="150" fill="#D4AF37" opacity="0.05">
+      <animate attributeName="y" values="-100; 1100; -100" dur="6s" repeatCount="indefinite" ease="linear"/>
+    </rect>
   </g>
 
-  <!-- Side UI Panels -->
-  <g font-family="monospace" font-size="10" fill="#D4AF37" opacity="0.6">
-    <g transform="translate(80, 150)">
-      <rect x="0" y="0" width="150" height="80" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.3"/>
-      <text x="10" y="20">AUTH.MODULE_A</text>
-      <text x="10" y="40">CLEARANCE: PENDING</text>
-      <line x1="10" y1="50" x2="140" y2="50" stroke="#D4AF37" stroke-width="0.5"/>
-      <rect x="10" y="60" width="80" height="5" fill="#D4AF37">
-         <animate attributeName="width" values="10;130;80" dur="3s" repeatCount="indefinite"/>
-      </rect>
-    </g>
-    <g transform="translate(970, 550)">
-      <rect x="0" y="0" width="150" height="80" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.3"/>
-      <text x="10" y="20">BORDER.CTRL_SYS</text>
-      <text x="10" y="40">INTEGRITY: 100%</text>
-      <text x="10" y="60">SEC_LEVEL: MAX</text>
-    </g>
+  <!-- Checkmark / Verification Graphic -->
+  <g transform="translate(800, 500)">
+    <path d="M -100,20 L -30,80 L 120,-80" fill="none" stroke="#D4AF37" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" filter="url(#soft-shadow)" />
+    <path d="M -100,20 L -30,80 L 120,-80" fill="none" stroke="#B8860B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <g transform="translate(100, 150)" opacity="0.8">
+    <rect x="0" y="0" width="300" height="2" fill="#D4AF37" />
+    <rect x="0" y="10" width="150" height="1" fill="#D4AF37" opacity="0.5"/>
+    <rect x="0" y="20" width="200" height="1" fill="#111827" opacity="0.2"/>
+    <text x="0" y="50" font-family="monospace" font-size="16" fill="#111827" font-weight="bold" letter-spacing="2">AUTHORIZATION: VERIFIED</text>
+    <text x="0" y="80" font-family="monospace" font-size="14" fill="#6B7280" letter-spacing="1">CLEARANCE CODE: ALPHA-99</text>
   </g>
 </svg>
