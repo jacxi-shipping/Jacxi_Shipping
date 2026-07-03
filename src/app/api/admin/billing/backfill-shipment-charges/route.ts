@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
     let processedEntries = 0;
     for (let index = 0; index < ledgerEntries.length; index += BATCH_SIZE) {
       const batch = ledgerEntries.slice(index, index + BATCH_SIZE);
-      processedEntries += await prisma.$transaction((tx) => materializeShipmentLedgerCharges(tx, batch, fallbackActorId));
+      processedEntries += await prisma.$transaction((tx: Parameters<typeof materializeShipmentLedgerCharges>[0]) => materializeShipmentLedgerCharges(tx, batch, fallbackActorId));
     }
 
-    const shipmentIds = new Set(ledgerEntries.map((entry) => entry.shipmentId).filter(Boolean));
+    const shipmentIds = new Set(ledgerEntries.map((entry: { shipmentId: string | null }) => entry.shipmentId).filter(Boolean));
 
     return NextResponse.json({
       success: true,

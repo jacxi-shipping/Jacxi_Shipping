@@ -53,6 +53,8 @@
   ],
   "exclude": [
     "node_modules",
-    "mobile"
+    "mobile",
+    "analyze_codes.ts",
+    "fixQuote.ts"
   ]
 }
