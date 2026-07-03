@@ -16,7 +16,12 @@ import TestimonialsSection from '@/components/sections/home/TestimonialsSection'
 import { auth } from '@/lib/auth';
 
 export default async function Home() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch {
+    // Auth service unavailable — render landing page as unauthenticated
+  }
   const isAuthenticated = Boolean(session?.user);
 
   return (
