@@ -7,9 +7,11 @@ interface MagneticProps {
   children: ReactElement;
   intensity?: number;
   strength?: number;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export default function Magnetic({ children, intensity = 0.2, strength = 0.1 }: MagneticProps) {
+export default function Magnetic({ children, intensity = 0.2, strength = 0.1, className = "", style = {} }: MagneticProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -30,7 +32,8 @@ export default function Magnetic({ children, intensity = 0.2, strength = 0.1 }: 
   
   return (
     <motion.div
-      style={{ position: 'relative', display: 'inline-block', zIndex: 10 }}
+      style={{ position: 'relative', display: 'inline-block', zIndex: 10, ...style }}
+      className={className}
       ref={ref}
       onMouseMove={handleMouse}
       onMouseLeave={reset}

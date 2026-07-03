@@ -158,7 +158,7 @@ export default function PublicRateCalculatorSection() {
               </div>
             </div>
 
-            <Magnetic>
+            <Magnetic className="w-full" style={{ display: 'block' }}>
               <div className="w-full">
                 <button 
                   onClick={() => {

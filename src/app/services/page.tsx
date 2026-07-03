@@ -91,14 +91,16 @@ export default async function ServicesPage() {
             <p className="mx-auto mt-6 max-w-3xl text-lg leading-relaxed text-[var(--text-secondary)]">
               Every service you need to move your vehicle from the USA or Canada to Afghanistan through either Mersin or UAE, handled under one roof.
             </p>
-            <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
-              <Link href="/#quote">
-                <Button size="lg">Get a Free Quote</Button>
+            <div className="flex flex-col justify-center sm:flex-row items-center gap-4 mt-10">
+              <Link href="/#quote" className="group relative flex h-16 w-full sm:w-auto items-center justify-center overflow-hidden rounded-full bg-gray-900 px-8 text-base font-bold text-gray-900">
+                <div className="absolute inset-0 bg-[#D4AF37] translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
+                <span className="relative z-10 flex items-center gap-2 text-white transition-colors duration-500 group-hover:text-black">
+                  Get a Free Quote
+                </span>
               </Link>
-              <Link href="/tracking">
-                <Button variant="outline" size="lg" icon={<ArrowRight className="w-4 h-4" />} iconPosition="end">
-                  Track a Shipment
-                </Button>
+              <Link href="/tracking" className="inline-flex h-16 w-full sm:w-auto items-center justify-center rounded-full border border-black/10 bg-transparent px-8 text-base font-bold text-gray-900 transition hover:border-black hover:bg-black/5 gap-2">
+                Track a Shipment
+                <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
           </div>

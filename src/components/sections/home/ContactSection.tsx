@@ -189,7 +189,7 @@ export default function ContactSection({ isAuthenticated = false }: ContactSecti
                     required
                   />
                   {error ? <p className="text-sm text-[var(--error)]">{error}</p> : null}
-                <Magnetic>
+                <Magnetic className="w-full" style={{ display: 'block' }}>
                   <div className="w-full">
                     <button
                       type="submit"
