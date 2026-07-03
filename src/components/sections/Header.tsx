@@ -37,7 +37,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
       <motion.header
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 1, ease: "easeOut" }}
         className={`fixed inset-x-0 top-0 z-[100] border-b transition-all duration-500 ease-in-out ${
           isScrolled
             ? 'border-black/5 bg-white/80 backdrop-blur-2xl py-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)]'
@@ -121,7 +121,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
             initial={{ clipPath: 'circle(0% at 100% 0)' }}
             animate={{ clipPath: 'circle(150% at 100% 0)' }}
             exit={{ clipPath: 'circle(0% at 100% 0)' }}
-            transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             className="fixed inset-0 z-[200] bg-gray-900 text-white"
           >
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
@@ -143,7 +143,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
                   <motion.div
                      initial={{ opacity: 0, y: 40 }}
                      animate={{ opacity: 1, y: 0 }}
-                     transition={{ delay: 0.2 + (i * 0.1), duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                     transition={{ delay: 0.2 + (i * 0.1), duration: 0.8, ease: "easeOut" }}
                      key={item.name}
                   >
                     <Link

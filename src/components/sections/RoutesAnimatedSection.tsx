@@ -47,7 +47,7 @@ export default function RoutesAnimatedSection() {
             initial={{ opacity: 0, x: -40 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: '-10% 0px' }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <div className="inline-flex items-center rounded-full border border-black/5 bg-[#F9FAFB]/[0.03] px-3 py-1 font-mono text-xs uppercase tracking-widest text-[#D4AF37] backdrop-blur-md">
               <span className="mr-2 h-1.5 w-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
@@ -170,7 +170,7 @@ export default function RoutesAnimatedSection() {
                 initial={{ opacity: 0, rotateX: 45, y: 40 }}
                 whileInView={{ opacity: 1, rotateX: 0, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.6, delay: 0.2 + (index * 0.1), ease: [0.23, 1, 0.32, 1] }}
+                transition={{ duration: 0.6, delay: 0.2 + (index * 0.1), ease: "easeOut" }}
                 whileHover={{ y: -8, transition: { duration: 0.3 } }}
                 className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-black/5 bg-[#F9FAFB]/[0.03] p-6 backdrop-blur-sm transition-all hover:bg-[#F9FAFB]/[0.05]"
               >
