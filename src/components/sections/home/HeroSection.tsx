@@ -10,7 +10,12 @@ import {
   Ship,
   Truck,
 } from 'lucide-react';
-import ShippingCapsuleScene from './ShippingCapsuleScene';
+import dynamic from 'next/dynamic';
+
+const ShippingCapsule3D = dynamic(() => import('./ShippingCapsule3D'), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-gray-200/10 rounded-3xl" />
+});
 
 const corridorCards = [
   {
@@ -117,26 +122,23 @@ export default function HeroSection() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, x: 28 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.76, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="pointer-events-none relative -mt-24 min-h-[420px] lg:pointer-events-auto lg:mt-0 lg:min-h-[680px]"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+          className="relative -mt-10 min-h-[450px] sm:-mt-20 sm:min-h-[550px] lg:mt-0 lg:min-h-[720px] w-full"
         >
-          <div className="absolute inset-x-[-1.25rem] bottom-[-1rem] top-10 z-10 overflow-visible lg:left-[2rem] lg:right-[-3rem] lg:top-16">
-            <div className="absolute inset-x-[10%] bottom-[8%] h-24 rounded-full bg-[rgba(var(--text-primary-rgb),0.10)] blur-2xl" />
-            <div className="absolute right-[2%] top-[5%] h-[78%] w-[78%] rounded-full bg-[radial-gradient(circle,rgba(var(--accent-gold-rgb),0.16),transparent_62%)]" />
-            <div className="absolute left-[8%] top-[18%] h-[62%] w-[74%] rounded-full bg-[radial-gradient(circle,rgba(var(--panel-rgb),0.92),rgba(var(--panel-rgb),0)_66%)]" />
-            <ShippingCapsuleScene className="absolute inset-0" />
+          <div className="absolute inset-0 z-10">
+            <ShippingCapsule3D className="h-full w-full" />
           </div>
 
-          <div className="absolute bottom-0 left-0 z-30 hidden rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] p-4 shadow-[0_16px_42px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl lg:block">
+          <div className="absolute bottom-10 left-0 z-30 hidden rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] p-4 shadow-[0_16px_42px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl lg:block">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
                 <Ship className="h-5 w-5" />
               </span>
               <div>
                 <p className="text-sm font-black text-[var(--text-primary)]">USA / Canada to Afghanistan</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">Choose Mersin route or UAE route</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Interactive 3D Preview</p>
               </div>
             </div>
           </div>

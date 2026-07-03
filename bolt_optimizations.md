@@ -15,3 +15,6 @@ Deep nested `include` might cause overfetching. Need to investigate.
 
 ### 4. `src/app/api/containers/[id]/route.ts`
 Wait, let's check `src/app/api/ledger/route.ts` which has `.aggregate` for DEBIT and CREDIT as well.
+## 2026-07-03 - 3D Hero Section Implementation
+**Learning:** Successfully integrated Three.js with Next.js using dynamic imports and @react-three/fiber. Managed to create a realistic glass capsule effect using MeshTransmissionMaterial.
+**Action:** Use dynamic imports for any heavy 3D components to avoid SSR issues and improve initial page load.
