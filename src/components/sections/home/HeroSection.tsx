@@ -6,10 +6,8 @@ import { motion, Variants } from 'framer-motion';
 import {
   ArrowRight,
   CirclePlay,
-  Clock,
   FileCheck,
   MapPin,
-  Navigation,
   ShieldCheck,
   Ship,
   Truck,
@@ -20,24 +18,6 @@ const stats = [
   { label: 'Years operating', value: '14+' },
   { label: 'Afghan provinces', value: '34' },
   { label: 'Customer rating', value: '4.9/5' },
-];
-
-const trustPoints = [
-  {
-    title: 'Vehicle-first handling',
-    detail: 'Photo inspection before loading.',
-    icon: ShieldCheck,
-  },
-  {
-    title: 'Port milestone updates',
-    detail: 'Pickup, loading, transit, customs.',
-    icon: Clock,
-  },
-  {
-    title: 'Corridor options',
-    detail: 'Mersin and UAE route control.',
-    icon: Navigation,
-  },
 ];
 
 const routeStops = [
@@ -118,23 +98,6 @@ export default function HeroSection() {
             <strong className="text-[var(--text-primary)]">Mersin</strong> and <strong className="text-[var(--text-primary)]">UAE</strong> transit,
             then into <strong className="text-[var(--accent-gold)]">Afghanistan</strong> customs and delivery.
           </motion.p>
-
-          <motion.div variants={itemVariants} className="mt-8 grid gap-4 sm:grid-cols-3">
-            {trustPoints.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.title} className="flex items-start gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)] shadow-sm">
-                    <Icon className="h-5 w-5 text-[var(--accent-gold)]" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-black text-[var(--text-primary)]">{item.title}</span>
-                    <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{item.detail}</span>
-                  </span>
-                </div>
-              );
-            })}
-          </motion.div>
 
           <motion.div variants={itemVariants} className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
