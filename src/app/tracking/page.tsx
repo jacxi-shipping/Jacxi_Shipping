@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import Button from '@/components/design-system/Button';
-import { AlertCircle, CheckCircle2, Clock, MapPin, Search, ArrowLeft, Ship, Package } from 'lucide-react';
+import { motion, useScroll, useTransform, useSpring, type Variants } from 'framer-motion';
+import { AlertCircle, CheckCircle2, Clock, MapPin, Search, Ship, Package, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import Header from '@/components/sections/Header';
 import Footer from '@/components/sections/Footer';
 import TrackingRouteMap from '@/components/tracking/TrackingRouteMap';
+import LandingScrollAnimator from '@/components/sections/home/LandingScrollAnimator';
 
 interface TrackingEventEntry {
 	id: string;
@@ -66,6 +67,23 @@ const formatDisplayDate = (value?: string) => {
 	});
 };
 
+const containerVariants: Variants = {
+	hidden: { opacity: 0 },
+	visible: {
+		opacity: 1,
+		transition: { staggerChildren: 0.1, delayChildren: 0.1 },
+	},
+};
+
+const itemVariants: Variants = {
+	hidden: { opacity: 0, y: 24 },
+	visible: {
+		opacity: 1,
+		y: 0,
+		transition: { duration: 0.6, ease: 'easeOut' as const },
+	},
+};
+
 export default function TrackingPage() {
 	return (
 		<Suspense fallback={null}>
@@ -76,11 +94,17 @@ export default function TrackingPage() {
 
 function TrackingPageInner() {
 	const searchParams = useSearchParams();
+	const heroRef = useRef<HTMLElement>(null);
 	const [trackingNumber, setTrackingNumber] = useState(() => searchParams.get('container') ?? '');
 	const [trackingDetails, setTrackingDetails] = useState<TrackingDetails | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const autoSearchDone = useRef(false);
+
+	const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+	const smoothY = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+	const heroContentY = useTransform(smoothY, [0, 1], ['0%', '30%']);
+	const heroOpacity = useTransform(smoothY, [0, 0.6], [1, 0]);
 
 	const handleTrack = useCallback(async (overrideValue?: string) => {
 		const value = (overrideValue ?? trackingNumber).trim();
@@ -97,9 +121,7 @@ function TrackingPageInner() {
 		try {
 			const response = await fetch('/api/tracking', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ trackNumber: value, needRoute: true }),
 			});
 
@@ -128,7 +150,6 @@ function TrackingPageInner() {
 		}
 	}, [trackingNumber]);
 
-	// Auto-search when the page is opened from a QR code scan
 	useEffect(() => {
 		const containerParam = searchParams.get('container');
 		if (containerParam && !autoSearchDone.current) {
@@ -139,308 +160,382 @@ function TrackingPageInner() {
 
 	const progressValue = normalizeProgress(trackingDetails?.progress);
 	const customerMilestones = trackingDetails?.customerTracking?.milestones || [];
-	const timelineEvents = (trackingDetails?.events || []).map((event) => ({
-		...event,
-		displayTimestamp: formatDisplayDate(event.timestamp) || event.timestamp || 'Pending update',
-		icon: event.actual ? CheckCircle2 : Clock,
-	}));
 
 	return (
-		<>
-			{/* Simple Header with Back Button */}
-			<header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-4">
-							<Link href="/">
-								<Button variant="outline" size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
-									Back to Home
-								</Button>
-							</Link>
-							<div className="h-6 w-px bg-gray-300" />
-							<div className="flex items-center gap-2">
-								<Ship className="w-6 h-6 text-blue-600" />
-								<span className="text-lg font-bold text-gray-900">Track Shipment</span>
-							</div>
-						</div>
-						<Link href="/">
-							<div className="flex items-center gap-2">
-								<Ship className="w-7 h-7 text-blue-600" />
-								<span className="text-xl font-bold text-gray-900">JACXI Shipping</span>
-							</div>
-						</Link>
-					</div>
-				</div>
-			</header>
+		<div className="min-h-screen bg-[#F9FAFB] text-gray-900">
+			<LandingScrollAnimator />
+			<Header isAuthenticated={false} />
 
-			<main className="min-h-screen bg-gradient-to-br from-[rgb(var(--soft-white))] via-white to-blue-50/30 pt-24 pb-16">
-				<div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-					{/* Page Header */}
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.6 }}
-						className="text-center mb-12"
-					>
-						<h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-							Track Your <span className="text-[rgb(var(--jacxi-blue))]">Shipment</span>
-						</h1>
-						<p className="text-xl text-gray-600">
-							Enter your container or tracking number to get real-time updates
-						</p>
-					</motion.div>
+			{/* ── Hero Section ── */}
+			<section
+				ref={heroRef}
+				className="relative isolate overflow-hidden min-h-[60vh] flex flex-col justify-center pt-28 pb-16 px-4 sm:px-6 lg:px-8"
+			>
+				{/* Grid texture */}
+				<div className="pointer-events-none absolute inset-0 -z-10 bg-[url('/grid.svg')] bg-[length:40px_40px] opacity-[0.04]" />
+				{/* Radial glow */}
+				<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(212,175,55,0.07),transparent)]" />
 
-					{/* Tracking Input Card */}
+				<motion.div
+					style={{ y: heroContentY, opacity: heroOpacity }}
+					className="mx-auto w-full max-w-4xl"
+				>
 					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.5, delay: 0.1 }}
-						className="mb-10"
+						variants={containerVariants}
+						initial="hidden"
+						animate="visible"
+						className="text-center"
 					>
-					<div className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-2xl shadow-xl p-6 sm:p-8">
-						<form 
-							onSubmit={(e) => {
-								e.preventDefault();
-								handleTrack();
-							}}
-							className="flex flex-col sm:flex-row gap-3"
-							role="search"
-							aria-label="Container tracking search"
+						{/* Label */}
+						<motion.div variants={itemVariants} className="inline-flex items-center gap-3 justify-center mb-8">
+							<span className="h-px w-6 bg-[#D4AF37]" />
+							<span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">Live tracking</span>
+							<span className="h-px w-6 bg-[#D4AF37]" />
+						</motion.div>
+
+						{/* Headline */}
+						<motion.h1
+							variants={itemVariants}
+							className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] mb-6"
 						>
-							<div className="flex-1 relative">
-								<label htmlFor="tracking-input" className="sr-only">
-									Container or tracking number
-								</label>
-								<Package className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" aria-hidden="true" />
-								<input
-									id="tracking-input"
-									type="text"
-									value={trackingNumber}
-									onChange={(event) => setTrackingNumber(event.target.value)}
-									onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
-									placeholder="Enter container number (e.g., UETU6059142)"
-									autoComplete="off"
-									aria-required="true"
-									aria-describedby={errorMessage ? 'tracking-error' : undefined}
-									className="w-full pl-12 pr-4 py-4 text-base rounded-xl bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--jacxi-blue))]/50 focus:border-[rgb(var(--jacxi-blue))] transition-all touch-manipulation"
+							Track Your{' '}
+							<span className="relative inline-block">
+								<span className="relative z-10">Shipment</span>
+								<motion.span
+									initial={{ scaleX: 0 }}
+									animate={{ scaleX: 1 }}
+									transition={{ duration: 0.9, delay: 0.6, ease: 'circOut' as const }}
+									style={{ originX: 0 }}
+									className="absolute bottom-1 left-0 right-0 h-3 md:h-4 bg-[#D4AF37]/30 -z-10 -rotate-1"
 								/>
-							</div>
-							<motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-								<Button
+							</span>
+						</motion.h1>
+
+						<motion.p variants={itemVariants} className="text-lg text-black/60 font-medium mb-12 max-w-xl mx-auto">
+							Enter your container or tracking number for real-time updates on your vehicle shipment.
+						</motion.p>
+
+						{/* Search Card */}
+						<motion.div
+							variants={itemVariants}
+							className="relative rounded-[2rem] border border-black/[0.06] bg-white shadow-[0_20px_60px_-10px_rgba(0,0,0,0.08)] p-6 sm:p-8"
+						>
+							{/* subtle inner glow */}
+							<div className="pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[#D4AF37]/5 to-transparent" />
+
+							<form
+								onSubmit={(e) => { e.preventDefault(); handleTrack(); }}
+								className="relative flex flex-col sm:flex-row gap-3"
+								role="search"
+								aria-label="Container tracking search"
+							>
+								<div className="flex-1 relative">
+									<label htmlFor="tracking-input" className="sr-only">Container or tracking number</label>
+									<Package className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/30 pointer-events-none" aria-hidden="true" />
+									<input
+										id="tracking-input"
+										type="text"
+										value={trackingNumber}
+										onChange={(e) => setTrackingNumber(e.target.value)}
+										placeholder="Enter container number (e.g., UETU6059142)"
+										autoComplete="off"
+										aria-required="true"
+										aria-describedby={errorMessage ? 'tracking-error' : undefined}
+										className="w-full pl-12 pr-4 py-4 text-base rounded-xl bg-[#F9FAFB] border border-black/[0.06] text-gray-900 placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37]/60 transition-all touch-manipulation"
+									/>
+								</div>
+								<motion.button
 									type="submit"
 									disabled={isLoading}
-									aria-label={isLoading ? "Tracking shipment" : "Track shipment"}
-									sx={{
-										width: { xs: '100%', sm: 'auto' },
-										height: '100%',
-										minHeight: '56px',
-										borderRadius: '0.75rem', // rounded-xl
-										fontSize: '1rem',
-										px: 4,
-										boxShadow: 'var(--shadow-lg)',
-										'&:hover': {
-											boxShadow: 'var(--shadow-xl)',
-										}
-									}}
+									whileHover={{ scale: 1.02 }}
+									whileTap={{ scale: 0.97 }}
+									className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-gray-900 px-8 py-4 text-sm font-bold text-white sm:w-auto w-full transition-all duration-300 disabled:opacity-60"
+									aria-label={isLoading ? 'Tracking shipment' : 'Track shipment'}
 								>
+									<div className="absolute inset-0 translate-y-full bg-[#D4AF37] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
 									{isLoading ? (
-										<span className="flex items-center justify-center gap-2">
-											Tracking...
+										<span className="relative z-10 flex items-center gap-2">
+											<span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+											Tracking…
 										</span>
 									) : (
-										<span className="flex items-center justify-center gap-2">
-											<Search className="w-5 h-5" aria-hidden="true" />
+										<span className="relative z-10 flex items-center gap-2 group-hover:text-gray-900 transition-colors duration-300">
+											<Search className="w-4 h-4" aria-hidden="true" />
 											Track Now
+											<ArrowRight className="w-4 h-4 -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
 										</span>
 									)}
-								</Button>
-							</motion.div>
-						</form>
+								</motion.button>
+							</form>
 
 							{errorMessage && (
 								<motion.div
-									initial={{ opacity: 0, y: -10 }}
+									id="tracking-error"
+									initial={{ opacity: 0, y: -8 }}
 									animate={{ opacity: 1, y: 0 }}
-									className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 mt-4"
+									className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-600 mt-4"
 								>
-									<AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+									<AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
 									<span>{errorMessage}</span>
 								</motion.div>
 							)}
+						</motion.div>
+					</motion.div>
+				</motion.div>
+			</section>
+
+			{/* ── Marquee strip ── */}
+			<div className="relative overflow-hidden border-y border-black/[0.04] py-5 bg-[#F9FAFB] [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
+				<motion.div
+					className="flex items-center gap-16 whitespace-nowrap px-8"
+					animate={{ x: [0, -2000] }}
+					transition={{ duration: 35, ease: 'linear', repeat: Infinity }}
+				>
+					{Array.from({ length: 3 }).flatMap((_, gi) =>
+						['Container tracking', 'Real-time updates', 'Live route visibility', 'USA → Afghanistan', 'Herat • Kabul • Kandahar'].map((t) => (
+							<span key={`${gi}-${t}`} className="flex items-center gap-10">
+								<span className="text-sm font-bold uppercase tracking-[0.2em] text-black/20">{t}</span>
+								<span className="text-[#D4AF37] text-lg font-serif">+</span>
+							</span>
+						))
+					)}
+				</motion.div>
+			</div>
+
+			{/* ── Results ── */}
+			<main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-20 space-y-12">
+
+				{/* Empty state */}
+				{!trackingDetails && !errorMessage && (
+					<motion.div
+						initial={{ opacity: 0, y: 24 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.6, delay: 0.2 }}
+						className="relative rounded-[2rem] border border-black/[0.05] bg-white p-12 text-center overflow-hidden"
+					>
+						<div className="pointer-events-none absolute inset-0 bg-[url('/grid.svg')] bg-[length:40px_40px] opacity-[0.03]" />
+						<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_0%,rgba(212,175,55,0.05),transparent)]" />
+						<div className="relative z-10">
+							<div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[1.5rem] border border-black/5 bg-[#F9FAFB]">
+								<Ship className="w-9 h-9 text-[#D4AF37]" />
+							</div>
+							<div className="inline-flex items-center gap-3 justify-center mb-4">
+								<span className="h-px w-6 bg-[#D4AF37]" />
+								<span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">How it works</span>
+								<span className="h-px w-6 bg-[#D4AF37]" />
+							</div>
+							<h3 className="text-2xl font-extrabold tracking-tight mb-3">Need your tracking number?</h3>
+							<p className="text-black/60 font-medium mb-6 max-w-md mx-auto">
+								Your container number is found in your booking confirmation email or shipping documents.
+							</p>
+							<p className="text-sm text-black/40">
+								Need help?{' '}
+								<a href="/#contact-us" className="text-[#D4AF37] hover:underline font-semibold">Contact our team</a>
+							</p>
 						</div>
 					</motion.div>
+				)}
 
-					{/* Tracking Results */}
-					{trackingDetails && (
-						<div className="space-y-8">
-							{/* Container Details Card */}
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ duration: 0.4, delay: 0.1 }}
-								className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-2xl shadow-xl p-6 sm:p-8"
-							>
-								<h2 className="text-2xl font-bold text-gray-900 mb-6">Container Details</h2>
-								
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+				{/* Tracking Results */}
+				{trackingDetails && (
+					<div className="space-y-10 landing-reveal">
+
+						{/* Container Details Card */}
+						<motion.div
+							initial={{ opacity: 0, y: 28 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.5 }}
+							className="relative rounded-[2rem] border border-black/[0.05] bg-white p-8 sm:p-10 overflow-hidden"
+						>
+							<div className="pointer-events-none absolute inset-0 bg-[url('/grid.svg')] bg-[length:40px_40px] opacity-[0.025]" />
+							<div className="pointer-events-none absolute top-0 right-0 h-64 w-64 rounded-full bg-[#D4AF37]/5 blur-[80px]" />
+
+							<div className="relative z-10">
+								<div className="inline-flex items-center gap-3 mb-8">
+									<span className="h-px w-6 bg-[#D4AF37]" />
+									<span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">Container details</span>
+								</div>
+
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
 									<div>
-										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Container Number</h3>
-										<p className="text-lg font-bold text-gray-900 break-all">{trackingDetails.containerNumber}</p>
+										<p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 font-mono mb-2">Container</p>
+										<p className="text-lg font-extrabold tracking-tight break-all">{trackingDetails.containerNumber}</p>
 										{trackingDetails.company?.name && (
-											<p className="text-xs text-gray-500 mt-1">Carrier: {trackingDetails.company.name}</p>
+											<p className="text-xs text-black/40 mt-1">Carrier: {trackingDetails.company.name}</p>
 										)}
 									</div>
 									<div>
-										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Status</h3>
-										<span className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--jacxi-blue))]/40 bg-[rgb(var(--jacxi-blue))]/10 px-4 py-1.5 text-sm font-medium text-[rgb(var(--jacxi-blue))]">
+										<p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 font-mono mb-2">Status</p>
+										<span className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-4 py-1.5 text-sm font-bold text-[#D4AF37]">
+											<span className="h-1.5 w-1.5 rounded-full bg-[#D4AF37]" />
 											{trackingDetails.customerTracking?.currentStageLabel || trackingDetails.shipmentStatus || 'In Transit'}
 										</span>
 										{trackingDetails.customerTracking?.summary && (
-											<p className="mt-2 text-sm text-gray-600">{trackingDetails.customerTracking.summary}</p>
+											<p className="mt-2 text-sm text-black/60 font-medium">{trackingDetails.customerTracking.summary}</p>
 										)}
 									</div>
 									<div>
-										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Current Location</h3>
-										<p className="text-gray-900 text-sm font-medium">
-											{trackingDetails.currentLocation || 'Not available'}
-										</p>
+										<p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 font-mono mb-2">Current location</p>
+										<p className="text-sm font-bold text-gray-900">{trackingDetails.currentLocation || '—'}</p>
 									</div>
 									<div>
-										<h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Estimated Arrival</h3>
-										<p className="text-gray-900 text-sm font-medium">
-											{formatDisplayDate(trackingDetails.estimatedArrival) || 'Not available'}
-										</p>
+										<p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 font-mono mb-2">Est. arrival</p>
+										<p className="text-sm font-bold text-gray-900">{formatDisplayDate(trackingDetails.estimatedArrival) || '—'}</p>
 									</div>
 								</div>
 
-								<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 text-sm">
-									<div>
-										<h4 className="text-xs uppercase tracking-wide text-gray-500 mb-1">Origin</h4>
-										<p className="text-gray-900 font-medium">{trackingDetails.origin || 'Not available'}</p>
-									</div>
-									<div>
-										<h4 className="text-xs uppercase tracking-wide text-gray-500 mb-1">Destination</h4>
-										<p className="text-gray-900 font-medium">{trackingDetails.destination || 'Not available'}</p>
-									</div>
-									<div>
-										<h4 className="text-xs uppercase tracking-wide text-gray-500 mb-1">Container Type</h4>
-										<p className="text-gray-900 font-medium">{trackingDetails.containerType || 'Not available'}</p>
-									</div>
+								<div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-black/[0.04]">
+									{[
+										{ label: 'Origin', value: trackingDetails.origin },
+										{ label: 'Destination', value: trackingDetails.destination },
+										{ label: 'Container type', value: trackingDetails.containerType },
+									].map(({ label, value }) => (
+										<div key={label}>
+											<p className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 font-mono mb-1">{label}</p>
+											<p className="text-sm font-bold text-gray-900">{value || '—'}</p>
+										</div>
+									))}
 								</div>
+							</div>
+						</motion.div>
 
-								{trackingDetails.customerTracking && (
-									<div className="space-y-3 hidden">
-										<div className="flex items-center justify-between text-sm">
-											<span className="font-medium text-gray-700">Customer Journey</span>
-											<span className="font-bold text-[rgb(var(--jacxi-blue))]">{trackingDetails.customerTracking.progressPercent}%</span>
-										</div>
-										<div className="h-3 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-											<div
-												className="h-full bg-gradient-to-r from-[rgb(var(--jacxi-blue))] to-[rgb(var(--jacxi-blue))]/80 transition-all duration-500"
-												style={{ width: `${trackingDetails.customerTracking.progressPercent}%` }}
-											/>
-										</div>
-									</div>
-								)}
-
-								{progressValue !== null && (
-									<div className="space-y-2 hidden">
-										<div className="flex items-center justify-between text-sm">
-											<span className="font-medium text-gray-700">Shipping Progress</span>
-											<span className="font-bold text-[rgb(var(--jacxi-blue))]">{progressValue}%</span>
-										</div>
-										<div className="h-3 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-											<div
-												className="h-full bg-gradient-to-r from-[rgb(var(--jacxi-blue))] to-[rgb(var(--jacxi-blue))]/80 transition-all duration-500"
-												style={{ width: `${progressValue}%` }}
-											/>
-										</div>
-									</div>
-								)}
-							</motion.div>
-
-							{/* Tracking Animated Map */}
-							{trackingDetails.customerTracking && (
-								<motion.div
-									initial={{ opacity: 0, scale: 0.95 }}
-									animate={{ opacity: 1, scale: 1 }}
-									transition={{ duration: 0.6 }}
-									className="mt-6 mb-8"
-								>
-									<TrackingRouteMap 
-										progressPercent={trackingDetails.customerTracking.progressPercent || progressValue || 0}
-										origin={trackingDetails.origin || 'USA'}
-										destination={trackingDetails.destination || 'Herat'}
-									/>
-								</motion.div>
-							)}
-
-							{/* Simplified Journey list */}
+						{/* Route Map */}
+						{trackingDetails.customerTracking && (
 							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ duration: 0.4, delay: 0.2 }}
-								className="space-y-4"
+								initial={{ opacity: 0, scale: 0.97 }}
+								animate={{ opacity: 1, scale: 1 }}
+								transition={{ duration: 0.6, delay: 0.1 }}
+								className="relative rounded-[2rem] border border-black/[0.05] bg-white p-2 overflow-hidden"
 							>
-								<h2 className="text-2xl font-bold text-gray-900">Live Status & Milestone Updates</h2>
-								<div className="space-y-3">
-									{customerMilestones.length === 0 && (
-										<div className="rounded-xl border border-gray-200 bg-white/80 px-6 py-4 text-sm text-gray-600">
-											No shipment milestones available yet.
-										</div>
-									)}
-									{customerMilestones.map((milestone) => {
-										const Icon = milestone.state === 'complete' ? CheckCircle2 : milestone.state === 'current' ? Package : Clock;
-										return (
-											<div key={milestone.key} className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-xl px-6 py-4 hover:shadow-lg transition-shadow duration-300">
-												<div className="flex flex-col gap-2">
-													<div className="flex items-center gap-3">
-														<Icon className={`w-5 h-5 ${milestone.state === 'complete' ? 'text-green-500' : milestone.state === 'current' ? 'text-[rgb(var(--jacxi-blue))]' : 'text-gray-400'}`} />
-														<span className="text-base font-semibold text-gray-900">{milestone.label}</span>
-													</div>
-													<div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 ml-8">
-														<span className="inline-flex items-center gap-1.5">
-															<Clock className="w-4 h-4" />
-															{formatDisplayDate(milestone.timestamp) || (milestone.state === 'pending' ? 'Pending update' : 'Updated')}
-														</span>
-													</div>
-													<p className="text-sm text-gray-600 ml-8">{milestone.description}</p>
-													{milestone.state === 'current' && trackingDetails.currentLocation && (
-														<p className="text-sm text-[rgb(var(--jacxi-blue))] ml-8 inline-flex items-center gap-1.5">
-															<MapPin className="w-4 h-4" />
-															Current update: {trackingDetails.currentLocation}
-														</p>
-													)}
-												</div>
-											</div>
-										);
-									})}
-								</div>
+								<TrackingRouteMap
+									progressPercent={trackingDetails.customerTracking.progressPercent || progressValue || 0}
+									origin={trackingDetails.origin || 'USA'}
+									destination={trackingDetails.destination || 'Herat'}
+								/>
 							</motion.div>
-						</div>
-					)}
+						)}
 
-					{/* Help Section */}
-					{!trackingDetails && !errorMessage && (
+						{/* Milestones */}
+						<motion.div
+							initial={{ opacity: 0, y: 24 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.5, delay: 0.2 }}
+						>
+							<div className="inline-flex items-center gap-3 mb-8">
+								<span className="h-px w-6 bg-[#D4AF37]" />
+								<span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">Milestone updates</span>
+							</div>
+
+							<h2 className="text-3xl font-extrabold tracking-tight mb-6">
+								Live Status &{' '}
+								<span className="text-black/40 italic font-serif font-light">Journey</span>
+							</h2>
+
+							<div className="space-y-4">
+								{customerMilestones.length === 0 && (
+									<div className="rounded-[1.5rem] border border-black/[0.05] bg-white px-8 py-6 text-sm text-black/50 font-medium">
+										No shipment milestones available yet.
+									</div>
+								)}
+								{customerMilestones.map((milestone, idx) => {
+									const Icon = milestone.state === 'complete'
+										? CheckCircle2
+										: milestone.state === 'current'
+										? Package
+										: Clock;
+									const isComplete = milestone.state === 'complete';
+									const isCurrent = milestone.state === 'current';
+									return (
+										<motion.div
+											key={milestone.key}
+											initial={{ opacity: 0, x: -20 }}
+											animate={{ opacity: 1, x: 0 }}
+											transition={{ duration: 0.4, delay: 0.05 * idx }}
+											className={`group relative rounded-[1.5rem] border p-6 sm:p-8 transition-all duration-300 overflow-hidden ${
+												isCurrent
+													? 'border-[#D4AF37]/30 bg-white shadow-[0_8px_30px_rgba(212,175,55,0.08)]'
+													: 'border-black/[0.05] bg-white hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)]'
+											}`}
+										>
+											{isCurrent && (
+												<div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#D4AF37]/5 to-transparent" />
+											)}
+											<div className="relative z-10 flex flex-col gap-3">
+												<div className="flex items-center gap-4">
+													<div className={`flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0 ${
+														isComplete ? 'bg-green-50 border border-green-500/20'
+														: isCurrent ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/30'
+														: 'bg-[#F9FAFB] border border-black/[0.06]'
+													}`}>
+														<Icon className={`w-5 h-5 ${
+															isComplete ? 'text-green-500'
+															: isCurrent ? 'text-[#D4AF37]'
+															: 'text-black/30'
+														}`} />
+													</div>
+													<div className="flex-1 min-w-0">
+														<h3 className="text-base font-extrabold tracking-tight">{milestone.label}</h3>
+														{isCurrent && (
+															<span className="inline-flex items-center gap-1.5 mt-0.5">
+																<span className="h-1.5 w-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
+																<span className="text-xs font-mono uppercase tracking-widest text-[#D4AF37]">Active</span>
+															</span>
+														)}
+													</div>
+													<div className="flex-shrink-0 text-right">
+														<p className="text-xs text-black/40 font-mono">
+															{formatDisplayDate(milestone.timestamp) || (milestone.state === 'pending' ? 'Pending' : 'Updated')}
+														</p>
+													</div>
+												</div>
+												<p className="text-sm text-black/60 font-medium pl-14">{milestone.description}</p>
+												{isCurrent && trackingDetails.currentLocation && (
+													<p className="text-sm text-[#D4AF37] font-bold pl-14 inline-flex items-center gap-1.5">
+														<MapPin className="w-4 h-4" />
+														{trackingDetails.currentLocation}
+													</p>
+												)}
+											</div>
+										</motion.div>
+									);
+								})}
+							</div>
+						</motion.div>
+
+						{/* CTA strip */}
 						<motion.div
 							initial={{ opacity: 0, y: 20 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ duration: 0.5, delay: 0.3 }}
-							className="backdrop-blur-md bg-white/80 border border-gray-200/50 rounded-2xl shadow-xl p-8 text-center"
+							className="relative rounded-[2rem] border border-black/[0.05] bg-gray-900 p-8 sm:p-10 overflow-hidden text-white"
 						>
-							<Package className="w-16 h-16 text-[rgb(var(--jacxi-blue))] mx-auto mb-4" />
-							<h3 className="text-xl font-bold text-gray-900 mb-2">Need Help Finding Your Tracking Number?</h3>
-							<p className="text-gray-600 mb-4">
-								Your container number should be provided in your booking confirmation email or shipping documents.
-							</p>
-							<p className="text-sm text-gray-500">
-								For assistance, contact us at <a href="tel:+971501234567" className="text-[rgb(var(--jacxi-blue))] hover:underline">+971 50 123 4567</a>
-							</p>
+							<div className="pointer-events-none absolute inset-0 bg-[url('/grid.svg')] bg-[length:40px_40px] opacity-[0.04]" />
+							<div className="pointer-events-none absolute top-0 right-0 h-64 w-64 rounded-full bg-[#D4AF37]/10 blur-[80px]" />
+							<div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+								<div>
+									<div className="inline-flex items-center gap-3 mb-3">
+										<span className="h-px w-6 bg-[#D4AF37]" />
+										<span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">Questions?</span>
+									</div>
+									<h3 className="text-xl font-extrabold tracking-tight">Need help with your shipment?</h3>
+									<p className="text-white/60 text-sm font-medium mt-1">Our team is available to assist you at every step.</p>
+								</div>
+								<Link
+									href="/#contact-us"
+									className="group relative inline-flex h-12 items-center justify-center gap-3 overflow-hidden rounded-full bg-white px-7 font-bold text-gray-900 transition-all duration-500 hover:shadow-[0_8px_30px_rgba(255,255,255,0.2)] flex-shrink-0"
+								>
+									<div className="absolute inset-0 translate-y-full bg-[#D4AF37] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
+									<span className="relative z-10 transition-colors duration-500 group-hover:text-gray-900">Contact us</span>
+									<ArrowRight className="relative z-10 w-4 h-4 -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
+								</Link>
+							</div>
 						</motion.div>
-					)}
-				</div>
+					</div>
+				)}
 			</main>
+
 			<Footer />
-		</>
+		</div>
 	);
 }
+
