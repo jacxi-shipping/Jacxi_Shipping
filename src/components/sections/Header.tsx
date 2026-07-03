@@ -40,7 +40,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
         className={`fixed inset-x-0 top-0 z-[100] border-b transition-all duration-500 ease-in-out ${
           isScrolled
-            ? 'border-white/10 bg-black/40 backdrop-blur-2xl py-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)]'
+            ? 'border-black/5 bg-white/80 backdrop-blur-2xl py-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)]'
             : 'border-transparent bg-transparent py-6'
         }`}
       >
@@ -52,11 +52,11 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
                 href="/"
                 className="group relative flex items-center gap-3 transition-opacity hover:opacity-80 outline-none"
               >
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/20 shadow-xl overflow-hidden">
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-black/10 shadow-xl overflow-hidden">
                   <div className="absolute inset-0 bg-[#D4AF37] translate-y-full transition-transform duration-500 group-hover:translate-y-0" />
-                  <SiteMark className="relative z-10 h-6 w-6 text-white group-hover:text-black transition-colors duration-500" />
+                  <SiteMark className="relative z-10 h-6 w-6 text-gray-900 group-hover:text-gray-900 transition-colors duration-500" />
                 </div>
-                <span className="text-xl font-bold tracking-tight text-white hidden sm:block">
+                <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">
                   JACXI
                 </span>
               </Link>
@@ -64,12 +64,12 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1.5 backdrop-blur-md">
+          <nav className="hidden lg:flex items-center gap-1 rounded-full border border-black/5 bg-[#F9FAFB]/[0.03] px-2 py-1.5 backdrop-blur-md">
             {navigation.map((item) => (
               <Magnetic key={item.name} strength={0.2} intensity={0.1}>
                 <Link
                   href={item.href}
-                  className="relative px-5 py-2 text-sm font-semibold text-white/70 transition-colors hover:text-white"
+                  className="relative px-5 py-2 text-sm font-semibold text-black/70 transition-colors hover:text-gray-900"
                 >
                   {item.name}
                   <span className="absolute inset-x-4 bottom-1 h-px scale-x-0 bg-[#D4AF37] transition-transform duration-300 origin-center hover:scale-x-100" />
@@ -83,7 +83,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
               <Magnetic>
                 <Link
                   href={isAuthenticated ? "/portal" : "/auth/signin"}
-                  className="text-sm font-bold text-white transition-colors hover:text-[#D4AF37]"
+                  className="text-sm font-bold text-gray-900 transition-colors hover:text-[#D4AF37]"
                 >
                   {isAuthenticated ? "Portal" : "Sign in"}
                 </Link>
@@ -96,7 +96,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
                     className="group relative inline-flex h-10 items-center justify-center overflow-hidden rounded-full bg-white px-6 font-bold text-black"
                   >
                     <div className="absolute inset-0 translate-y-full bg-[#D4AF37] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
-                    <span className="relative z-10 transition-colors duration-500 group-hover:text-white">Sign up</span>
+                    <span className="relative z-10 transition-colors duration-500 group-hover:text-gray-900">Sign up</span>
                   </Link>
                 </Magnetic>
               )}
@@ -106,7 +106,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden relative flex h-12 w-12 items-center justify-center rounded-full bg-white/10 border border-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20 outline-none"
+              className="lg:hidden relative flex h-12 w-12 items-center justify-center rounded-full bg-[#F9FAFB]/5 border border-black/5 text-gray-900 backdrop-blur-md transition-colors hover:bg-[#F9FAFB]/10 outline-none"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -122,7 +122,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
             animate={{ clipPath: 'circle(150% at 100% 0)' }}
             exit={{ clipPath: 'circle(0% at 100% 0)' }}
             transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
-            className="fixed inset-0 z-[200] bg-black text-white"
+            className="fixed inset-0 z-[200] bg-gray-900 text-white"
           >
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
             
@@ -132,7 +132,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white hover:bg-white/10 transition-colors outline-none"
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-black/10 text-gray-900 hover:bg-[#F9FAFB]/5 transition-colors outline-none"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -164,12 +164,12 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
-                className="grid gap-4 mt-auto border-t border-white/10 pt-8"
+                className="grid gap-4 mt-auto border-t border-black/5 pt-8"
               >
                 <Link
                   href={isAuthenticated ? "/portal" : "/auth/signin"}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-center h-14 rounded-xl border border-white/20 font-bold"
+                  className="flex items-center justify-center h-14 rounded-xl border border-black/10 font-bold"
                 >
                   {isAuthenticated ? "Portal" : "Sign in"}
                 </Link>
@@ -177,7 +177,7 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
                    <Link
                     href="/auth/signup"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-center h-14 rounded-xl bg-white text-black font-bold"
+                    className="flex items-center justify-center h-14 rounded-xl bg-gray-900 text-gray-900 font-bold"
                   >
                     Sign up
                   </Link>

@@ -36,7 +36,7 @@ export default function RoutesAnimatedSection() {
   const pathLength = useTransform(scrollYProgress, [0, 1], [0, 1]);
 
   return (
-    <section ref={containerRef} id="route" className="relative overflow-hidden bg-black py-24 sm:py-32 selection:bg-[var(--accent-gold)] selection:text-white">
+    <section ref={containerRef} id="route" className="relative overflow-hidden bg-[#F9FAFB] py-24 sm:py-32 selection:bg-[var(--accent-gold)] selection:text-gray-900">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(var(--accent-gold-rgb),0.1)_0%,transparent_70%)]" />
       <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
 
@@ -49,17 +49,17 @@ export default function RoutesAnimatedSection() {
             viewport={{ once: true, margin: '-10% 0px' }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs uppercase tracking-widest text-[#D4AF37] backdrop-blur-md">
+            <div className="inline-flex items-center rounded-full border border-black/5 bg-[#F9FAFB]/[0.03] px-3 py-1 font-mono text-xs uppercase tracking-widest text-[#D4AF37] backdrop-blur-md">
               <span className="mr-2 h-1.5 w-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
               Global routing
             </div>
             
-            <h2 className="mt-8 text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[4rem]">
+            <h2 className="mt-8 text-4xl font-extrabold leading-[1.05] tracking-tight text-gray-900 sm:text-5xl lg:text-[4rem]">
               Precision paths to <br/>
-              <span className="text-white/40 italic font-serif font-light">Afghanistan.</span>
+              <span className="text-black/50 italic font-serif font-light">Afghanistan.</span>
             </h2>
-            <p className="mt-6 text-lg leading-relaxed text-white/60">
-              Your vehicle moves from <span className="text-white">North America</span> to <span className="text-white">Afghanistan</span> through carefully optimized corridors: the <span className="text-[#D4AF37]">Mersin Route</span> or the <span className="text-[#D4AF37]">UAE Route</span>. Clear visibility at every nautical mile.
+            <p className="mt-6 text-lg leading-relaxed text-black/60">
+              Your vehicle moves from <span className="text-gray-900">North America</span> to <span className="text-gray-900">Afghanistan</span> through carefully optimized corridors: the <span className="text-[#D4AF37]">Mersin Route</span> or the <span className="text-[#D4AF37]">UAE Route</span>. Clear visibility at every nautical mile.
             </p>
 
             <div className="mt-12 flex flex-col gap-6 relative">
@@ -76,12 +76,12 @@ export default function RoutesAnimatedSection() {
                   key={item.label} 
                   className="flex items-center gap-6"
                 >
-                  <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black border border-white/20 shadow-[0_0_15px_rgba(212,175,55,0.2)] text-[#D4AF37]">
+                  <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F9FAFB] border border-black/10 shadow-[0_0_15px_rgba(212,175,55,0.2)] text-[#D4AF37]">
                     <div className="h-2 w-2 rounded-full bg-[#D4AF37]" />
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-widest text-white/40 font-mono">{item.label}</p>
-                    <p className="text-base font-medium text-white">{item.value}</p>
+                    <p className="text-xs uppercase tracking-widest text-black/50 font-mono">{item.label}</p>
+                    <p className="text-base font-medium text-gray-900">{item.value}</p>
                   </div>
                 </motion.div>
               ))}
@@ -93,10 +93,10 @@ export default function RoutesAnimatedSection() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 1, ease: 'easeOut' }}
-            className="relative w-full rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-2 backdrop-blur-xl shadow-2xl"
+            className="relative w-full rounded-[2.5rem] border border-black/5 bg-[#F9FAFB]/[0.02] p-2 backdrop-blur-xl shadow-2xl"
           >
             <div className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[2rem] bg-[#0a0a0a]">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[2rem] bg-[#F9FAFB]">
               <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-cover bg-center bg-no-repeat opacity-20 sepia hue-rotate-180 brightness-50" />
               
               <svg viewBox="0 0 950 620" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
@@ -145,15 +145,15 @@ export default function RoutesAnimatedSection() {
 
               <motion.div 
                 style={{ y: useTransform(scrollYProgress, [0, 1], [50, -20]) }}
-                className="absolute bottom-6 left-6 rounded-2xl border border-white/10 bg-black/60 p-5 backdrop-blur-xl shadow-2xl"
+                className="absolute bottom-6 left-6 rounded-2xl border border-black/5 bg-white/80 p-5 backdrop-blur-xl shadow-2xl"
               >
                 <div className="flex items-center gap-3">
                   <div className="rounded-full bg-[#D4AF37]/20 p-2 text-[#D4AF37]">
                     <Clock className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-mono uppercase text-white/50">Avg Transit Time</p>
-                    <p className="text-xl font-bold text-white">30-45 Days</p>
+                    <p className="text-[10px] font-mono uppercase text-black/60">Avg Transit Time</p>
+                    <p className="text-xl font-bold text-gray-900">30-45 Days</p>
                   </div>
                 </div>
               </motion.div>
@@ -172,21 +172,21 @@ export default function RoutesAnimatedSection() {
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ duration: 0.6, delay: 0.2 + (index * 0.1), ease: [0.23, 1, 0.32, 1] }}
                 whileHover={{ y: -8, transition: { duration: 0.3 } }}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition-all hover:bg-white/[0.08]"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-black/5 bg-[#F9FAFB]/[0.03] p-6 backdrop-blur-sm transition-all hover:bg-[#F9FAFB]/[0.05]"
               >
                 <div className="mb-8 flex items-start justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white/10 to-transparent shadow-inner border border-white/5 group-hover:border-[#D4AF37]/50 transition-colors">
-                    <Icon className="h-5 w-5 text-white group-hover:text-[#D4AF37] transition-colors" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white/10 to-transparent shadow-inner border border-black/[0.03] group-hover:border-[#D4AF37]/50 transition-colors">
+                    <Icon className="h-5 w-5 text-gray-900 group-hover:text-[#D4AF37] transition-colors" />
                   </div>
-                  <span className="text-4xl font-black text-white/5 group-hover:text-white/10 transition-colors">{step.step}</span>
+                  <span className="text-4xl font-black text-gray-900/5 group-hover:text-black/10 transition-colors">{step.step}</span>
                 </div>
                 
                 <div>
                   <p className="mb-2 inline-block rounded-full bg-[#D4AF37]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">
                     {step.location}
                   </p>
-                  <h3 className="mb-3 text-xl font-semibold text-white">{step.title}</h3>
-                  <p className="text-sm leading-relaxed text-white/60">{step.description}</p>
+                  <h3 className="mb-3 text-xl font-semibold text-gray-900">{step.title}</h3>
+                  <p className="text-sm leading-relaxed text-black/60">{step.description}</p>
                 </div>
               </motion.div>
             );

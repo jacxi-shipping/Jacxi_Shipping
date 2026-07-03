@@ -33,7 +33,7 @@ export default function PublicRateCalculatorSection() {
   const basePrice = (origin.price + dest.price) * vType.multiplier;
 
   return (
-    <section className="relative bg-black py-32 text-white overflow-hidden">
+    <section className="relative bg-[#F9FAFB] py-32 text-gray-900 overflow-hidden">
       {/* Background Graphic */}
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.06)_0%,transparent_70%)] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.03)_0%,transparent_70%)] pointer-events-none" />
@@ -46,10 +46,10 @@ export default function PublicRateCalculatorSection() {
             <span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">Estimator</span>
             <span className="h-px w-6 bg-[#D4AF37]" />
           </div>
-          <h2 className="text-5xl font-black tracking-tight sm:text-6xl text-white mb-6">
+          <h2 className="text-5xl font-black tracking-tight sm:text-6xl text-gray-900 mb-6">
             Instant lane pricing.
           </h2>
-          <p className="text-xl text-white/50">
+          <p className="text-xl text-black/60">
             Generate an interactive estimate for the specific corridor combinations. For a binding contract, submit an official quote request.
           </p>
         </div>
@@ -69,11 +69,11 @@ export default function PublicRateCalculatorSection() {
                     className={`flex items-start p-4 rounded-[1.5rem] border text-left transition-all ${
                       origin.id === o.id 
                         ? 'border-[#D4AF37] bg-[#D4AF37]/5 shadow-[0_0_20px_rgba(212,175,55,0.15)] ring-1 ring-[#D4AF37]/50'
-                        : 'border-white/10 bg-white/5 hover:border-white/30'
+                        : 'border-black/5 bg-[#F9FAFB]/[0.03] hover:border-white/30'
                     }`}
                   >
-                    <MapPin className={`h-5 w-5 shrink-0 mt-0.5 mr-3 ${origin.id === o.id ? 'text-[#D4AF37]' : 'text-white/30'}`} />
-                    <span className={`font-semibold ${origin.id === o.id ? 'text-white' : 'text-white/60'}`}>{o.name}</span>
+                    <MapPin className={`h-5 w-5 shrink-0 mt-0.5 mr-3 ${origin.id === o.id ? 'text-[#D4AF37]' : 'text-black/40'}`} />
+                    <span className={`font-semibold ${origin.id === o.id ? 'text-gray-900' : 'text-black/60'}`}>{o.name}</span>
                   </button>
                 ))}
               </div>
@@ -90,11 +90,11 @@ export default function PublicRateCalculatorSection() {
                     className={`flex flex-col items-start p-4 rounded-[1.5rem] border text-left transition-all ${
                       dest.id === d.id 
                         ? 'border-[#D4AF37] bg-[#D4AF37]/5 shadow-[0_0_20px_rgba(212,175,55,0.15)] ring-1 ring-[#D4AF37]/50'
-                        : 'border-white/10 bg-white/5 hover:border-white/30'
+                        : 'border-black/5 bg-[#F9FAFB]/[0.03] hover:border-white/30'
                     }`}
                   >
-                    <span className={`font-semibold ${dest.id === d.id ? 'text-white' : 'text-white/60'}`}>{d.name}</span>
-                    <span className={`text-[11px] font-mono mt-2 px-2 py-1 rounded-full ${dest.id === d.id ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-white/40'}`}>
+                    <span className={`font-semibold ${dest.id === d.id ? 'text-gray-900' : 'text-black/60'}`}>{d.name}</span>
+                    <span className={`text-[11px] font-mono mt-2 px-2 py-1 rounded-full ${dest.id === d.id ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-[#F9FAFB]/[0.03] text-black/50'}`}>
                       {d.time}
                     </span>
                   </button>
@@ -113,7 +113,7 @@ export default function PublicRateCalculatorSection() {
                       className={`flex-1 flex justify-center py-4 rounded-full border transition-all ${
                         vType.id === v.id
                            ? 'border-[#D4AF37] bg-[#D4AF37] text-black font-bold shadow-[0_0_20px_rgba(212,175,55,0.3)]'
-                           : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white font-medium'
+                           : 'border-black/5 bg-[#F9FAFB]/[0.03] text-black/60 hover:bg-[#F9FAFB]/5 hover:text-gray-900 font-medium'
                       }`}
                     >
                       {v.name}
@@ -125,14 +125,14 @@ export default function PublicRateCalculatorSection() {
           </div>
 
           <motion.div 
-            className="sticky top-32 rounded-[3rem] border border-white/10 bg-[#0a0a0a] p-10 shadow-2xl relative overflow-hidden"
+            className="sticky top-32 rounded-[3rem] border border-black/5 bg-[#F9FAFB] p-10 shadow-2xl relative overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[#D4AF37]/5 to-transparent pointer-events-none" />
             
             <p className="text-sm font-semibold uppercase tracking-widest text-[#D4AF37] mb-12">Estimated Subtotal</p>
             
-            <div className="flex items-start text-white mb-12">
-              <span className="text-4xl mt-3 text-white/50 font-light">$</span>
+            <div className="flex items-start text-gray-900 mb-12">
+              <span className="text-4xl mt-3 text-black/60 font-light">$</span>
               <AnimatePresence mode='popLayout'>
                 <motion.span 
                   key={basePrice}
@@ -147,14 +147,14 @@ export default function PublicRateCalculatorSection() {
               </AnimatePresence>
             </div>
 
-            <div className="space-y-4 mb-12 border-t border-white/10 pt-8">
+            <div className="space-y-4 mb-12 border-t border-black/5 pt-8">
               <div className="flex justify-between text-sm">
-                <span className="text-white/50">Origin Transport</span>
-                <span className="font-mono text-white/80">${(origin.price * vType.multiplier).toLocaleString()}</span>
+                <span className="text-black/60">Origin Transport</span>
+                <span className="font-mono text-black/80">${(origin.price * vType.multiplier).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-white/50">Ocean / Export Transit</span>
-                <span className="font-mono text-white/80">${(dest.price * vType.multiplier).toLocaleString()}</span>
+                <span className="text-black/60">Ocean / Export Transit</span>
+                <span className="font-mono text-black/80">${(dest.price * vType.multiplier).toLocaleString()}</span>
               </div>
             </div>
 
@@ -163,7 +163,7 @@ export default function PublicRateCalculatorSection() {
                 onClick={() => {
                   document.getElementById('quote')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="group relative flex w-full h-16 items-center justify-center overflow-hidden rounded-full bg-white text-black font-bold"
+                className="group relative flex w-full h-16 items-center justify-center overflow-hidden rounded-full bg-gray-900 text-gray-900 font-bold"
               >
                 <div className="absolute inset-0 bg-[#D4AF37] translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
                 <span className="relative z-10 transition-colors duration-500 group-hover:text-black">Request exact quote</span>

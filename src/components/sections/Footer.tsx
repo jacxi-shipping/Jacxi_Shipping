@@ -32,7 +32,7 @@ const footerNavigation = {
 
 export default function Footer() {
   return (
-    <footer className="relative bg-black pt-32 pb-12 overflow-hidden selection:bg-[#D4AF37] selection:text-white" aria-labelledby="footer-heading">
+    <footer className="relative bg-[#F9FAFB] pt-32 pb-12 overflow-hidden selection:bg-[#D4AF37] selection:text-gray-900" aria-labelledby="footer-heading">
       <h2 id="footer-heading" className="sr-only">Footer</h2>
       
       {/* Abstract Background Effects */}
@@ -50,7 +50,7 @@ export default function Footer() {
              whileInView={{ opacity: 1, y: 0 }}
              viewport={{ once: true }}
              transition={{ duration: 0.8, ease: "easeOut" }}
-             className="text-[4rem] font-black leading-none tracking-tighter text-white sm:text-[6rem] md:text-[8rem] lg:text-[10rem]"
+             className="text-[4rem] font-black leading-none tracking-tighter text-gray-900 sm:text-[6rem] md:text-[8rem] lg:text-[10rem]"
            >
              READY TO <br/>
              <span className="text-[#D4AF37] font-serif font-light italic tracking-normal">SHIP?</span>
@@ -66,7 +66,7 @@ export default function Footer() {
             <Magnetic strength={0.4} intensity={0.2}>
               <Link
                 href="/#quote"
-                className="group relative flex h-32 w-32 items-center justify-center rounded-full bg-white text-black shadow-2xl transition-transform hover:scale-110 sm:h-40 sm:w-40"
+                className="group relative flex h-32 w-32 items-center justify-center rounded-full bg-gray-900 text-gray-900 shadow-2xl transition-transform hover:scale-110 sm:h-40 sm:w-40"
               >
                 <div className="absolute inset-0 rounded-full border border-[#D4AF37] scale-150 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-700 ease-out" />
                 <span className="text-sm font-bold uppercase tracking-widest sm:text-base">Start now</span>
@@ -75,10 +75,10 @@ export default function Footer() {
            </motion.div>
         </div>
 
-        <div className="grid border-t border-white/10 pt-16 xl:grid-cols-3 xl:gap-8">
+        <div className="grid border-t border-black/5 pt-16 xl:grid-cols-3 xl:gap-8">
           <div className="space-y-8 xl:col-span-1">
-            <SiteMark className="h-8 text-white relative z-10" />
-            <p className="max-w-xs text-sm leading-relaxed text-white/50">
+            <SiteMark className="h-8 text-gray-900 relative z-10" />
+            <p className="max-w-xs text-sm leading-relaxed text-black/60">
               Premium vehicle logistics from North America to Afghanistan. Flawless handling through trusted corridors.
             </p>
             <div className="flex gap-x-6">
@@ -89,11 +89,11 @@ export default function Footer() {
           <div className="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
             <div className="md:grid md:grid-cols-2 md:gap-8">
               <div>
-                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Solutions</h3>
+                <h3 className="text-sm font-bold text-gray-900 tracking-widest uppercase">Solutions</h3>
                 <ul role="list" className="mt-6 space-y-4">
                   {footerNavigation.solutions.map((item) => (
                     <li key={item.name}>
-                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                      <Link href={item.href} className="text-sm text-black/60 hover:text-gray-900 transition-colors">
                         {item.name}
                       </Link>
                     </li>
@@ -101,11 +101,11 @@ export default function Footer() {
                 </ul>
               </div>
               <div className="mt-10 md:mt-0">
-                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Support</h3>
+                <h3 className="text-sm font-bold text-gray-900 tracking-widest uppercase">Support</h3>
                 <ul role="list" className="mt-6 space-y-4">
                   {footerNavigation.support.map((item) => (
                     <li key={item.name}>
-                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                      <Link href={item.href} className="text-sm text-black/60 hover:text-gray-900 transition-colors">
                         {item.name}
                       </Link>
                     </li>
@@ -115,11 +115,11 @@ export default function Footer() {
             </div>
             <div className="md:grid md:grid-cols-2 md:gap-8">
               <div>
-                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Company</h3>
+                <h3 className="text-sm font-bold text-gray-900 tracking-widest uppercase">Company</h3>
                 <ul role="list" className="mt-6 space-y-4">
                   {footerNavigation.company.map((item) => (
                     <li key={item.name}>
-                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                      <Link href={item.href} className="text-sm text-black/60 hover:text-gray-900 transition-colors">
                         {item.name}
                       </Link>
                     </li>
@@ -127,11 +127,11 @@ export default function Footer() {
                 </ul>
               </div>
               <div className="mt-10 md:mt-0">
-                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Legal</h3>
+                <h3 className="text-sm font-bold text-gray-900 tracking-widest uppercase">Legal</h3>
                 <ul role="list" className="mt-6 space-y-4">
                   {footerNavigation.legal.map((item) => (
                     <li key={item.name}>
-                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                      <Link href={item.href} className="text-sm text-black/60 hover:text-gray-900 transition-colors">
                         {item.name}
                       </Link>
                     </li>

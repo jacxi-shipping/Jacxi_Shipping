@@ -64,10 +64,10 @@ export default function ProcessSection() {
 
   return (
     // The height here determines how long the user has to scroll to see all cards
-    <section ref={targetRef} className="relative h-[300vh] bg-black">
+    <section ref={targetRef} className="relative h-[300vh] bg-[#F9FAFB]">
       
       {/* Sticky container holds the horizontal scrolling row */}
-      <div className="sticky top-0 flex h-screen items-center overflow-hidden bg-black">
+      <div className="sticky top-0 flex h-screen items-center overflow-hidden bg-[#F9FAFB]">
         
         {/* Abstract Background Effects */}
         <motion.div style={{ opacity: bgOpacity }} className="absolute inset-0 z-0">
@@ -84,9 +84,9 @@ export default function ProcessSection() {
               <span className="h-px w-6 bg-[#D4AF37]" />
               <span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">Execution</span>
             </div>
-            <h2 className="mt-6 text-4xl font-extrabold text-white sm:text-5xl lg:text-7xl max-w-4xl tracking-tight leading-[1.05]">
+            <h2 className="mt-6 text-4xl font-extrabold text-gray-900 sm:text-5xl lg:text-7xl max-w-4xl tracking-tight leading-[1.05]">
               Five milestones. <br/>
-              <span className="text-white/40 italic font-serif font-light">Zero friction.</span>
+              <span className="text-black/50 italic font-serif font-light">Zero friction.</span>
             </h2>
           </div>
 
@@ -100,30 +100,30 @@ export default function ProcessSection() {
               return (
                 <div 
                   key={step.number}
-                  className="group relative flex w-[350px] sm:w-[420px] shrink-0 flex-col rounded-[2rem] border border-white/5 bg-[#0a0a0a] p-10 transition-all hover:bg-[#111] hover:border-white/10"
+                  className="group relative flex w-[350px] sm:w-[420px] shrink-0 flex-col rounded-[2rem] border border-black/[0.03] bg-white p-10 transition-all hover:bg-white hover:border-black/5"
                 >
-                  <div className="absolute top-10 right-10 text-[6rem] font-bold text-white/5 leading-none transition-colors group-hover:text-white/10">
+                  <div className="absolute top-10 right-10 text-[6rem] font-bold text-gray-900/5 leading-none transition-colors group-hover:text-black/10">
                     {step.number}
                   </div>
 
-                  <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-white/5 border border-white/10 group-hover:border-[#D4AF37]/50 group-hover:text-[#D4AF37] transition-colors shadow-lg">
-                    <Icon className="h-7 w-7 text-white group-hover:text-[#D4AF37] transition-colors" />
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-[#F9FAFB]/[0.03] border border-black/5 group-hover:border-[#D4AF37]/50 group-hover:text-[#D4AF37] transition-colors shadow-lg">
+                    <Icon className="h-7 w-7 text-gray-900 group-hover:text-[#D4AF37] transition-colors" />
                   </div>
 
                   <div className="mt-20">
-                    <span className="inline-block rounded-full bg-white/5 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[#D4AF37] mb-4">
+                    <span className="inline-block rounded-full bg-[#F9FAFB]/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[#D4AF37] mb-4">
                       {step.location}
                     </span>
-                    <h3 className="text-2xl font-bold text-white mb-4">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
                       {step.title}
                     </h3>
-                    <p className="text-base text-white/50 leading-relaxed font-medium mb-10 min-h-[80px]">
+                    <p className="text-base text-black/60 leading-relaxed font-medium mb-10 min-h-[80px]">
                       {step.description}
                     </p>
                     
-                    <div className="mt-auto border-t border-white/10 pt-6">
-                      <p className="text-xs uppercase tracking-widest text-white/30 font-mono mb-2">Key checkpoint</p>
-                      <p className="text-sm font-bold text-white/80">{step.checkpoint}</p>
+                    <div className="mt-auto border-t border-black/5 pt-6">
+                      <p className="text-xs uppercase tracking-widest text-black/40 font-mono mb-2">Key checkpoint</p>
+                      <p className="text-sm font-bold text-black/80">{step.checkpoint}</p>
                     </div>
                   </div>
                 </div>
@@ -131,7 +131,7 @@ export default function ProcessSection() {
             })}
 
             {/* End Cap */}
-            <div className="flex w-[200px] shrink-0 items-center justify-center text-white/20 px-10 border-l border-dashed border-white/10">
+            <div className="flex w-[200px] shrink-0 items-center justify-center text-black/20 px-10 border-l border-dashed border-black/5">
               <span className="text-sm font-mono tracking-widest uppercase rotate-[-90deg] whitespace-nowrap">End of process</span>
             </div>
           </motion.div>

@@ -83,7 +83,7 @@ export default function HeroSection() {
   };
 
   return (
-    <section ref={sectionRef} className="relative isolate box-border min-h-[100svh] overflow-hidden bg-black px-4 pb-12 pt-28 text-white sm:px-6 lg:px-8 xl:min-h-[100svh] flex flex-col justify-center perspective-[1000px]">
+    <section ref={sectionRef} className="relative isolate box-border min-h-[100svh] overflow-hidden bg-[#F9FAFB] px-4 pb-12 pt-28 text-gray-900 sm:px-6 lg:px-8 xl:min-h-[100svh] flex flex-col justify-center perspective-[1000px]">
       {/* Full Background Video */}
       <motion.div 
         style={{ scale: videoScale }}
@@ -102,8 +102,8 @@ export default function HeroSection() {
       </motion.div>
 
       {/* High-end cinematic overlays */}
-      <div className="pointer-events-none absolute inset-0 -z-20 bg-gradient-to-b from-black/60 via-black/20 to-black/80" />
-      <div className="pointer-events-none absolute inset-0 -z-20 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)] opacity-70" />
+      <div className="pointer-events-none absolute inset-0 -z-20 bg-gradient-to-b from-white/60 via-white/20 to-white/90" />
+      <div className="pointer-events-none absolute inset-0 -z-20 bg-[radial-gradient(circle_at_center,transparent_0%,white_100%)] opacity-70" />
       
       {/* Noise filter overlay for premium feel */}
       <div className="pointer-events-none absolute inset-0 -z-10 opacity-[0.03] mix-blend-overlay" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")'}}></div>
@@ -126,19 +126,19 @@ export default function HeroSection() {
           className="relative z-10 flex flex-col justify-center pt-8 sm:pt-24 lg:pt-0"
         >
           {/* Trust Badge */}
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/5 px-2 py-1.5 pr-5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] backdrop-blur-xl self-start overflow-hidden relative group">
-            <span className="absolute inset-0 w-10 bg-white/20 -translate-x-[150%] skew-x-[-20deg] animate-[shimmer_3s_ease-in-out_infinite]" />
-            <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.8)]">
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-3 rounded-full border border-black/10 bg-[#F9FAFB]/[0.03] px-2 py-1.5 pr-5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] backdrop-blur-xl self-start overflow-hidden relative group">
+            <span className="absolute inset-0 w-10 bg-[#F9FAFB]/10 -translate-x-[150%] skew-x-[-20deg] animate-[shimmer_3s_ease-in-out_infinite]" />
+            <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-900 text-gray-900 shadow-[0_0_15px_rgba(255,255,255,0.8)]">
               <ShieldCheck className="h-3.5 w-3.5" />
             </span>
-            <span className="relative z-10 text-xs font-bold uppercase tracking-[0.15em] text-white">
+            <span className="relative z-10 text-xs font-bold uppercase tracking-[0.15em] text-gray-900">
               #1 N.A. to Afghanistan
             </span>
           </motion.div>
 
           {/* Headline - Word by Word Reveal */}
           <motion.h1 
-            className="mt-10 max-w-4xl text-[3.25rem] font-bold leading-[0.95] tracking-tighter text-white sm:text-[4.5rem] lg:text-[5rem] xl:text-[6.5rem] drop-shadow-2xl"
+            className="mt-10 max-w-4xl text-[3.25rem] font-bold leading-[0.95] tracking-tighter text-gray-900 sm:text-[4.5rem] lg:text-[5rem] xl:text-[6.5rem] drop-shadow-2xl"
           >
             {titleWords.slice(0, 3).map((word, i) => (
               <motion.span key={i} className="inline-block mr-3 lg:mr-4 origin-bottom-left" variants={wordVariants}>{word}</motion.span>
@@ -159,15 +159,15 @@ export default function HeroSection() {
               ></motion.span>
             </span>
             <br className="hidden sm:block"/>
-            <motion.span className="block mt-6 text-[0.3em] font-extrabold leading-[1.3] text-white/50 uppercase tracking-[0.3em] font-mono text-outline hover:text-white transition-colors duration-500" variants={wordVariants}>
+            <motion.span className="block mt-6 text-[0.3em] font-extrabold leading-[1.3] text-black/60 uppercase tracking-[0.3em] font-mono text-outline hover:text-gray-900 transition-colors duration-500" variants={wordVariants}>
               TO AFGHANISTAN
             </motion.span>
           </motion.h1>
 
           {/* Value Prop text */}
-          <motion.p variants={itemVariants} className="mt-8 max-w-xl text-lg leading-relaxed text-white/70 sm:text-xl font-medium drop-shadow-md">
-            Premium vehicle logistics from <span className="text-white">USA and Canada</span> directly to{' '}
-            <span className="text-white">Afghanistan</span>. Flawless handling through <span className="text-[var(--accent-gold)] underline decoration-white/20 underline-offset-4 decoration-2">Mersin</span> or <span className="text-[var(--accent-gold)] underline decoration-white/20 underline-offset-4 decoration-2">UAE</span>.
+          <motion.p variants={itemVariants} className="mt-8 max-w-xl text-lg leading-relaxed text-black/70 sm:text-xl font-medium drop-shadow-md">
+            Premium vehicle logistics from <span className="text-gray-900">USA and Canada</span> directly to{' '}
+            <span className="text-gray-900">Afghanistan</span>. Flawless handling through <span className="text-[var(--accent-gold)] underline decoration-white/20 underline-offset-4 decoration-2">Mersin</span> or <span className="text-[var(--accent-gold)] underline decoration-white/20 underline-offset-4 decoration-2">UAE</span>.
           </motion.p>
 
           {/* Call to Actions - Magnetic */}
@@ -178,18 +178,18 @@ export default function HeroSection() {
                 className="group relative inline-flex h-16 min-w-[200px] items-center justify-center gap-3 overflow-hidden rounded-full bg-white px-8 text-base font-bold text-black shadow-[0_8px_30px_rgba(255,255,255,0.2)] transition-all duration-500 hover:shadow-[0_8px_40px_rgba(255,255,255,0.4)]"
               >
                 <div className="absolute inset-0 h-full w-full bg-[var(--accent-gold)] translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
-                <span className="relative z-10 group-hover:text-white transition-colors duration-500">Get a free quote</span>
-                <ArrowRight className="relative z-10 h-5 w-5 -rotate-45 transition-transform duration-500 group-hover:rotate-0 group-hover:text-white group-hover:translate-x-1" />
+                <span className="relative z-10 group-hover:text-gray-900 transition-colors duration-500">Get a free quote</span>
+                <ArrowRight className="relative z-10 h-5 w-5 -rotate-45 transition-transform duration-500 group-hover:rotate-0 group-hover:text-gray-900 group-hover:translate-x-1" />
               </Link>
             </Magnetic>
             
             <Magnetic>
               <Link
                 href="/#process"
-                className="group relative inline-flex h-16 items-center justify-center gap-3 rounded-full border border-white/20 bg-transparent px-8 text-base font-semibold text-white backdrop-blur-md transition-all duration-500 hover:bg-white/10 hover:border-white/50"
+                className="group relative inline-flex h-16 items-center justify-center gap-3 rounded-full border border-black/10 bg-transparent px-8 text-base font-semibold text-gray-900 backdrop-blur-md transition-all duration-500 hover:bg-[#F9FAFB]/5 hover:border-black/[0.03]0"
               >
-                 <span className="absolute inset-0 rounded-full border border-transparent group-hover:border-white/20 group-hover:scale-105 transition-all duration-500 ease-out" />
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm group-hover:bg-white group-hover:text-black transition-colors duration-500">
+                 <span className="absolute inset-0 rounded-full border border-transparent group-hover:border-black/10 group-hover:scale-105 transition-all duration-500 ease-out" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F9FAFB]/5 text-gray-900 backdrop-blur-sm group-hover:bg-white group-hover:text-black transition-colors duration-500">
                   <CirclePlay className="h-4 w-4 fill-current" />
                 </div>
                 How it works
@@ -198,17 +198,17 @@ export default function HeroSection() {
           </motion.div>
 
           {/* Corridor Features */}
-          <motion.div variants={itemVariants} className="mt-14 hidden md:flex items-center gap-6 pt-8 border-t border-white/10">
+          <motion.div variants={itemVariants} className="mt-14 hidden md:flex items-center gap-6 pt-8 border-t border-black/5">
             {corridorCards.map((card, idx) => {
               const Icon = card.icon;
               return (
                 <div key={card.title} className="flex items-start gap-4 flex-1 group">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 backdrop-blur-sm border border-white/10 group-hover:border-[var(--accent-gold)] group-hover:bg-[rgba(var(--accent-gold-rgb),0.1)] transition-all duration-300">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F9FAFB]/[0.03] backdrop-blur-sm border border-black/5 group-hover:border-[var(--accent-gold)] group-hover:bg-[rgba(var(--accent-gold-rgb),0.1)] transition-all duration-300">
                     <Icon className="h-4 w-4 text-[var(--accent-gold)]" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white/90">{card.title}</h3>
-                    <p className="mt-1 text-xs text-white/60 leading-snug">{card.detail}</p>
+                    <h3 className="text-sm font-bold text-black/90">{card.title}</h3>
+                    <p className="mt-1 text-xs text-black/60 leading-snug">{card.detail}</p>
                   </div>
                 </div>
               );
@@ -230,16 +230,16 @@ export default function HeroSection() {
             whileHover={{ scale: 1.05, rotateX: 10, rotateY: -10 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
           >
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl shadow-[0_20px_40px_-20px_rgba(0,0,0,0.5)] w-80 relative overflow-hidden group">
+            <div className="rounded-3xl border border-black/5 bg-[#F9FAFB]/[0.03] p-6 backdrop-blur-2xl shadow-[0_20px_40px_-20px_rgba(0,0,0,0.5)] w-80 relative overflow-hidden group">
                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full transition-transform duration-1000 group-hover:translate-x-full" />
               <div className="flex items-center gap-5 relative z-10">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-black shadow-2xl">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900 text-gray-900 shadow-2xl">
                   <Ship className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-white/50 uppercase tracking-[0.2em] mb-1.5 font-mono">Operations</p>
-                  <div className="flex items-center gap-2.5 text-[0.95rem] tracking-tight text-white font-bold">
+                  <p className="text-[10px] font-bold text-black/60 uppercase tracking-[0.2em] mb-1.5 font-mono">Operations</p>
+                  <div className="flex items-center gap-2.5 text-[0.95rem] tracking-tight text-gray-900 font-bold">
                     <span className="flex h-2.5 w-2.5 rounded-full bg-green-400 relative">
                       <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-70" />
                     </span>
@@ -257,16 +257,16 @@ export default function HeroSection() {
             whileHover={{ scale: 1.05, rotateX: -10, rotateY: -10 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
           >
-            <div className="rounded-3xl border border-white/10 bg-black/40 p-6 backdrop-blur-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] w-72 group relative overflow-hidden">
+            <div className="rounded-3xl border border-black/5 bg-[#F9FAFB]/40 p-6 backdrop-blur-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] w-72 group relative overflow-hidden">
                <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500" />
               <div className="flex flex-col relative z-10">
-                 <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-4">
-                   <span className="text-4xl font-black text-white leading-none tracking-tighter mix-blend-difference">100%</span>
+                 <div className="flex items-center justify-between mb-3 border-b border-black/5 pb-4">
+                   <span className="text-4xl font-black text-gray-900 leading-none tracking-tighter mix-blend-difference">100%</span>
                    <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-500">
                      <CheckCircle className="h-6 w-6 text-black" />
                    </div>
                  </div>
-                 <span className="text-[11px] text-white/60 font-bold uppercase tracking-[0.1em]">Delivery Success to Herat</span>
+                 <span className="text-[11px] text-black/60 font-bold uppercase tracking-[0.1em]">Delivery Success to Herat</span>
               </div>
             </div>
           </motion.div>
