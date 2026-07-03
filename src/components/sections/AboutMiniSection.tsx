@@ -2,16 +2,9 @@ import { CheckCircle2, Globe2, ShieldCheck, Truck } from 'lucide-react';
 
 const highlights = [
   'Licensed and bonded coordination',
-  '14+ years of vehicle logistics',
+  'Dedicated vehicle logistics support',
   'All Afghan provinces covered',
   'Free route consultation',
-];
-
-const metrics = [
-  { value: '14+', label: 'Years in business' },
-  { value: '12,000+', label: 'Vehicles shipped' },
-  { value: '4.9/5', label: 'Customer satisfaction' },
-  { value: '34', label: 'Afghan provinces' },
 ];
 
 const trustCards = [
@@ -60,15 +53,6 @@ export default function AboutMiniSection() {
 					</div>
 
 					<div className="grid gap-3">
-						<div className="landing-reveal grid gap-3 sm:grid-cols-2">
-							{metrics.map((metric) => (
-								<div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm" key={metric.label}>
-									<p className="text-3xl font-black text-[var(--text-primary)]">{metric.value}</p>
-									<p className="mt-1 text-sm font-bold text-[var(--text-secondary)]">{metric.label}</p>
-								</div>
-							))}
-						</div>
-
 						<div className="landing-reveal grid gap-3">
 							{trustCards.map((card) => {
 								const Icon = card.icon;

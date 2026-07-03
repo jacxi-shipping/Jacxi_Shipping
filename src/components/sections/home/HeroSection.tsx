@@ -12,13 +12,6 @@ import {
 } from 'lucide-react';
 import ShippingCapsuleScene from './ShippingCapsuleScene';
 
-const stats = [
-  { label: 'Vehicles delivered', value: '12,000+' },
-  { label: 'Years operating', value: '14+' },
-  { label: 'Afghan provinces', value: '34' },
-  { label: 'Customer rating', value: '4.9/5' },
-];
-
 const corridorCards = [
   {
     title: 'Origin intake',
@@ -150,19 +143,6 @@ export default function HeroSection() {
         </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.58, delay: 0.46 }}
-        className="mx-auto mt-8 grid max-w-7xl grid-cols-2 gap-2 sm:grid-cols-4 lg:mt-0"
-      >
-        {stats.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.82)] px-4 py-4 backdrop-blur-xl">
-            <p className="text-2xl font-black text-[var(--text-primary)] sm:text-3xl">{stat.value}</p>
-            <p className="mt-1 text-xs font-semibold text-[var(--text-secondary)]">{stat.label}</p>
-          </div>
-        ))}
-      </motion.div>
     </section>
   );
 }
