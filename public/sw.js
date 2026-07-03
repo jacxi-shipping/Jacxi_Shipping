@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jacxi-pwa-v2';
+const CACHE_NAME = 'jacxi-pwa-v3';
 const STATIC_ASSETS = ['/', '/offline'];
 const DISABLE_PWA = ['localhost', '127.0.0.1', '::1'].includes(self.location.hostname);
 
@@ -55,6 +55,11 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const requestUrl = new URL(request.url);
 
+  // Only handle http/https requests; skip chrome-extension:// and other schemes.
+  if (!requestUrl.protocol.startsWith('http')) {
+    return;
+  }
+
   if (request.method !== 'GET') {
     return;
   }
@@ -67,8 +72,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
           return response;
         })
         .catch(() =>
@@ -82,8 +89,10 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
           return networkResponse;
         })
         .catch(() => cachedResponse);
