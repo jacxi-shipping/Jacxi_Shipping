@@ -32,7 +32,7 @@ export default function Footer() {
               <SiteLogo variant="main" className="w-[188px] sm:w-[220px]" priority />
             </Link>
             <p className="mt-5 max-w-md text-base leading-7 text-[var(--text-secondary)]">
-              Premium vehicle shipping from the USA and Canada to Afghanistan through Mersin, Turkey and UAE logistics corridors.
+              Premium vehicle shipping from anywhere in the USA and Canada to Afghanistan through either the Mersin route or the UAE route.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {socialLinks.map((link) => (

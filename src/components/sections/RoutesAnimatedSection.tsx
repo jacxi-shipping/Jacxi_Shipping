@@ -15,18 +15,18 @@ const journeySteps = [
   {
     step: '02',
     icon: Ship,
-    location: 'Mersin, Turkey',
-    title: 'Ocean freight corridor',
-    description: 'Container movement through the Mediterranean with port handoff visibility.',
-    duration: '18-28 days',
+    location: 'Route option A',
+    title: 'Mersin, Turkey route',
+    description: 'One available route moves through Mersin with Turkey port handoff visibility.',
+    duration: 'Timing varies',
   },
   {
     step: '03',
     icon: Container,
-    location: 'UAE transit',
-    title: 'Hub coordination',
-    description: 'Documentation, routing control, inspection support, and onward shipment planning.',
-    duration: '3-7 days',
+    location: 'Route option B',
+    title: 'UAE route',
+    description: 'The alternate route moves through UAE with transit control and onward shipment planning.',
+    duration: 'Timing varies',
   },
   {
     step: '04',
@@ -47,17 +47,17 @@ const nodes = [
 ];
 
 const paths = [
-  { path: 'M 250 168 Q 390 92 555 230', delay: 0, duration: 5 },
-  { path: 'M 230 222 Q 398 150 555 230', delay: 0.4, duration: 5 },
-  { path: 'M 555 230 Q 590 260 604 306', delay: 2.7, duration: 3 },
-  { path: 'M 604 306 Q 632 290 632 250', delay: 4.2, duration: 2.4 },
+  { path: 'M 250 168 Q 390 92 555 230 Q 600 220 632 250', delay: 0, duration: 5.5 },
+  { path: 'M 230 222 Q 398 150 555 230 Q 600 220 632 250', delay: 0.4, duration: 5.5 },
+  { path: 'M 250 168 Q 430 178 604 306 Q 632 290 632 250', delay: 1.0, duration: 5.5 },
+  { path: 'M 230 222 Q 430 230 604 306 Q 632 290 632 250', delay: 1.4, duration: 5.5 },
 ];
 
 const movers = [
-  { cx: [250, 350, 470, 555], cy: [168, 98, 148, 230], delay: 0.3, icon: Ship },
-  { cx: [230, 352, 468, 555], cy: [222, 156, 172, 230], delay: 1.0, icon: Ship },
-  { cx: [555, 578, 594, 604], cy: [230, 252, 282, 306], delay: 3.1, icon: Container },
-  { cx: [604, 620, 632], cy: [306, 286, 250], delay: 4.7, icon: Truck },
+  { cx: [250, 360, 555, 632], cy: [168, 104, 230, 250], delay: 0.3, icon: Ship },
+  { cx: [230, 366, 555, 632], cy: [222, 158, 230, 250], delay: 1.0, icon: Ship },
+  { cx: [250, 410, 604, 632], cy: [168, 178, 306, 250], delay: 1.7, icon: Container },
+  { cx: [230, 420, 604, 632], cy: [222, 230, 306, 250], delay: 2.4, icon: Truck },
 ];
 
 export default function RoutesAnimatedSection() {
@@ -78,13 +78,13 @@ export default function RoutesAnimatedSection() {
               Built for the real corridor into Afghanistan.
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-              Your vehicle moves through a planned logistics chain: North American pickup, ocean freight to Mersin, UAE coordination when needed, and final customs-backed delivery across Afghanistan.
+              Your vehicle can move from anywhere in the USA or Canada to Afghanistan through one of two planned routes: the Mersin route or the UAE route.
             </p>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
               {[
-                { label: 'Primary route', value: 'USA / Canada to Mersin' },
-                { label: 'Transit control', value: 'Turkey and UAE handoffs' },
+                { label: 'Origin coverage', value: 'All USA and Canada pickup lanes' },
+                { label: 'Route options', value: 'Mersin route or UAE route' },
                 { label: 'Final mile', value: 'All Afghan provinces' },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm">

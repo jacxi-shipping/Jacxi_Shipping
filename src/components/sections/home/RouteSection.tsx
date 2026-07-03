@@ -2,13 +2,13 @@ import { Anchor, FileCheck, MapPin, Truck } from 'lucide-react';
 
 const milestones = [
   {
-    title: 'USA export preparation',
-    description: 'Vehicle pickup, condition intake, documentation review, and port booking are completed before departure.',
+    title: 'USA / Canada export preparation',
+    description: 'Vehicle pickup, condition intake, documentation review, and port booking are completed before departure from the origin lane.',
     icon: MapPin,
   },
   {
-    title: 'UAE consolidation and customs',
-    description: 'The UAE leg acts as the operational handoff point for container arrival, customs processing, and onward planning.',
+    title: 'Mersin or UAE route coordination',
+    description: 'The shipment is assigned to one corridor, either through Mersin, Turkey or through UAE, with route-specific handoff and onward planning.',
     icon: Anchor,
   },
   {
@@ -20,8 +20,8 @@ const milestones = [
 
 const supportPoints = [
   'Herat-focused operations with support for other Afghan provinces',
-  'Clear transition from container movement to destination transit',
-  'Document and customs checkpoints aligned with the route',
+  'Clear transition from export movement to the selected route option',
+  'Document and customs checkpoints aligned with either Mersin or UAE',
   'Single customer-facing workflow across all handoffs',
 ];
 
@@ -32,7 +32,7 @@ export default function RouteSection() {
         <div className="grid grid-cols-1 gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           <div>
             <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[var(--accent-gold)]">The Route</p>
-            <h2 className="text-4xl font-bold text-[var(--text-primary)] sm:text-5xl">From the USA to Afghanistan, with the UAE as the working hub.</h2>
+            <h2 className="text-4xl font-bold text-[var(--text-primary)] sm:text-5xl">From the USA and Canada to Afghanistan, through the right route.</h2>
             <p className="mt-5 max-w-3xl text-lg leading-relaxed text-[var(--text-secondary)]">
               Customers do not need separate providers for export, customs handoff, and destination transit. JACXI keeps the route connected so each milestone reflects what is actually happening to the shipment.
             </p>
@@ -63,7 +63,7 @@ export default function RouteSection() {
             </div>
             <h3 className="text-2xl font-bold text-[var(--text-primary)]">What customers get</h3>
             <p className="mt-4 leading-relaxed text-[var(--text-secondary)]">
-              The landing page, the services page, and the tracking flow now describe the same operational model: one route, one handoff chain, and one record of progress.
+              The landing page, the services page, and the tracking flow describe the same operational model: USA or Canada pickup, one selected route through Mersin or UAE, and one record of progress into Afghanistan.
             </p>
             <ul className="mt-8 space-y-4">
               {supportPoints.map((point) => (

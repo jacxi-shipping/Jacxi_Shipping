@@ -23,7 +23,7 @@ const trustCards = [
   {
     icon: Globe2,
     title: 'Corridor expertise',
-    description: 'North America, Mersin, UAE, and Afghanistan coordination in one operating model.',
+    description: 'USA and Canada pickup coordination with Mersin or UAE route planning into Afghanistan.',
   },
   {
     icon: Truck,
@@ -43,7 +43,7 @@ export default function AboutMiniSection() {
 							A specialist car shipping partner for Afghan importers.
 						</h2>
 						<p className="landing-reveal mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-							JACXI Shipping has been building vehicle logistics from North America to Afghanistan for over a decade. We combine customs support, tracking, and careful route coordination so families and businesses can move vehicles with confidence.
+							JACXI Shipping has been building vehicle logistics from the USA and Canada to Afghanistan for over a decade. We combine customs support, tracking, and careful route coordination so families and businesses can move vehicles with confidence.
 						</p>
 						<p className="landing-reveal mt-4 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
 							We understand the unique needs of Afghan expatriates and businesses importing vehicles, and we design the process to be direct, transparent, and reliable.

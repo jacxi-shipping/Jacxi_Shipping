@@ -12,9 +12,9 @@ import OfflineStatusBanner from "@/components/pwa/OfflineStatusBanner";
 const fontVariables = '';
 
 export const metadata: Metadata = {
-  title: "JACXI Shipping - Vehicle Shipping from USA to Afghanistan via UAE",
-  description: "Professional vehicle shipping from USA through Dubai UAE to Herat and all Afghan provinces. Complete door-to-door service with customs clearance, insurance, and tracking. Serving Kabul, Kandahar, Mazar-i-Sharif and more.",
-  keywords: "vehicle shipping USA to Afghanistan, car shipping to Herat, USA to UAE to Afghanistan, vehicle transport Kabul, Jacxi Shipping, Afghanistan car import",
+  title: "JACXI Shipping - Vehicle Shipping from USA & Canada to Afghanistan",
+  description: "Professional vehicle shipping from anywhere in the USA and Canada to Afghanistan through either the Mersin route or the UAE route. Complete service with customs clearance, insurance, and tracking for all Afghan provinces.",
+  keywords: "vehicle shipping USA to Afghanistan, car shipping Canada to Afghanistan, USA Canada car shipping Afghanistan, Mersin route car shipping, UAE route car shipping, vehicle transport Kabul, Jacxi Shipping, Afghanistan car import",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

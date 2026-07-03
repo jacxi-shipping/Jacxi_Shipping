@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 const services = [
   {
     title: 'Ocean Freight',
-    description: 'Cost-effective container shipping from US ports to Dubai, then ground transport to all Afghan provinces. Ideal for bulk and standard vehicle shipments.',
+    description: 'Cost-effective container shipping from USA and Canada export lanes through the selected Mersin or UAE route, then onward support into Afghanistan.',
     icon: Container,
     badge: 'Most Popular',
   },
@@ -20,7 +20,7 @@ const services = [
   },
   {
     title: 'Inland Transport',
-    description: 'Secure ground transportation network connecting our Dubai hub to every province in Afghanistan, including Herat, Kabul, Kandahar, and beyond.',
+    description: 'Secure ground transportation coordination from the selected route checkpoint into every province in Afghanistan, including Herat, Kabul, Kandahar, and beyond.',
     icon: Truck,
     badge: 'Full Coverage',
   },
@@ -38,7 +38,7 @@ const services = [
   },
   {
     title: 'Live Tracking',
-    description: 'Real-time shipment visibility with milestone updates from pickup through Dubai transit and final Afghanistan delivery.',
+    description: 'Real-time shipment visibility with milestone updates from pickup through the selected Mersin or UAE route and final Afghanistan delivery.',
     icon: Search,
     badge: 'Live',
   },
@@ -54,13 +54,13 @@ const processSteps = [
   {
     number: '02',
     title: 'Vehicle Pickup',
-    description: 'Our team collects your vehicle from anywhere in the United States. We handle loading, securing, and all pre-departure documentation.',
+    description: 'Our team coordinates pickup from anywhere in the USA or Canada. We handle loading, securing, and all pre-departure documentation.',
     icon: Truck,
   },
   {
     number: '03',
-    title: 'Dubai Transit Hub',
-    description: 'Your vehicle passes through our Dubai hub with expert care, inspection, and customs processing handled by our specialists.',
+    title: 'Mersin or UAE Route',
+    description: 'Your shipment moves through the selected route option, either Mersin, Turkey or UAE, based on timing, lane availability, and cost.',
     icon: Globe,
   },
   {
@@ -86,10 +86,10 @@ export default async function ServicesPage() {
               Shipping BeyondBoundaries.
             </p>
             <h1 className="mx-auto mt-5 max-w-5xl text-4xl font-bold leading-[0.98] md:text-6xl">
-              Comprehensive logistics solutions for the full USA to Afghanistan route.
+              Comprehensive logistics solutions from the USA and Canada to Afghanistan.
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-lg leading-relaxed text-[var(--text-secondary)]">
-              Every service you need to move your vehicle from the USA to Afghanistan, handled under one roof.
+              Every service you need to move your vehicle from the USA or Canada to Afghanistan through either Mersin or UAE, handled under one roof.
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
               <Link href="/#quote">
@@ -110,7 +110,7 @@ export default async function ServicesPage() {
               <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[var(--accent-gold)]">What We Do</p>
               <h2 className="text-3xl font-bold md:text-5xl">Comprehensive Logistics Solutions</h2>
               <p className="mt-5 text-lg leading-relaxed text-[var(--text-secondary)]">
-                Every service you need to move your vehicle from the USA to Afghanistan, handled under one roof.
+                Every service you need to move your vehicle from the USA or Canada to Afghanistan through either Mersin or UAE, handled under one roof.
               </p>
             </div>
 
@@ -176,7 +176,7 @@ export default async function ServicesPage() {
               <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-amber-300">Additional Support</p>
               <h2 className="text-3xl font-bold md:text-5xl">Built around the route, not generic international shipping.</h2>
               <p className="mt-5 text-lg leading-relaxed text-slate-300">
-                Our service model covers export preparation in the USA, customs and hub coordination in Dubai, and structured inland delivery planning for Afghanistan.
+                Our service model covers export preparation in the USA and Canada, route coordination through either Mersin or UAE, and structured inland delivery planning for Afghanistan.
               </p>
             </div>
 
@@ -192,7 +192,7 @@ export default async function ServicesPage() {
                 },
                 {
                   title: 'Status Visibility',
-                  text: 'Customers know when the vehicle is collected, shipped, processed through Dubai, and assigned for Afghanistan delivery.',
+                  text: 'Customers know when the vehicle is collected, shipped through the selected Mersin or UAE route, and assigned for Afghanistan delivery.',
                 },
               ].map((item) => (
                 <article key={item.title} className="rounded-[2rem] border border-slate-700 bg-slate-900/65 p-8">

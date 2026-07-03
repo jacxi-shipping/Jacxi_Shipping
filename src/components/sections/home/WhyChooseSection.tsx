@@ -3,7 +3,7 @@ import { FileCheck, MapPin, ShieldCheck, Truck } from 'lucide-react';
 const pillars = [
   {
     title: 'Route-specific planning',
-    description: 'We plan each shipment around the real USA export, UAE hub, and Afghanistan destination sequence instead of treating it like a generic international move.',
+    description: 'We plan each shipment around the real USA or Canada pickup point, the selected Mersin or UAE route, and the Afghanistan destination instead of treating it like a generic international move.',
     icon: MapPin,
   },
   {
@@ -31,7 +31,7 @@ export default function WhyChooseSection() {
           <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[var(--accent-gold)]">Why JACXI</p>
           <h2 className="text-4xl font-bold text-[var(--text-primary)] sm:text-5xl">Built around the actual route, not a template.</h2>
           <p className="mt-5 text-lg leading-relaxed text-[var(--text-secondary)]">
-            The service model is designed for Afghan vehicle imports that need coordinated export handling in the USA, controlled transfer through the UAE, and dependable final-mile planning after transit assignment.
+            The service model is designed for Afghan vehicle imports that need coordinated pickup in the USA or Canada, route choice through Mersin or UAE, and dependable final-mile planning after transit assignment.
           </p>
         </div>
 

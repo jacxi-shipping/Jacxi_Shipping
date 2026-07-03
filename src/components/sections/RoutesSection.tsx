@@ -6,25 +6,25 @@ const journeySteps = [
 	{
 		step: 1,
 		icon: MapPin,
-		location: 'United States',
+		location: 'USA / Canada',
 		title: 'Pickup & Inspection',
-		description: 'We collect your vehicle from any US location',
+		description: 'We coordinate pickup from any USA or Canada location',
 		duration: '1-2 days',
 	},
 	{
 		step: 2,
 		icon: Ship,
-		location: 'Ocean Transit',
-		title: 'Shipping to Dubai',
-		description: 'Secure container shipping to Jebel Ali Port',
+		location: 'Route Option',
+		title: 'Mersin or UAE Route',
+		description: 'Secure shipping through the selected Mersin or UAE corridor',
 		duration: '25-30 days',
 	},
 	{
 		step: 3,
 		icon: Truck,
-		location: 'UAE to Afghanistan',
+		location: 'Afghanistan',
 		title: 'Land Transport',
-		description: 'Border clearance and transport to Herat',
+		description: 'Customs support and transport planning to the destination province',
 		duration: '7-10 days',
 	},
 	{
@@ -47,7 +47,7 @@ export default function RoutesSection() {
 						Your Vehicle&apos;s Journey
 					</h2>
 					<p className="text-lg text-gray-600 max-w-3xl mb-4">
-						Track your vehicle every step of the way from pickup in the USA to delivery in Afghanistan
+						Track your vehicle every step of the way from pickup in the USA or Canada to delivery in Afghanistan
 					</p>
 					<div className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg">
 						<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

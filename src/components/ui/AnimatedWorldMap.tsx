@@ -4,28 +4,36 @@ import { motion } from 'framer-motion';
 
 export default function AnimatedWorldMap() {
   // Approximate coordinates for the viewport 0 0 950 620
-  // New coordinates adjusted for standard low-res wiki world map
-  // USA: ~230, 220
-  // Mersin (Turkey): ~555, 230
-  // Herat (Afghanistan): ~620, 245
+  // New coordinates adjusted for standard low-res wiki world map.
+  // USA/Canada origins, Mersin/UAE route options, and Afghanistan destination.
 
   const nodes = [
     { id: 'USA', x: 230, y: 220, label: 'USA' },
+    { id: 'Canada', x: 250, y: 168, label: 'Canada' },
     { id: 'Mersin', x: 555, y: 230, label: 'Mersin' }, 
-    { id: 'Herat', x: 620, y: 245, label: 'Herat' }
+    { id: 'UAE', x: 604, y: 306, label: 'UAE' },
+    { id: 'Afghanistan', x: 620, y: 245, label: 'Afghanistan' }
   ];
 
   const paths = [
-    // USA to Mersin
-    { 
+    {
       path: "M 230 220 Q 400 130 555 230",
       delay: 0,
       duration: 3
     },
-    // Mersin to Herat (overland or air)
     {
       path: "M 555 230 Q 580 220 620 245",
       delay: 2.5,
+      duration: 1.5
+    },
+    {
+      path: "M 250 168 Q 430 176 604 306",
+      delay: 0.8,
+      duration: 3
+    },
+    {
+      path: "M 604 306 Q 624 286 620 245",
+      delay: 3.3,
       duration: 1.5
     }
   ];
@@ -110,7 +118,7 @@ export default function AnimatedWorldMap() {
                 } as any}
               >
                 {i === 0 ? (
-                  // Ship SVG for USA to Mersin
+                  // Ship SVG for origin to the first route option.
                   <g transform="translate(-12, -12) scale(0.6)">
                     <path 
                       d="M32 18H29V14C29 12.8954 28.1046 12 27 12H13C11.8954 12 11 12.8954 11 14V18H8C6.67157 18 5.43432 18.7369 4.81977 19.897L2.1795 24.8841C1.94248 25.3318 2.26873 25.8696 2.77663 25.8696H37.2234C37.7313 25.8696 38.0575 25.3318 37.8205 24.8841L35.1802 19.897C34.5657 18.7369 33.3284 18 32 18Z" 
@@ -129,7 +137,7 @@ export default function AnimatedWorldMap() {
                     />
                   </g>
                 ) : (
-                  // Airplane SVG for Mersin to Herat
+                  // Airplane SVG for route movement into Afghanistan.
                   <g transform="translate(-12, -12) scale(0.6)">
                     <path 
                       d="M19.167 4.195C19.5397 3.51139 20.4603 3.51139 20.833 4.195L24.821 11.5126H35.8457C36.9387 11.5126 37.6406 12.6738 37.149 13.666L33.0039 22.0321L36.8837 32.222C37.1352 32.8824 36.6473 33.6006 35.9388 33.6006H30.434L20.833 22.0321L14.7335 22.0321L9.17647 31.9688C8.82524 32.597 8.16362 33 7.44738 33H4.07261C3.41505 33 2.94636 32.3551 3.14902 31.7226L7.17865 19.1418L3.14902 6.561C2.94636 5.92854 3.41505 5.28366 4.07261 5.28366H7.44738C8.16362 5.28366 8.82524 5.68662 9.17647 6.31481L14.7335 16.2515H20.833L19.167 4.195Z" 

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, Variants } from 'framer-motion';
-import { Anchor, ArrowRight, CheckCircle2, FileCheck, FileText, PackageCheck, Ship, Truck } from 'lucide-react';
+import { Anchor, ArrowRight, CheckCircle2, FileCheck, FileText, PackageCheck, Ship } from 'lucide-react';
 
 const steps = [
   {
@@ -30,31 +30,23 @@ const steps = [
   },
   {
     number: '04',
-    location: 'Mersin, Turkey',
-    title: 'Mersin port handoff',
-    description: 'Turkey port arrival, document review, and onward movement are coordinated as a dedicated corridor checkpoint.',
-    checkpoint: 'Turkey transit handoff',
+    location: 'Route selection',
+    title: 'Mersin route or UAE route',
+    description: 'The shipment is planned through one of two available routes, either Mersin, Turkey or UAE, based on lane timing and cost.',
+    checkpoint: 'One selected route',
     icon: Anchor,
   },
   {
     number: '05',
-    location: 'UAE transit',
-    title: 'UAE route control',
-    description: 'When the shipment moves through UAE, the team controls timing, handoff visibility, and onward routing decisions.',
-    checkpoint: 'Transit hub control',
-    icon: FileCheck,
-  },
-  {
-    number: '06',
     location: 'Afghanistan',
     title: 'Customs and province delivery',
     description: 'Final import support and delivery coordination to Herat, Kabul, Kandahar, Mazar-i-Sharif, and all provinces.',
     checkpoint: 'Customs + final mile',
-    icon: Truck,
+    icon: FileCheck,
   },
 ];
 
-const corridor = ['USA', 'Canada', 'Export port', 'Mersin', 'UAE', 'Afghanistan'];
+const corridor = ['USA / Canada', 'Export port', 'Mersin or UAE', 'Afghanistan'];
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -85,16 +77,16 @@ export default function ProcessSection() {
           <div>
             <p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Shipping process</p>
             <h2 className="mt-4 max-w-2xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
-              A corridor timeline from pickup to Afghan customs.
+              A route-selected timeline from pickup to Afghan customs.
             </h2>
           </div>
           <p className="max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg lg:justify-self-end">
-            Every milestone maps to a real vehicle-shipping handoff: origin pickup, export loading, Mersin, UAE transit, Afghanistan customs, and province delivery.
+            Every milestone maps to the real workflow: pickup anywhere in the USA or Canada, export loading, one selected route through Mersin or UAE, then Afghanistan customs and delivery.
           </p>
         </motion.div>
 
         <div className="mt-8 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 shadow-sm">
-          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {corridor.map((stop, index) => (
               <div key={stop} className="relative rounded-md bg-[var(--background)] px-3 py-3 text-center">
                 {index < corridor.length - 1 ? (

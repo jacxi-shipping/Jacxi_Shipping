@@ -20,18 +20,18 @@ const services = [
     lane: 'Export stage',
   },
   {
-    title: 'Mersin port handoff',
-    description: 'Turkey corridor coordination for port arrival, onward routing, and transfer visibility.',
+    title: 'Mersin route coordination',
+    description: 'One available shipping option moves through Mersin, Turkey with port arrival and transfer visibility.',
     icon: Anchor,
     badge: 'Mersin, Turkey',
-    lane: 'Transit port',
+    lane: 'Route option A',
   },
   {
-    title: 'UAE transit coordination',
-    description: 'Route control through UAE handoffs when the lane requires inspection, timing, or onward shipment support.',
+    title: 'UAE route coordination',
+    description: 'The alternate shipping option moves through UAE with route control, timing support, and onward shipment planning.',
     icon: Ship,
-    badge: 'UAE hub',
-    lane: 'Transit control',
+    badge: 'UAE route',
+    lane: 'Route option B',
   },
   {
     title: 'Afghanistan customs support',
@@ -56,10 +56,8 @@ const proofItems = [
 ];
 
 const routeStrip = [
-  'USA',
-  'Canada',
-  'Mersin',
-  'UAE',
+  'USA / Canada',
+  'Mersin or UAE',
   'Afghanistan',
 ];
 
@@ -94,7 +92,7 @@ export default function ServicesPreviewSection() {
               Vehicle shipping services built around this exact corridor.
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-              JACXI connects North American pickups with Mersin, UAE transit control, Afghanistan customs, and final province delivery in one guided workflow.
+              JACXI connects USA and Canada pickups with the right route option, either Mersin or UAE, then supports Afghanistan customs and final province delivery.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-2">

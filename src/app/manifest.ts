@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'JACXI Shipping',
     short_name: 'JACXI',
     description:
-      'Vehicle shipping from USA to Afghanistan via UAE with tracking, invoicing, and delivery operations.',
+      'Vehicle shipping from the USA and Canada to Afghanistan through either Mersin or UAE with tracking, invoicing, and delivery operations.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

@@ -9,11 +9,11 @@ interface TrackingRouteMapProps {
 }
 
 export default function TrackingRouteMap({ progressPercent, origin, destination }: TrackingRouteMapProps) {
-  // Approximate coordinate anchors for USA -> Mersin -> Herat
+  // Approximate coordinate anchors for USA/Canada -> selected route -> Afghanistan.
   const nodes = [
-    { id: 'USA', x: 230, y: 220, label: 'USA (Origin)' },
-    { id: 'Mersin', x: 555, y: 230, label: 'Mersin (Transit)' }, 
-    { id: 'Herat', x: 620, y: 245, label: 'Herat (Destination)' }
+    { id: 'origin', x: 230, y: 220, label: origin || 'USA / Canada (Origin)' },
+    { id: 'route', x: 555, y: 230, label: 'Mersin / UAE (Route)' },
+    { id: 'destination', x: 620, y: 245, label: destination || 'Afghanistan (Destination)' }
   ];
 
   // Route paths segments

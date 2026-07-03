@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 const faqs = [
   {
     question: 'Which route does JACXI use for Afghanistan vehicle shipping?',
-    answer: 'JACXI coordinates vehicle shipping from the USA and Canada through planned port and transit corridors including Mersin, Turkey and UAE routing, then supports final customs and delivery inside Afghanistan.',
+    answer: 'JACXI coordinates vehicle shipping from across the USA and Canada to Afghanistan using one of two route options: through Mersin, Turkey or through UAE. The team then supports final customs and delivery inside Afghanistan.',
   },
   {
     question: 'Can you deliver outside Herat or Kabul?',
@@ -33,7 +33,7 @@ export default function FAQSection() {
             Clear answers before you ship.
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-            The common questions customers ask before moving vehicles from North America to Afghanistan.
+            The common questions customers ask before moving vehicles from the USA and Canada to Afghanistan.
           </p>
         </div>
 

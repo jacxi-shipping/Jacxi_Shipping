@@ -13,7 +13,7 @@ const features = [
 	},
 	{
 		icon: Plane,
-		title: 'USA-LIAE Expertise',
+		title: 'USA / Canada Expertise',
 	},
 	{
 		icon: MapPin,

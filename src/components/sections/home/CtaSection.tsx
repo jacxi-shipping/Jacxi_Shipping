@@ -14,9 +14,9 @@ export default function CtaSection({ isAuthenticated }: CtaSectionProps) {
       <div className="relative container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl rounded-[2rem] border border-[var(--border)] bg-[var(--background)] px-6 py-14 text-center shadow-sm shadow-slate-900/5 sm:px-10">
           <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[var(--accent-gold)]">Next step</p>
-          <h2 className="text-4xl font-bold text-[var(--text-primary)] sm:text-5xl">Ready to move your vehicle from the USA to Afghanistan?</h2>
+          <h2 className="text-4xl font-bold text-[var(--text-primary)] sm:text-5xl">Ready to move your vehicle from the USA or Canada to Afghanistan?</h2>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)]">
-            Start with a quote, then follow the shipment through container movement, UAE coordination, and final destination transit in one workflow.
+            Start with a quote, choose the right Mersin or UAE route, then follow the shipment through final destination transit in one workflow.
           </p>
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link

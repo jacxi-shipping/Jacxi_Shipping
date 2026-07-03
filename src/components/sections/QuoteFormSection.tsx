@@ -26,14 +26,13 @@ const labelClassName = 'mb-2 block text-sm font-black uppercase text-[var(--text
 
 const quoteHighlights = [
 	{ icon: PackageCheck, title: 'Origin pickup details', detail: 'Auction, dealer, home pickup, city, and branch.' },
-	{ icon: Ship, title: 'Transit route review', detail: 'Mersin and UAE options checked for timing and cost.' },
+	{ icon: Ship, title: 'Transit route review', detail: 'Mersin or UAE option checked for timing and cost.' },
 	{ icon: ShieldCheck, title: 'Customs readiness', detail: 'Title, condition, and Afghan import notes reviewed early.' },
 ];
 
 const quoteRoute = [
 	'USA / Canada',
-	'Mersin',
-	'UAE',
+	'Mersin or UAE',
 	'Afghanistan',
 ];
 
@@ -137,7 +136,7 @@ export default function QuoteFormSection() {
 							Get a lane-specific vehicle import quote.
 						</h2>
 						<p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-							Send the vehicle, pickup, route, and destination details JACXI needs to price the real corridor from North America into Afghanistan.
+							Send the vehicle, pickup, route, and destination details JACXI needs to price shipping from anywhere in the USA or Canada to Afghanistan through either Mersin or UAE.
 						</p>
 
 						<div className="mt-7 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm">
@@ -196,7 +195,7 @@ export default function QuoteFormSection() {
 								</div>
 								<div>
 									<h3 className="text-xl font-black text-[var(--text-primary)]">Vehicle quote request</h3>
-									<p className="mt-1 text-sm text-[var(--text-secondary)]">USA / Canada pickup, Mersin and UAE routing, Afghanistan delivery</p>
+									<p className="mt-1 text-sm text-[var(--text-secondary)]">USA / Canada pickup, Mersin or UAE routing, Afghanistan delivery</p>
 								</div>
 							</div>
 							<div className="mt-5 grid gap-2 sm:grid-cols-3">

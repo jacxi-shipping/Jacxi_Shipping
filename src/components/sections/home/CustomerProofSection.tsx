@@ -5,7 +5,7 @@ const proofPoints = [
   },
   {
     label: 'Core transfer model',
-    value: 'USA export to UAE hub to Afghanistan transit',
+    value: 'USA / Canada pickup to Mersin or UAE route to Afghanistan',
   },
   {
     label: 'Customer expectation',
@@ -21,7 +21,7 @@ export default function CustomerProofSection() {
           <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-[var(--accent-gold)]">Customer confidence</p>
           <h2 className="text-4xl font-bold text-[var(--text-primary)] sm:text-5xl">A route customers can understand before they book.</h2>
           <p className="mt-6 text-lg leading-relaxed text-[var(--text-secondary)]">
-            The homepage now speaks plainly about the real journey: export in the United States, consolidation and customs coordination in the UAE, and destination delivery planning inside Afghanistan.
+            The homepage now speaks plainly about the real journey: pickup anywhere in the USA or Canada, one selected route through Mersin or UAE, and destination delivery planning inside Afghanistan.
           </p>
         </div>
 

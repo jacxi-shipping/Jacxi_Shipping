@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { motion, Variants } from 'framer-motion';
 import {
@@ -12,6 +11,7 @@ import {
   Ship,
   Truck,
 } from 'lucide-react';
+import ShippingCapsuleScene from './ShippingCapsuleScene';
 
 const stats = [
   { label: 'Vehicles delivered', value: '12,000+' },
@@ -23,8 +23,8 @@ const stats = [
 const routeStops = [
   { code: 'USA', label: 'United States', detail: 'Auction, dealer, or home pickup', x: '12%', y: '20%' },
   { code: 'CAN', label: 'Canada', detail: 'Dealer and private pickup lanes', x: '31%', y: '13%' },
-  { code: 'TR', label: 'Mersin', detail: 'Turkey port handoff', x: '51%', y: '24%' },
-  { code: 'UAE', label: 'UAE', detail: 'Transit and route control', x: '72%', y: '39%' },
+  { code: 'TR', label: 'Mersin route', detail: 'Route option through Turkey', x: '51%', y: '22%' },
+  { code: 'UAE', label: 'UAE route', detail: 'Route option through UAE', x: '69%', y: '45%' },
   { code: 'AFG', label: 'Afghanistan', detail: 'Customs and final delivery', x: '91%', y: '54%' },
 ];
 
@@ -35,8 +35,8 @@ const corridorCards = [
     icon: Truck,
   },
   {
-    title: 'Port corridor',
-    detail: 'Mersin and UAE handoffs',
+    title: 'Route choice',
+    detail: 'Mersin or UAE options',
     icon: Ship,
   },
   {
@@ -94,9 +94,9 @@ export default function HeroSection() {
           </motion.h1>
 
           <motion.p variants={itemVariants} className="mt-6 max-w-xl text-lg leading-8 text-[var(--text-secondary)] sm:text-xl">
-            Vehicle shipping from <strong className="text-[var(--text-primary)]">USA and Canada</strong> pickups through{' '}
-            <strong className="text-[var(--text-primary)]">Mersin</strong> and <strong className="text-[var(--text-primary)]">UAE</strong> transit,
-            then into <strong className="text-[var(--accent-gold)]">Afghanistan</strong> customs and delivery.
+            Vehicle shipping from anywhere in <strong className="text-[var(--text-primary)]">USA and Canada</strong> to{' '}
+            <strong className="text-[var(--accent-gold)]">Afghanistan</strong> using one of two routing options:
+            through <strong className="text-[var(--text-primary)]">Mersin</strong> or through <strong className="text-[var(--text-primary)]">UAE</strong>.
           </motion.p>
 
           <motion.div variants={itemVariants} className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -118,7 +118,7 @@ export default function HeroSection() {
             </Link>
           </motion.div>
 
-          <motion.div variants={itemVariants} className="mt-5 grid gap-2 sm:grid-cols-3">
+          <motion.div variants={itemVariants} className="mt-5 hidden gap-2 sm:grid sm:grid-cols-3">
             {corridorCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -136,26 +136,44 @@ export default function HeroSection() {
           initial={{ opacity: 0, x: 28 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.76, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="relative min-h-[420px] lg:min-h-[680px]"
+          className="pointer-events-none relative -mt-24 min-h-[420px] lg:pointer-events-auto lg:mt-0 lg:min-h-[680px]"
         >
           <div className="absolute left-[-8%] top-3 z-20 hidden h-40 w-[92%] lg:block">
             <svg viewBox="0 0 1000 220" className="h-full w-full overflow-visible" aria-hidden="true">
               <path
-                d="M 95 86 C 220 34 315 92 420 88 S 640 120 728 154 S 860 198 940 174"
+                d="M 95 86 C 250 34 360 86 500 86 S 760 130 940 174"
                 fill="none"
                 stroke="rgba(var(--text-primary-rgb),0.62)"
                 strokeDasharray="6 8"
                 strokeLinecap="round"
                 strokeWidth="2"
               />
+              <path
+                d="M 95 124 C 290 156 520 138 685 154 S 840 194 940 174"
+                fill="none"
+                stroke="rgba(var(--text-primary-rgb),0.40)"
+                strokeDasharray="6 8"
+                strokeLinecap="round"
+                strokeWidth="2"
+              />
               <motion.path
-                d="M 95 86 C 220 34 315 92 420 88 S 640 120 728 154 S 860 198 940 174"
+                d="M 95 86 C 250 34 360 86 500 86 S 760 130 940 174"
                 fill="none"
                 stroke="var(--accent-gold)"
-                strokeDasharray="90 740"
+                strokeDasharray="80 680"
                 strokeLinecap="round"
                 strokeWidth="3"
-                animate={{ strokeDashoffset: [0, -820] }}
+                animate={{ strokeDashoffset: [0, -760] }}
+                transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+              />
+              <motion.path
+                d="M 95 124 C 290 156 520 138 685 154 S 840 194 940 174"
+                fill="none"
+                stroke="var(--accent-gold)"
+                strokeDasharray="80 620"
+                strokeLinecap="round"
+                strokeWidth="3"
+                animate={{ strokeDashoffset: [0, -700] }}
                 transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
               />
             </svg>
@@ -183,22 +201,16 @@ export default function HeroSection() {
             </motion.div>
           ))}
 
-          <div className="absolute inset-x-0 bottom-0 top-16 overflow-hidden rounded-[36px] border border-[var(--border)] bg-[var(--panel)] shadow-[0_30px_90px_rgba(var(--text-primary-rgb),0.14)] lg:left-[8%] lg:right-[-7rem] lg:top-24 lg:rounded-l-[220px] lg:rounded-r-[28px]">
-            <Image
-              src="/hero-car-carrier.png"
-              alt="Car carrier transporting vehicles on an international shipping route"
-              fill
-              priority
-              sizes="(min-width: 1024px) 62vw, 100vw"
-              className="object-cover object-[62%_58%]"
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(var(--panel-rgb),0.88)_0%,rgba(var(--panel-rgb),0.26)_30%,rgba(var(--panel-rgb),0)_62%)] lg:bg-[linear-gradient(90deg,rgba(var(--panel-rgb),0.82)_0%,rgba(var(--panel-rgb),0.12)_28%,rgba(var(--panel-rgb),0)_55%)]" />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--panel-rgb),0.72)_0%,rgba(var(--panel-rgb),0)_22%,rgba(var(--text-primary-rgb),0.10)_100%)]" />
+          <div className="absolute inset-x-[-1.25rem] bottom-[-1rem] top-10 z-10 overflow-visible lg:left-[-1rem] lg:right-[-8rem] lg:top-16">
+            <div className="absolute inset-x-[10%] bottom-[8%] h-24 rounded-full bg-[rgba(var(--text-primary-rgb),0.10)] blur-2xl" />
+            <div className="absolute right-[2%] top-[5%] h-[78%] w-[78%] rounded-full bg-[radial-gradient(circle,rgba(var(--accent-gold-rgb),0.16),transparent_62%)]" />
+            <div className="absolute left-[8%] top-[18%] h-[62%] w-[74%] rounded-full bg-[radial-gradient(circle,rgba(var(--panel-rgb),0.92),rgba(var(--panel-rgb),0)_66%)]" />
+            <ShippingCapsuleScene className="absolute inset-0" />
           </div>
 
-          <div className="absolute bottom-5 left-5 right-5 z-30 grid grid-cols-3 gap-2 lg:hidden">
-            {routeStops.slice(0, 3).map((stop) => (
-              <div key={stop.label} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] px-3 py-2 text-center text-xs font-black text-[var(--text-primary)] backdrop-blur-xl">
+          <div className="absolute bottom-5 left-4 right-4 z-30 grid grid-cols-5 gap-1 lg:hidden">
+            {routeStops.map((stop) => (
+              <div key={stop.label} className="rounded-md border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] px-1.5 py-2 text-center text-[10px] font-black text-[var(--text-primary)] backdrop-blur-xl">
                 {stop.code}
               </div>
             ))}
@@ -211,7 +223,7 @@ export default function HeroSection() {
               </span>
               <div>
                 <p className="text-sm font-black text-[var(--text-primary)]">USA / Canada to Afghanistan</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">Mersin and UAE corridor support</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Choose Mersin route or UAE route</p>
               </div>
             </div>
           </div>

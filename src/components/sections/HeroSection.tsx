@@ -25,7 +25,7 @@ export default function HeroSection() {
 						<Box>
 							<h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight text-gray-900 mb-6">
 								Reliable Vehicle Shipping<br />
-								From USA to the Middle East
+								From USA & Canada to Afghanistan
 							</h1>
 						</Box>
 					</Slide>
@@ -34,8 +34,8 @@ export default function HeroSection() {
 					<Fade in={show} timeout={800} style={{ transitionDelay: '200ms' }}>
 						<Box>
 							<p className="text-lg sm:text-xl text-gray-700 mb-8 leading-relaxed">
-								Fast, secure, and fully managed logistics for cars,<br />
-								SUVs, motorcycles, and heavy vehicles.
+								Fast, secure logistics through the Mersin route<br />
+								or the UAE route for cars, SUVs, and heavy vehicles.
 							</p>
 						</Box>
 					</Fade>
