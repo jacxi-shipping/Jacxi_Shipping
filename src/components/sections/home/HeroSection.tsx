@@ -1,7 +1,8 @@
 'use client';
 
+import { useRef } from 'react';
 import Link from 'next/link';
-import { motion, Variants } from 'framer-motion';
+import { motion, useScroll, useTransform, type Variants } from 'framer-motion';
 import {
   ArrowRight,
   CirclePlay,
@@ -10,12 +11,6 @@ import {
   Ship,
   Truck,
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-const ShippingCapsule3D = dynamic(() => import('./ShippingCapsule3D'), {
-  ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-gray-200/10 rounded-3xl" />
-});
 
 const corridorCards = [
   {
@@ -53,8 +48,15 @@ const itemVariants: Variants = {
 };
 
 export default function HeroSection() {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end start'] });
+  const videoY = useTransform(scrollYProgress, [0, 1], ['0%', '12%']);
+  const videoScale = useTransform(scrollYProgress, [0, 1], [1, 1.12]);
+  const videoOpacity = useTransform(scrollYProgress, [0, 0.82, 1], [1, 0.92, 0.72]);
+  const highlightY = useTransform(scrollYProgress, [0, 1], ['0%', '-18%']);
+
   return (
-    <section className="relative isolate overflow-hidden bg-[var(--background)] px-4 pb-10 pt-28 text-[var(--text-primary)] sm:px-6 sm:pb-14 sm:pt-32 lg:min-h-[calc(100svh-1rem)] lg:px-8">
+    <section ref={sectionRef} className="relative isolate overflow-hidden bg-[var(--background)] px-4 pb-10 pt-28 text-[var(--text-primary)] sm:px-6 sm:pb-14 sm:pt-32 lg:min-h-[calc(100svh-1rem)] lg:px-8">
       <div className="absolute inset-0 -z-20 bg-[url('/grid.svg')] bg-[length:38px_38px] opacity-[0.16]" />
       <div className="absolute right-[-18rem] top-20 -z-10 h-[42rem] w-[42rem] rounded-full bg-[rgba(var(--accent-gold-rgb),0.10)] blur-3xl" />
       <div className="absolute bottom-[-14rem] left-[28%] -z-10 h-[30rem] w-[30rem] rounded-full bg-[rgba(var(--text-primary-rgb),0.05)] blur-3xl" />
@@ -127,9 +129,29 @@ export default function HeroSection() {
           transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
           className="relative -mt-10 min-h-[450px] sm:-mt-20 sm:min-h-[550px] lg:mt-0 lg:min-h-[720px] w-full"
         >
-          <div className="absolute inset-0 z-10">
-            <ShippingCapsule3D className="h-full w-full" />
-          </div>
+          <motion.div
+            style={{ y: videoY, scale: videoScale, opacity: videoOpacity }}
+            className="absolute inset-0 z-10 overflow-hidden rounded-[2rem] border border-[rgba(var(--panel-rgb),0.42)] bg-[rgba(var(--panel-rgb),0.34)] shadow-[0_34px_90px_rgba(var(--text-primary-rgb),0.16)] will-change-transform"
+          >
+            <video
+              className="h-full w-full object-cover object-center"
+              src="/Pull-back_to_wide_shot_202607030933.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              aria-label="Vehicle shipping hero preview"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(var(--background-rgb),0.28)_0%,rgba(var(--background-rgb),0.02)_42%,rgba(var(--background-rgb),0.18)_100%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_34%,rgba(255,255,255,0.30),transparent_28%),radial-gradient(circle_at_18%_78%,rgba(var(--accent-gold-rgb),0.16),transparent_34%)] mix-blend-screen" />
+          </motion.div>
+
+          <motion.div
+            style={{ y: highlightY }}
+            className="pointer-events-none absolute left-[8%] top-[16%] z-20 h-px w-[76%] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.96),transparent)] shadow-[0_0_26px_rgba(255,255,255,0.70)]"
+          />
+          <div className="pointer-events-none absolute inset-x-[9%] bottom-[8%] z-0 h-[18%] rounded-full bg-[rgba(var(--text-primary-rgb),0.16)] blur-3xl" />
 
           <div className="absolute bottom-10 left-0 z-30 hidden rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] p-4 shadow-[0_16px_42px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl lg:block">
             <div className="flex items-center gap-3">
@@ -138,7 +160,7 @@ export default function HeroSection() {
               </span>
               <div>
                 <p className="text-sm font-black text-[var(--text-primary)]">USA / Canada to Afghanistan</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">Interactive 3D Preview</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Cinematic shipment preview</p>
               </div>
             </div>
           </div>
