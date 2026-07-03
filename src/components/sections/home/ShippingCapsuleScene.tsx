@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 interface ShippingCapsuleSceneProps {
   className?: string;
@@ -19,6 +20,61 @@ function addBox(parent: Parent3D, size: [number, number, number], position: [num
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
   mesh.position.set(position[0], position[1], position[2]);
   parent.add(mesh);
+  return mesh;
+}
+
+function addRoundedBox(
+  parent: Parent3D,
+  size: [number, number, number],
+  position: [number, number, number],
+  material: THREE.Material,
+  radius = 0.08,
+  segments = 4,
+) {
+  const mesh = new THREE.Mesh(new RoundedBoxGeometry(size[0], size[1], size[2], segments, radius), material);
+  mesh.position.set(position[0], position[1], position[2]);
+  parent.add(mesh);
+  return mesh;
+}
+
+function addSuvBody(parent: Parent3D, material: THREE.Material) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-2.95, -0.54);
+  shape.lineTo(2.64, -0.54);
+  shape.bezierCurveTo(2.92, -0.48, 3.06, -0.26, 2.96, -0.03);
+  shape.bezierCurveTo(2.76, 0.32, 2.43, 0.48, 2.04, 0.58);
+  shape.bezierCurveTo(1.67, 0.90, 1.06, 1.05, 0.12, 1.06);
+  shape.lineTo(-0.78, 1.03);
+  shape.bezierCurveTo(-1.28, 0.98, -1.65, 0.78, -1.98, 0.48);
+  shape.lineTo(-2.54, 0.34);
+  shape.bezierCurveTo(-2.88, 0.26, -3.06, 0.06, -3.02, -0.20);
+  shape.lineTo(-2.95, -0.54);
+
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: 1.9,
+    bevelEnabled: true,
+    bevelThickness: 0.055,
+    bevelSize: 0.075,
+    bevelSegments: 5,
+    curveSegments: 16,
+  });
+  geometry.translate(0, 0, -0.95);
+  geometry.computeVertexNormals();
+
+  const mesh = new THREE.Mesh(geometry, material);
+  parent.add(mesh);
+  return mesh;
+}
+
+function addGlassStrip(
+  parent: Parent3D,
+  position: [number, number, number],
+  scale: [number, number, number],
+  material: THREE.Material,
+  rotationZ = 0,
+) {
+  const mesh = addRoundedBox(parent, scale, position, material, 0.035, 4);
+  mesh.rotation.z = rotationZ;
   return mesh;
 }
 
@@ -127,6 +183,13 @@ export default function ShippingCapsuleScene({ className }: ShippingCapsuleScene
       clearcoat: 1,
     });
 
+    const glassGlintMaterial = new THREE.MeshBasicMaterial({
+      color: '#FFFFFF',
+      transparent: true,
+      opacity: 0.26,
+      side: THREE.DoubleSide,
+    });
+
     const chromeMaterial = new THREE.MeshStandardMaterial({
       color: '#D8DDE3',
       metalness: 0.92,
@@ -137,6 +200,14 @@ export default function ShippingCapsuleScene({ className }: ShippingCapsuleScene
       color: textPrimary,
       metalness: 0.72,
       roughness: 0.34,
+    });
+
+    const glossBlackMaterial = new THREE.MeshPhysicalMaterial({
+      color: '#080A0C',
+      metalness: 0.18,
+      roughness: 0.22,
+      clearcoat: 0.7,
+      clearcoatRoughness: 0.18,
     });
 
     const tireMaterial = new THREE.MeshStandardMaterial({
@@ -182,65 +253,102 @@ export default function ShippingCapsuleScene({ className }: ShippingCapsuleScene
       roughness: 0.24,
     });
 
-    addBox(capsuleRoot, [9.2, 0.18, 3.7], [0, -1.03, 0], darkMetalMaterial);
-    addBox(capsuleRoot, [8.55, 0.10, 3.16], [0, -0.88, 0], chromeMaterial);
+    addRoundedBox(capsuleRoot, [9.2, 0.18, 3.7], [0, -1.03, 0], darkMetalMaterial, 0.10, 5);
+    addRoundedBox(capsuleRoot, [8.55, 0.10, 3.16], [0, -0.88, 0], chromeMaterial, 0.08, 4);
 
     [-0.94, 0, 0.94].forEach((z) => {
-      addBox(capsuleRoot, [8.1, 0.055, 0.08], [0, -0.78, z], chromeMaterial);
+      addRoundedBox(capsuleRoot, [8.1, 0.055, 0.08], [0, -0.78, z], chromeMaterial, 0.03, 3);
     });
 
-    addBox(capsuleRoot, [8.28, 2.35, 0.045], [0, 0.28, 1.74], glassMaterial);
-    addBox(capsuleRoot, [8.28, 2.35, 0.045], [0, 0.28, -1.74], glassMaterial);
-    addBox(capsuleRoot, [0.045, 2.35, 3.1], [-4.35, 0.28, 0], glassMaterial);
-    addBox(capsuleRoot, [0.045, 2.35, 3.1], [4.35, 0.28, 0], glassMaterial);
+    addRoundedBox(capsuleRoot, [8.28, 2.35, 0.055], [0, 0.28, 1.74], glassMaterial, 0.055, 4);
+    addRoundedBox(capsuleRoot, [8.28, 2.35, 0.055], [0, 0.28, -1.74], glassMaterial, 0.055, 4);
+    addRoundedBox(capsuleRoot, [0.055, 2.35, 3.1], [-4.35, 0.28, 0], glassMaterial, 0.055, 4);
+    addRoundedBox(capsuleRoot, [0.055, 2.35, 3.1], [4.35, 0.28, 0], glassMaterial, 0.055, 4);
 
     [-4.42, 4.42].forEach((x) => {
       [-1.77, 1.77].forEach((z) => {
-        addBox(capsuleRoot, [0.12, 2.7, 0.12], [x, 0.27, z], chromeMaterial);
+        addRoundedBox(capsuleRoot, [0.12, 2.7, 0.12], [x, 0.27, z], chromeMaterial, 0.04, 4);
       });
     });
 
     [-1.77, 1.77].forEach((z) => {
-      addBox(capsuleRoot, [9.0, 0.10, 0.10], [0, -0.68, z], chromeMaterial);
-      addBox(capsuleRoot, [9.0, 0.10, 0.10], [0, 1.63, z], chromeMaterial);
-      addBox(capsuleRoot, [8.2, 0.038, 0.045], [0, -0.55, z > 0 ? 1.55 : -1.55], ledMaterial);
-      addBox(capsuleRoot, [8.0, 0.038, 0.045], [0, 1.44, z > 0 ? 1.55 : -1.55], ledMaterial);
+      addRoundedBox(capsuleRoot, [9.0, 0.10, 0.10], [0, -0.68, z], chromeMaterial, 0.04, 4);
+      addRoundedBox(capsuleRoot, [9.0, 0.10, 0.10], [0, 1.63, z], chromeMaterial, 0.04, 4);
+      addRoundedBox(capsuleRoot, [8.2, 0.038, 0.045], [0, -0.55, z > 0 ? 1.55 : -1.55], ledMaterial, 0.018, 3);
+      addRoundedBox(capsuleRoot, [8.0, 0.038, 0.045], [0, 1.44, z > 0 ? 1.55 : -1.55], ledMaterial, 0.018, 3);
     });
 
     [-4.42, 4.42].forEach((x) => {
-      addBox(capsuleRoot, [0.10, 0.10, 3.64], [x, -0.68, 0], chromeMaterial);
-      addBox(capsuleRoot, [0.10, 0.10, 3.64], [x, 1.63, 0], chromeMaterial);
+      addRoundedBox(capsuleRoot, [0.10, 0.10, 3.64], [x, -0.68, 0], chromeMaterial, 0.04, 4);
+      addRoundedBox(capsuleRoot, [0.10, 0.10, 3.64], [x, 1.63, 0], chromeMaterial, 0.04, 4);
     });
 
     const lidPivot = new THREE.Group();
     lidPivot.position.set(0, 1.64, -1.77);
     capsuleRoot.add(lidPivot);
-    addBox(lidPivot, [8.45, 0.08, 3.50], [0, 0.04, 1.77], edgeGlassMaterial);
-    addBox(lidPivot, [8.55, 0.11, 0.10], [0, 0.05, 3.52], chromeMaterial);
-    addBox(lidPivot, [8.55, 0.11, 0.10], [0, 0.05, 0], chromeMaterial);
-    addBox(lidPivot, [0.12, 0.11, 3.52], [-4.42, 0.05, 1.77], chromeMaterial);
-    addBox(lidPivot, [0.12, 0.11, 3.52], [4.42, 0.05, 1.77], chromeMaterial);
+    addRoundedBox(lidPivot, [8.45, 0.08, 3.50], [0, 0.04, 1.77], edgeGlassMaterial, 0.08, 5);
+    addRoundedBox(lidPivot, [8.55, 0.11, 0.10], [0, 0.05, 3.52], chromeMaterial, 0.04, 4);
+    addRoundedBox(lidPivot, [8.55, 0.11, 0.10], [0, 0.05, 0], chromeMaterial, 0.04, 4);
+    addRoundedBox(lidPivot, [0.12, 0.11, 3.52], [-4.42, 0.05, 1.77], chromeMaterial, 0.04, 4);
+    addRoundedBox(lidPivot, [0.12, 0.11, 3.52], [4.42, 0.05, 1.77], chromeMaterial, 0.04, 4);
 
-    addBox(vehicleRoot, [5.5, 0.78, 1.84], [0, -0.08, 0], carPaintMaterial);
-    addBox(vehicleRoot, [5.72, 0.24, 1.98], [0, -0.46, 0], darkMetalMaterial);
-    addBox(vehicleRoot, [3.28, 0.76, 1.62], [-0.18, 0.56, 0], carPaintMaterial);
-    addBox(vehicleRoot, [3.05, 0.46, 0.035], [-0.18, 0.58, 0.83], windowMaterial);
-    addBox(vehicleRoot, [3.05, 0.46, 0.035], [-0.18, 0.58, -0.83], windowMaterial);
-    addBox(vehicleRoot, [0.055, 0.42, 1.25], [-1.85, 0.54, 0], windowMaterial);
-    addBox(vehicleRoot, [0.055, 0.38, 1.18], [1.62, 0.52, 0], windowMaterial);
-    addBox(vehicleRoot, [3.1, 0.055, 0.05], [-0.12, 1.02, 0.70], chromeMaterial);
-    addBox(vehicleRoot, [3.1, 0.055, 0.05], [-0.12, 1.02, -0.70], chromeMaterial);
+    const sideGlint = addRoundedBox(capsuleRoot, [0.030, 1.48, 0.018], [3.55, 0.42, 1.785], glassGlintMaterial, 0.012, 2);
+    sideGlint.rotation.z = -0.42;
+    const rearGlint = addRoundedBox(capsuleRoot, [0.022, 1.18, 0.018], [4.385, 0.48, -0.65], glassGlintMaterial, 0.012, 2);
+    rearGlint.rotation.z = 0.38;
 
-    addBox(vehicleRoot, [0.07, 0.38, 0.86], [-2.78, -0.02, 0], darkMetalMaterial);
-    [-0.55, 0.55].forEach((z) => {
-      addBox(vehicleRoot, [0.055, 0.13, 0.36], [-2.83, 0.08, z], headlightMaterial);
-      addBox(vehicleRoot, [0.055, 0.20, 0.24], [2.81, 0.02, z], tailLightMaterial);
-      addBox(vehicleRoot, [0.20, 0.05, 0.035], [-0.44, 0.06, z > 0 ? 0.97 : -0.97], chromeMaterial);
+    addSuvBody(vehicleRoot, carPaintMaterial);
+    addRoundedBox(vehicleRoot, [5.88, 0.18, 2.08], [0, -0.58, 0], glossBlackMaterial, 0.08, 5);
+    addRoundedBox(vehicleRoot, [2.62, 0.08, 1.46], [0.02, 1.05, 0], carPaintMaterial, 0.08, 5);
+    addRoundedBox(vehicleRoot, [1.55, 0.045, 0.96], [-0.34, 1.10, 0], windowMaterial, 0.05, 5);
+
+    [0.98, -0.98].forEach((zSide) => {
+      const side = zSide > 0 ? 1 : -1;
+      addGlassStrip(vehicleRoot, [-1.18, 0.62, zSide], [0.86, 0.36, 0.035], windowMaterial, -0.19);
+      addGlassStrip(vehicleRoot, [-0.22, 0.70, zSide], [0.92, 0.42, 0.035], windowMaterial, 0.02);
+      addGlassStrip(vehicleRoot, [0.82, 0.66, zSide], [0.78, 0.38, 0.035], windowMaterial, 0.16);
+      addRoundedBox(vehicleRoot, [2.92, 0.035, 0.055], [-0.16, 0.98, zSide], glossBlackMaterial, 0.02, 3);
+      addRoundedBox(vehicleRoot, [1.40, 0.030, 0.050], [-0.52, 0.02, zSide + side * 0.03], glossBlackMaterial, 0.02, 3);
+      addRoundedBox(vehicleRoot, [0.20, 0.04, 0.035], [-0.34, 0.08, zSide + side * 0.05], chromeMaterial, 0.01, 3);
+      addRoundedBox(vehicleRoot, [0.24, 0.16, 0.08], [-1.48, 0.52, zSide + side * 0.11], carPaintMaterial, 0.035, 4);
+      addRoundedBox(vehicleRoot, [0.20, 0.055, 0.045], [-1.34, 0.48, zSide + side * 0.05], glossBlackMaterial, 0.018, 3);
     });
 
-    addBox(vehicleRoot, [0.38, 0.38, 0.32], [-0.72, 0.02, 0.38], darkMetalMaterial);
-    addBox(vehicleRoot, [0.38, 0.38, 0.32], [-0.72, 0.02, -0.38], darkMetalMaterial);
-    addBox(vehicleRoot, [0.58, 0.34, 1.06], [0.55, 0.02, 0], darkMetalMaterial);
+    const windshield = addRoundedBox(vehicleRoot, [0.065, 0.52, 1.32], [-1.72, 0.58, 0], windowMaterial, 0.04, 4);
+    windshield.rotation.z = -0.34;
+    const rearWindow = addRoundedBox(vehicleRoot, [0.065, 0.44, 1.22], [1.78, 0.48, 0], windowMaterial, 0.04, 4);
+    rearWindow.rotation.z = 0.24;
+    addRoundedBox(vehicleRoot, [0.060, 0.42, 1.04], [3.03, 0.33, 0], windowMaterial, 0.035, 4);
+    addRoundedBox(vehicleRoot, [0.20, 0.07, 1.46], [2.78, 0.90, 0], carPaintMaterial, 0.035, 4);
+
+    addRoundedBox(vehicleRoot, [2.15, 0.035, 0.055], [-1.42, 0.28, 0], chromeMaterial, 0.015, 3);
+    addRoundedBox(vehicleRoot, [2.20, 0.035, 0.045], [0.76, 0.18, 0], chromeMaterial, 0.015, 3);
+    addRoundedBox(vehicleRoot, [3.18, 0.055, 0.055], [-0.03, 1.18, 0.72], chromeMaterial, 0.02, 3);
+    addRoundedBox(vehicleRoot, [3.18, 0.055, 0.055], [-0.03, 1.18, -0.72], chromeMaterial, 0.02, 3);
+
+    addRoundedBox(vehicleRoot, [0.08, 0.40, 0.94], [-2.90, -0.06, 0], glossBlackMaterial, 0.035, 4);
+    addRoundedBox(vehicleRoot, [0.055, 0.12, 1.02], [-2.96, 0.17, 0], headlightMaterial, 0.025, 4);
+    addRoundedBox(vehicleRoot, [0.075, 0.26, 1.12], [2.91, -0.04, 0], glossBlackMaterial, 0.035, 4);
+    addRoundedBox(vehicleRoot, [0.10, 0.24, 1.76], [3.00, -0.42, 0], glossBlackMaterial, 0.04, 4);
+    addRoundedBox(vehicleRoot, [0.050, 0.16, 0.48], [3.05, -0.18, 0], chromeMaterial, 0.018, 3);
+    [-0.58, 0.58].forEach((z) => {
+      addRoundedBox(vehicleRoot, [0.060, 0.14, 0.36], [-2.99, 0.11, z], headlightMaterial, 0.02, 4);
+      addRoundedBox(vehicleRoot, [0.065, 0.18, 0.38], [3.06, 0.07, z], tailLightMaterial, 0.02, 4);
+      addRoundedBox(vehicleRoot, [0.052, 0.055, 0.30], [3.08, -0.24, z], chromeMaterial, 0.015, 3);
+    });
+
+    [-2.12, 2.12].forEach((x) => {
+      [1.03, -1.03].forEach((z) => {
+        const arch = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.035, 8, 38, Math.PI), glossBlackMaterial);
+        arch.position.set(x, -0.54, z);
+        arch.rotation.z = 0;
+        vehicleRoot.add(arch);
+      });
+    });
+
+    addRoundedBox(vehicleRoot, [0.38, 0.38, 0.32], [-0.76, 0.00, 0.38], glossBlackMaterial, 0.04, 4);
+    addRoundedBox(vehicleRoot, [0.38, 0.38, 0.32], [-0.76, 0.00, -0.38], glossBlackMaterial, 0.04, 4);
+    addRoundedBox(vehicleRoot, [0.64, 0.34, 1.06], [0.42, 0.00, 0], glossBlackMaterial, 0.05, 4);
 
     const wheels = [
       addWheel(vehicleRoot, [-2.12, -0.58, 1.00], { tire: tireMaterial, rim: chromeMaterial, hub: darkMetalMaterial }),
@@ -252,14 +360,14 @@ export default function ShippingCapsuleScene({ className }: ShippingCapsuleScene
     const leftDoor = new THREE.Group();
     leftDoor.position.set(-1.38, -0.07, 0.96);
     vehicleRoot.add(leftDoor);
-    addBox(leftDoor, [1.24, 0.66, 0.035], [0.56, 0, 0], carPaintMaterial);
-    addBox(leftDoor, [1.06, 0.32, 0.03], [0.56, 0.35, 0.01], windowMaterial);
+    addRoundedBox(leftDoor, [1.24, 0.64, 0.035], [0.56, 0, 0], carPaintMaterial, 0.04, 4);
+    addRoundedBox(leftDoor, [1.04, 0.30, 0.03], [0.56, 0.35, 0.01], windowMaterial, 0.03, 4);
 
     const rightDoor = new THREE.Group();
     rightDoor.position.set(-1.38, -0.07, -0.96);
     vehicleRoot.add(rightDoor);
-    addBox(rightDoor, [1.24, 0.66, 0.035], [0.56, 0, 0], carPaintMaterial);
-    addBox(rightDoor, [1.06, 0.32, 0.03], [0.56, 0.35, -0.01], windowMaterial);
+    addRoundedBox(rightDoor, [1.24, 0.64, 0.035], [0.56, 0, 0], carPaintMaterial, 0.04, 4);
+    addRoundedBox(rightDoor, [1.04, 0.30, 0.03], [0.56, 0.35, -0.01], windowMaterial, 0.03, 4);
 
     const strapMaterial = new THREE.MeshStandardMaterial({ color: '#151719', roughness: 0.78 });
     [
