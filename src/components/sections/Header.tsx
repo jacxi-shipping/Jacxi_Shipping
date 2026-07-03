@@ -1,139 +1,192 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Menu, X } from 'lucide-react';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
 import { SiteMark } from '@/components/brand/SiteLogo';
+import Magnetic from '@/components/ui/Magnetic';
 
-interface HeaderProps {
-  isAuthenticated?: boolean;
-}
-
-const navLinks = [
-  { name: 'Services', href: '/#services' },
-  { name: 'Route', href: '/#route' },
+const navigation = [
+  { name: 'Services', href: '/services' },
+  { name: 'Routes', href: '/#route' },
   { name: 'Process', href: '/#process' },
-  { name: 'Calculator', href: '/#calculator' },
-  { name: 'FAQ', href: '/#faq' },
   { name: 'Tracking', href: '/tracking' },
-  { name: 'Contact', href: '/#contact' },
+  { name: 'About', href: '/#about-us' },
+  { name: 'Contact', href: '/#contact-us' },
 ];
 
-export default function Header({ isAuthenticated = false }: HeaderProps) {
+export default function Header({ isAuthenticated = false }: { isAuthenticated?: boolean }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const ctaHref = isAuthenticated ? '/dashboard' : '/#quote';
-  const ctaLabel = isAuthenticated ? 'Dashboard' : 'Get quote';
+  
+  const { scrollY } = useScroll();
+  const headerY = useTransform(scrollY, [0, 100], [0, -100]); // Hide on initial scroll
+  // We'll manually handle the sticky/glass state
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 18);
-    handleScroll();
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5">
-        <div
-          className={`mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.86)] px-4 py-3 backdrop-blur-2xl transition-all duration-300 sm:px-5 ${
-            isScrolled ? 'shadow-[0_18px_60px_rgba(var(--text-primary-rgb),0.12)]' : 'shadow-[0_14px_46px_rgba(var(--text-primary-rgb),0.08)]'
-          }`}
-        >
-          <Link href="/" className="flex min-w-0 items-center" aria-label="Jacxi Shipping home">
-            <span className="flex items-center gap-3 group">
-              <span className="transition-transform duration-300 group-hover:scale-105">
-                <SiteMark size={40} className="!h-10 !w-10" priority />
-              </span>
-              <span className="hidden leading-none text-[var(--text-primary)] sm:block">
-                <span className="block text-[1.05rem] font-extrabold tracking-tight">JACXI</span>
-                <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)] mt-[2px]">Shipping</span>
-              </span>
-            </span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 lg:flex">
-            {navLinks.map((link) => (
+      <motion.header
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        className={`fixed inset-x-0 top-0 z-[100] border-b transition-all duration-500 ease-in-out ${
+          isScrolled
+            ? 'border-white/10 bg-black/40 backdrop-blur-2xl py-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)]'
+            : 'border-transparent bg-transparent py-6'
+        }`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          
+          <div className="flex shrink-0 items-center">
+            <Magnetic strength={0.4} intensity={0.2}>
               <Link
-                key={link.name}
-                href={link.href}
-                className="relative px-1 py-2 text-[13px] font-semibold tracking-wide text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] group"
+                href="/"
+                className="group relative flex items-center gap-3 transition-opacity hover:opacity-80 outline-none"
               >
-                {link.name}
-                <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-[var(--accent-gold)] transform scale-x-0 transition-transform origin-left group-hover:scale-x-100" />
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/20 shadow-xl overflow-hidden">
+                  <div className="absolute inset-0 bg-[#D4AF37] translate-y-full transition-transform duration-500 group-hover:translate-y-0" />
+                  <SiteMark className="relative z-10 h-6 w-6 text-white group-hover:text-black transition-colors duration-500" />
+                </div>
+                <span className="text-xl font-bold tracking-tight text-white hidden sm:block">
+                  JACXI
+                </span>
               </Link>
+            </Magnetic>
+          </div>
+
+          {/* Desktop Nav */}
+          <nav className="hidden lg:flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1.5 backdrop-blur-md">
+            {navigation.map((item) => (
+              <Magnetic key={item.name} strength={0.2} intensity={0.1}>
+                <Link
+                  href={item.href}
+                  className="relative px-5 py-2 text-sm font-semibold text-white/70 transition-colors hover:text-white"
+                >
+                  {item.name}
+                  <span className="absolute inset-x-4 bottom-1 h-px scale-x-0 bg-[#D4AF37] transition-transform duration-300 origin-center hover:scale-x-100" />
+                </Link>
+              </Magnetic>
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href={ctaHref}
-              className="hidden h-11 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-4 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:brightness-105 md:inline-flex"
-            >
-              {ctaLabel}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-4">
+              <Magnetic>
+                <Link
+                  href={isAuthenticated ? "/portal" : "/auth/signin"}
+                  className="text-sm font-bold text-white transition-colors hover:text-[#D4AF37]"
+                >
+                  {isAuthenticated ? "Portal" : "Sign in"}
+                </Link>
+              </Magnetic>
+              
+              {!isAuthenticated && (
+                <Magnetic>
+                  <Link
+                    href="/auth/signup"
+                    className="group relative inline-flex h-10 items-center justify-center overflow-hidden rounded-full bg-white px-6 font-bold text-black"
+                  >
+                    <div className="absolute inset-0 translate-y-full bg-[#D4AF37] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
+                    <span className="relative z-10 transition-colors duration-500 group-hover:text-white">Sign up</span>
+                  </Link>
+                </Magnetic>
+              )}
+            </div>
 
+            {/* Mobile menu trigger */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)] transition-colors lg:hidden"
-              aria-label="Open navigation"
+              className="lg:hidden relative flex h-12 w-12 items-center justify-center rounded-full bg-white/10 border border-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20 outline-none"
             >
               <Menu className="h-5 w-5" />
             </button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {isMobileMenuOpen ? (
-        <div className="fixed inset-0 z-[60] bg-[var(--background)] text-[var(--text-primary)] lg:hidden">
-          <div className="flex h-full flex-col px-5 py-5">
-            <div className="flex items-center justify-between">
-              <Link href="/" className="flex items-center" onClick={() => setIsMobileMenuOpen(false)}>
-                <span className="flex items-center gap-3">
-                  <SiteMark size={42} className="!h-11 !w-11" priority />
-                  <span className="leading-none text-[var(--text-primary)]">
-                    <span className="block text-base font-black">JACXI</span>
-                    <span className="block text-xs font-bold uppercase text-[var(--accent-gold)]">Shipping</span>
-                  </span>
-                </span>
-              </Link>
-              <button
-                type="button"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)]"
-                aria-label="Close navigation"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <nav className="mt-12 grid gap-2">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
+      {/* Fullscreen Mobile Menu (Awwwards Style Overlay) */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ clipPath: 'circle(0% at 100% 0)' }}
+            animate={{ clipPath: 'circle(150% at 100% 0)' }}
+            exit={{ clipPath: 'circle(0% at 100% 0)' }}
+            transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
+            className="fixed inset-0 z-[200] bg-black text-white"
+          >
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+            
+            <div className="relative flex h-full flex-col px-6 py-8">
+              <div className="flex items-center justify-between">
+                <SiteMark className="h-8 w-8 text-[#D4AF37]" />
+                <button
+                  type="button"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--panel)] px-4 py-4 text-2xl font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--accent-gold)]"
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white hover:bg-white/10 transition-colors outline-none"
                 >
-                  {link.name}
-                </Link>
-              ))}
-            </nav>
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
 
-            <Link
-              href={ctaHref}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="mt-auto inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-[var(--accent-gold)] px-6 text-base font-bold text-white"
-            >
-              {ctaLabel}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      ) : null}
+              <div className="mt-auto mb-auto flex flex-col gap-6">
+                {navigation.map((item, i) => (
+                  <motion.div
+                     initial={{ opacity: 0, y: 40 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: 0.2 + (i * 0.1), duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                     key={item.name}
+                  >
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="group flex items-center justify-between text-4xl font-extrabold tracking-tighter"
+                    >
+                      <span className="relative">
+                        {item.name}
+                        <span className="absolute -bottom-2 left-0 h-1 w-full scale-x-0 bg-[#D4AF37] transition-transform duration-500 origin-left group-hover:scale-x-100" />
+                      </span>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="grid gap-4 mt-auto border-t border-white/10 pt-8"
+              >
+                <Link
+                  href={isAuthenticated ? "/portal" : "/auth/signin"}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-center h-14 rounded-xl border border-white/20 font-bold"
+                >
+                  {isAuthenticated ? "Portal" : "Sign in"}
+                </Link>
+                {!isAuthenticated && (
+                   <Link
+                    href="/auth/signup"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-center h-14 rounded-xl bg-white text-black font-bold"
+                  >
+                    Sign up
+                  </Link>
+                )}
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

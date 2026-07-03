@@ -1,128 +1,113 @@
 'use client';
 
-import { motion, Variants } from 'framer-motion';
-import { CheckCircle2, Quote, Star } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
+import { Quote } from 'lucide-react';
 
 const testimonials = [
   {
-    quote: 'JACXI handled my Toyota Land Cruiser with absolute professionalism. It arrived in Herat in perfect condition, and the customs process was clear.',
+    quote: 'JACXI handled my Toyota Land Cruiser with absolute professionalism. It arrived in Herat in perfect condition, and the customs process was incredibly clear from start to finish.',
     name: 'Ahmed R.',
     role: 'Herat, Afghanistan',
   },
   {
-    quote: 'I was nervous about shipping my car internationally, but the JACXI team kept me updated at every stage. Reliable and responsive.',
+    quote: 'I was nervous about shipping my car internationally, but the JACXI team kept me updated at every stage. Reliable, responsive, and completely transparent operations.',
     name: 'Khalid M.',
     role: 'Kabul, Afghanistan',
   },
   {
-    quote: 'Best price I found for USA to Afghanistan shipping. The team is honest, direct, and careful with the details.',
+    quote: 'Best price I found for USA to Afghanistan shipping. The team is honest, direct, and careful with the details. The tracking portal gave me total peace of mind.',
     name: 'Farida N.',
     role: 'Kandahar, Afghanistan',
   },
   {
-    quote: 'They handled our fleet shipment with strong coordination from pickup through final destination. The route visibility made a real difference.',
+    quote: 'They handled our fleet shipment with strong coordination from pickup through final destination. The route visibility made a real difference for our operational planning.',
     name: 'Sarah Jenkins',
     role: 'Fleet client',
   },
 ];
 
-const proof = [
-  'Verified route communication',
-  'Document support included',
-  'Afghanistan delivery network',
-];
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.09 },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.46, ease: [0.22, 1, 0.36, 1] } },
-};
-
 export default function TestimonialsSection() {
+  const containerRef = useRef<HTMLElement>(null);
+  
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"]
+  });
+
+  const x1 = useTransform(scrollYProgress, [0, 1], [0, -400]);
+  const x2 = useTransform(scrollYProgress, [0, 1], [-400, 0]);
+
   return (
-    <section id="testimonials" className="relative overflow-hidden bg-[var(--panel)] py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.6 }}
-            className="lg:sticky lg:top-28"
-          >
-            <p className="text-sm font-extrabold uppercase tracking-widest text-[var(--accent-gold)]">Client proof</p>
-            <h2 className="mt-4 max-w-xl text-[2rem] font-extrabold leading-[1.1] tracking-tight text-[var(--text-primary)] sm:text-[3rem] lg:text-[3.5rem]">
-              Trusted by customers shipping <br className="hidden lg:block"/>
-              <span className="text-[var(--text-secondary)]">high-value vehicles.</span>
-            </h2>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl">
-              International vehicle shipping requires trust. Customers choose <span className="font-semibold text-[var(--text-primary)]">JACXI</span> for clear communication, careful handling, and route expertise.
-            </p>
+    <section ref={containerRef} className="relative overflow-hidden bg-[#F9FAFB] py-32 sm:py-48 text-black">
+      
+      {/* Absolute Background Typography */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none opacity-5">
+        <h2 className="text-[20vw] font-black tracking-tighter leading-none whitespace-nowrap">
+          TRUSTED
+        </h2>
+      </div>
 
-            <div className="mt-8 grid gap-4">
-              {proof.map((item) => (
-                <div key={item} className="group relative overflow-hidden rounded-xl border border-[rgba(var(--border-rgb),0.5)] bg-white/50 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:border-[var(--accent-gold)] hover:shadow-md">
-                  <div className="flex items-center gap-4 relative z-10">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(var(--accent-gold-rgb),0.1)] group-hover:bg-[var(--accent-gold)] transition-colors duration-300">
-                      <CheckCircle2 className="h-4.5 w-4.5 text-[var(--accent-gold)] group-hover:text-white transition-colors duration-300" />
-                    </div>
-                    <span className="text-sm font-bold block text-[var(--text-primary)]">{item}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mb-24 text-center">
+        <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           whileInView={{ opacity: 1, y: 0 }}
+           viewport={{ once: true }}
+           transition={{ duration: 0.6 }}
+        >
+          <div className="inline-flex items-center gap-3 justify-center mb-6">
+            <span className="h-px w-6 bg-[#D4AF37]" />
+            <span className="text-xs font-mono uppercase tracking-[0.2em] text-[#D4AF37]">Verified clients</span>
+            <span className="h-px w-6 bg-[#D4AF37]" />
+          </div>
+          <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl max-w-3xl mx-auto">
+            Reputation built on <br/>
+            <span className="italic font-serif font-light text-black/40">flawless delivery.</span>
+          </h2>
+        </motion.div>
+      </div>
 
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: '-80px' }}
-            className="grid gap-6 md:grid-cols-2 mt-8 lg:mt-0"
-          >
-            {testimonials.map((item) => (
-              <motion.article
-                key={item.name}
-                variants={itemVariants}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[rgba(var(--border-rgb),0.6)] bg-white p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1.5 hover:border-[var(--accent-gold)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
-              >
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--accent-gold)] to-yellow-200 transform origin-left scale-x-0 transition-transform duration-500 ease-out group-hover:scale-x-100" />
-                
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between gap-4 mb-6">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[rgba(var(--accent-gold-rgb),0.08)] text-[var(--accent-gold)] shadow-inner">
-                      <Quote className="h-5 w-5" />
-                    </div>
-                    <div className="flex items-center gap-1 text-[var(--accent-gold)] bg-[rgba(var(--accent-gold-rgb),0.05)] px-2 py-1 rounded-full border border-[rgba(var(--accent-gold-rgb),0.2)]">
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <Star key={index} className="h-3 w-3 fill-current" />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="mt-4 text-[1.05rem] leading-relaxed text-[var(--text-secondary)] tracking-wide mb-8 italic outline-none">&ldquo;{item.quote}&rdquo;</p>
-                </div>
+      {/* Marquee Row 1 */}
+      <div className="relative flex whitespace-nowrap mb-8 [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]">
+        <motion.div style={{ x: x1 }} className="flex gap-8 px-4">
+          {[...testimonials, ...testimonials].slice(0, 4).map((item, idx) => (
+             <TestimonialCard key={`row1-${idx}`} item={item} />
+          ))}
+        </motion.div>
+      </div>
 
-                <div className="relative z-10 mt-auto flex items-center gap-4 border-t border-[rgba(var(--border-rgb),0.5)] pt-6">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-gold)] text-lg font-extrabold text-white shadow-md">
-                    {item.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-extrabold tracking-tight text-[var(--text-primary)] leading-tight">{item.name}</p>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-80 mt-1">{item.role}</p>
-                  </div>
-                </div>
-              </motion.article>
-            ))}
-          </motion.div>
-        </div>
+      {/* Marquee Row 2 */}
+      <div className="relative flex whitespace-nowrap [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]">
+        <motion.div style={{ x: x2 }} className="flex gap-8 px-4">
+          {[...testimonials, ...testimonials].slice(4, 8).map((item, idx) => (
+             <TestimonialCard key={`row2-${idx}`} item={item} />
+          ))}
+        </motion.div>
       </div>
     </section>
+  );
+}
+
+function TestimonialCard({ item }: { item: any }) {
+  return (
+    <div className="group relative w-[450px] sm:w-[500px] shrink-0 rounded-[2rem] border border-black/5 bg-white p-10 shadow-xl transition-all hover:bg-black hover:text-white cursor-grab active:cursor-grabbing">
+      <div className="absolute top-10 right-10 text-[#D4AF37] opacity-20 group-hover:opacity-100 transition-opacity">
+        <Quote className="h-12 w-12" />
+      </div>
+      
+      <p className="text-lg sm:text-xl font-medium leading-relaxed whitespace-normal min-h-[120px] pr-8">
+        "{item.quote}"
+      </p>
+      
+      <div className="mt-10 flex items-center gap-5 border-t border-black/10 group-hover:border-white/10 pt-6 transition-colors">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D4AF37] text-white font-bold text-xl shadow-lg">
+          {item.name.charAt(0)}
+        </div>
+        <div>
+          <p className="font-extrabold tracking-tight text-lg">{item.name}</p>
+          <p className="text-xs font-bold uppercase tracking-widest opacity-50 font-mono mt-1">{item.role}</p>
+        </div>
+      </div>
+    </div>
   );
 }

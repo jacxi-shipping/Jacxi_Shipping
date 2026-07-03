@@ -802,6 +802,11 @@ h3 {
 }
 
 /* Holographic Effects */
+.text-outline {
+  -webkit-text-stroke: 1px rgba(255,255,255,0.15);
+  color: transparent;
+}
+
 @keyframes scanline {
   0% { transform: translateY(0); }
   100% { transform: translateY(100%); }

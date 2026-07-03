@@ -1,41 +1,14 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { CheckCircle2, Clock, Container, MapPin, Ship, Truck } from 'lucide-react';
 
 const journeySteps = [
-  {
-    step: '01',
-    icon: Truck,
-    location: 'USA / Canada',
-    title: 'Pickup and export prep',
-    description: 'Vehicle intake, inspection, auction or home pickup, title checks, and port loading.',
-    duration: '1-5 days',
-  },
-  {
-    step: '02',
-    icon: Ship,
-    location: 'Route option A',
-    title: 'Mersin, Turkey route',
-    description: 'One available route moves through Mersin with Turkey port handoff visibility.',
-    duration: 'Timing varies',
-  },
-  {
-    step: '03',
-    icon: Container,
-    location: 'Route option B',
-    title: 'UAE route',
-    description: 'The alternate route moves through UAE with transit control and onward shipment planning.',
-    duration: 'Timing varies',
-  },
-  {
-    step: '04',
-    icon: CheckCircle2,
-    location: 'Afghanistan',
-    title: 'Customs and delivery',
-    description: 'Final customs support and delivery to Herat, Kabul, Kandahar, Mazar, and beyond.',
-    duration: '2-6 days',
-  },
+  { step: '01', icon: Truck, location: 'USA / Canada', title: 'Pickup & Export Prep', description: 'Vehicle intake, inspection, auction or home pickup, title checks, and port loading.', duration: '1-5 days' },
+  { step: '02', icon: Ship, location: 'Route option A', title: 'Mersin, Turkey Route', description: 'Moves through Mersin with Turkey port handoff visibility for streamlined logistics.', duration: 'Timing varies' },
+  { step: '03', icon: Container, location: 'Route option B', title: 'UAE Route', description: 'Alternate route through UAE with precise transit control and onward shipment planning.', duration: 'Timing varies' },
+  { step: '04', icon: CheckCircle2, location: 'Afghanistan', title: 'Customs & Delivery', description: 'Final customs support and delivery to Herat, Kabul, Kandahar, Mazar, and beyond.', duration: '2-6 days' },
 ];
 
 const nodes = [
@@ -47,191 +20,175 @@ const nodes = [
 ];
 
 const paths = [
-  { path: 'M 250 168 Q 390 92 555 230 Q 600 220 632 250', delay: 0, duration: 5.5 },
-  { path: 'M 230 222 Q 398 150 555 230 Q 600 220 632 250', delay: 0.4, duration: 5.5 },
-  { path: 'M 250 168 Q 430 178 604 306 Q 632 290 632 250', delay: 1.0, duration: 5.5 },
-  { path: 'M 230 222 Q 430 230 604 306 Q 632 290 632 250', delay: 1.4, duration: 5.5 },
-];
-
-const movers = [
-  { cx: [250, 360, 555, 632], cy: [168, 104, 230, 250], delay: 0.3, icon: Ship },
-  { cx: [230, 366, 555, 632], cy: [222, 158, 230, 250], delay: 1.0, icon: Ship },
-  { cx: [250, 410, 604, 632], cy: [168, 178, 306, 250], delay: 1.7, icon: Container },
-  { cx: [230, 420, 604, 632], cy: [222, 230, 306, 250], delay: 2.4, icon: Truck },
+  { path: 'M 250 168 Q 390 92 555 230 Q 600 220 632 250' },
+  { path: 'M 230 222 Q 398 150 555 230 Q 600 220 632 250' },
+  { path: 'M 250 168 Q 430 178 604 306 Q 632 290 632 250' },
+  { path: 'M 230 222 Q 430 230 604 306 Q 632 290 632 250' },
 ];
 
 export default function RoutesAnimatedSection() {
+  const containerRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start 70%", "end 50%"]
+  });
+
+  const pathLength = useTransform(scrollYProgress, [0, 1], [0, 1]);
+
   return (
-    <section id="route" className="relative overflow-hidden bg-[var(--background)] py-20 sm:py-24">
-      <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(var(--accent-gold-rgb),0.65),transparent)]" />
+    <section ref={containerRef} id="route" className="relative overflow-hidden bg-black py-24 sm:py-32 selection:bg-[var(--accent-gold)] selection:text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(var(--accent-gold-rgb),0.1)_0%,transparent_70%)]" />
+      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-end">
+        <div className="grid gap-16 lg:grid-cols-[1fr_1.3fr] lg:items-center">
+          
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.62 }}
+            initial={{ opacity: 0, x: -40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: '-10% 0px' }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
-            <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent-gold)]">Global route</p>
-            <h2 className="mt-4 max-w-xl text-[2rem] font-extrabold leading-[1.1] tracking-tight text-[var(--text-primary)] sm:text-[3rem] lg:text-[3.5rem]">
-              Built for the real corridor into <br/>
-              <span className="text-[var(--text-secondary)]">Afghanistan.</span>
+            <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs uppercase tracking-widest text-[#D4AF37] backdrop-blur-md">
+              <span className="mr-2 h-1.5 w-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
+              Global routing
+            </div>
+            
+            <h2 className="mt-8 text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[4rem]">
+              Precision paths to <br/>
+              <span className="text-white/40 italic font-serif font-light">Afghanistan.</span>
             </h2>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl">
-              Your vehicle can move from anywhere in the <span className="font-semibold text-[var(--text-primary)]">USA or Canada</span> to <span className="font-semibold text-[var(--text-primary)]">Afghanistan</span> through one of two planned routes: the <span className="font-semibold text-[var(--text-primary)]">Mersin route</span> or the <span className="font-semibold text-[var(--text-primary)]">UAE route</span>.
+            <p className="mt-6 text-lg leading-relaxed text-white/60">
+              Your vehicle moves from <span className="text-white">North America</span> to <span className="text-white">Afghanistan</span> through carefully optimized corridors: the <span className="text-[#D4AF37]">Mersin Route</span> or the <span className="text-[#D4AF37]">UAE Route</span>. Clear visibility at every nautical mile.
             </p>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="mt-12 flex flex-col gap-6 relative">
+              <div className="absolute left-[19px] top-4 bottom-4 w-px bg-gradient-to-b from-[#D4AF37]/50 via-white/10 to-transparent" />
               {[
-                { label: 'Origin coverage', value: 'All USA and Canada pickup lanes' },
-                { label: 'Route options', value: 'Mersin route or UAE route' },
-                { label: 'Final mile', value: 'All Afghan provinces' },
-              ].map((item) => (
-                <div key={item.label} className="group relative overflow-hidden rounded-xl border border-[rgba(var(--border-rgb),0.5)] bg-white/50 p-5 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:shadow-md">
-                  <div className="absolute left-0 top-0 h-full w-1 bg-[var(--accent-gold)] scale-y-0 origin-bottom transition-transform duration-300 group-hover:scale-y-100" />
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">{item.label}</p>
-                  <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">{item.value}</p>
-                </div>
+                { label: 'Origin', value: 'USA & Canada' },
+                { label: 'Hubs', value: 'Turkey or UAE' },
+                { label: 'Final', value: 'Afghan Provinces' },
+              ].map((item, i) => (
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + (i * 0.1), duration: 0.5 }}
+                  key={item.label} 
+                  className="flex items-center gap-6"
+                >
+                  <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black border border-white/20 shadow-[0_0_15px_rgba(212,175,55,0.2)] text-[#D4AF37]">
+                    <div className="h-2 w-2 rounded-full bg-[#D4AF37]" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-white/40 font-mono">{item.label}</p>
+                    <p className="text-base font-medium text-white">{item.value}</p>
+                  </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.72, delay: 0.1 }}
-            className="relative overflow-hidden rounded-3xl border border-[rgba(var(--border-rgb),0.6)] bg-white shadow-[0_40px_100px_rgba(0,0,0,0.06)] lg:ml-auto w-full max-w-[800px]"
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            className="relative w-full rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-2 backdrop-blur-xl shadow-2xl"
           >
-            <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-contain bg-center bg-no-repeat opacity-[0.12]" />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--panel-rgb),0.42),rgba(var(--panel-rgb),0.88))]" />
-
-            <div className="relative aspect-[1.15/1] sm:aspect-[16/9]">
+            <div className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[2rem] bg-[#0a0a0a]">
+              <div className="absolute inset-0 bg-[url('/world-map.svg')] bg-cover bg-center bg-no-repeat opacity-20 sepia hue-rotate-180 brightness-50" />
+              
               <svg viewBox="0 0 950 620" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
                 <defs>
-                  <linearGradient id="premium-route-line" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="rgba(var(--accent-gold-rgb),0.22)" />
-                    <stop offset="50%" stopColor="var(--accent-gold)" />
-                    <stop offset="100%" stopColor="rgba(var(--accent-gold-rgb),0.36)" />
+                  <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.1" />
+                    <stop offset="50%" stopColor="#D4AF37" />
+                    <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.1" />
                   </linearGradient>
-                  <filter id="premium-route-glow">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                     <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                   </filter>
                 </defs>
 
-                {paths.map((path) => (
-                  <path
-                    key={`ghost-${path.path}`}
-                    d={path.path}
-                    fill="none"
-                    stroke="rgba(var(--text-primary-rgb),0.12)"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray="7 9"
-                  />
+                {paths.map((p, i) => (
+                  <path key={`base-${i}`} d={p.path} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2" strokeDasharray="4 8" />
                 ))}
 
-                {paths.map((path) => (
+                {paths.map((p, i) => (
                   <motion.path
-                    key={path.path}
-                    d={path.path}
+                    key={`active-${i}`}
+                    d={p.path}
                     fill="none"
-                    stroke="url(#premium-route-line)"
+                    stroke="url(#gold-gradient)"
                     strokeWidth="3"
                     strokeLinecap="round"
-                    filter="url(#premium-route-glow)"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    whileInView={{ pathLength: [0, 1, 1], opacity: [0, 1, 0.75] }}
-                    viewport={{ once: false }}
-                    transition={{ duration: path.duration, delay: path.delay, repeat: Infinity, repeatDelay: 1.4, ease: 'easeInOut' }}
+                    filter="url(#glow)"
+                    style={{ pathLength }}
                   />
                 ))}
 
-                {movers.map((mover, index) => {
-                  const Icon = mover.icon;
-                  return (
-                    <motion.g
-                      key={`mover-${index}`}
-                      animate={{ x: mover.cx, y: mover.cy, opacity: [0, 1, 1, 0] }}
-                      transition={{ duration: 6.4, delay: mover.delay, repeat: Infinity, repeatDelay: 1.2, ease: 'easeInOut' }}
-                    >
-                      <circle r="17" fill="rgba(var(--accent-gold-rgb),0.16)" stroke="rgba(var(--accent-gold-rgb),0.42)" />
-                      <foreignObject x="-10" y="-10" width="20" height="20">
-                        <Icon className="h-5 w-5 text-[var(--accent-gold)]" />
-                      </foreignObject>
-                    </motion.g>
-                  );
-                })}
-
-                {nodes.map((node, index) => (
+                {nodes.map((node, i) => (
                   <g key={node.id}>
-                    <motion.circle
-                      cx={node.x}
-                      cy={node.y}
-                      r="7"
-                      fill="var(--accent-gold)"
-                      initial={{ scale: 0, opacity: 0 }}
-                      whileInView={{ scale: 1, opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.2 + index * 0.08, type: 'spring', stiffness: 260, damping: 18 }}
-                    />
-                    <circle
-                      cx={node.x}
-                      cy={node.y}
-                      r="13"
-                      fill="none"
-                      stroke="rgba(var(--accent-gold-rgb),0.45)"
-                      strokeWidth="2"
-                    />
-                    <text x={node.x} y={node.y - 18} fill="var(--text-primary)" fontSize="13" fontWeight="800" textAnchor="middle">
+                    <circle cx={node.x} cy={node.y} r="6" fill="#D4AF37" className="animate-pulse" />
+                    <circle cx={node.x} cy={node.y} r="14" fill="none" stroke="rgba(212,175,55,0.3)" strokeWidth="1" />
+                    <text x={node.x} y={node.y - 20} fill="#ffffff" fontSize="14" fontWeight="600" textAnchor="middle" style={{ textShadow: '0px 2px 4px rgba(0,0,0,0.8)' }}>
                       {node.label}
                     </text>
                   </g>
                 ))}
               </svg>
 
-              <div className="absolute left-4 top-4 rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.82)] px-4 py-3 text-[var(--text-primary)] backdrop-blur-xl sm:left-6 sm:top-6">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase text-[var(--text-secondary)]">
-                  <Clock className="h-3.5 w-3.5 text-[var(--accent-gold)]" />
-                  Estimated corridor
+              <motion.div 
+                style={{ y: useTransform(scrollYProgress, [0, 1], [50, -20]) }}
+                className="absolute bottom-6 left-6 rounded-2xl border border-white/10 bg-black/60 p-5 backdrop-blur-xl shadow-2xl"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-[#D4AF37]/20 p-2 text-[#D4AF37]">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-mono uppercase text-white/50">Avg Transit Time</p>
+                    <p className="text-xl font-bold text-white">30-45 Days</p>
+                  </div>
                 </div>
-                <p className="mt-1 text-lg font-black">30-45 days</p>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         </div>
 
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-20 grid gap-6 sm:grid-cols-2 lg:grid-cols-4 perspective-1000">
           {journeySteps.map((step, index) => {
             const Icon = step.icon;
             return (
-              <motion.article
+              <motion.div
                 key={step.step}
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-80px' }}
-                transition={{ duration: 0.45, delay: index * 0.07 }}
-                className="group rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-[rgba(var(--accent-gold-rgb),0.55)] hover:shadow-[0_18px_38px_rgba(var(--text-primary-rgb),0.10)]"
+                initial={{ opacity: 0, rotateX: 45, y: 40 }}
+                whileInView={{ opacity: 1, rotateX: 0, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.6, delay: 0.2 + (index * 0.1), ease: [0.23, 1, 0.32, 1] }}
+                whileHover={{ y: -8, transition: { duration: 0.3 } }}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition-all hover:bg-white/[0.08]"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
-                    <Icon className="h-5 w-5" />
+                <div className="mb-8 flex items-start justify-between">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white/10 to-transparent shadow-inner border border-white/5 group-hover:border-[#D4AF37]/50 transition-colors">
+                    <Icon className="h-5 w-5 text-white group-hover:text-[#D4AF37] transition-colors" />
                   </div>
-                  <span className="text-sm font-black text-[rgba(var(--text-primary-rgb),0.18)]">{step.step}</span>
+                  <span className="text-4xl font-black text-white/5 group-hover:text-white/10 transition-colors">{step.step}</span>
                 </div>
-                <p className="mt-5 text-xs font-bold uppercase text-[var(--accent-gold)]">{step.location}</p>
-                <h3 className="mt-2 text-lg font-black text-[var(--text-primary)]">{step.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{step.description}</p>
-                <div className="mt-5 inline-flex items-center gap-2 rounded-md bg-[var(--background)] px-3 py-2 text-xs font-bold text-[var(--text-secondary)]">
-                  <MapPin className="h-3.5 w-3.5 text-[var(--accent-gold)]" />
-                  {step.duration}
+                
+                <div>
+                  <p className="mb-2 inline-block rounded-full bg-[#D4AF37]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">
+                    {step.location}
+                  </p>
+                  <h3 className="mb-3 text-xl font-semibold text-white">{step.title}</h3>
+                  <p className="text-sm leading-relaxed text-white/60">{step.description}</p>
                 </div>
-              </motion.article>
+              </motion.div>
             );
           })}
         </div>

@@ -1,95 +1,144 @@
+'use client';
+
+import { motion } from 'framer-motion';
 import Link from 'next/link';
-import SiteLogo from '@/components/brand/SiteLogo';
+import { SiteMark } from '@/components/brand/SiteLogo';
+import Magnetic from '@/components/ui/Magnetic';
 
-const navigationLinks = [
-  { label: 'Services', href: '/#services' },
-  { label: 'Route', href: '/#route' },
-  { label: 'How It Works', href: '/#process' },
-  { label: 'Calculator', href: '/#calculator' },
-  { label: 'FAQ', href: '/#faq' },
-  { label: 'Tracking', href: '/tracking' },
-  { label: 'Get a Quote', href: '/#quote' },
-];
-
-const socialLinks = [
-  { label: 'FB', href: 'https://facebook.com/' },
-  { label: 'IG', href: 'https://instagram.com/' },
-  { label: 'WA', href: 'https://wa.me/93704117413' },
-];
-
-const contactNumbers = [
-  { href: 'tel:+19252008927', label: '+1 (925) 200-8927' },
-  { href: 'tel:+93704117413', label: '+93 704 117 413' },
-];
+const footerNavigation = {
+  solutions: [
+    { name: 'Vehicle sourcing', href: '#' },
+    { name: 'Ocean freight', href: '#' },
+    { name: 'Customs clearance', href: '#' },
+    { name: 'Secure storage', href: '#' },
+  ],
+  support: [
+    { name: 'FAQ', href: '/#faq' },
+    { name: 'Contact us', href: '/#contact-us' },
+    { name: 'Get a quote', href: '/#quote' },
+    { name: 'Customer portal', href: '/auth/signin' },
+  ],
+  company: [
+    { name: 'About JACXI', href: '/#about-us' },
+    { name: 'Our process', href: '/#process' },
+    { name: 'Corridor routes', href: '/#route' },
+  ],
+  legal: [
+    { name: 'Privacy policy', href: '#' },
+    { name: 'Terms of service', href: '#' },
+    { name: 'Cookie policy', href: '#' },
+  ],
+};
 
 export default function Footer() {
   return (
-    <footer className="border-t border-[rgba(var(--border-rgb),0.5)] bg-white/50 backdrop-blur-sm pt-20 pb-10 text-[var(--text-primary)]">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-[1.5fr_0.75fr_1fr]">
-          <div>
-            <Link href="/" className="inline-flex items-center group">
-              <span className="transition-transform duration-300 group-hover:scale-105">
-                <SiteLogo variant="main" className="w-[188px] sm:w-[220px]" priority />
-              </span>
-            </Link>
-            <p className="mt-6 max-w-sm text-base leading-relaxed text-[var(--text-secondary)]">
-              Premium vehicle shipping from anywhere in the <span className="font-semibold text-[var(--text-primary)]">USA and Canada</span> to <span className="font-semibold text-[var(--text-primary)]">Afghanistan</span> through either the Mersin route or the UAE route.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              {socialLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex h-11 min-w-11 items-center justify-center rounded-xl border border-[rgba(var(--border-rgb),0.6)] bg-white px-4 text-xs font-bold tracking-wide text-[var(--text-secondary)] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] hover:shadow-md"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </div>
-          </div>
+    <footer className="relative bg-black pt-32 pb-12 overflow-hidden selection:bg-[#D4AF37] selection:text-white" aria-labelledby="footer-heading">
+      <h2 id="footer-heading" className="sr-only">Footer</h2>
+      
+      {/* Abstract Background Effects */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-[#D4AF37]/5 blur-[120px]" />
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.02]" />
+      </div>
 
-          <div>
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-[var(--text-primary)] opacity-80 mb-6">Navigation</h4>
-            <ul className="space-y-4">
-              {navigationLinks.map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className="group relative inline-flex text-sm font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
-                    {item.label}
-                    <span className="absolute -bottom-1 left-0 h-px w-0 bg-[var(--accent-gold)] transition-all duration-300 group-hover:w-full" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-[var(--text-primary)] opacity-80 mb-6">Contact</h4>
-            <div className="space-y-5 text-sm font-bold text-[var(--text-secondary)]">
-              <p className="leading-relaxed">Herat Customs Department,<br/>Herat, Afghanistan</p>
-              <div className="space-y-2">
-                {contactNumbers.map((number) => (
-                  <a key={number.href} href={number.href} className="block transition-colors hover:text-[var(--accent-gold)] flex items-center gap-2">
-                    <span className="text-[var(--accent-gold)] opacity-70">✆</span> {number.label}
-                  </a>
-                ))}
-              </div>
-              <a href="mailto:info@jacxi.com" className="block transition-colors hover:text-[var(--accent-gold)] flex items-center gap-2 mt-4 pt-4 border-t border-[rgba(var(--border-rgb),0.5)]">
-                <span className="text-[var(--accent-gold)] opacity-70">✉</span> info@jacxi.com
-              </a>
-            </div>
-          </div>
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        
+        {/* Giant Typographic CTA */}
+        <div className="mb-32 flex flex-col items-center justify-center text-center">
+           <motion.h3 
+             initial={{ opacity: 0, y: 40 }}
+             whileInView={{ opacity: 1, y: 0 }}
+             viewport={{ once: true }}
+             transition={{ duration: 0.8, ease: "easeOut" }}
+             className="text-[4rem] font-black leading-none tracking-tighter text-white sm:text-[6rem] md:text-[8rem] lg:text-[10rem]"
+           >
+             READY TO <br/>
+             <span className="text-[#D4AF37] font-serif font-light italic tracking-normal">SHIP?</span>
+           </motion.h3>
+           
+           <motion.div
+             initial={{ opacity: 0, scale: 0.8 }}
+             whileInView={{ opacity: 1, scale: 1 }}
+             viewport={{ once: true }}
+             transition={{ duration: 0.6, delay: 0.3 }}
+             className="-mt-10 sm:-mt-16 md:-mt-24"
+           >
+            <Magnetic strength={0.4} intensity={0.2}>
+              <Link
+                href="/#quote"
+                className="group relative flex h-32 w-32 items-center justify-center rounded-full bg-white text-black shadow-2xl transition-transform hover:scale-110 sm:h-40 sm:w-40"
+              >
+                <div className="absolute inset-0 rounded-full border border-[#D4AF37] scale-150 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-700 ease-out" />
+                <span className="text-sm font-bold uppercase tracking-widest sm:text-base">Start now</span>
+              </Link>
+            </Magnetic>
+           </motion.div>
         </div>
 
-        <div className="mt-16 flex flex-col items-center justify-between gap-6 border-t border-[rgba(var(--border-rgb),0.5)] pt-8 md:flex-row">
-          <p className="text-sm font-medium text-[var(--text-secondary)]">
-            &copy; {new Date().getFullYear()} Jacxi Shipping. All rights reserved.
-          </p>
-          <div className="flex gap-8 text-sm font-medium text-[var(--text-secondary)]">
-            <Link href="/privacy" className="transition-colors hover:text-[var(--text-primary)]">Privacy Policy</Link>
-            <Link href="/terms" className="transition-colors hover:text-[var(--text-primary)]">Terms of Service</Link>
+        <div className="grid border-t border-white/10 pt-16 xl:grid-cols-3 xl:gap-8">
+          <div className="space-y-8 xl:col-span-1">
+            <SiteMark className="h-8 text-white relative z-10" />
+            <p className="max-w-xs text-sm leading-relaxed text-white/50">
+              Premium vehicle logistics from North America to Afghanistan. Flawless handling through trusted corridors.
+            </p>
+            <div className="flex gap-x-6">
+               <span className="text-xs font-mono uppercase tracking-widest text-[#D4AF37]">© 2026 JACXI SHIPPING</span>
+            </div>
+          </div>
+          
+          <div className="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
+            <div className="md:grid md:grid-cols-2 md:gap-8">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Solutions</h3>
+                <ul role="list" className="mt-6 space-y-4">
+                  {footerNavigation.solutions.map((item) => (
+                    <li key={item.name}>
+                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-10 md:mt-0">
+                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Support</h3>
+                <ul role="list" className="mt-6 space-y-4">
+                  {footerNavigation.support.map((item) => (
+                    <li key={item.name}>
+                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="md:grid md:grid-cols-2 md:gap-8">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Company</h3>
+                <ul role="list" className="mt-6 space-y-4">
+                  {footerNavigation.company.map((item) => (
+                    <li key={item.name}>
+                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-10 md:mt-0">
+                <h3 className="text-sm font-bold text-white tracking-widest uppercase">Legal</h3>
+                <ul role="list" className="mt-6 space-y-4">
+                  {footerNavigation.legal.map((item) => (
+                    <li key={item.name}>
+                      <Link href={item.href} className="text-sm text-white/50 hover:text-white transition-colors">
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>

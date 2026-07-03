@@ -7,6 +7,7 @@ import { Toaster } from "@/components/design-system";
 import Script from "next/script";
 import PWARegister from "@/components/pwa/PWARegister";
 import OfflineStatusBanner from "@/components/pwa/OfflineStatusBanner";
+import SmoothScrolling from "@/components/ui/SmoothScrolling";
 
 // Use system fonts as fallback when Google Fonts aren't available
 const fontVariables = '';
@@ -57,12 +58,14 @@ export default function RootLayout({
         <Providers>
           <PWARegister />
           <OfflineStatusBanner />
-          <div className="relative flex min-h-screen flex-col">
-            <ConditionalLayout>
-              {children}
-            </ConditionalLayout>
-          </div>
-          <Toaster />
+          <SmoothScrolling>
+            <div className="relative flex min-h-screen flex-col">
+              <ConditionalLayout>
+                {children}
+              </ConditionalLayout>
+            </div>
+            <Toaster />
+          </SmoothScrolling>
         </Providers>
       </body>
     </html>
