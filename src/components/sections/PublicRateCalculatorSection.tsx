@@ -159,15 +159,17 @@ export default function PublicRateCalculatorSection() {
             </div>
 
             <Magnetic>
-              <button 
-                onClick={() => {
-                  document.getElementById('quote')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="group relative flex w-full h-16 items-center justify-center overflow-hidden rounded-full bg-gray-900 text-gray-900 font-bold"
-              >
-                <div className="absolute inset-0 bg-[#D4AF37] translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
-                <span className="relative z-10 transition-colors duration-500 group-hover:text-black">Request exact quote</span>
-              </button>
+              <div className="w-full">
+                <button 
+                  onClick={() => {
+                    document.getElementById('quote')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="group relative flex w-full h-16 items-center justify-center overflow-hidden rounded-full bg-gray-900 font-bold"
+                >
+                  <div className="absolute inset-0 bg-[#D4AF37] translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-y-0" />
+                  <span className="relative z-10 text-white transition-colors duration-500 group-hover:text-black">Request exact quote</span>
+                </button>
+              </div>
             </Magnetic>
           </motion.div>
 
