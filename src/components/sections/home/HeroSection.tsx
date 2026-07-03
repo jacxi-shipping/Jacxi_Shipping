@@ -110,9 +110,12 @@ export default function HeroSection() {
 
       {/* Grid texture for technical feel */}
       <motion.div 
-        style={{ opacity: useTransform(smoothYProgress, [0, 1], [0.15, 0]) }}
+        style={{ 
+          opacity: useTransform(smoothYProgress, [0, 1], [0.15, 0]),
+          maskImage: 'linear-gradient(to bottom, black 20%, transparent 80%)', 
+          WebkitMaskImage: 'linear-gradient(to bottom, black 20%, transparent 80%)'
+        }}
         className="absolute inset-0 -z-10 bg-[url('/grid.svg')] bg-[length:40px_40px]" 
-        style={{ maskImage: 'linear-gradient(to bottom, black 20%, transparent 80%)', WebkitMaskImage: 'linear-gradient(to bottom, black 20%, transparent 80%)' }} 
       />
 
       <motion.div 
