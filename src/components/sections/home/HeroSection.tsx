@@ -23,9 +23,9 @@ const stats = [
 const routeStops = [
   { code: 'USA', label: 'United States', detail: 'Auction, dealer, or home pickup', x: '12%', y: '20%' },
   { code: 'CAN', label: 'Canada', detail: 'Dealer and private pickup lanes', x: '31%', y: '13%' },
-  { code: 'TR', label: 'Mersin route', detail: 'Route option through Turkey', x: '51%', y: '22%' },
-  { code: 'UAE', label: 'UAE route', detail: 'Route option through UAE', x: '69%', y: '45%' },
-  { code: 'AFG', label: 'Afghanistan', detail: 'Customs and final delivery', x: '91%', y: '54%' },
+  { code: 'TR', label: 'Mersin route', detail: 'Route option through Turkey', x: '55%', y: '18%' },
+  { code: 'UAE', label: 'UAE route', detail: 'Route option through UAE', x: '77%', y: '23%' },
+  { code: 'AFG', label: 'Afghanistan', detail: 'Customs and final delivery', x: '94%', y: '31%' },
 ];
 
 const corridorCards = [
@@ -201,7 +201,7 @@ export default function HeroSection() {
             </motion.div>
           ))}
 
-          <div className="absolute inset-x-[-1.25rem] bottom-[-1rem] top-10 z-10 overflow-visible lg:left-[-1rem] lg:right-[-8rem] lg:top-16">
+          <div className="absolute inset-x-[-1.25rem] bottom-[-1rem] top-10 z-10 overflow-visible lg:left-[2rem] lg:right-[-3rem] lg:top-16">
             <div className="absolute inset-x-[10%] bottom-[8%] h-24 rounded-full bg-[rgba(var(--text-primary-rgb),0.10)] blur-2xl" />
             <div className="absolute right-[2%] top-[5%] h-[78%] w-[78%] rounded-full bg-[radial-gradient(circle,rgba(var(--accent-gold-rgb),0.16),transparent_62%)]" />
             <div className="absolute left-[8%] top-[18%] h-[62%] w-[74%] rounded-full bg-[radial-gradient(circle,rgba(var(--panel-rgb),0.92),rgba(var(--panel-rgb),0)_66%)]" />
