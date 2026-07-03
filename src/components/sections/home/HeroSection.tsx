@@ -129,47 +129,6 @@ export default function HeroSection() {
           transition={{ duration: 0.76, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="pointer-events-none relative -mt-24 min-h-[420px] lg:pointer-events-auto lg:mt-0 lg:min-h-[680px]"
         >
-          <div className="absolute left-[-8%] top-3 z-20 hidden h-40 w-[92%] lg:block">
-            <svg viewBox="0 0 1000 220" className="h-full w-full overflow-visible" aria-hidden="true">
-              <path
-                d="M 95 86 C 250 34 360 86 500 86 S 760 130 940 174"
-                fill="none"
-                stroke="rgba(var(--text-primary-rgb),0.62)"
-                strokeDasharray="6 8"
-                strokeLinecap="round"
-                strokeWidth="2"
-              />
-              <path
-                d="M 95 124 C 290 156 520 138 685 154 S 840 194 940 174"
-                fill="none"
-                stroke="rgba(var(--text-primary-rgb),0.40)"
-                strokeDasharray="6 8"
-                strokeLinecap="round"
-                strokeWidth="2"
-              />
-              <motion.path
-                d="M 95 86 C 250 34 360 86 500 86 S 760 130 940 174"
-                fill="none"
-                stroke="var(--accent-gold)"
-                strokeDasharray="80 680"
-                strokeLinecap="round"
-                strokeWidth="3"
-                animate={{ strokeDashoffset: [0, -760] }}
-                transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-              />
-              <motion.path
-                d="M 95 124 C 290 156 520 138 685 154 S 840 194 940 174"
-                fill="none"
-                stroke="var(--accent-gold)"
-                strokeDasharray="80 620"
-                strokeLinecap="round"
-                strokeWidth="3"
-                animate={{ strokeDashoffset: [0, -700] }}
-                transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-              />
-            </svg>
-          </div>
-
           <div className="absolute inset-x-[-1.25rem] bottom-[-1rem] top-10 z-10 overflow-visible lg:left-[2rem] lg:right-[-3rem] lg:top-16">
             <div className="absolute inset-x-[10%] bottom-[8%] h-24 rounded-full bg-[rgba(var(--text-primary-rgb),0.10)] blur-2xl" />
             <div className="absolute right-[2%] top-[5%] h-[78%] w-[78%] rounded-full bg-[radial-gradient(circle,rgba(var(--accent-gold-rgb),0.16),transparent_62%)]" />

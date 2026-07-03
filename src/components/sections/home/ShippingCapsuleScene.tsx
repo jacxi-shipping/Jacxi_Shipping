@@ -62,8 +62,6 @@ export default function ShippingCapsuleScene({ className }: ShippingCapsuleScene
           <div className="absolute left-[16%] bottom-[24%] z-20 h-px w-[68%] bg-[linear-gradient(90deg,transparent,rgba(202,240,255,0.62),transparent)] shadow-[0_0_14px_rgba(174,239,255,0.75)]" />
         </div>
 
-        <div className="route-orbit absolute left-[2%] top-[4%] h-[70%] w-[90%] rounded-full border border-[rgba(var(--accent-gold-rgb),0.22)] opacity-70 [transform:rotateX(67deg)_rotateZ(-7deg)]" />
-        <div className="absolute right-[8%] top-[18%] h-3 w-3 rounded-full bg-[var(--accent-gold)] shadow-[0_0_28px_rgba(var(--accent-gold-rgb),0.75)] motion-safe:animate-pulse" />
       </div>
 
       <style jsx>{`
@@ -76,23 +74,9 @@ export default function ShippingCapsuleScene({ className }: ShippingCapsuleScene
             translate: 0 -10px;
           }
         }
-
-        @keyframes routeOrbit {
-          from {
-            transform: rotateX(67deg) rotateZ(-7deg);
-          }
-          to {
-            transform: rotateX(67deg) rotateZ(353deg);
-          }
-        }
-
         @media (prefers-reduced-motion: no-preference) {
           .capsule-artwork {
             animation: capsuleFloat 7s ease-in-out infinite;
-          }
-
-          .route-orbit {
-            animation: routeOrbit 9s linear infinite;
           }
         }
       `}</style>
