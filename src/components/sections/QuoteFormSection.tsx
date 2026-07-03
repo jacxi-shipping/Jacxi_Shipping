@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowRight, Car, CheckCircle, Clock, FileText, ShieldCheck } from 'lucide-react';
+import { Anchor, ArrowRight, Car, CheckCircle, Clock, FileText, MapPin, PackageCheck, ShieldCheck, Ship } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const quoteSchema = z.object({
@@ -23,6 +23,19 @@ type QuoteFormData = z.infer<typeof quoteSchema>;
 
 const fieldClassName = 'w-full rounded-lg border bg-[var(--panel)] px-4 py-3 text-base text-[var(--text-primary)] outline-none transition focus:border-[var(--accent-gold)] focus:ring-4 focus:ring-[rgba(var(--accent-gold-rgb),0.16)]';
 const labelClassName = 'mb-2 block text-sm font-black uppercase text-[var(--text-secondary)]';
+
+const quoteHighlights = [
+	{ icon: PackageCheck, title: 'Origin pickup details', detail: 'Auction, dealer, home pickup, city, and branch.' },
+	{ icon: Ship, title: 'Transit route review', detail: 'Mersin and UAE options checked for timing and cost.' },
+	{ icon: ShieldCheck, title: 'Customs readiness', detail: 'Title, condition, and Afghan import notes reviewed early.' },
+];
+
+const quoteRoute = [
+	'USA / Canada',
+	'Mersin',
+	'UAE',
+	'Afghanistan',
+];
 
 export default function QuoteFormSection() {
 	const didApplyCalculatorPrefill = useRef(false);
@@ -121,18 +134,36 @@ export default function QuoteFormSection() {
 					>
 						<p className="text-sm font-bold uppercase text-[var(--accent-gold)]">Free quote</p>
 						<h2 className="mt-4 max-w-xl text-4xl font-black leading-tight text-[var(--text-primary)] sm:text-5xl">
-							Start with the exact lane, vehicle, and destination.
+							Get a lane-specific vehicle import quote.
 						</h2>
 						<p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-							Send your shipment details and the JACXI team will review route options, documents, timing, and next steps.
+							Send the vehicle, pickup, route, and destination details JACXI needs to price the real corridor from North America into Afghanistan.
 						</p>
 
-						<div className="mt-8 grid gap-3">
-							{[
-								{ icon: Clock, title: '24-hour response', detail: 'A real coordinator reviews your details.' },
-								{ icon: ShieldCheck, title: 'No obligation', detail: 'Use the quote to plan before committing.' },
-								{ icon: FileText, title: 'Document guidance', detail: 'We flag title and customs requirements early.' },
-							].map((item) => {
+						<div className="mt-7 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm">
+							<div className="flex items-center gap-3">
+								<div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[rgba(var(--accent-gold-rgb),0.12)] text-[var(--accent-gold)]">
+									<MapPin className="h-5 w-5" />
+								</div>
+								<div>
+									<p className="font-black text-[var(--text-primary)]">Quote route</p>
+									<p className="mt-1 text-sm text-[var(--text-secondary)]">Origin, transit ports, customs, and final province.</p>
+								</div>
+							</div>
+							<div className="mt-4 grid gap-2 sm:grid-cols-4">
+								{quoteRoute.map((stop, index) => (
+									<div key={stop} className="relative rounded-md bg-[var(--background)] px-3 py-2 text-center text-xs font-black text-[var(--text-primary)]">
+										{index < quoteRoute.length - 1 ? (
+											<ArrowRight className="absolute right-[-0.7rem] top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 text-[var(--accent-gold)] sm:block" />
+										) : null}
+										{stop}
+									</div>
+								))}
+							</div>
+						</div>
+
+						<div className="mt-4 grid gap-3">
+							{quoteHighlights.map((item) => {
 								const Icon = item.icon;
 								return (
 									<div key={item.title} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm">
@@ -165,8 +196,23 @@ export default function QuoteFormSection() {
 								</div>
 								<div>
 									<h3 className="text-xl font-black text-[var(--text-primary)]">Vehicle quote request</h3>
-									<p className="mt-1 text-sm text-[var(--text-secondary)]">USA / Canada to Afghanistan route planning</p>
+									<p className="mt-1 text-sm text-[var(--text-secondary)]">USA / Canada pickup, Mersin and UAE routing, Afghanistan delivery</p>
 								</div>
+							</div>
+							<div className="mt-5 grid gap-2 sm:grid-cols-3">
+								{[
+									{ icon: Anchor, label: 'Port route' },
+									{ icon: Clock, label: 'Timing window' },
+									{ icon: FileText, label: 'Document review' },
+								].map((item) => {
+									const Icon = item.icon;
+									return (
+										<div key={item.label} className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-black text-[var(--text-primary)]">
+											<Icon className="h-4 w-4 text-[var(--accent-gold)]" />
+											{item.label}
+										</div>
+									);
+								})}
 							</div>
 						</div>
 

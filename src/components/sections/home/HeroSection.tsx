@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { motion, Variants } from 'framer-motion';
 import {
   ArrowRight,
-  CheckCircle2,
   CirclePlay,
   Clock,
+  FileCheck,
   MapPin,
   Navigation,
   ShieldCheck,
@@ -24,28 +24,46 @@ const stats = [
 
 const trustPoints = [
   {
-    title: '100% safe',
-    detail: 'Your car in trusted hands.',
+    title: 'Vehicle-first handling',
+    detail: 'Photo inspection before loading.',
     icon: ShieldCheck,
   },
   {
-    title: 'On-time delivery',
-    detail: 'Milestones handled clearly.',
+    title: 'Port milestone updates',
+    detail: 'Pickup, loading, transit, customs.',
     icon: Clock,
   },
   {
-    title: 'Multiple routes',
-    detail: 'Via Mersin or UAE.',
+    title: 'Corridor options',
+    detail: 'Mersin and UAE route control.',
     icon: Navigation,
   },
 ];
 
 const routeStops = [
-  { code: 'US', label: 'USA', x: '12%', y: '20%' },
-  { code: 'CA', label: 'Canada', x: '31%', y: '13%' },
-  { code: 'TR', label: 'Mersin', x: '51%', y: '24%' },
-  { code: 'AE', label: 'UAE', x: '72%', y: '39%' },
-  { code: 'AF', label: 'Afghanistan', x: '91%', y: '54%' },
+  { code: 'USA', label: 'United States', detail: 'Auction, dealer, or home pickup', x: '12%', y: '20%' },
+  { code: 'CAN', label: 'Canada', detail: 'Dealer and private pickup lanes', x: '31%', y: '13%' },
+  { code: 'TR', label: 'Mersin', detail: 'Turkey port handoff', x: '51%', y: '24%' },
+  { code: 'UAE', label: 'UAE', detail: 'Transit and route control', x: '72%', y: '39%' },
+  { code: 'AFG', label: 'Afghanistan', detail: 'Customs and final delivery', x: '91%', y: '54%' },
+];
+
+const corridorCards = [
+  {
+    title: 'Origin intake',
+    detail: 'USA and Canada pickups',
+    icon: Truck,
+  },
+  {
+    title: 'Port corridor',
+    detail: 'Mersin and UAE handoffs',
+    icon: Ship,
+  },
+  {
+    title: 'Import support',
+    detail: 'Afghanistan customs delivery',
+    icon: FileCheck,
+  },
 ];
 
 const containerVariants: Variants = {
@@ -88,14 +106,17 @@ export default function HeroSection() {
             </span>
           </motion.div>
 
-          <motion.h1 variants={itemVariants} className="mt-8 max-w-3xl text-5xl font-black leading-[0.98] text-[var(--text-primary)] sm:text-6xl lg:text-[5.6rem]">
+          <motion.h1 variants={itemVariants} className="mt-8 max-w-3xl text-5xl font-black leading-[0.98] text-[var(--text-primary)] sm:text-6xl lg:text-[5.45rem]">
             We ship{' '}
             <span className="block text-[var(--accent-gold)]">your car</span>
+            {' '}
+            <span className="block text-[0.52em] leading-[1.12] sm:text-[0.56em]">to Afghanistan</span>
           </motion.h1>
 
           <motion.p variants={itemVariants} className="mt-6 max-w-xl text-lg leading-8 text-[var(--text-secondary)] sm:text-xl">
-            From <strong className="text-[var(--text-primary)]">USA and Canada</strong> to{' '}
-            <strong className="text-[var(--accent-gold)]">Afghanistan</strong> via Mersin and UAE with complete care.
+            Vehicle shipping from <strong className="text-[var(--text-primary)]">USA and Canada</strong> pickups through{' '}
+            <strong className="text-[var(--text-primary)]">Mersin</strong> and <strong className="text-[var(--text-primary)]">UAE</strong> transit,
+            then into <strong className="text-[var(--accent-gold)]">Afghanistan</strong> customs and delivery.
           </motion.p>
 
           <motion.div variants={itemVariants} className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -132,6 +153,19 @@ export default function HeroSection() {
               <CirclePlay className="h-5 w-5 text-[var(--accent-gold)]" />
               How it works
             </Link>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="mt-5 grid gap-2 sm:grid-cols-3">
+            {corridorCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <div key={card.title} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.76)] p-3 shadow-sm backdrop-blur-xl">
+                  <Icon className="h-4 w-4 text-[var(--accent-gold)]" />
+                  <p className="mt-2 text-xs font-black uppercase text-[var(--text-primary)]">{card.title}</p>
+                  <p className="mt-1 text-[11px] leading-4 text-[var(--text-secondary)]">{card.detail}</p>
+                </div>
+              );
+            })}
           </motion.div>
         </motion.div>
 
@@ -174,12 +208,13 @@ export default function HeroSection() {
               style={{ left: stop.x, top: stop.y }}
             >
               <div className="flex flex-col items-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.94)] text-sm font-black text-[var(--text-primary)] shadow-[0_14px_34px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl">
+                <div className="flex h-14 min-w-14 items-center justify-center rounded-full border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.94)] px-3 text-sm font-black text-[var(--text-primary)] shadow-[0_14px_34px_rgba(var(--text-primary-rgb),0.12)] backdrop-blur-xl">
                   {stop.code}
                 </div>
                 <MapPin className="mt-1 h-4 w-4 fill-[var(--text-primary)] text-[var(--text-primary)]" />
-                <span className="mt-1 rounded-md bg-[rgba(var(--panel-rgb),0.86)] px-2 py-1 text-xs font-black text-[var(--text-primary)] shadow-sm backdrop-blur-xl">
+                <span className="mt-1 max-w-32 rounded-md bg-[rgba(var(--panel-rgb),0.90)] px-2 py-1 text-center text-xs font-black text-[var(--text-primary)] shadow-sm backdrop-blur-xl">
                   {stop.label}
+                  <span className="mt-0.5 block text-[10px] font-semibold leading-3 text-[var(--text-secondary)]">{stop.detail}</span>
                 </span>
               </div>
             </motion.div>
@@ -201,7 +236,7 @@ export default function HeroSection() {
           <div className="absolute bottom-5 left-5 right-5 z-30 grid grid-cols-3 gap-2 lg:hidden">
             {routeStops.slice(0, 3).map((stop) => (
               <div key={stop.label} className="rounded-lg border border-[var(--border)] bg-[rgba(var(--panel-rgb),0.88)] px-3 py-2 text-center text-xs font-black text-[var(--text-primary)] backdrop-blur-xl">
-                {stop.label}
+                {stop.code}
               </div>
             ))}
           </div>
