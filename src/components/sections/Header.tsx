@@ -82,10 +82,10 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
             <div className="hidden sm:flex items-center gap-4">
               <Magnetic>
                 <Link
-                  href={isAuthenticated ? "/portal" : "/auth/signin"}
+                  href={isAuthenticated ? "/dashboard" : "/auth/signin"}
                   className="text-sm font-bold text-gray-900 transition-colors hover:text-[#D4AF37]"
                 >
-                  {isAuthenticated ? "Portal" : "Sign in"}
+                  {isAuthenticated ? "Dashboard" : "Sign in"}
                 </Link>
               </Magnetic>
               
@@ -167,11 +167,11 @@ export default function Header({ isAuthenticated = false }: { isAuthenticated?: 
                 className="grid gap-4 mt-auto border-t border-black/5 pt-8"
               >
                 <Link
-                  href={isAuthenticated ? "/portal" : "/auth/signin"}
+                  href={isAuthenticated ? "/dashboard" : "/auth/signin"}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center justify-center h-14 rounded-xl border border-black/10 font-bold"
                 >
-                  {isAuthenticated ? "Portal" : "Sign in"}
+                  {isAuthenticated ? "Dashboard" : "Sign in"}
                 </Link>
                 {!isAuthenticated && (
                    <Link
