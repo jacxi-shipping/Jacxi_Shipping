@@ -270,10 +270,18 @@ export async function GET(
       portalShipmentFinanceMap.set(entry.shipmentId, existing);
     }
 
+    // ⚡ Bolt: Replace chained array operations with a single-pass loop
+    let portalTotalDebit = 0;
+    let portalTotalCredit = 0;
+    for (const entry of portalLedgerEntries) {
+      if (entry.type === 'DEBIT') portalTotalDebit += entry.amount;
+      else if (entry.type === 'CREDIT') portalTotalCredit += entry.amount;
+    }
+
     const portalLedgerSummary = {
       balance: portalLedgerEntries[0]?.balance || 0,
-      debitAmount: portalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: portalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: portalTotalDebit,
+      creditAmount: portalTotalCredit,
       paymentRecordCount: portalPaymentRecords.length,
       ledgerEntryCount: portalLedgerEntries.length,
     };
@@ -286,9 +294,17 @@ export async function GET(
       isWithinDateRange(payment.paymentDate, activityStartDate, activityEndDate)
     ));
 
+    // ⚡ Bolt: Replace chained .filter().reduce() with single pass
+    let activityTotalDebit = 0;
+    let activityTotalCredit = 0;
+    for (const entry of filteredPortalLedgerEntries) {
+      if (entry.type === 'DEBIT') activityTotalDebit += entry.amount;
+      else if (entry.type === 'CREDIT') activityTotalCredit += entry.amount;
+    }
+
     const activitySummary = {
-      debitAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: activityTotalDebit,
+      creditAmount: activityTotalCredit,
       paymentRecordCount: filteredPortalPaymentRecords.length,
       ledgerEntryCount: filteredPortalLedgerEntries.length,
     };
@@ -357,15 +373,42 @@ export async function GET(
       }));
     });
 
+    // ⚡ Bolt: Single-pass loop to calculate multiple invoice aggregates
+    let openInvoiceCount = 0;
+    let overdueInvoiceCount = 0;
+    let outstandingAmount = 0;
+    let overdueAmount = 0;
+    let paidAmount = 0;
+
+    for (const invoice of invoices) {
+      const isOutstanding = outstandingInvoiceStatuses.has(invoice.status);
+      if (isOutstanding) {
+        openInvoiceCount++;
+        outstandingAmount += invoice.total;
+        if ((invoice.daysOverdue ?? 0) > 0) {
+          overdueInvoiceCount++;
+          overdueAmount += invoice.total;
+        }
+      }
+      if (invoice.status === 'PAID') {
+        paidAmount += invoice.total;
+      }
+    }
+
+    let unbilledAmount = 0;
+    for (const charge of unbilledCharges) {
+      unbilledAmount += charge.totalAmount;
+    }
+
     const summary = {
       linkedShipmentCount: assignments.length,
       invoiceCount: invoices.length,
-      openInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).length,
-      overdueInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).length,
-      outstandingAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).reduce((sum, invoice) => sum + invoice.total, 0),
-      overdueAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).reduce((sum, invoice) => sum + invoice.total, 0),
-      paidAmount: invoices.filter((invoice) => invoice.status === 'PAID').reduce((sum, invoice) => sum + invoice.total, 0),
-      unbilledAmount: unbilledCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
+      openInvoiceCount,
+      overdueInvoiceCount,
+      outstandingAmount,
+      overdueAmount,
+      paidAmount,
+      unbilledAmount,
       unbilledChargeCount: unbilledCharges.length,
     };
 
