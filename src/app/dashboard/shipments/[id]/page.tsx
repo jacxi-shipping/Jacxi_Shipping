@@ -1283,7 +1283,7 @@ export default function ShipmentDetailPage() {
           <ShipmentDocumentsTab
             documents={shipment.documents || []}
             shipmentId={shipment.id}
-            readOnly={!isAdmin && shipment.userId !== session?.user?.id}
+            readOnly={!hasPermission(session?.user?.role, 'documents:manage')}
             onDocumentsChange={() => {
               void refreshShipmentPage();
             }}

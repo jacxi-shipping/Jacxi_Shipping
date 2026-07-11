@@ -45,28 +45,17 @@ export async function createTokenRouterChatCompletion(
     throw new Error('TokenRouter AI is not configured. Save an enabled API key and endpoint in Settings > AI.');
   }
 
-  const modelsResponse = await fetch(settings.modelsUrl, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!modelsResponse.ok) {
-    const modelsPayload = (await modelsResponse.json().catch(() => null)) as { error?: { message?: string } } | null;
-    const errorMessage = modelsPayload?.error?.message ?? `AI models endpoint returned status ${modelsResponse.status}`;
-    throw new Error(errorMessage);
-  }
+  const authHeaders = {
+    Authorization: `Bearer ${apiKey}`,
+    'X-API-Key': apiKey,
+  };
 
   const response = await fetch(settings.chatCompletionsUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      ...authHeaders,
     },
     body: JSON.stringify({
       model,

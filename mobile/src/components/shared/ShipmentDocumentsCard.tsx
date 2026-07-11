@@ -30,7 +30,7 @@ interface ShipmentDocumentsCardProps {
 export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ shipmentId }) => {
   const { colors } = useAppTheme();
   const queryClient = useQueryClient();
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isUploadModalVisible, setUploadModalVisible] = useState(false);
 
@@ -50,22 +50,7 @@ export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ sh
     [documents],
   );
 
-  const canDeleteDocument = (document: DocumentRecord) => {
-    if (isAdmin) {
-      return true;
-    }
-
-    if (!user) {
-      return false;
-    }
-
-    return (
-      document.user?.email === user.email ||
-      document.user?.name === user.name ||
-      document.uploadedBy === user.email ||
-      document.uploadedBy === user.name
-    );
-  };
+  const canDeleteDocument = (_document: DocumentRecord) => isAdmin;
 
   const refreshDocuments = async () => {
     await documentsQuery.refetch();
@@ -100,7 +85,7 @@ export const ShipmentDocumentsCard: React.FC<ShipmentDocumentsCardProps> = ({ sh
       <Text style={[styles.sectionText, { color: colors.textSecondary }]}>
         {isAdmin
           ? 'Upload shipment paperwork, open existing files, and remove documents when needed.'
-          : 'Upload your shipment paperwork, download existing files, and remove documents you uploaded.'}
+          : 'Open and download your shipment documents.'}
       </Text>
 
       <View style={styles.metricRow}>

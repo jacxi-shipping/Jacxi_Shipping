@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
 
 // Temporary type until migration
 type TempDocumentCategory = 'INVOICE' | 'BILL_OF_LADING' | 'CUSTOMS' | 'INSURANCE' | 'TITLE' | 'INSPECTION_REPORT' | 'PHOTO' | 'CONTRACT' | 'OTHER';
@@ -90,9 +91,8 @@ export async function PATCH(
       );
     }
 
-    // Check permissions
-    if (session.user?.role !== 'admin' && 
-        existingDocument.userId !== session.user?.id) {
+    // Only internal users with document management permission can update.
+    if (!hasPermission(session.user?.role, 'documents:manage')) {
       return NextResponse.json(
         { message: 'Forbidden' },
         { status: 403 }
@@ -157,9 +157,8 @@ export async function DELETE(
       );
     }
 
-    // Check permissions
-    if (session.user?.role !== 'admin' && 
-        existingDocument.userId !== session.user?.id) {
+    // Only internal users with document management permission can delete.
+    if (!hasPermission(session.user?.role, 'documents:manage')) {
       return NextResponse.json(
         { message: 'Forbidden' },
         { status: 403 }

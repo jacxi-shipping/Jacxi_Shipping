@@ -161,6 +161,7 @@ type AiProviderSettingsData = {
   apiKey: string;
   apiKeyMasked: string;
   apiKeyConfigured: boolean;
+  apiKeyNeedsReset: boolean;
   chatCompletionsUrl: string;
   modelsUrl: string;
   model: string;
@@ -278,6 +279,7 @@ const DEFAULT_AI_PROVIDER_SETTINGS: AiProviderSettingsData = {
   apiKey: '',
   apiKeyMasked: '',
   apiKeyConfigured: false,
+  apiKeyNeedsReset: false,
   chatCompletionsUrl: 'https://api.tokenrouter.com/v1/chat/completions',
   modelsUrl: 'https://api.tokenrouter.com/v1/models',
   model: 'MiniMax-M3',
@@ -1315,7 +1317,13 @@ export default function SettingsPage() {
                   value={aiProviderSettings.apiKey}
                   onChange={(event) => handleAiProviderFieldChange('apiKey', event.target.value)}
                   placeholder={aiProviderSettings.apiKeyConfigured ? `Saved: ${aiProviderSettings.apiKeyMasked}` : 'Paste API key'}
-                  helperText={aiProviderSettings.apiKeyConfigured ? 'Leave blank to keep the saved encrypted key.' : 'Saved encrypted using the app secret.'}
+                  helperText={
+                    aiProviderSettings.apiKeyNeedsReset
+                      ? 'Stored key cannot be decrypted with the current app secret. Paste the API key again and save.'
+                      : aiProviderSettings.apiKeyConfigured
+                      ? 'Leave blank to keep the saved encrypted key.'
+                      : 'Saved encrypted using the app secret.'
+                  }
                   disabled={savingAiProviderSettings}
                 />
                 <TextField
@@ -1353,6 +1361,25 @@ export default function SettingsPage() {
                   disabled={savingAiProviderSettings}
                 />
               </Box>
+
+              {aiProviderSettings.apiKeyNeedsReset ? (
+                <Box
+                  sx={{
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: 2,
+                    bgcolor: 'rgba(245, 158, 11, 0.12)',
+                    px: 1.5,
+                    py: 1,
+                  }}
+                >
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: 'rgb(146, 64, 14)' }}>
+                    AI key needs reset
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.78rem', color: 'rgb(146, 64, 14)' }}>
+                    The saved AI API key cannot be decrypted in this environment. Re-enter the key in the API Key field and save.
+                  </Typography>
+                </Box>
+              ) : null}
 
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
                 <Button

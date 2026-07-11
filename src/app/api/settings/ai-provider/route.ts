@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 import {
   getStoredAiProviderSettings,
   maskSecret,
@@ -31,11 +32,12 @@ async function requireAdmin() {
   return session;
 }
 
-function toClientSettings(settings: AiProviderSettingsValues) {
+function toClientSettings(settings: AiProviderSettingsValues, options?: { apiKeyNeedsReset?: boolean }) {
   return {
     ...settings,
     apiKeyMasked: maskSecret(settings.apiKey),
     apiKeyConfigured: Boolean(settings.apiKey),
+    apiKeyNeedsReset: Boolean(options?.apiKeyNeedsReset),
     apiKey: '',
   };
 }
@@ -47,7 +49,16 @@ export async function GET() {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    return NextResponse.json({ settings: toClientSettings(await getStoredAiProviderSettings()) }, { status: 200 });
+    const [settings, raw] = await Promise.all([
+      getStoredAiProviderSettings(),
+      prisma.aiProviderSettings.findUnique({
+        where: { scope: 'default' },
+        select: { apiKey: true },
+      }),
+    ]);
+
+    const apiKeyNeedsReset = Boolean(raw?.apiKey && !settings.apiKey.trim());
+    return NextResponse.json({ settings: toClientSettings(settings, { apiKeyNeedsReset }) }, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Failed to load AI provider settings.' },
@@ -70,7 +81,39 @@ export async function PATCH(request: NextRequest) {
       delete partial.apiKey;
     }
 
+    const current = await getStoredAiProviderSettings();
+    const next: AiProviderSettingsValues = {
+      ...current,
+      ...partial,
+    };
+
+    if (next.enabled && !next.apiKey.trim()) {
+      return NextResponse.json(
+        { message: 'AI API key is required when AI provider is enabled. Please paste the key and save again.' },
+        { status: 400 },
+      );
+    }
+
+    if (next.enabled && !next.chatCompletionsUrl.trim()) {
+      return NextResponse.json(
+        { message: 'Chat Completions URL is required when AI provider is enabled.' },
+        { status: 400 },
+      );
+    }
+
+    if (next.enabled && !next.model.trim()) {
+      return NextResponse.json(
+        { message: 'Model is required when AI provider is enabled.' },
+        { status: 400 },
+      );
+    }
+
     const settings = await saveStoredAiProviderSettings(partial);
+    const raw = await prisma.aiProviderSettings.findUnique({
+      where: { scope: 'default' },
+      select: { apiKey: true },
+    });
+    const apiKeyNeedsReset = Boolean(raw?.apiKey && !settings.apiKey.trim());
 
     await createAuditLog(
       'SETTINGS',
@@ -85,7 +128,7 @@ export async function PATCH(request: NextRequest) {
       request,
     );
 
-    return NextResponse.json({ settings: toClientSettings(settings) }, { status: 200 });
+    return NextResponse.json({ settings: toClientSettings(settings, { apiKeyNeedsReset }) }, { status: 200 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid AI provider settings.', details: error.issues }, { status: 400 });
