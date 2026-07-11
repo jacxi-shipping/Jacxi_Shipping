@@ -11,6 +11,7 @@ type ShipmentDocument = {
   fileType: string;
   fileSize: number;
   category: string;
+  isPublic?: boolean;
   uploadedBy: string;
   createdAt: string;
 };

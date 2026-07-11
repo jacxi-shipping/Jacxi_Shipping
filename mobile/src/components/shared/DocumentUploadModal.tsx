@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, StyleSheet, Switch, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -43,6 +43,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   const [selectedUploadAsset, setSelectedUploadAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [uploading, setUploading] = useState(false);
   const [category, setCategory] = useState<DocumentCategory>(defaultCategory);
+  const [isCompanyDocument, setIsCompanyDocument] = useState(false);
   const supportedFormats = useMemo(() => ['PDF', 'Images', 'CSV', 'DOC', 'DOCX'], []);
 
   const pickUploadFile = async () => {
@@ -93,10 +94,12 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         fileSize: Math.max(selectedUploadAsset.size || 1, 1),
         category,
         shipmentId,
+        isPublic: !isCompanyDocument,
       });
 
       setSelectedUploadAsset(null);
       setCategory(defaultCategory);
+      setIsCompanyDocument(false);
       onSuccess();
       onClose();
       Alert.alert('Upload complete', 'The document was uploaded successfully.');
@@ -114,6 +117,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
 
     setSelectedUploadAsset(null);
     setCategory(defaultCategory);
+    setIsCompanyDocument(false);
     onClose();
   };
 
@@ -162,6 +166,22 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
             );
           })}
         </View>
+
+        {shipmentId ? (
+          <View style={[styles.visibilityRow, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+            <View style={styles.visibilityTextWrap}>
+              <Text style={[styles.visibilityTitle, { color: colors.textPrimary }]}>Company document</Text>
+              <Text style={[styles.visibilityCopy, { color: colors.textSecondary }]}>Hide this document from customer shipment views.</Text>
+            </View>
+            <Switch
+              value={isCompanyDocument}
+              onValueChange={setIsCompanyDocument}
+              disabled={uploading}
+              trackColor={{ false: `${colors.border}`, true: `${colors.accent}55` }}
+              thumbColor={isCompanyDocument ? colors.accent : colors.panel}
+            />
+          </View>
+        ) : null}
 
         <Text style={[styles.label, { color: colors.textPrimary, marginTop: Spacing.md }]}>File</Text>
         <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Choose one supported file from your device.</Text>
@@ -309,5 +329,27 @@ const styles = StyleSheet.create({
   },
   uploadButton: {
     width: '100%',
+  },
+  visibilityRow: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
+    marginBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.base,
+  },
+  visibilityTextWrap: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
+  visibilityTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  visibilityCopy: {
+    fontSize: Typography.fontSize.xs,
+    lineHeight: 18,
   },
 });

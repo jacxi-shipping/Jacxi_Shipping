@@ -6,6 +6,8 @@ import {
   Box, 
   Typography, 
   Button,
+  Checkbox,
+  FormControlLabel,
   Paper,
   List,
   ListItem,
@@ -40,6 +42,7 @@ interface Document {
   createdAt: string;
   type: string;
   size: number;
+  isPublic?: boolean;
 }
 
 interface DocumentManagerProps {
@@ -64,6 +67,7 @@ type ExtractionReview = {
   extractionMethod?: string;
   ocrAttempted?: boolean;
   aiInteractionLogId?: string;
+  isCompanyDocument: boolean;
 };
 
 export function DocumentManager({
@@ -81,6 +85,7 @@ export function DocumentManager({
   const [review, setReview] = useState<ExtractionReview | null>(null);
   const [savingReview, setSavingReview] = useState(false);
   const [reviewTags, setReviewTags] = useState('');
+  const [isCompanyDocument, setIsCompanyDocument] = useState(false);
 
   useEffect(() => {
     setDocuments(initialDocs);
@@ -137,6 +142,7 @@ export function DocumentManager({
         extractionMethod: extracted.extractionMethod,
         ocrAttempted: Boolean(extracted.ocrAttempted),
         aiInteractionLogId: extracted.aiInteractionLogId,
+        isCompanyDocument,
       });
       setReviewTags(Array.isArray(extracted.tags) ? extracted.tags.join(', ') : '');
       setIsUploadOpen(false);
@@ -166,6 +172,7 @@ export function DocumentManager({
           : {
               category: review.category,
               shipmentId: entityId,
+              isPublic: !review.isCompanyDocument,
               tags: reviewTags
                 .split(',')
                 .map((tag) => tag.trim())
@@ -199,6 +206,7 @@ export function DocumentManager({
             createdAt: (createdDoc.createdAt || createdDoc.uploadedAt || new Date().toISOString()).toString(),
             type: createdDoc.fileType || createdDoc.type || review.fileType,
             size: createdDoc.fileSize || review.fileSize,
+            isPublic: createdDoc.isPublic,
           },
           ...prev,
         ]);
@@ -206,6 +214,7 @@ export function DocumentManager({
 
       setReview(null);
       setReviewTags('');
+      setIsCompanyDocument(false);
       onDocumentsChange?.();
       router.refresh();
       toast.success('Document saved');
@@ -308,6 +317,14 @@ export function DocumentManager({
                             size="small" 
                             sx={{ fontSize: '0.65rem', height: 20 }} 
                         />
+                        {doc.isPublic === false ? (
+                          <Chip
+                            label="Company Only"
+                            size="small"
+                            color="warning"
+                            sx={{ fontSize: '0.65rem', height: 20 }}
+                          />
+                        ) : null}
                     </Box>
                   }
                   secondary={
@@ -341,7 +358,12 @@ export function DocumentManager({
       {/* Upload Modal */}
       <Modal
         open={isUploadOpen}
-        onClose={() => !isProcessing && setIsUploadOpen(false)}
+        onClose={() => {
+          if (!isProcessing) {
+            setIsUploadOpen(false);
+            setIsCompanyDocument(false);
+          }
+        }}
         title="Upload Documents"
         description="Assign the right category first, then upload a single file. The document becomes searchable once processing finishes."
         disableBackdropClick={true}
@@ -389,6 +411,18 @@ export function DocumentManager({
                 />
             </FormField>
 
+            {entityType === 'shipment' && (
+              <Box>
+                <FormControlLabel
+                  control={<Checkbox checked={isCompanyDocument} onChange={(event) => setIsCompanyDocument(event.target.checked)} />}
+                  label="Company document (hide from customer)"
+                />
+                <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
+                  Checked documents are visible to internal users only.
+                </Typography>
+              </Box>
+            )}
+
             <Box sx={{ border: '1px solid var(--border)', borderRadius: 3, p: 2, bgcolor: 'var(--panel)' }}>
               <FileUpload 
                 multiple={false}
@@ -401,7 +435,10 @@ export function DocumentManager({
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
                 <Button 
-                    onClick={() => setIsUploadOpen(false)} 
+                    onClick={() => {
+                      setIsUploadOpen(false);
+                      setIsCompanyDocument(false);
+                    }} 
                     disabled={isProcessing}
                     sx={{ color: 'var(--text-secondary)' }}
                 >
@@ -497,17 +534,42 @@ export function DocumentManager({
             />
 
             {entityType === 'shipment' && (
-              <TextField
-                size="small"
-                label="Tags"
-                value={reviewTags}
-                onChange={(event) => setReviewTags(event.target.value)}
-                helperText="Comma-separated tags"
-              />
+              <>
+                <TextField
+                  size="small"
+                  label="Tags"
+                  value={reviewTags}
+                  onChange={(event) => setReviewTags(event.target.value)}
+                  helperText="Comma-separated tags"
+                />
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={review.isCompanyDocument}
+                        onChange={(event) =>
+                          setReview((prev) => (prev ? { ...prev, isCompanyDocument: event.target.checked } : prev))
+                        }
+                      />
+                    }
+                    label="Company document (hide from customer)"
+                  />
+                  <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
+                    Checked documents are stored as internal-only and hidden from customer shipment views.
+                  </Typography>
+                </Box>
+              </>
             )}
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-              <Button variant="outlined" onClick={() => setReview(null)} disabled={savingReview}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setReview(null);
+                  setIsCompanyDocument(false);
+                }}
+                disabled={savingReview}
+              >
                 Cancel
               </Button>
               <Button variant="contained" onClick={saveReviewedDocument} disabled={savingReview}>

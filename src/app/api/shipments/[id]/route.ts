@@ -563,11 +563,15 @@ export async function GET(
     });
 
     const currentTransitEvent = shipment.transit?.events[0] ?? null;
+    const visibleDocuments = canReadAllShipments
+      ? shipment.documents
+      : shipment.documents.filter((document) => document.isPublic);
 
     return NextResponse.json(
       {
         shipment: {
           ...shipment,
+          documents: visibleDocuments,
           internalNotes: canReadAllShipments ? shipment.internalNotes : null,
           container: shipment.container
             ? {
