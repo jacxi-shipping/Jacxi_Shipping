@@ -70,6 +70,12 @@ type ExtractionReview = {
   isCompanyDocument: boolean;
 };
 
+type EditingStatusDocument = {
+  id: string;
+  name: string;
+  isPublic: boolean;
+};
+
 export function DocumentManager({
   documents: initialDocs,
   entityId,
@@ -86,6 +92,8 @@ export function DocumentManager({
   const [savingReview, setSavingReview] = useState(false);
   const [reviewTags, setReviewTags] = useState('');
   const [isCompanyDocument, setIsCompanyDocument] = useState(false);
+  const [statusEditor, setStatusEditor] = useState<EditingStatusDocument | null>(null);
+  const [savingStatus, setSavingStatus] = useState(false);
 
   useEffect(() => {
     setDocuments(initialDocs);
@@ -246,6 +254,52 @@ export function DocumentManager({
     }
   };
 
+  const handleOpenStatusEditor = (doc: Document) => {
+    setStatusEditor({
+      id: doc.id,
+      name: doc.name,
+      isPublic: doc.isPublic !== false,
+    });
+  };
+
+  const handleSaveStatus = async () => {
+    if (!statusEditor) return;
+
+    try {
+      setSavingStatus(true);
+      const response = await fetch(`/api/documents/${statusEditor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic: statusEditor.isPublic }),
+      });
+
+      const responseData = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to update document status');
+      }
+
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === statusEditor.id
+            ? {
+                ...doc,
+                isPublic: statusEditor.isPublic,
+              }
+            : doc
+        )
+      );
+
+      setStatusEditor(null);
+      onDocumentsChange?.();
+      router.refresh();
+      toast.success('Document status updated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update document status');
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
   const getIcon = (type: string) => {
     if (type.includes('image')) return <ImageIcon className="w-5 h-5 text-blue-500" />;
     if (type.includes('pdf')) return <FileText className="w-5 h-5 text-red-500" />;
@@ -334,6 +388,13 @@ export function DocumentManager({
                   }
                 />
                 <ListItemSecondaryAction>
+                  {!readOnly && entityType === 'shipment' && (
+                    <IconButton edge="end" aria-label="edit status" sx={{ mr: 1 }} onClick={() => handleOpenStatusEditor(doc)}>
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        Edit Status
+                      </Typography>
+                    </IconButton>
+                  )}
                   <IconButton edge="end" aria-label="download" sx={{ mr: 1 }} href={doc.fileUrl} target="_blank">
                     <Download className="w-4 h-4" />
                   </IconButton>
@@ -446,6 +507,53 @@ export function DocumentManager({
                 </Button>
             </Box>
         </Box>
+      </Modal>
+
+      <Modal
+        open={Boolean(statusEditor)}
+        onClose={() => !savingStatus && setStatusEditor(null)}
+        title="Edit Document Status"
+        description="Update visibility for this shipment document."
+        disableBackdropClick={true}
+        showCloseButton={!savingStatus}
+      >
+        {statusEditor && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <Typography variant="body2" sx={{ color: 'var(--text-secondary)' }}>
+              {statusEditor.name}
+            </Typography>
+
+            <FormField label="Visibility Status">
+              <Select
+                label="Status"
+                value={statusEditor.isPublic ? 'CUSTOMER_VISIBLE' : 'COMPANY_ONLY'}
+                onChange={(value) =>
+                  setStatusEditor((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          isPublic: String(value) === 'CUSTOMER_VISIBLE',
+                        }
+                      : prev
+                  )
+                }
+                options={[
+                  { value: 'CUSTOMER_VISIBLE', label: 'Customer Visible' },
+                  { value: 'COMPANY_ONLY', label: 'Company Only' },
+                ]}
+              />
+            </FormField>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Button variant="outlined" onClick={() => setStatusEditor(null)} disabled={savingStatus}>
+                Cancel
+              </Button>
+              <Button variant="contained" onClick={handleSaveStatus} disabled={savingStatus}>
+                {savingStatus ? 'Saving...' : 'Save Status'}
+              </Button>
+            </Box>
+          </Box>
+        )}
       </Modal>
 
       <Modal
