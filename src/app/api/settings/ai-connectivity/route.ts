@@ -65,11 +65,30 @@ async function buildAiConnectivityStatus() {
     }),
   ]);
 
-  const providerRuns = recentLogs.filter((log) => log.provider !== 'rules');
-  const fallbackRuns = recentLogs.filter((log) => log.provider === 'rules');
-  const providerSuccessRuns = providerRuns.filter((log) => log.status === 'SUCCESS');
-  const failedRuns = recentLogs.filter((log) => log.status !== 'SUCCESS' && log.provider !== 'rules');
-  const tokenRouterRuns = recentLogs.filter((log) => log.provider === TOKENROUTER_PROVIDER);
+  // ⚡ Bolt: Single pass O(N) loop to calculate statistics instead of 5 separate .filter() passes
+  // which avoids multiple full iterations and unnecessary intermediate array allocations for up to 500 records.
+  let providerRunsCount = 0;
+  let fallbackRunsCount = 0;
+  let providerSuccessRunsCount = 0;
+  let failedRunsCount = 0;
+  let tokenRouterRunsCount = 0;
+
+  for (const log of recentLogs) {
+    if (log.provider === 'rules') {
+      fallbackRunsCount++;
+    } else {
+      providerRunsCount++;
+      if (log.status === 'SUCCESS') {
+        providerSuccessRunsCount++;
+      } else {
+        failedRunsCount++;
+      }
+    }
+
+    if (log.provider === TOKENROUTER_PROVIDER) {
+      tokenRouterRunsCount++;
+    }
+  }
 
   return {
     provider: providerSettings.provider || TOKENROUTER_PROVIDER,
@@ -84,12 +103,12 @@ async function buildAiConnectivityStatus() {
     lookbackHours: LOOKBACK_HOURS,
     stats: {
       totalRuns: recentLogs.length,
-      providerRuns: providerRuns.length,
-      tokenRouterRuns: tokenRouterRuns.length,
-      fallbackRuns: fallbackRuns.length,
-      successRuns: providerSuccessRuns.length,
-      failedRuns: failedRuns.length,
-      successRate: providerRuns.length > 0 ? Math.round((providerSuccessRuns.length / providerRuns.length) * 100) : null,
+      providerRuns: providerRunsCount,
+      tokenRouterRuns: tokenRouterRunsCount,
+      fallbackRuns: fallbackRunsCount,
+      successRuns: providerSuccessRunsCount,
+      failedRuns: failedRunsCount,
+      successRate: providerRunsCount > 0 ? Math.round((providerSuccessRunsCount / providerRunsCount) * 100) : null,
     },
     latestLog: latestLog
       ? {
