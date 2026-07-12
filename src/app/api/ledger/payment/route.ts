@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { hasPermission } from '@/lib/rbac';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { TransactionInfoType } from '@prisma/client';
+import { sendLedgerTransactionEmail } from '@/lib/email';
 
 type PaymentCategory = 'PURCHASE_PRICE' | 'EXPENSES';
 
@@ -383,6 +384,19 @@ export async function POST(request: NextRequest) {
         remainingAmount,
       };
     });
+
+    if (result.entry.user?.email) {
+      void sendLedgerTransactionEmail({
+        to: result.entry.user.email,
+        customerName: result.entry.user.name,
+        direction: result.entry.type,
+        amount: result.entry.amount,
+        description: result.entry.description,
+        balance: result.entry.balance,
+        transactionDate: result.entry.transactionDate,
+        notes: validatedData.notes,
+      });
+    }
 
     return NextResponse.json({
       entry: result.entry,

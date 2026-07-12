@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { routeDeps } from '@/lib/route-deps';
 import { recalculatePartnerPortalLedgerBalances } from '@/lib/partner-portal-ledger';
+import { sendLedgerTransactionEmail } from '@/lib/email';
 import {
   canManagePartnerPortals,
   canReadPartnerPortalCustomers,
@@ -67,7 +68,7 @@ export async function POST(
         id: customerId,
         portalId,
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, email: true },
     });
 
     if (!customer) {
@@ -167,6 +168,19 @@ export async function POST(
         }),
       };
     });
+
+    if (result.ledgerEntry && customer.email) {
+      void sendLedgerTransactionEmail({
+        to: customer.email,
+        customerName: customer.name,
+        direction: result.ledgerEntry.type,
+        amount: result.ledgerEntry.amount,
+        description: result.ledgerEntry.description,
+        balance: result.ledgerEntry.balance,
+        transactionDate: result.ledgerEntry.transactionDate,
+        notes: result.ledgerEntry.notes,
+      });
+    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

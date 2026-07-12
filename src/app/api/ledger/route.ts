@@ -8,6 +8,7 @@ import { hasPermission } from '@/lib/rbac';
 import { recalculateUserLedgerBalances } from '@/lib/user-ledger';
 import { syncShipmentChargeFromLedgerEntry } from '@/lib/billing/shipment-charges';
 import { isBankImportMetadata, isRemovedBankImportMetadata } from '@/lib/financial/bankImportSources';
+import { sendLedgerTransactionEmail } from '@/lib/email';
 
 const transactionInfoTypeSchema = z.enum(['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT']);
 const transactionInfoTypes = ['CAR_PAYMENT', 'SHIPPING_PAYMENT', 'STORAGE_PAYMENT'] as const;
@@ -441,6 +442,19 @@ export async function POST(request: NextRequest) {
           });
         }
       }
+    }
+
+    if (entry.user?.email) {
+      void sendLedgerTransactionEmail({
+        to: entry.user.email,
+        customerName: entry.user.name,
+        direction: entry.type,
+        amount: entry.amount,
+        description: entry.description,
+        balance: entry.balance,
+        transactionDate: entry.transactionDate,
+        notes: entry.notes,
+      });
     }
 
     return NextResponse.json({ entry }, { status: 201 });

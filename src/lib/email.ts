@@ -1,5 +1,14 @@
 import { sendConfiguredEmail } from '@/lib/communication-settings';
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function sendInvoiceEmail({
   to,
   invoiceNumber,
@@ -214,6 +223,84 @@ export async function sendShipmentCreatedEmail({
     });
   } catch (error) {
     console.error('Shipment created email send failed:', error);
+    return { success: false, error };
+  }
+}
+
+export async function sendLedgerTransactionEmail({
+  to,
+  customerName,
+  direction,
+  amount,
+  description,
+  balance,
+  transactionDate,
+  notes,
+}: {
+  to: string;
+  customerName?: string | null;
+  direction: 'DEBIT' | 'CREDIT';
+  amount: number;
+  description: string;
+  balance?: number | null;
+  transactionDate?: Date | string | null;
+  notes?: string | null;
+}) {
+  try {
+    const effectiveName = customerName?.trim() || 'Customer';
+    const directionLabel = direction === 'CREDIT' ? 'Payment/Credit' : 'Charge/Debit';
+    const sign = direction === 'CREDIT' ? '-' : '+';
+    const formattedAmount = `$${amount.toFixed(2)}`;
+    const formattedBalance = typeof balance === 'number' ? `$${balance.toFixed(2)}` : null;
+    const transactionDateValue = transactionDate
+      ? new Date(transactionDate).toLocaleString()
+      : new Date().toLocaleString();
+
+    return await sendConfiguredEmail({
+      from: 'billing@jacxishipping.com',
+      to,
+      subject: `Account Transaction Notice - ${directionLabel} ${formattedAmount}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
+          <h1 style="color: #1f2937; margin-bottom: 6px;">Account Transaction Notification</h1>
+          <p style="margin-top: 0; color: #6b7280;">Hello ${escapeHtml(effectiveName)}, a transaction was posted to your account.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 18px 0;">
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Type</strong></td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${directionLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Amount</strong></td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${sign}${formattedAmount}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Description</strong></td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${escapeHtml(description)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Date</strong></td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${escapeHtml(transactionDateValue)}</td>
+            </tr>
+            ${formattedBalance ? `
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Current Balance</strong></td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${formattedBalance}</td>
+            </tr>
+            ` : ''}
+            ${notes?.trim() ? `
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Notes</strong></td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${escapeHtml(notes)}</td>
+            </tr>
+            ` : ''}
+          </table>
+          <p style="color: #6b7280; font-size: 14px;">If you have questions about this transaction, contact billing@jacxishipping.com.</p>
+        </div>
+      `,
+      text: `Hello ${effectiveName}, a ${directionLabel} transaction of ${sign}${formattedAmount} was posted to your account on ${transactionDateValue}. Description: ${description}.${formattedBalance ? ` Current balance: ${formattedBalance}.` : ''}${notes?.trim() ? ` Notes: ${notes}.` : ''}`,
+    });
+  } catch (error) {
+    console.error('Ledger transaction email send failed:', error);
     return { success: false, error };
   }
 }
