@@ -58,16 +58,18 @@ export function mapAiProviderSettings(
     temperature?: number | null;
   } | null,
 ): AiProviderSettingsValues {
+  const decryptedApiKey = decryptSecret(record?.apiKey);
+
   return {
     enabled: record?.enabled ?? true,
     provider: record?.provider?.trim() || DEFAULT_AI_PROVIDER,
-    apiKey: decryptSecret(record?.apiKey) || process.env.TOKENROUTER_API_KEY?.trim() || '',
+    apiKey: decryptedApiKey,
     chatCompletionsUrl: normalizeUrl(
-      record?.chatCompletionsUrl || process.env.TOKENROUTER_CHAT_COMPLETIONS_URL,
+      record?.chatCompletionsUrl,
       DEFAULT_TOKENROUTER_CHAT_COMPLETIONS_URL,
     ),
-    modelsUrl: normalizeUrl(record?.modelsUrl || process.env.TOKENROUTER_MODELS_URL, DEFAULT_TOKENROUTER_MODELS_URL),
-    model: record?.model?.trim() || process.env.TOKENROUTER_MODEL?.trim() || DEFAULT_TOKENROUTER_MODEL,
+    modelsUrl: normalizeUrl(record?.modelsUrl, DEFAULT_TOKENROUTER_MODELS_URL),
+    model: record?.model?.trim() || DEFAULT_TOKENROUTER_MODEL,
     maxTokens: normalizeNumber(record?.maxTokens, EMPTY_AI_PROVIDER_SETTINGS.maxTokens, 1, 4000),
     temperature: normalizeNumber(record?.temperature, EMPTY_AI_PROVIDER_SETTINGS.temperature, 0, 2),
   };

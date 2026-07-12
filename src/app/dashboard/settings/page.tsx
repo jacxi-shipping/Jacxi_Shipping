@@ -1477,7 +1477,7 @@ export default function SettingsPage() {
                     ? `${aiTestResult.responsePreview} · ${formatRelativeTime(aiTestResult.testedAt)}`
                     : aiConnectivity?.configured
                       ? 'Use Test AI to verify live provider connectivity.'
-                      : 'Set TOKENROUTER_API_KEY to enable live testing.'}
+                      : 'Save an API key in Settings > AI to enable live testing.'}
                 </Typography>
               </Box>
             </Box>

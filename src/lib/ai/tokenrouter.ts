@@ -40,17 +40,29 @@ export async function createTokenRouterChatCompletion(
   const settings = await getEffectiveAiProviderSettings();
   const apiKey = settings.apiKey.trim();
   const model = options.model ?? settings.model;
+  const endpoint = settings.chatCompletionsUrl;
+  const provider = settings.provider.trim().toLowerCase();
 
   if (!isAiProviderConfigured(settings)) {
     throw new Error('TokenRouter AI is not configured. Save an enabled API key and endpoint in Settings > AI.');
   }
 
-  const authHeaders = {
+  const authHeaders: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
+    authorization: `Bearer ${apiKey}`,
     'X-API-Key': apiKey,
   };
 
-  const response = await fetch(settings.chatCompletionsUrl, {
+  // OpenRouter integrations often expect origin metadata for allowlists/analytics.
+  if (provider.includes('openrouter') || endpoint.includes('openrouter.ai')) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    if (appUrl) {
+      authHeaders['HTTP-Referer'] = appUrl;
+    }
+    authHeaders['X-Title'] = 'Jacxi Shipping';
+  }
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -71,6 +83,11 @@ export async function createTokenRouterChatCompletion(
 
   if (!response.ok) {
     const errorMessage = payload?.error?.message ?? `TokenRouter AI request failed with status ${response.status}`;
+    if (/missing\s+authentication\s+header/i.test(errorMessage)) {
+      throw new Error(
+        `AI provider rejected authentication headers for ${settings.provider || 'configured provider'}. Re-save a valid API key in Settings > AI and confirm the endpoint ${endpoint} matches that key.`,
+      );
+    }
     throw new Error(errorMessage);
   }
 
