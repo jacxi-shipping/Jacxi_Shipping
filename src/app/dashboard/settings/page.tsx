@@ -1253,7 +1253,6 @@ export default function SettingsPage() {
                 icon={<PlugZap className="w-4 h-4" />}
                 onClick={() => void handleTestAiConnectivity()}
                 loading={testingAiConnectivity}
-                disabled={!aiConnectivity?.configured}
               >
                 Test AI
               </Button>
