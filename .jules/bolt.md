@@ -18,3 +18,7 @@
 ## 2025-04-06 - Parallelize Independent Database Queries in React Server Components
 **Learning:** In Next.js Server Components that fetch data for dashboards (e.g., `src/app/dashboard/finance/page.tsx`), making sequential database queries (using `await` one after the other) causes total request latency to be the sum of all query times. Since these queries are independent (e.g., fetching a summary and counting active users), executing them sequentially is an anti-pattern.
 **Action:** When a Server Component requires multiple datasets that do not depend on each other, always group the Prisma queries into a single `Promise.all()` call to fetch them concurrently, reducing latency to the time of the single longest query.
+
+## 2024-05-27 - O(N) Transaction Loops into Single bulk updateMany and createMany
+**Learning:** Found an instance in `src/app/api/shipments/[id]/charges/route.ts` where bulk approving/disputing shipment charges was implemented using a `for` loop executing sequential `await tx.shipmentCharge.update` and `await tx.shipmentChargeAuditLog.create` queries inside a transaction. This creates 2*N sequential queries, causing unnecessary database roundtrips.
+**Action:** When performing identical updates on multiple records and creating corresponding audit logs, replace the `for` loop mapping with single `tx.shipmentCharge.updateMany` and `tx.shipmentChargeAuditLog.createMany` queries to compress O(N) network-bound queries into O(1) bulk operations, maximizing database throughput and minimizing latency.
