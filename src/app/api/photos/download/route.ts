@@ -22,27 +22,35 @@ export async function POST(request: NextRequest) {
     const zip = new JSZip();
     const folder = zip.folder(filename || 'photos');
 
-    // Download and add each photo to zip
-    for (let i = 0; i < photos.length; i++) {
-      try {
-        const photoUrl = photos[i];
-        const response = await fetch(photoUrl);
-        
-        if (response.ok) {
-          const blob = await response.blob();
-          const arrayBuffer = await blob.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          
-          // Extract filename from URL or use index
-          const urlParts = photoUrl.split('/');
-          const photoFilename = urlParts[urlParts.length - 1] || `photo-${i + 1}.jpg`;
-          
-          folder?.file(photoFilename, buffer);
-        }
-      } catch (error) {
-        console.error(`Error downloading photo ${i}:`, error);
-        // Continue with other photos
-      }
+    // ⚡ Bolt: Resolve N+1 network latency bottleneck by parallelizing sequential fetch requests
+    // Download photos concurrently in batches of 5 to avoid socket exhaustion
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < photos.length; i += BATCH_SIZE) {
+      const batch = photos.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(
+        batch.map(async (photoUrl, batchIndex) => {
+          const globalIndex = i + batchIndex;
+          try {
+            const response = await fetch(photoUrl);
+
+            if (response.ok) {
+              const blob = await response.blob();
+              const arrayBuffer = await blob.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+
+              // Extract filename from URL or use index
+              const urlParts = photoUrl.split('/');
+              const photoFilename = urlParts[urlParts.length - 1] || `photo-${globalIndex + 1}.jpg`;
+
+              folder?.file(photoFilename, buffer);
+            }
+          } catch (error) {
+            console.error(`Error downloading photo ${globalIndex}:`, error);
+            // Continue with other photos
+          }
+        })
+      );
     }
 
     // Generate zip
