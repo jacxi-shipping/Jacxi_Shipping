@@ -838,6 +838,7 @@ export default function InvoiceDetailPage() {
 							</Table>
 						</TableContainer>
 						</DashboardPanel>
+					</Box>
 
 					{/* Notes */}
 					<Box sx={{ mt: 3 }}>
@@ -882,7 +883,6 @@ export default function InvoiceDetailPage() {
 							</Box>
 							</DashboardPanel>
 						</Box>
-					)}
 					<Box sx={{ mt: 3 }}>
 						<DashboardPanel
 							title="Activity History"

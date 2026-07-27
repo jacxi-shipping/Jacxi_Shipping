@@ -54,6 +54,7 @@
   "exclude": [
     "node_modules",
     "mobile",
+    "Jacxi_Shipping",
     "analyze_codes.ts",
     "fixQuote.ts"
   ]
