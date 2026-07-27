@@ -789,60 +789,58 @@ export default function InvoiceDetailPage() {
 										</TableRow>
 									)}
 									<TableRow>
-										<TableCell colSpan={4} align="right" sx={{ 
+										<TableCell colSpan={5} align="right" sx={{ 
 											fontWeight: 700, 
 											fontSize: '1.1rem',
-												<TableCell colSpan={5} align="right" sx={{ fontWeight: 600, borderTop: '2px solid var(--border)' }}>
+											borderTop: '2px solid var(--border)',
 										}}>
 											TOTAL
-												<TableCell align="center" sx={{ fontWeight: 600, borderTop: '2px solid var(--border)' }}>
-										<TableCell align="right" sx={{ 
+										</TableCell>
+										<TableCell align="center" sx={{ 
 											fontWeight: 700, 
 											fontSize: '1.1rem',
 											color: 'var(--accent-gold)',
 											borderTop: '2px solid var(--border)',
-													<TableCell colSpan={5} align="right" sx={{ fontWeight: 600, color: 'var(--success)' }}>
+										}}>
 											{formatCurrency(invoice.total)}
 										</TableCell>
-													<TableCell align="center" sx={{ fontWeight: 600, color: 'var(--success)' }}>
+									</TableRow>
 									{purchasePaid > 0 && (
 										<>
 											<TableRow>
-												<TableCell colSpan={4} align="right" sx={{ color: 'var(--success)', fontWeight: 600 }}>
+												<TableCell colSpan={5} align="right" sx={{ color: 'var(--success)', fontWeight: 600 }}>
 													Purchase Price Already Paid
 												</TableCell>
-													<TableCell colSpan={5} align="right" sx={{ fontWeight: 600 }}>
+												<TableCell align="center" sx={{ fontWeight: 600, color: 'var(--success)' }}>
 													-{formatCurrency(purchasePaid)}
 												</TableCell>
-													<TableCell align="center" sx={{ fontWeight: 600 }}>
+											</TableRow>
 											<TableRow>
-												<TableCell colSpan={4} align="right" sx={{ 
+												<TableCell colSpan={5} align="right" sx={{ 
 													fontWeight: 700,
 													fontSize: '1.1rem',
 													borderTop: '2px solid var(--border)',
-												<TableCell colSpan={5} align="right" sx={{ fontWeight: 700, fontSize: '1rem', borderTop: '2px solid var(--border)' }}>
+												}}>
 													BALANCE DUE
 												</TableCell>
-												<TableCell align="center" sx={{ fontWeight: 700, fontSize: '1rem', color: 'var(--accent-gold)', borderTop: '2px solid var(--border)' }}>
+												<TableCell align="center" sx={{ 
 													fontWeight: 700,
 													fontSize: '1.1rem',
 													color: balanceDue > 0 ? 'var(--error, #d32f2f)' : 'var(--success)',
 													borderTop: '2px solid var(--border)',
 												}}>
 													{formatCurrency(balanceDue)}
-														<TableCell colSpan={5} align="right" sx={{ fontWeight: 600, color: 'var(--success)' }}>
+												</TableCell>
 											</TableRow>
 										</>
-														<TableCell align="center" sx={{ fontWeight: 600, color: 'var(--success)' }}>
+									)}
 								</TableBody>
 							</Table>
 						</TableContainer>
 						</DashboardPanel>
-														<TableCell colSpan={5} align="right" sx={{ fontWeight: 700, fontSize: '1rem', borderTop: '2px solid var(--border)' }}>
 
 					{/* Notes */}
-														<TableCell align="center" sx={{ 
-						<Box sx={{ mt: 3 }}>
+					<Box sx={{ mt: 3 }}>
 							<DashboardPanel 
 								title="Notes"
 								description="Additional information"
