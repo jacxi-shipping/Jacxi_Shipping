@@ -1,0 +1,7 @@
+---
+pid: 15052
+cwd: "C:\Users\hardyyyg\Desktop\Jacxi_Shipping"
+command: "node test-write.mjs"
+started_at: 2026-06-25T03:16:37.314Z
+running_for_ms: 25005    
+---

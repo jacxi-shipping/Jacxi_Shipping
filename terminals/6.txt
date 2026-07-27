@@ -1,0 +1,7 @@
+---
+pid: 1920
+cwd: "C:\Users\hardyyyg\Desktop\Jacxi_Shipping"
+command: "node capture-build.mjs"
+started_at: 2026-06-25T03:16:19.324Z
+running_for_ms: 44996    
+---

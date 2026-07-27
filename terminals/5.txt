@@ -1,0 +1,7 @@
+---
+pid: 17212
+cwd: "C:\Users\hardyyyg\Desktop\Jacxi_Shipping"
+command: "node node_modules/typescript/lib/tsc.js --noEmit"
+started_at: 2026-06-25T03:14:21.646Z
+running_for_ms: 165014   
+---

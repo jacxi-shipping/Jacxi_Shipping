@@ -1,0 +1,7 @@
+---
+pid: 13032
+cwd: "C:\Users\hardyyyg\Desktop\Jacxi_Shipping"
+command: "node scripts/git-status.mjs"
+started_at: 2026-06-25T03:20:51.374Z
+running_for_ms: 25013    
+---
