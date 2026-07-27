@@ -42,3 +42,6 @@ env.local
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Nested project copy
+Jacxi_Shipping/
