@@ -26,6 +26,8 @@ import {
   User,
   Ship,
   AlertTriangle,
+  Building2,
+  Clock3,
 } from 'lucide-react';
 import { Tabs, Tab, Box } from '@mui/material';
 import { Breadcrumbs, toast, Tooltip } from '@/components/design-system';
@@ -85,6 +87,7 @@ const shipmentTabSlugs = [
   'billing',
   'damages',
   'details',
+  'company-release',
   'activity',
   'customer',
 ];
@@ -175,6 +178,31 @@ function formatShortDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }
 
+function formatElapsedTime(startedAt: string) {
+  const startedAtTime = new Date(startedAt).getTime();
+
+  if (Number.isNaN(startedAtTime)) {
+    return 'Not started';
+  }
+
+  const elapsedMs = Math.max(0, Date.now() - startedAtTime);
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+type ShippingCompanyOption = {
+  id: string;
+  name: string;
+  companyType: 'SHIPPING' | 'DISPATCH' | 'TRANSIT';
+  isShipping: boolean;
+  isTransit: boolean;
+};
+
 export default function ShipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -200,6 +228,11 @@ export default function ShipmentDetailPage() {
   const [assigningDispatch, setAssigningDispatch] = useState(false);
   const [assigningTransit, setAssigningTransit] = useState(false);
   const [creatingReleaseToken, setCreatingReleaseToken] = useState(false);
+  const [shippingCompanies, setShippingCompanies] = useState<ShippingCompanyOption[]>([]);
+  const [loadingShippingCompanies, setLoadingShippingCompanies] = useState(false);
+  const [selectedShippingCompanyId, setSelectedShippingCompanyId] = useState('');
+  const [releasingToCompany, setReleasingToCompany] = useState(false);
+  const [companyReleaseTimerTick, setCompanyReleaseTimerTick] = useState(0);
   const [expenseAction, setExpenseAction] = useState<ExpenseActionContext | null>(null);
   const [expenseSourceFilter, setExpenseSourceFilter] = useState<ExpenseSourceFilter>('ALL');
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
@@ -259,6 +292,60 @@ export default function ShipmentDetailPage() {
 
     void fetchDispatches();
   }, [openAssignDispatch]);
+
+  useEffect(() => {
+    const canManage = hasPermission(session?.user?.role, 'workflow:move') && hasPermission(session?.user?.role, 'shipments:manage');
+    if (!canManage) return;
+
+    const fetchShippingCompanies = async () => {
+      try {
+        setLoadingShippingCompanies(true);
+        const response = await fetch('/api/finance/companies?active=true');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load shipping companies');
+        }
+
+        const options = (data.companies || []).filter(
+          (company: ShippingCompanyOption) =>
+            company.companyType === 'SHIPPING' ||
+            company.companyType === 'TRANSIT' ||
+            company.isShipping ||
+            company.isTransit,
+        );
+
+        setShippingCompanies(options);
+      } catch (error) {
+        console.error('Error fetching shipping companies:', error);
+        toast.error('Failed to load shipping companies');
+      } finally {
+        setLoadingShippingCompanies(false);
+      }
+    };
+
+    void fetchShippingCompanies();
+  }, [session?.user?.role]);
+
+  useEffect(() => {
+    const currentCompanyId = shipment?.shippingCompany?.id || shipment?.transit?.currentCompany?.id || '';
+    setSelectedShippingCompanyId(currentCompanyId);
+  }, [shipment?.shippingCompany?.id, shipment?.transit?.currentCompany?.id]);
+
+  const companyReleaseStartedAt =
+    shipment?.transit?.currentEvent?.eventDate ||
+    shipment?.transit?.dispatchDate ||
+    null;
+
+  useEffect(() => {
+    if (!companyReleaseStartedAt) return;
+
+    const intervalId = window.setInterval(() => {
+      setCompanyReleaseTimerTick((prev) => prev + 1);
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [companyReleaseStartedAt]);
 
   const openLightbox = (images: string[], index: number, title: string) => {
     if (!images.length) return;
@@ -444,6 +531,37 @@ export default function ShipmentDetailPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to generate release token');
     } finally {
       setCreatingReleaseToken(false);
+    }
+  };
+
+  const handleCompanyRelease = async () => {
+    if (!shipment) return;
+
+    if (!selectedShippingCompanyId) {
+      toast.error('Please select a shipping company');
+      return;
+    }
+
+    try {
+      setReleasingToCompany(true);
+      const response = await fetch(`/api/shipments/${shipment.id}/company-release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: selectedShippingCompanyId }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to release shipment to company');
+      }
+
+      toast.success('Shipment released to company and transit timer started');
+      await fetchShipment();
+      openShipmentTab(8);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to release shipment to company');
+    } finally {
+      setReleasingToCompany(false);
     }
   };
 
@@ -679,6 +797,13 @@ export default function ShipmentDetailPage() {
   const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.dispatchId || (shipment?.transitId && shipment?.transit?.currentCompany));
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
   const canAddTransitExpense = Boolean(shipment?.transitId && shipment?.transit?.currentCompany);
+  const hasCompanyReleaseTransit = Boolean(shipment?.transitId);
+  const canReleaseToCompany = canManageWorkflow && isReleasedForTransit && !hasCompanyReleaseTransit;
+  const companyReleaseTimerLabel = useMemo(() => (
+    companyReleaseStartedAt
+      ? formatElapsedTime(companyReleaseStartedAt)
+      : 'Not started'
+  ), [companyReleaseStartedAt, companyReleaseTimerTick]);
   const openShipmentTab = useCallback((index: number) => {
     setActiveTab(index);
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -1123,6 +1248,12 @@ export default function ShipmentDetailPage() {
                       Assign Transit
                     </Button>
                   )}
+                  {(canManageWorkflow || shipment.transitId) && (
+                    <Button variant="outline" size="sm" onClick={() => openShipmentTab(8)}>
+                      <Building2 className="mr-2 h-4 w-4" />
+                      Company Release
+                    </Button>
+                  )}
                   {canManageShipmentRecord && (
                     <Button variant="outline" size="sm" onClick={handleDelete} className="border-[var(--error)] text-[var(--error)]">
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -1217,6 +1348,7 @@ export default function ShipmentDetailPage() {
             <Tab icon={<Wallet className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Billing" meta={billingTabMeta} tone={billingTabTone} />} />
             <Tab icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Damages" meta={String(damageCount)} tone={damageCount > 0 ? 'danger' : 'ready'} />} />
             <Tab icon={<PackageCheck className="h-4 w-4" />} iconPosition="start" label="Details" />
+            <Tab icon={<Clock3 className="h-4 w-4" />} iconPosition="start" label="Company Release" />
             {isAdmin && <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
             {isAdmin && <Tab icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
           </Tabs>
@@ -1359,15 +1491,79 @@ export default function ShipmentDetailPage() {
           <ShipmentDetailsTab shipment={shipment} formatStatus={formatStatus} />
         </TabPanel>
 
+        <TabPanel value={activeTab} index={8}>
+          <DashboardPanel
+            title="Company Release"
+            description="Release this shipment to a third-party shipping company and start delivery timing."
+            icon={<Building2 className="h-5 w-5" />}
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+                <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Selected Company</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
+                  {shipment.shippingCompany?.name || shipment.transit?.currentCompany?.name || 'Not selected'}
+                </p>
+                <p className="mt-4 text-xs uppercase tracking-wide text-[var(--text-secondary)]">Release Started</p>
+                <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">
+                  {companyReleaseStartedAt ? formatShortDate(companyReleaseStartedAt) : 'Not started'}
+                </p>
+                <p className="mt-4 text-xs uppercase tracking-wide text-[var(--text-secondary)]">Elapsed Timer</p>
+                <p className="mt-1 font-mono text-sm font-semibold text-[var(--accent-gold)]">{companyReleaseTimerLabel}</p>
+              </div>
+
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+                <label htmlFor="company-release-select" className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                  Shipping Company
+                </label>
+                <select
+                  id="company-release-select"
+                  value={selectedShippingCompanyId}
+                  onChange={(event) => setSelectedShippingCompanyId(event.target.value)}
+                  disabled={loadingShippingCompanies || hasCompanyReleaseTransit}
+                  className="mt-2 w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--text-primary)]"
+                >
+                  <option value="">Select company</option>
+                  {shippingCompanies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-[var(--text-secondary)]">
+                  Choose a company from your company ledger to begin third-party delivery.
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!canReleaseToCompany || releasingToCompany || loadingShippingCompanies || !selectedShippingCompanyId}
+                    onClick={() => {
+                      void handleCompanyRelease();
+                    }}
+                  >
+                    {releasingToCompany ? 'Releasing...' : 'Release to Company'}
+                  </Button>
+                  {shipment.transitId && (
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/transits/${shipment.transitId}`)}>
+                      Open Transit
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </DashboardPanel>
+        </TabPanel>
+
         {isAdmin && (
-          <TabPanel value={activeTab} index={8}>
+          <TabPanel value={activeTab} index={9}>
             <ShipmentActivityTab logs={shipment.auditLogs || []} />
           </TabPanel>
         )}
 
         {/* Customer Tab (Admin Only) */}
         {isAdmin && (
-          <TabPanel value={activeTab} index={9}>
+          <TabPanel value={activeTab} index={10}>
             <ShipmentCustomerTab user={shipment.user} shipmentId={shipment.id} />
           </TabPanel>
         )}
