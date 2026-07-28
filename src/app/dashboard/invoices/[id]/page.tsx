@@ -38,6 +38,7 @@ import {
 	DetailPageSkeleton,
 } from '@/components/design-system';
 import { AdminRoute } from '@/components/auth/AdminRoute';
+import { getInvoiceLineItemDisplayLabel } from '@/lib/invoice-line-item-labels';
 
 interface LineItem {
 	id: string;
@@ -255,13 +256,11 @@ export default function InvoiceDetailPage() {
 	};
 
 	const getLineItemTypeLabel = (item: LineItem) => {
-		if (item.type === 'DISCOUNT' && /damage/i.test(item.description)) {
-			return 'DAMAGE CREDIT';
-		}
-		return item.type.replace(/_/g, ' ');
+		return getInvoiceLineItemDisplayLabel(item.type, item.description);
 	};
 
 	const getExpenseShortLabel = (item: LineItem): string => {
+		const label = getInvoiceLineItemDisplayLabel(item.type, item.description);
 		const typeMap: Record<string, string> = {
 			PURCHASE_PRICE: 'Vehicle Purchase',
 			VEHICLE_PRICE: 'Vehicle Purchase',
@@ -273,7 +272,7 @@ export default function InvoiceDetailPage() {
 			OTHER_FEE: 'Other',
 			DISCOUNT: 'Discount',
 		};
-		return typeMap[item.type] ?? item.type.replace(/_/g, ' ');
+		return typeMap[item.type] ?? label;
 	};
 
 	const openCompanyLedgerEntry = (entry: NonNullable<LineItem['linkedCompanyLedgerEntry']>) => {

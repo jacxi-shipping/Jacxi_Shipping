@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { getInvoiceLineItemDisplayLabel } from '@/lib/invoice-line-item-labels';
 
 // Register a standard font (optional, using standard Helvetica by default)
 // Font.register({ family: 'Roboto', src: '...' });
@@ -329,11 +330,7 @@ const formatCurrency = (amount: number) => {
 };
 
 const getLineItemTypeLabel = (type: string, description: string): string => {
-  if (type === 'DISCOUNT' && /damage/i.test(description)) {
-    return 'DAMAGE CREDIT';
-  }
-
-  return type.replace('_', ' ');
+  return getInvoiceLineItemDisplayLabel(type, description);
 };
 
 const formatDate = (date: Date | string | null) => {

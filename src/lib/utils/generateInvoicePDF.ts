@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getInvoiceLineItemDisplayLabel } from '@/lib/invoice-line-item-labels';
 
 // Define types
 interface LineItem {
@@ -99,11 +100,7 @@ const formatDate = (dateString: string | null): string => {
 };
 
 const getLineItemTypeLabel = (type: string, description: string): string => {
-  if (type === 'DISCOUNT' && /damage/i.test(description)) {
-    return 'DAMAGE CREDIT';
-  }
-
-  return type.replace('_', ' ');
+  return getInvoiceLineItemDisplayLabel(type, description);
 };
 
 const formatStatus = (status: string): string => {

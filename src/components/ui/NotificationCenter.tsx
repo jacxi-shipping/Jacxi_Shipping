@@ -23,6 +23,11 @@ interface Notification {
   } | null;
 }
 
+interface NotificationsApiResponse {
+  data: Notification[];
+  unreadCount?: number;
+}
+
 export function NotificationCenter() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -35,13 +40,23 @@ export function NotificationCenter() {
     try {
       const response = await fetch('/api/notifications');
       if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setNotifications(data);
-          setUnreadCount(data.filter((n: Notification) => !n.read).length);
+        const payload = await response.json();
+        if (Array.isArray(payload)) {
+          setNotifications(payload);
+          setUnreadCount(payload.filter((n: Notification) => !n.read).length);
+        } else if (payload && typeof payload === 'object' && Array.isArray((payload as NotificationsApiResponse).data)) {
+          const notificationsData = (payload as NotificationsApiResponse).data;
+          setNotifications(notificationsData);
+          setUnreadCount(
+            typeof (payload as NotificationsApiResponse).unreadCount === 'number'
+              ? (payload as NotificationsApiResponse).unreadCount as number
+              : notificationsData.filter((n: Notification) => !n.read).length
+          );
         } else {
-          console.error('Invalid notification data:', data);
+          console.error('Invalid notification data:', payload);
         }
+      } else {
+        console.error('Failed to fetch notifications:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Failed to fetch notifications', error);
