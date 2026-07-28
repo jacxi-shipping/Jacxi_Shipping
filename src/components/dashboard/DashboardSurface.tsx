@@ -92,6 +92,7 @@ export function DashboardHeader({ title, description, meta, actions, className }
 interface DashboardPanelProps {
 	title?: ReactNode;
 	description?: ReactNode;
+	icon?: ReactNode;
 	children: ReactNode;
 	actions?: ReactNode;
 	className?: string;
@@ -105,6 +106,7 @@ interface DashboardPanelProps {
 export function DashboardPanel({
 	title,
 	description,
+	icon,
 	children,
 	actions,
 	className,
@@ -130,7 +132,7 @@ export function DashboardPanel({
 				maxWidth: '100%',
 			}}
 		>
-			{(title || description || actions) && (
+			{(title || description || actions || icon) && (
 				<header
 					className={cn(
 						'flex flex-col gap-1 px-4 pt-4 text-[var(--text-primary)] sm:flex-row sm:items-center sm:justify-between',
@@ -140,8 +142,13 @@ export function DashboardPanel({
 					style={!noHeaderBorder ? { borderColor: 'var(--border)' } : undefined}
 				>
 					<div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
-						{title && (
-							<p className="text-[0.95rem] font-semibold tracking-tight text-[var(--text-primary)] overflow-hidden text-ellipsis">{title}</p>
+						{(title || icon) && (
+							<div className="flex items-center gap-2">
+								{icon && <span className="flex-shrink-0 text-[var(--text-secondary)]">{icon}</span>}
+								{title && (
+									<p className="text-[0.95rem] font-semibold tracking-tight text-[var(--text-primary)] overflow-hidden text-ellipsis">{title}</p>
+								)}
+							</div>
 						)}
 						{description && <p className="text-[0.8rem] text-[var(--text-secondary)] overflow-hidden text-ellipsis">{description}</p>}
 					</div>
