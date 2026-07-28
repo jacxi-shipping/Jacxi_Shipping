@@ -86,16 +86,6 @@ export async function POST(
       return NextResponse.json({ error: 'Shipment is already assigned to transit' }, { status: 400 });
     }
 
-    const isReleased =
-      String(shipment.status) === 'RELEASED' || shipment.container?.status === 'RELEASED';
-
-    if (!isReleased) {
-      return NextResponse.json(
-        { error: 'Shipment can be released to a company only after release' },
-        { status: 400 },
-      );
-    }
-
     const body = await request.json();
     const validatedData = companyReleaseSchema.parse(body);
 

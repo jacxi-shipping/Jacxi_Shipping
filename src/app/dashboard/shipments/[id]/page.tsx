@@ -798,7 +798,7 @@ export default function ShipmentDetailPage() {
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
   const canAddTransitExpense = Boolean(shipment?.transitId && shipment?.transit?.currentCompany);
   const hasCompanyReleaseTransit = Boolean(shipment?.transitId);
-  const canReleaseToCompany = canManageWorkflow && isReleasedForTransit && !hasCompanyReleaseTransit;
+  const canReleaseToCompany = canManageWorkflow && !hasCompanyReleaseTransit;
   const companyReleaseTimerLabel = useMemo(() => (
     companyReleaseStartedAt
       ? formatElapsedTime(companyReleaseStartedAt)
@@ -1497,11 +1497,6 @@ export default function ShipmentDetailPage() {
             description="Release this shipment to a third-party shipping company and start delivery timing."
             icon={<Building2 className="h-5 w-5" />}
           >
-            {!isReleasedForTransit && !hasCompanyReleaseTransit && (
-              <div className="mb-4 rounded-md border border-[var(--warning)] bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]">
-                Company release is only available after the shipment or its container reaches <strong>Released</strong> status. Please complete the shipment workflow first.
-              </div>
-            )}
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
                 <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Selected Company</p>
@@ -1524,7 +1519,7 @@ export default function ShipmentDetailPage() {
                   id="company-release-select"
                   value={selectedShippingCompanyId}
                   onChange={(event) => setSelectedShippingCompanyId(event.target.value)}
-                  disabled={loadingShippingCompanies || hasCompanyReleaseTransit || !isReleasedForTransit}
+                  disabled={loadingShippingCompanies || hasCompanyReleaseTransit}
                   className="mt-2 w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Select company</option>
@@ -1542,9 +1537,7 @@ export default function ShipmentDetailPage() {
                   <Tooltip
                     title={
                       !canReleaseToCompany
-                        ? !isReleasedForTransit
-                          ? 'Shipment must reach Released status before company release'
-                          : hasCompanyReleaseTransit
+                        ? hasCompanyReleaseTransit
                           ? 'Shipment is already assigned to a transit'
                           : 'You do not have permission to release to a company'
                         : !selectedShippingCompanyId
