@@ -656,7 +656,7 @@ export default function InvoiceDetailPage() {
 													<TableRow key={item.id} hover>
 													<TableCell align="left" sx={{ pl: 2, pr: 2 }}>
 														<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 1, flexWrap: 'wrap', textAlign: 'left' }}>
-															<span>{getExpenseShortLabel(item)}</span>
+															<span>{item.description}</span>
 															{(item.type === 'PURCHASE_PRICE' || item.type === 'VEHICLE_PRICE') &&
 																invoice.shipment?.paymentStatus === 'COMPLETED' && (
 																<Chip
