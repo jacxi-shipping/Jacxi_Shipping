@@ -109,6 +109,7 @@ export async function GET(
         dispatchId: true,
         containerId: true,
         transitId: true,
+        shippingCompanyId: true,
         userId: true,
         internalNotes: true,
         paymentStatus: true,
@@ -145,6 +146,7 @@ export async function GET(
         },
         transit: {
           include: {
+            company: { select: { id: true, name: true } },
             events: {
               orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
               take: 1,
@@ -152,6 +154,12 @@ export async function GET(
                 company: { select: { id: true, name: true } },
               },
             },
+          },
+        },
+        shippingCompany: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         documents: true,
@@ -592,6 +600,7 @@ export async function GET(
                 origin: shipment.transit.origin,
                 destination: shipment.transit.destination,
                 status: shipment.transit.status,
+                dispatchDate: shipment.transit.dispatchDate,
                 currentEvent: currentTransitEvent
                   ? {
                       id: currentTransitEvent.id,
@@ -599,11 +608,13 @@ export async function GET(
                       origin: currentTransitEvent.origin,
                       destination: currentTransitEvent.destination,
                       status: currentTransitEvent.status,
+                      eventDate: currentTransitEvent.eventDate,
                     }
                   : null,
                 currentCompany: canViewWorkflowCompanyDetails ? currentTransitEvent?.company ?? null : null,
               }
             : null,
+          shippingCompany: canViewWorkflowCompanyDetails ? shipment.shippingCompany : null,
           companyLedgerEntries,
           auditLogs,
           unifiedTimeline,

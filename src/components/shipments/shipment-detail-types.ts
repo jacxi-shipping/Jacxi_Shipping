@@ -41,6 +41,7 @@ export interface ShipmentTransit {
   origin: string;
   destination: string;
   status: string;
+  dispatchDate: string | null;
   currentCompany: { id: string; name: string } | null;
   currentEvent: {
     id: string;
@@ -48,6 +49,7 @@ export interface ShipmentTransit {
     origin: string;
     destination: string;
     status: string;
+    eventDate: string;
   } | null;
 }
 
@@ -118,9 +120,11 @@ export interface Shipment {
   dispatchId: string | null;
   containerId: string | null;
   transitId: string | null;
+  shippingCompanyId: string | null;
   dispatch: ShipmentDispatch | null;
   container: Container | null;
   transit: ShipmentTransit | null;
+  shippingCompany: { id: string; name: string } | null;
   internalNotes: string | null;
   paymentStatus: string;
   paymentMode: string | null;
