@@ -1497,6 +1497,11 @@ export default function ShipmentDetailPage() {
             description="Release this shipment to a third-party shipping company and start delivery timing."
             icon={<Building2 className="h-5 w-5" />}
           >
+            {!isReleasedForTransit && !hasCompanyReleaseTransit && (
+              <div className="mb-4 rounded-md border border-[var(--warning)] bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]">
+                Company release is only available after the shipment or its container reaches <strong>Released</strong> status. Please complete the shipment workflow first.
+              </div>
+            )}
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
                 <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Selected Company</p>
@@ -1519,8 +1524,8 @@ export default function ShipmentDetailPage() {
                   id="company-release-select"
                   value={selectedShippingCompanyId}
                   onChange={(event) => setSelectedShippingCompanyId(event.target.value)}
-                  disabled={loadingShippingCompanies || hasCompanyReleaseTransit}
-                  className="mt-2 w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--text-primary)]"
+                  disabled={loadingShippingCompanies || hasCompanyReleaseTransit || !isReleasedForTransit}
+                  className="mt-2 w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Select company</option>
                   {shippingCompanies.map((company) => (
@@ -1534,16 +1539,32 @@ export default function ShipmentDetailPage() {
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!canReleaseToCompany || releasingToCompany || loadingShippingCompanies || !selectedShippingCompanyId}
-                    onClick={() => {
-                      void handleCompanyRelease();
-                    }}
+                  <Tooltip
+                    title={
+                      !canReleaseToCompany
+                        ? !isReleasedForTransit
+                          ? 'Shipment must reach Released status before company release'
+                          : hasCompanyReleaseTransit
+                          ? 'Shipment is already assigned to a transit'
+                          : 'You do not have permission to release to a company'
+                        : !selectedShippingCompanyId
+                        ? 'Please select a shipping company'
+                        : ''
+                    }
                   >
-                    {releasingToCompany ? 'Releasing...' : 'Release to Company'}
-                  </Button>
+                    <span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canReleaseToCompany || releasingToCompany || loadingShippingCompanies || !selectedShippingCompanyId}
+                        onClick={() => {
+                          void handleCompanyRelease();
+                        }}
+                      >
+                        {releasingToCompany ? 'Releasing...' : 'Release to Company'}
+                      </Button>
+                    </span>
+                  </Tooltip>
                   {shipment.transitId && (
                     <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/transits/${shipment.transitId}`)}>
                       Open Transit
