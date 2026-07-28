@@ -343,7 +343,7 @@ export async function GET(
       };
     });
 
-    const isEditableInvoice = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED';
+    const isEditableInvoice = invoice.status === 'DRAFT' || invoice.status === 'PENDING';
     const lineItems = isEditableInvoice
       ? lineItemsWithLinks.filter((lineItem) => {
           if (!isShipmentFinancialExpenseLineItem({ shipmentId: lineItem.shipmentId, description: lineItem.description })) {

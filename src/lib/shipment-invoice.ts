@@ -17,6 +17,8 @@ export async function generateInvoiceNumber(client: DbClient): Promise<string> {
 
 /**
  * Get the active (non-cancelled) invoice for a shipment.
+ * Returns the most recently created invoice to ensure deterministic results when
+ * multiple invoices (e.g. original + supplemental) exist for the same shipment.
  */
 export async function getShipmentInvoice(shipmentId: string, client: DbClient = prisma) {
   return db(client).userInvoice.findFirst({
@@ -24,6 +26,7 @@ export async function getShipmentInvoice(shipmentId: string, client: DbClient = 
       shipmentId,
       status: { not: 'CANCELLED' },
     },
+    orderBy: { createdAt: 'desc' },
     select: { id: true, subtotal: true, discount: true, tax: true, status: true },
   });
 }
@@ -69,8 +72,12 @@ export async function addExpenseLineItemToShipmentInvoice(
   const invoice = await getShipmentInvoice(shipmentId, client);
   if (!invoice) return null;
 
-  // Only add to PENDING invoices (not PAID/CANCELLED)
-  if (invoice.status === 'PAID' || invoice.status === 'CANCELLED') return null;
+  // Only modify mutable (DRAFT / PENDING) invoices.
+  // SENT and OVERDUE invoices are already issued documents; adding a line item to them
+  // would cause the expense to appear on both the original issued invoice AND a new
+  // supplemental invoice, resulting in double-counting and preventing supplement creation.
+  const mutableStatuses = ['DRAFT', 'PENDING'];
+  if (!mutableStatuses.includes(invoice.status)) return null;
 
   const quantity = lineItemData.quantity ?? 1;
   const unitPrice = lineItemData.amount / quantity;

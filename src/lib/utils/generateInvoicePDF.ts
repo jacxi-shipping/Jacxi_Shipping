@@ -333,7 +333,7 @@ export const generateInvoicePDF = (invoice: Invoice) => {
       const isPurchasePaid =
         (item.type === 'PURCHASE_PRICE' || item.type === 'VEHICLE_PRICE') &&
         invoice.shipment?.paymentStatus === 'COMPLETED';
-      const descLabel = getLineItemTypeLabel(item.type, item.description)
+      const descLabel = item.description
         + (isPurchasePaid ? ' ✓ PAID' : '');
       tableData.push([
         { content: descLabel, styles: { halign: 'left', textColor: isPurchasePaid ? COLORS.success : COLORS.textPrimary } },
