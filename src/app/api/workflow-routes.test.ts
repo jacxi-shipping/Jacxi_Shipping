@@ -7,6 +7,7 @@ import { POST as postDispatchReceive } from './dispatches/[id]/receive/route.ts'
 import { DELETE as deleteDispatchShipment, POST as postDispatchShipment } from './dispatches/[id]/shipments/route.ts';
 import { PATCH as patchDispatch } from './dispatches/[id]/route.ts';
 import { DELETE as deleteContainerShipment, POST as postContainerShipments } from './containers/[id]/shipments/route.ts';
+import { DELETE as deleteCompanyRelease, POST as postCompanyRelease } from './shipments/[id]/company-release/route.ts';
 import { POST as postReleaseToken } from './shipments/[id]/release-token/route.ts';
 import { POST as postTransitDeliveryConfirmation } from './transits/[id]/confirm-delivery/route.ts';
 import { PATCH as patchTransit } from './transits/[id]/route.ts';
@@ -323,6 +324,7 @@ function buildShipment(state: WorkflowState, shipmentId: string) {
             : [],
         }
       : null,
+    shippingCompany: shipment.shippingCompanyId ? state.companies[shipment.shippingCompanyId] : null,
   };
 }
 
@@ -969,6 +971,48 @@ describe('workflow route integration', () => {
     assert.equal(body.error, 'Cannot remove a shipment from dispatch after handoff to container or transit');
     assert.equal(state.shipments.s1.dispatchId, 'd1');
     assert.equal(state.shipments.s1.containerId, 'c1');
+  });
+
+  it('releases a released shipment to company without creating a transit', async () => {
+    state.shipments.s1.containerId = 'c1';
+    state.shipments.s1.status = 'RELEASED';
+    state.containers.c1.status = 'RELEASED';
+
+    const response = await postCompanyRelease(
+      request('http://localhost/api/shipments/s1/company-release', 'POST', { companyId: 'shipping-co' }),
+      { params: Promise.resolve({ id: 's1' }) },
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.shipment.shippingCompanyId, 'shipping-co');
+    assert.equal(body.shipment.transitId, null);
+    assert.equal(body.shipment.status, 'RELEASED');
+    assert.equal(state.shipments.s1.shippingCompanyId, 'shipping-co');
+    assert.equal(state.shipments.s1.transitId, null);
+    assert.equal(state.shipmentAuditLogs.length, 1);
+    assert.equal(state.shipmentAuditLogs[0].action, 'COMPANY_RELEASED');
+  });
+
+  it('undoes company release before transit assignment', async () => {
+    state.shipments.s1.containerId = 'c1';
+    state.shipments.s1.status = 'RELEASED';
+    state.shipments.s1.shippingCompanyId = 'shipping-co';
+    state.containers.c1.status = 'RELEASED';
+
+    const response = await deleteCompanyRelease(
+      request('http://localhost/api/shipments/s1/company-release', 'DELETE'),
+      { params: Promise.resolve({ id: 's1' }) },
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.shipment.shippingCompanyId, null);
+    assert.equal(body.shipment.transitId, null);
+    assert.equal(body.shipment.status, 'RELEASED');
+    assert.equal(state.shipments.s1.shippingCompanyId, null);
+    assert.equal(state.shipmentAuditLogs.length, 1);
+    assert.equal(state.shipmentAuditLogs[0].action, 'COMPANY_RELEASE_UNDONE');
   });
 
   it('generates a release token only for released shipments', async () => {

@@ -5,17 +5,14 @@ import { routeDeps } from '@/lib/route-deps';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 import { ensureWorkflowMoveAllowed } from '@/lib/workflow-access';
 
+const COMPANY_RELEASED_AUDIT_ACTION = 'COMPANY_RELEASED';
+const COMPANY_RELEASE_UNDONE_AUDIT_ACTION = 'COMPANY_RELEASE_UNDONE';
+
 const companyReleaseSchema = z.object({
   companyId: z.string().min(1),
   origin: z.string().optional(),
   destination: z.string().optional(),
 });
-
-function generateReferenceNumber() {
-  const year = new Date().getFullYear();
-  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-  return `TRN-${year}-${random}`;
-}
 
 function buildShipmentLabel(shipment: {
   vehicleYear?: number | null;
@@ -82,6 +79,15 @@ export async function POST(
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
+    const isReleased = String(shipment.status) === 'RELEASED' || shipment.container?.status === 'RELEASED';
+
+    if (!isReleased) {
+      return NextResponse.json(
+        { error: 'Shipment can be released to a company only after release' },
+        { status: 400 },
+      );
+    }
+
     if (shipment.transitId) {
       return NextResponse.json({ error: 'Shipment is already assigned to transit' }, { status: 400 });
     }
@@ -113,51 +119,32 @@ export async function POST(
       validatedData.destination || shipment.container?.destinationPort || 'Kabul, Afghanistan';
     const startedAt = new Date();
 
-    const created = await routeDeps.prisma.$transaction(async (tx) => {
-      let referenceNumber = generateReferenceNumber();
-      let attempts = 0;
-
-      while (attempts < 5) {
-        const existing = await tx.transit.findUnique({ where: { referenceNumber } });
-        if (!existing) break;
-        referenceNumber = generateReferenceNumber();
-        attempts += 1;
-      }
-
-      if (attempts >= 5) {
-        throw new Error('Could not generate transit reference');
-      }
-
-      const transit = await tx.transit.create({
-        data: {
-          referenceNumber,
-          origin,
-          destination,
-          dispatchDate: startedAt,
-          status: 'IN_TRANSIT',
-          createdBy: session.user!.id as string,
-        },
+    const updatedShipment = await routeDeps.prisma.$transaction(async (tx) => {
+      await tx.shipmentAuditLog.createMany({
+        data: [
+          {
+            shipmentId: shipment.id,
+            action: COMPANY_RELEASED_AUDIT_ACTION,
+            description: `Shipment ${shipment.id} released to ${company.name}`,
+            performedBy: session.user!.id as string,
+            oldValue: shipment.shippingCompanyId,
+            newValue: company.id,
+            metadata: {
+              companyId: company.id,
+              companyName: company.name,
+              origin,
+              destination,
+              releasedAt: startedAt.toISOString(),
+            },
+          },
+        ],
       });
 
-      await tx.transitEvent.create({
-        data: {
-          transitId: transit.id,
-          companyId: company.id,
-          origin,
-          destination,
-          status: 'COMPANY_RELEASED',
-          description: `Shipment ${shipment.id} released to ${company.name}`,
-          eventDate: startedAt,
-          createdBy: session.user!.id as string,
-        },
-      });
-
-      const updatedShipment = await tx.shipment.update({
+      return tx.shipment.update({
         where: { id: shipment.id },
         data: {
-          transitId: transit.id,
-          status: 'IN_TRANSIT_TO_DESTINATION',
           shippingCompanyId: company.id,
+          status: 'RELEASED',
         },
         include: {
           user: {
@@ -165,21 +152,19 @@ export async function POST(
           },
         },
       });
-
-      return { transit, updatedShipment };
     });
 
-    const shipmentLabel = buildShipmentLabel(created.updatedShipment);
+    const shipmentLabel = buildShipmentLabel(updatedShipment);
     await sendShipmentWorkflowNotifications(
       session.user.id as string,
       [
         {
-          shipmentId: created.updatedShipment.id,
-          shipmentUserId: created.updatedShipment.userId,
+          shipmentId: updatedShipment.id,
+          shipmentUserId: updatedShipment.userId,
           title: 'Shipment workflow updated',
-          customerDescription: `Your shipment ${shipmentLabel} has been released to ${company.name} and is now in destination transit.`,
+          customerDescription: `Your shipment ${shipmentLabel} has been released to ${company.name} and is waiting for destination transit assignment.`,
           internalDescription: `Shipment ${shipmentLabel} was released to company ${company.name}.`,
-          link: `/dashboard/shipments/${created.updatedShipment.id}`,
+          link: `/dashboard/shipments/${updatedShipment.id}`,
         },
       ],
       {
@@ -189,11 +174,13 @@ export async function POST(
     );
 
     return NextResponse.json({
-      shipment: created.updatedShipment,
-      transit: {
-        id: created.transit.id,
-        referenceNumber: created.transit.referenceNumber,
-        dispatchDate: created.transit.dispatchDate,
+      shipment: updatedShipment,
+      companyRelease: {
+        companyId: company.id,
+        companyName: company.name,
+        origin,
+        destination,
+        releasedAt: startedAt.toISOString(),
       },
     });
   } catch (error) {
@@ -204,6 +191,125 @@ export async function POST(
     console.error('Error releasing shipment to company:', error);
     return NextResponse.json(
       { error: 'Failed to release shipment to company' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  props: { params: Promise<{ id: string }> },
+) {
+  const params = await props.params;
+
+  try {
+    const session = await routeDeps.auth();
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (
+      !ensureWorkflowMoveAllowed(session.user?.role) ||
+      !routeDeps.hasPermission(session.user?.role, 'shipments:manage')
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const shipment = await routeDeps.prisma.shipment.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        transitId: true,
+        shippingCompanyId: true,
+        vehicleYear: true,
+        vehicleMake: true,
+        vehicleModel: true,
+        vehicleVIN: true,
+        shippingCompany: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!shipment) {
+      return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
+    }
+
+    if (!shipment.shippingCompanyId) {
+      return NextResponse.json({ error: 'Shipment is not currently company released' }, { status: 400 });
+    }
+
+    if (shipment.transitId) {
+      return NextResponse.json(
+        { error: 'Cannot undo company release after transit assignment' },
+        { status: 400 },
+      );
+    }
+
+    const updatedShipment = await routeDeps.prisma.$transaction(async (tx) => {
+      await tx.shipmentAuditLog.createMany({
+        data: [
+          {
+            shipmentId: shipment.id,
+            action: COMPANY_RELEASE_UNDONE_AUDIT_ACTION,
+            description: `Company release cleared for shipment ${shipment.id}`,
+            performedBy: session.user!.id as string,
+            oldValue: shipment.shippingCompanyId,
+            newValue: null,
+            metadata: {
+              companyId: shipment.shippingCompanyId,
+              companyName: shipment.shippingCompany?.name ?? null,
+              clearedAt: new Date().toISOString(),
+            },
+          },
+        ],
+      });
+
+      return tx.shipment.update({
+        where: { id: shipment.id },
+        data: {
+          shippingCompanyId: null,
+          status: 'RELEASED',
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+    });
+
+    const shipmentLabel = buildShipmentLabel(updatedShipment);
+    const companyName = shipment.shippingCompany?.name || 'the assigned company';
+    await sendShipmentWorkflowNotifications(
+      session.user.id as string,
+      [
+        {
+          shipmentId: updatedShipment.id,
+          shipmentUserId: updatedShipment.userId,
+          title: 'Shipment workflow updated',
+          customerDescription: `Company release was cleared for your shipment ${shipmentLabel}.`,
+          internalDescription: `Company release for shipment ${shipmentLabel} was cleared from ${companyName}.`,
+          link: `/dashboard/shipments/${updatedShipment.id}`,
+        },
+      ],
+      {
+        prisma: routeDeps.prisma,
+        createNotificationsFn: routeDeps.createNotifications,
+      },
+    );
+
+    return NextResponse.json({ shipment: updatedShipment });
+  } catch (error) {
+    console.error('Error undoing company release:', error);
+    return NextResponse.json(
+      { error: 'Failed to undo company release' },
       { status: 500 },
     );
   }

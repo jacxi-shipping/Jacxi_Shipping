@@ -4,7 +4,16 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 
-const COMPANY_RELEASE_EVENT_STATUS = 'COMPANY_RELEASED';
+const COMPANY_RELEASED_AUDIT_ACTION = 'COMPANY_RELEASED';
+
+function getStringMetadataValue(metadata: Prisma.JsonValue | null | undefined, key: string) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const value = (metadata as Prisma.JsonObject)[key];
+  return typeof value === 'string' ? value : null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,15 +44,10 @@ export async function GET(request: NextRequest) {
     const skip = (safePage - 1) * safeLimit;
 
     const where: Prisma.ShipmentWhereInput = {
-      transitId: { not: null },
       shippingCompanyId: { not: null },
-      transit: {
-        is: {
-          events: {
-            some: {
-              status: COMPANY_RELEASE_EVENT_STATUS,
-            },
-          },
+      auditLogs: {
+        some: {
+          action: COMPANY_RELEASED_AUDIT_ACTION,
         },
       },
     };
@@ -63,8 +67,14 @@ export async function GET(request: NextRequest) {
           { user: { is: { email: { contains: query, mode: 'insensitive' } } } },
           { shippingCompany: { is: { name: { contains: query, mode: 'insensitive' } } } },
           { transit: { is: { referenceNumber: { contains: query, mode: 'insensitive' } } } },
-          { transit: { is: { origin: { contains: query, mode: 'insensitive' } } } },
-          { transit: { is: { destination: { contains: query, mode: 'insensitive' } } } },
+          {
+            auditLogs: {
+              some: {
+                action: COMPANY_RELEASED_AUDIT_ACTION,
+                description: { contains: query, mode: 'insensitive' },
+              },
+            },
+          },
         ],
       });
     }
@@ -79,9 +89,10 @@ export async function GET(request: NextRequest) {
 
     if (dateFrom || dateTo) {
       andFilters.push({
-        transit: {
-          is: {
-            dispatchDate: {
+        auditLogs: {
+          some: {
+            action: COMPANY_RELEASED_AUDIT_ACTION,
+            timestamp: {
               ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
               ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
             },
@@ -142,19 +153,6 @@ export async function GET(request: NextRequest) {
               dispatchDate: true,
               estimatedDelivery: true,
               actualDelivery: true,
-              events: {
-                where: {
-                  status: COMPANY_RELEASE_EVENT_STATUS,
-                },
-                orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
-                take: 1,
-                select: {
-                  eventDate: true,
-                  origin: true,
-                  destination: true,
-                  description: true,
-                },
-              },
             },
           },
           shippingCompany: {
@@ -163,11 +161,21 @@ export async function GET(request: NextRequest) {
               name: true,
             },
           },
+          auditLogs: {
+            where: {
+              action: COMPANY_RELEASED_AUDIT_ACTION,
+            },
+            orderBy: [{ timestamp: 'desc' }],
+            take: 1,
+            select: {
+              description: true,
+              timestamp: true,
+              metadata: true,
+            },
+          },
         },
         orderBy: {
-          transit: {
-            dispatchDate: 'desc',
-          },
+          updatedAt: 'desc',
         },
         skip,
         take: safeLimit,
@@ -188,25 +196,25 @@ export async function GET(request: NextRequest) {
     }, {});
 
     const rows = shipments.map((shipment) => {
-      const releaseEvent = shipment.transit?.events[0] ?? null;
-      const releasedAt = releaseEvent?.eventDate ?? shipment.transit?.dispatchDate ?? null;
+      const releaseLog = shipment.auditLogs[0] ?? null;
+      const releasedAt =
+        releaseLog?.timestamp?.toISOString() ?? shipment.transit?.dispatchDate?.toISOString() ?? null;
 
       return {
         ...shipment,
-        releaseEvent: releaseEvent
+        releaseEvent: releaseLog
           ? {
               releasedAt,
-              origin: releaseEvent.origin,
-              destination: releaseEvent.destination,
-              description: releaseEvent.description,
+              origin:
+                getStringMetadataValue(releaseLog.metadata, 'origin') ?? shipment.transit?.origin ?? '',
+              destination:
+                getStringMetadataValue(releaseLog.metadata, 'destination') ??
+                shipment.transit?.destination ??
+                '',
+              description: releaseLog.description,
             }
           : null,
-        transit: shipment.transit
-          ? {
-              ...shipment.transit,
-              events: undefined,
-            }
-          : null,
+        auditLogs: undefined,
       };
     });
 
