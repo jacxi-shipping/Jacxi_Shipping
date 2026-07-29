@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, TitleStatus, PaymentStatus, ShipmentSimpleStatus, LineItemType } from '@prisma/client';
+import { Prisma, TitleStatus, ShipmentSimpleStatus, LineItemType } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 import { generateInvoiceNumber } from '@/lib/shipment-invoice';
 import { syncShipmentPurchasePriceEntries } from '@/lib/shipment-purchase-price';
+import {
+  hasProvidedValue,
+  mapShipmentCreateError,
+  parseOptionalDate,
+  parseOptionalFloat,
+  parseOptionalInt,
+  resolvePaymentStatus,
+} from './create-shipment-utils';
 
 const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
   'ON_HAND',
@@ -401,23 +409,53 @@ export async function POST(request: NextRequest) {
     const sanitizedVehiclePhotos = Array.isArray(vehiclePhotos)
       ? vehiclePhotos.filter((photo): photo is string => typeof photo === 'string')
       : [];
-    const parsedVehicleYear =
-      typeof vehicleYear === 'number'
-        ? vehicleYear
-        : typeof vehicleYear === 'string'
-        ? parseInt(vehicleYear, 10)
-        : null;
-    const parsedWeight =
-      typeof weight === 'number' ? weight : typeof weight === 'string' ? parseFloat(weight) : null;
-    const parsedPurchasePrice =
-      typeof purchasePrice === 'number' ? purchasePrice : typeof purchasePrice === 'string' ? parseFloat(purchasePrice) : null;
+    const parsedVehicleYear = parseOptionalInt(vehicleYear);
+    const parsedWeight = parseOptionalFloat(weight);
+    const parsedPurchasePrice = parseOptionalFloat(purchasePrice);
+    const parsedPurchaseDate = parseOptionalDate(purchaseDate);
+
+    if (hasProvidedValue(vehicleYear) && parsedVehicleYear === null) {
+      return NextResponse.json(
+        { message: 'Vehicle year must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (hasProvidedValue(weight) && parsedWeight === null) {
+      return NextResponse.json(
+        { message: 'Weight must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (hasProvidedValue(purchasePrice) && parsedPurchasePrice === null) {
+      return NextResponse.json(
+        { message: 'Purchase price must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (hasProvidedValue(purchaseDate) && parsedPurchaseDate === null) {
+      return NextResponse.json(
+        { message: 'Purchase date must be a valid date' },
+        { status: 400 }
+      );
+    }
     
     // Calculate vehicle age if vehicleYear is provided
     const currentYear = new Date().getFullYear();
     const calculatedVehicleAge = parsedVehicleYear ? currentYear - parsedVehicleYear : null;
     
     // Validate titleStatus - only allowed if hasTitle is true
-    const finalTitleStatus = (hasTitle === true && titleStatus) ? titleStatus as TitleStatus : null;
+    const isValidTitleStatus = titleStatus === 'PENDING' || titleStatus === 'DELIVERED';
+    if (hasTitle === true && hasProvidedValue(titleStatus) && !isValidTitleStatus) {
+      return NextResponse.json(
+        { message: 'Title status must be PENDING or DELIVERED' },
+        { status: 400 }
+      );
+    }
+
+    const finalTitleStatus = hasTitle === true && isValidTitleStatus ? titleStatus as TitleStatus : null;
     
     // Validate purchase price for PURCHASE_AND_SHIPPING
     if (serviceType === 'PURCHASE_AND_SHIPPING' && !parsedPurchasePrice) {
@@ -428,13 +466,7 @@ export async function POST(request: NextRequest) {
     }
     
     const shipment = await prisma.$transaction(async (tx) => {
-      // Determine payment status based on payment mode
-      let finalPaymentStatus = 'PENDING';
-      if (paymentMode === 'CASH') {
-        finalPaymentStatus = 'COMPLETED';
-      } else if (paymentMode === 'DUE') {
-        finalPaymentStatus = 'PENDING';
-      }
+      const finalPaymentStatus = resolvePaymentStatus(paymentMode);
 
       const createdShipment = await tx.shipment.create({
         data: {
@@ -453,7 +485,7 @@ export async function POST(request: NextRequest) {
           weight: parsedWeight,
           dimensions,
           vehiclePhotos: sanitizedVehiclePhotos,
-          paymentStatus: finalPaymentStatus as PaymentStatus,
+          paymentStatus: finalPaymentStatus,
           paymentMode: paymentMode || null,
           internalNotes: internalNotes || null,
           // Vehicle details
@@ -463,7 +495,7 @@ export async function POST(request: NextRequest) {
           vehicleAge: calculatedVehicleAge,
           // Purchase information
           purchasePrice: parsedPurchasePrice,
-          purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+          purchaseDate: parsedPurchaseDate,
           purchaseLocation: purchaseLocation || null,
           dealerName: dealerName || null,
           purchaseNotes: purchaseNotes || null,
@@ -547,10 +579,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error creating shipment:', error);
+    const { status, message } = mapShipmentCreateError(error);
     return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
+      { message },
+      { status }
     );
   }
 }
-
