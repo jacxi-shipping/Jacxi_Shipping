@@ -53,6 +53,7 @@ export default function NewShipmentPage() {
 	const router = useRouter();
 	const [activeStep, setActiveStep] = useState(0);
 	const [users, setUsers] = useState<UserOption[]>([]);
+	const [usersError, setUsersError] = useState<string | null>(null);
 	const [containers, setContainers] = useState<ContainerOption[]>([]);
 	const [loadingUsers, setLoadingUsers] = useState(true);
 	const [loadingContainers, setLoadingContainers] = useState(false);
@@ -114,13 +115,19 @@ export default function NewShipmentPage() {
 		const fetchUsers = async () => {
 			try {
 				// Fetch all users by using a large pageSize
-				const response = await fetch('/api/users?pageSize=1000');
+				const response = await fetch('/api/users?pageSize=1000&roleType=customers');
 				if (response.ok) {
 					const data = await response.json();
-					setUsers(data.users);
+					setUsers(data.users ?? []);
+					setUsersError(null);
+				} else {
+					setUsers([]);
+					setUsersError('Unable to load customers. Please check your permissions and try again.');
 				}
 			} catch (error) {
 				console.error('Error fetching users:', error);
+				setUsers([]);
+				setUsersError('Unable to load customers. Please refresh and try again.');
 			} finally {
 				setLoadingUsers(false);
 			}
@@ -129,9 +136,9 @@ export default function NewShipmentPage() {
 		void fetchUsers();
 	}, []);
 
-	// Fetch containers when status changes to IN_TRANSIT
+	// Fetch containers when status requires container assignment
 	useEffect(() => {
-		if (statusValue === 'IN_TRANSIT') {
+		if (statusValue === 'IN_TRANSIT' || statusValue === 'RELEASED') {
 			const fetchContainers = async () => {
 				setLoadingContainers(true);
 				try {
@@ -408,6 +415,13 @@ export default function NewShipmentPage() {
 	// Form submission
 	const onSubmit = async (data: ShipmentFormData) => {
 		try {
+			if (!data.userId) {
+				toast.error('Customer is required', {
+					description: 'Select a customer in Step 4 before creating the shipment',
+				});
+				return;
+			}
+
 			// Validate entire form before submission
 			const isValid = await trigger();
 			if (!isValid) {
@@ -417,13 +431,38 @@ export default function NewShipmentPage() {
 				return;
 			}
 
+			const payload = {
+				...data,
+				vehicleVIN: data.vehicleVIN?.trim() || undefined,
+				vehicleMake: data.vehicleMake?.trim() || undefined,
+				vehicleModel: data.vehicleModel?.trim() || undefined,
+				vehicleYear: data.vehicleYear?.trim() || undefined,
+				vehicleColor: data.vehicleColor?.trim() || undefined,
+				lotNumber: data.lotNumber?.trim() || undefined,
+				auctionName: data.auctionName?.trim() || undefined,
+				weight: data.weight?.trim() || undefined,
+				dimensions: data.dimensions?.trim() || undefined,
+				containerId: data.containerId?.trim() || undefined,
+				purchasePrice: data.purchasePrice?.trim() || undefined,
+				purchaseDate: data.purchaseDate?.trim() || undefined,
+				purchaseLocation: data.purchaseLocation?.trim() || undefined,
+				dealerName: data.dealerName?.trim() || undefined,
+				purchaseNotes: data.purchaseNotes?.trim() || undefined,
+				internalNotes: data.internalNotes?.trim() || undefined,
+			};
+
 			const response = await fetch('/api/shipments', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(data),
+				body: JSON.stringify(payload),
 			});
 
-			const result = await response.json();
+			let result: { message?: string; errors?: unknown } = {};
+			try {
+				result = (await response.json()) as { message?: string; errors?: unknown };
+			} catch {
+				result = {};
+			}
 
 			if (response.ok) {
 				toast.success('Shipment created successfully!');
@@ -431,22 +470,24 @@ export default function NewShipmentPage() {
 					router.push('/dashboard/shipments');
 				}, 1500);
 			} else {
-				// Provide more specific error message guidance
-				const errorMessage = result.message || 'Failed to create shipment';
-				let description = 'Please check your inputs and try again';
-				
-				if (errorMessage.includes('VIN')) {
+				const serverMessage = typeof result.message === 'string' ? result.message : null;
+				const serverDetails = Array.isArray(result.errors)
+					? result.errors.map((entry) => String(entry)).join(' | ')
+					: null;
+				let description = serverMessage || serverDetails || 'Please check your inputs and try again';
+
+				if (serverMessage?.includes('VIN')) {
 					description = 'Please check the VIN - it might be invalid or already in use';
-				} else if (errorMessage.includes('Container')) {
+				} else if (serverMessage?.includes('Container')) {
 					description = 'Please select a valid container for IN_TRANSIT shipments';
-				} else if (errorMessage.includes('Purchase price')) {
+				} else if (serverMessage?.includes('Purchase price')) {
 					description = 'Purchase price is required for Purchase + Shipping service type';
-				} else if (errorMessage.includes('required')) {
+				} else if (serverMessage?.includes('required')) {
 					description = 'Please ensure all required fields are filled in';
 				}
-				
-				toast.error(errorMessage, {
-					description
+
+				toast.error(serverMessage || 'Failed to create shipment', {
+					description,
 				});
 				
 				console.error('Shipment creation error:', result);
@@ -480,6 +521,12 @@ export default function NewShipmentPage() {
 				break;
 			case 3: // Customer
 				fieldsToValidate = ['userId'];
+				if (users.length === 0) {
+					toast.error('No customers available', {
+						description: usersError || 'Create a customer first, then try again.',
+					});
+					return;
+				}
 				// Also validate service type dependent fields
 				if (formValues.serviceType === 'PURCHASE_AND_SHIPPING') {
 					fieldsToValidate.push('purchasePrice');
@@ -1210,12 +1257,12 @@ export default function NewShipmentPage() {
 											? 'Vehicle is currently on hand, not yet assigned to a container'
 											: statusValue === 'IN_TRANSIT'
 											? 'Vehicle is in transit - must be assigned to a container'
-											: 'Vehicle is released and ready for transit assignment'}
+											: 'Vehicle is released - container assignment is required'}
 									</Typography>
 								</Box>
 
-								{/* Container Selection - Only shown when IN_TRANSIT */}
-								{statusValue === 'IN_TRANSIT' && (
+								{/* Container Selection - Required for IN_TRANSIT and RELEASED */}
+								{(statusValue === 'IN_TRANSIT' || statusValue === 'RELEASED') && (
 									<Box>
 										<Typography
 											component="label"
@@ -1321,6 +1368,33 @@ export default function NewShipmentPage() {
 										<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'var(--text-secondary)' }}>
 											<Loader2 style={{ fontSize: 18 }} className="animate-spin" />
 											<Typography sx={{ fontSize: '0.85rem' }}>Loading customers...</Typography>
+										</Box>
+									) : usersError ? (
+										<Box
+											sx={{
+												fontSize: '0.85rem',
+												color: 'var(--error)',
+												border: '1px solid rgba(239,68,68,0.4)',
+												backgroundColor: 'rgba(239,68,68,0.08)',
+												borderRadius: 2,
+												px: 2,
+												py: 1.5,
+											}}
+										>
+											{usersError}
+										</Box>
+									) : users.length === 0 ? (
+										<Box
+											sx={{
+												fontSize: '0.85rem',
+												color: 'var(--text-secondary)',
+												border: '1px solid var(--border)',
+												borderRadius: 2,
+												px: 2,
+												py: 1.5,
+											}}
+										>
+											No customers found. Create a customer first, then return to create a shipment.
 										</Box>
 									) : (
 										<Autocomplete

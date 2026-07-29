@@ -9,6 +9,7 @@ function getPortalIdFromPath(pathname: string) {
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET_INTERNAL || 'development-secret-change-me';
 
 export const authConfig = {
+  trustHost: true,
   pages: {
     signIn: "/auth/signin",
     error: "/auth/signin",

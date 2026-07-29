@@ -27,53 +27,66 @@ function asRecord(value: Prisma.JsonValue | null | undefined): Record<string, un
   return value as Record<string, unknown>;
 }
 
-function parseOptionalInteger(value: number | string | null | undefined): number | null {
-  if (value == null) {
+function normalizeOptionalString(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
     return null;
   }
 
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseOptionalInteger(value: number | string | null | undefined): number | null {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? Math.trunc(value) : null;
   }
 
-  const trimmedValue = value.trim();
-  if (!trimmedValue) {
-    return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (!/^-?\d+$/.test(trimmed)) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
-  const parsed = Number.parseInt(trimmedValue, 10);
-  return Number.isFinite(parsed) ? parsed : null;
+  return null;
 }
 
 function parseOptionalFloat(value: number | string | null | undefined): number | null {
-  if (value == null) {
-    return null;
-  }
-
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : null;
   }
 
-  const trimmedValue = value.trim();
-  if (!trimmedValue) {
-    return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number.parseFloat(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
-  const parsed = Number.parseFloat(trimmedValue);
-  return Number.isFinite(parsed) ? parsed : null;
+  return null;
 }
 
 function parseOptionalDate(value: string | null | undefined): Date | null {
-  if (!value) {
+  if (typeof value !== 'string') {
     return null;
   }
 
-  const trimmedValue = value.trim();
-  if (!trimmedValue) {
+  const trimmed = value.trim();
+  if (!trimmed) {
     return null;
   }
 
-  const parsed = new Date(trimmedValue);
+  const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
@@ -419,8 +432,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const normalizedVehicleVIN = typeof vehicleVIN === 'string' ? vehicleVIN.trim() : '';
-    const sanitizedVehicleVIN = normalizedVehicleVIN || null;
+    const trimmedVehicleVIN = typeof vehicleVIN === 'string' ? vehicleVIN.trim() : '';
+    const sanitizedVehicleVIN = trimmedVehicleVIN || null;
 
     // Check for duplicate VIN if provided
     if (sanitizedVehicleVIN) {
@@ -450,7 +463,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const normalizedStatus = containerId ? 'IN_TRANSIT' : (providedStatus || 'ON_HAND');
+    const normalizedContainerId = normalizeOptionalString(containerId);
+    const normalizedStatus = normalizedContainerId ? 'IN_TRANSIT' : (providedStatus || 'ON_HAND');
+    const normalizedVehicleVIN = normalizeOptionalString(vehicleVIN);
+    const normalizedVehicleMake = normalizeOptionalString(vehicleMake);
+    const normalizedVehicleModel = normalizeOptionalString(vehicleModel);
+    const normalizedVehicleColor = normalizeOptionalString(vehicleColor);
+    const normalizedLotNumber = normalizeOptionalString(lotNumber);
+    const normalizedAuctionName = normalizeOptionalString(auctionName);
+    const normalizedDimensions = normalizeOptionalString(dimensions);
+    const normalizedInternalNotes = normalizeOptionalString(internalNotes);
+    const normalizedPurchaseLocation = normalizeOptionalString(purchaseLocation);
+    const normalizedDealerName = normalizeOptionalString(dealerName);
+    const normalizedPurchaseNotes = normalizeOptionalString(purchaseNotes);
+
     const sanitizedVehiclePhotos = Array.isArray(vehiclePhotos)
       ? vehiclePhotos.filter((photo): photo is string => typeof photo === 'string')
       : [];
@@ -458,13 +484,44 @@ export async function POST(request: NextRequest) {
     const parsedWeight = parseOptionalFloat(weight);
     const parsedPurchasePrice = parseOptionalFloat(purchasePrice);
     const parsedPurchaseDate = parseOptionalDate(purchaseDate);
+
+    if (vehicleYear != null && normalizeOptionalString(String(vehicleYear)) && parsedVehicleYear == null) {
+      return NextResponse.json(
+        { message: 'Vehicle year must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (weight != null && normalizeOptionalString(String(weight)) && parsedWeight == null) {
+      return NextResponse.json(
+        { message: 'Weight must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (purchasePrice != null && normalizeOptionalString(String(purchasePrice)) && parsedPurchasePrice == null) {
+      return NextResponse.json(
+        { message: 'Purchase price must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (purchaseDate != null && normalizeOptionalString(purchaseDate) && parsedPurchaseDate == null) {
+      return NextResponse.json(
+        { message: 'Purchase date must be a valid date' },
+        { status: 400 }
+      );
+    }
     
     // Calculate vehicle age if vehicleYear is provided
     const currentYear = new Date().getFullYear();
     const calculatedVehicleAge = parsedVehicleYear ? currentYear - parsedVehicleYear : null;
     
     // Validate titleStatus - only allowed if hasTitle is true
-    const finalTitleStatus = (hasTitle === true && titleStatus) ? titleStatus as TitleStatus : null;
+    const finalTitleStatus =
+      hasTitle === true && (titleStatus === 'PENDING' || titleStatus === 'DELIVERED')
+        ? (titleStatus as TitleStatus)
+        : null;
     
     // Validate purchase price for PURCHASE_AND_SHIPPING
     if (serviceType === 'PURCHASE_AND_SHIPPING' && !parsedPurchasePrice) {
@@ -474,116 +531,140 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const shipment = await prisma.$transaction(async (tx) => {
-      // Determine payment status based on payment mode
-      let finalPaymentStatus = 'PENDING';
-      if (paymentMode === 'CASH') {
-        finalPaymentStatus = 'COMPLETED';
-      } else if (paymentMode === 'DUE') {
-        finalPaymentStatus = 'PENDING';
-      }
+    let shipment: Awaited<ReturnType<typeof prisma.shipment.create>> | null = null;
 
-      const createdShipment = await tx.shipment.create({
-        data: {
-          userId: userId, // Use the userId from request (assigned by admin)
-          serviceType: serviceType || 'SHIPPING_ONLY',
-          vehicleType,
-          vehicleMake,
-          vehicleModel,
-          vehicleYear: parsedVehicleYear,
-          vehicleVIN: sanitizedVehicleVIN,
-          vehicleColor,
-          lotNumber,
-          auctionName,
-          status: normalizedStatus,
-          containerId: containerId || null,
-          weight: parsedWeight,
-          dimensions,
-          vehiclePhotos: sanitizedVehiclePhotos,
-          paymentStatus: finalPaymentStatus as PaymentStatus,
-          paymentMode: paymentMode || null,
-          internalNotes: internalNotes || null,
-          // Vehicle details
-          hasKey: typeof hasKey === 'boolean' ? hasKey : null,
-          hasTitle: typeof hasTitle === 'boolean' ? hasTitle : null,
-          titleStatus: finalTitleStatus,
-          vehicleAge: calculatedVehicleAge,
-          // Purchase information
-          purchasePrice: parsedPurchasePrice,
-          purchaseDate: parsedPurchaseDate,
-          purchaseLocation: purchaseLocation || null,
-          dealerName: dealerName || null,
-          purchaseNotes: purchaseNotes || null,
-        },
-      });
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        shipment = await prisma.$transaction(async (tx) => {
+          // Determine payment status based on payment mode
+          let finalPaymentStatus = 'PENDING';
+          if (paymentMode === 'CASH') {
+            finalPaymentStatus = 'COMPLETED';
+          } else if (paymentMode === 'DUE') {
+            finalPaymentStatus = 'PENDING';
+          }
 
-      // Update container count if assigned
-      if (containerId) {
-        await tx.container.update({
-          where: { id: containerId },
-          data: {
-            currentCount: {
-              increment: 1,
+          const createdShipment = await tx.shipment.create({
+            data: {
+              userId: userId, // Use the userId from request (assigned by admin)
+              serviceType: serviceType || 'SHIPPING_ONLY',
+              vehicleType,
+              vehicleMake: normalizedVehicleMake,
+              vehicleModel: normalizedVehicleModel,
+              vehicleYear: parsedVehicleYear,
+              vehicleVIN: normalizedVehicleVIN,
+              vehicleColor: normalizedVehicleColor,
+              lotNumber: normalizedLotNumber,
+              auctionName: normalizedAuctionName,
+              status: normalizedStatus,
+              containerId: normalizedContainerId,
+              weight: parsedWeight,
+              dimensions: normalizedDimensions,
+              vehiclePhotos: sanitizedVehiclePhotos,
+              paymentStatus: finalPaymentStatus as PaymentStatus,
+              paymentMode: paymentMode || null,
+              internalNotes: normalizedInternalNotes,
+              // Vehicle details
+              hasKey: typeof hasKey === 'boolean' ? hasKey : null,
+              hasTitle: typeof hasTitle === 'boolean' ? hasTitle : null,
+              titleStatus: finalTitleStatus,
+              vehicleAge: calculatedVehicleAge,
+              // Purchase information
+              purchasePrice: parsedPurchasePrice,
+              purchaseDate: parsedPurchaseDate,
+              purchaseLocation: normalizedPurchaseLocation,
+              dealerName: normalizedDealerName,
+              purchaseNotes: normalizedPurchaseNotes,
             },
-          },
+          });
+
+          // Update container count if assigned
+          if (normalizedContainerId) {
+            await tx.container.update({
+              where: { id: normalizedContainerId },
+              data: {
+                currentCount: {
+                  increment: 1,
+                },
+              },
+            });
+          }
+
+          // Auto-create a per-shipment invoice
+          const invoiceNumber = await generateInvoiceNumber(tx);
+          const initialSubtotal = parsedPurchasePrice && parsedPurchasePrice > 0 ? parsedPurchasePrice : 0;
+          const invoice = await tx.userInvoice.create({
+            data: {
+              invoiceNumber,
+              userId,
+              shipmentId: createdShipment.id,
+              status: 'PENDING',
+              subtotal: initialSubtotal,
+              total: initialSubtotal,
+              tax: 0,
+              discount: 0,
+            },
+          });
+
+          // Add purchase price as a line item if applicable
+          if (parsedPurchasePrice && parsedPurchasePrice > 0) {
+            const vehicleLabel = [parsedVehicleYear, vehicleMake, vehicleModel].filter(Boolean).join(' ') || vehicleType;
+            await tx.invoiceLineItem.create({
+              data: {
+                invoiceId: invoice.id,
+                shipmentId: createdShipment.id,
+                description: `${vehicleLabel} — Vehicle Purchase Price`,
+                type: LineItemType.PURCHASE_PRICE,
+                quantity: 1,
+                unitPrice: parsedPurchasePrice,
+                amount: parsedPurchasePrice,
+              },
+            });
+          }
+
+          // When a PURCHASE_AND_SHIPPING shipment is created on DUE, post a DEBIT ledger
+          // entry so the owed amount appears in the customer's ledger immediately.
+          if (
+            paymentMode === 'DUE' &&
+            serviceType === 'PURCHASE_AND_SHIPPING' &&
+            parsedPurchasePrice &&
+            parsedPurchasePrice > 0
+          ) {
+            const vehicleLabel =
+              [parsedVehicleYear, normalizedVehicleMake, normalizedVehicleModel].filter(Boolean).join(' ') || vehicleType;
+            await syncShipmentPurchasePriceEntries(tx, {
+              shipmentId: createdShipment.id,
+              userId,
+              purchasePriceAmount: parsedPurchasePrice,
+              serviceType: 'PURCHASE_AND_SHIPPING',
+              vehicleLabel,
+              vehicleVIN: normalizedVehicleVIN,
+              actorUserId: (session.user?.id as string | undefined) || userId,
+            });
+          }
+
+          return createdShipment;
         });
+
+        break;
+      } catch (error) {
+        const isUniqueInvoiceNumberConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          Array.isArray(error.meta?.target) &&
+          error.meta.target.includes('invoiceNumber');
+
+        if (isUniqueInvoiceNumberConflict && attempt < 3) {
+          continue;
+        }
+
+        throw error;
       }
+    }
 
-      // Auto-create a per-shipment invoice
-      const invoiceNumber = await generateInvoiceNumber(tx);
-      const initialSubtotal = parsedPurchasePrice && parsedPurchasePrice > 0 ? parsedPurchasePrice : 0;
-      const invoice = await tx.userInvoice.create({
-        data: {
-          invoiceNumber,
-          userId,
-          shipmentId: createdShipment.id,
-          status: 'PENDING',
-          subtotal: initialSubtotal,
-          total: initialSubtotal,
-          tax: 0,
-          discount: 0,
-        },
-      });
-
-      // Add purchase price as a line item if applicable
-      if (parsedPurchasePrice && parsedPurchasePrice > 0) {
-        const vehicleLabel = [parsedVehicleYear, vehicleMake, vehicleModel].filter(Boolean).join(' ') || vehicleType;
-        await tx.invoiceLineItem.create({
-          data: {
-            invoiceId: invoice.id,
-            shipmentId: createdShipment.id,
-            description: `${vehicleLabel} — Vehicle Purchase Price`,
-            type: LineItemType.PURCHASE_PRICE,
-            quantity: 1,
-            unitPrice: parsedPurchasePrice,
-            amount: parsedPurchasePrice,
-          },
-        });
-      }
-
-      // When a PURCHASE_AND_SHIPPING shipment is created on DUE, post a DEBIT ledger
-      // entry so the owed amount appears in the customer's ledger immediately.
-      if (
-        paymentMode === 'DUE' &&
-        serviceType === 'PURCHASE_AND_SHIPPING' &&
-        parsedPurchasePrice &&
-        parsedPurchasePrice > 0
-      ) {
-        const vehicleLabel =
-          [parsedVehicleYear, vehicleMake, vehicleModel].filter(Boolean).join(' ') || vehicleType;
-        await syncShipmentPurchasePriceEntries(tx, {
-          shipmentId: createdShipment.id,
-          userId,
-          purchasePriceAmount: parsedPurchasePrice,
-          serviceType: 'PURCHASE_AND_SHIPPING',
-          vehicleLabel,
-          vehicleVIN: vehicleVIN ?? null,
-          actorUserId: session.user!.id as string,
-        });
-      }
-
-      return createdShipment;
-    });
+    if (!shipment) {
+      throw new Error('Failed to create shipment after retries');
+    }
 
     return NextResponse.json(
       { 
@@ -594,6 +675,31 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error creating shipment:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        const targets = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : 'unique field';
+        return NextResponse.json(
+          { message: `Duplicate value detected for ${targets}. Please update the shipment details and try again.` },
+          { status: 400 }
+        );
+      }
+
+      if (error.code === 'P2003') {
+        return NextResponse.json(
+          { message: 'Invalid related record. Please verify selected customer/container and try again.' },
+          { status: 400 }
+        );
+      }
+
+      if (error.code === 'P2025') {
+        return NextResponse.json(
+          { message: 'A required record was not found while creating the shipment. Please refresh and try again.' },
+          { status: 404 }
+        );
+      }
+    }
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

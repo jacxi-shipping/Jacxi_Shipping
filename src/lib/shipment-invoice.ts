@@ -10,9 +10,44 @@ const db = (client: DbClient) => client as typeof prisma;
  * Must be called inside a transaction to be race-safe.
  */
 export async function generateInvoiceNumber(client: DbClient): Promise<string> {
-  const count = await db(client).userInvoice.count();
   const year = new Date().getFullYear();
-  return `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+  const prefix = `INV-${year}-`;
+
+  // Prefer monotonic numbering by reading the latest invoice for the current year.
+  const latestInvoice = await db(client).userInvoice.findFirst({
+    where: {
+      invoiceNumber: {
+        startsWith: prefix,
+      },
+    },
+    orderBy: {
+      invoiceNumber: 'desc',
+    },
+    select: {
+      invoiceNumber: true,
+    },
+  });
+
+  const latestSuffix = latestInvoice?.invoiceNumber.split('-').pop() ?? '0';
+  let nextNumber = Number.parseInt(latestSuffix, 10);
+
+  if (!Number.isFinite(nextNumber)) {
+    nextNumber = 0;
+  }
+
+  // Guard against malformed historical numbers or race leftovers by probing for availability.
+  while (true) {
+    nextNumber += 1;
+    const candidate = `${prefix}${String(nextNumber).padStart(4, '0')}`;
+    const existing = await db(client).userInvoice.findUnique({
+      where: { invoiceNumber: candidate },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return candidate;
+    }
+  }
 }
 
 /**

@@ -17,6 +17,7 @@ import {
 const nextAuth = NextAuth({
   ...authConfig,
   secret: resolvedSecret,
+  trustHost: true,
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({

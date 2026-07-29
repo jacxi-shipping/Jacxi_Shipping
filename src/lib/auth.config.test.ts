@@ -2,6 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { authConfig } from './auth.config.ts';
 
+describe('authConfig', () => {
+  it('should trust the current host for auth callbacks', () => {
+    assert.strictEqual(authConfig.trustHost, true);
+  });
+});
+
 describe('authConfig.callbacks.authorized', () => {
   const authorized = authConfig.callbacks?.authorized;
 
