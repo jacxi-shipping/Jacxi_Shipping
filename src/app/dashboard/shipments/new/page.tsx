@@ -408,6 +408,15 @@ export default function NewShipmentPage() {
 	// Form submission
 	const onSubmit = async (data: ShipmentFormData) => {
 		try {
+			// Validate entire form before submission
+			const isValid = await trigger();
+			if (!isValid) {
+				toast.error('Please fix all errors before creating shipment', {
+					description: 'Check highlighted fields above'
+				});
+				return;
+			}
+
 			const response = await fetch('/api/shipments', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -422,9 +431,25 @@ export default function NewShipmentPage() {
 					router.push('/dashboard/shipments');
 				}, 1500);
 			} else {
-				toast.error(result.message || 'Failed to create shipment', {
-					description: 'Please check your inputs and try again'
+				// Provide more specific error message guidance
+				const errorMessage = result.message || 'Failed to create shipment';
+				let description = 'Please check your inputs and try again';
+				
+				if (errorMessage.includes('VIN')) {
+					description = 'Please check the VIN - it might be invalid or already in use';
+				} else if (errorMessage.includes('Container')) {
+					description = 'Please select a valid container for IN_TRANSIT shipments';
+				} else if (errorMessage.includes('Purchase price')) {
+					description = 'Purchase price is required for Purchase + Shipping service type';
+				} else if (errorMessage.includes('required')) {
+					description = 'Please ensure all required fields are filled in';
+				}
+				
+				toast.error(errorMessage, {
+					description
 				});
+				
+				console.error('Shipment creation error:', result);
 			}
 		} catch (error) {
 			console.error('Error creating shipment:', error);
@@ -439,18 +464,26 @@ export default function NewShipmentPage() {
 
 		switch (activeStep) {
 			case 0: // Vehicle Info
-				fieldsToValidate = ['vehicleType', 'vehicleVIN', 'vehicleMake', 'vehicleModel', 'vehicleYear'];
+				fieldsToValidate = ['vehicleType'];
+				// VIN is optional but if provided, must be validated
+				if (formValues.vehicleVIN) {
+					fieldsToValidate.push('vehicleVIN');
+				}
 				break;
 			case 1: // Photos - optional, can skip
 				break;
 			case 2: // Status
 				fieldsToValidate = ['status'];
-				if (statusValue === 'IN_TRANSIT') {
+				if (statusValue === 'IN_TRANSIT' || statusValue === 'RELEASED') {
 					fieldsToValidate.push('containerId');
 				}
 				break;
 			case 3: // Customer
 				fieldsToValidate = ['userId'];
+				// Also validate service type dependent fields
+				if (formValues.serviceType === 'PURCHASE_AND_SHIPPING') {
+					fieldsToValidate.push('purchasePrice');
+				}
 				break;
 		}
 
