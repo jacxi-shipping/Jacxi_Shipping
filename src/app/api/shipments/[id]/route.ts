@@ -9,6 +9,20 @@ import { validateManualShipmentWorkflowUpdate } from '@/lib/shipment-workflow';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 import { buildUnifiedShipmentTimeline } from '@/lib/shipment-timeline';
 
+const COMPANY_RELEASED_AUDIT_ACTION = 'COMPANY_RELEASED';
+
+function getStringMetadataValue(
+  metadata: Prisma.JsonValue | null | undefined,
+  key: string,
+) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const value = (metadata as Prisma.JsonObject)[key];
+  return typeof value === 'string' ? value : null;
+}
+
 type UpdateShipmentPayload = {
   userId?: string;
   serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
@@ -571,6 +585,22 @@ export async function GET(
     });
 
     const currentTransitEvent = shipment.transit?.events[0] ?? null;
+    const latestCompanyReleaseLog = shipment.shippingCompanyId
+      ? await prisma.shipmentAuditLog.findFirst({
+          where: {
+            shipmentId: id,
+            action: COMPANY_RELEASED_AUDIT_ACTION,
+          },
+          orderBy: {
+            timestamp: 'desc',
+          },
+          select: {
+            description: true,
+            timestamp: true,
+            metadata: true,
+          },
+        })
+      : null;
     const visibleDocuments = canReadAllShipments
       ? shipment.documents
       : shipment.documents.filter((document) => document.isPublic);
@@ -615,6 +645,14 @@ export async function GET(
               }
             : null,
           shippingCompany: canViewWorkflowCompanyDetails ? shipment.shippingCompany : null,
+          companyReleaseEvent: latestCompanyReleaseLog
+            ? {
+                releasedAt: latestCompanyReleaseLog.timestamp,
+                origin: getStringMetadataValue(latestCompanyReleaseLog.metadata, 'origin'),
+                destination: getStringMetadataValue(latestCompanyReleaseLog.metadata, 'destination'),
+                description: latestCompanyReleaseLog.description,
+              }
+            : null,
           companyLedgerEntries,
           auditLogs,
           unifiedTimeline,

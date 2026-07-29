@@ -125,6 +125,12 @@ export interface Shipment {
   container: Container | null;
   transit: ShipmentTransit | null;
   shippingCompany: { id: string; name: string } | null;
+  companyReleaseEvent: {
+    releasedAt: string;
+    origin: string | null;
+    destination: string | null;
+    description: string | null;
+  } | null;
   internalNotes: string | null;
   paymentStatus: string;
   paymentMode: string | null;

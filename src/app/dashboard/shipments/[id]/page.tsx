@@ -232,6 +232,7 @@ export default function ShipmentDetailPage() {
   const [loadingShippingCompanies, setLoadingShippingCompanies] = useState(false);
   const [selectedShippingCompanyId, setSelectedShippingCompanyId] = useState('');
   const [releasingToCompany, setReleasingToCompany] = useState(false);
+  const [undoingCompanyRelease, setUndoingCompanyRelease] = useState(false);
   const [companyReleaseTimerTick, setCompanyReleaseTimerTick] = useState(0);
   const [expenseAction, setExpenseAction] = useState<ExpenseActionContext | null>(null);
   const [expenseSourceFilter, setExpenseSourceFilter] = useState<ExpenseSourceFilter>('ALL');
@@ -333,6 +334,7 @@ export default function ShipmentDetailPage() {
   }, [shipment?.shippingCompany?.id, shipment?.transit?.currentCompany?.id]);
 
   const companyReleaseStartedAt =
+    shipment?.companyReleaseEvent?.releasedAt ||
     shipment?.transit?.currentEvent?.eventDate ||
     shipment?.transit?.dispatchDate ||
     null;
@@ -555,13 +557,37 @@ export default function ShipmentDetailPage() {
         throw new Error(data.error || 'Failed to release shipment to company');
       }
 
-      toast.success('Shipment released to company and transit timer started');
+      toast.success('Shipment released to company and timer started');
       await fetchShipment();
       openShipmentTab(8);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to release shipment to company');
     } finally {
       setReleasingToCompany(false);
+    }
+  };
+
+  const handleUndoCompanyRelease = async () => {
+    if (!shipment || !shipment.shippingCompanyId) return;
+    if (!confirm('Undo the company release timer for this shipment?')) return;
+
+    try {
+      setUndoingCompanyRelease(true);
+      const response = await fetch(`/api/shipments/${shipment.id}/company-release`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to undo company release');
+      }
+
+      toast.success('Company release timer cleared');
+      await fetchShipment();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to undo company release');
+    } finally {
+      setUndoingCompanyRelease(false);
     }
   };
 
@@ -798,7 +824,9 @@ export default function ShipmentDetailPage() {
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
   const canAddTransitExpense = Boolean(shipment?.transitId && shipment?.transit?.currentCompany);
   const hasCompanyReleaseTransit = Boolean(shipment?.transitId);
+  const hasActiveCompanyRelease = Boolean(shipment?.shippingCompanyId);
   const canReleaseToCompany = canManageWorkflow && !hasCompanyReleaseTransit;
+  const canUndoCompanyRelease = canManageWorkflow && hasActiveCompanyRelease && !hasCompanyReleaseTransit;
   const companyReleaseTimerLabel = useMemo(() => (
     companyReleaseStartedAt
       ? formatElapsedTime(companyReleaseStartedAt)
@@ -1555,6 +1583,30 @@ export default function ShipmentDetailPage() {
                         }}
                       >
                         {releasingToCompany ? 'Releasing...' : 'Release to Company'}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                  <Tooltip
+                    title={
+                      !canUndoCompanyRelease
+                        ? hasCompanyReleaseTransit
+                          ? 'Undo is unavailable after transit assignment'
+                          : !hasActiveCompanyRelease
+                          ? 'No active company release timer to undo'
+                          : 'You do not have permission to undo company release'
+                        : ''
+                    }
+                  >
+                    <span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={!canUndoCompanyRelease || undoingCompanyRelease}
+                        onClick={() => {
+                          void handleUndoCompanyRelease();
+                        }}
+                      >
+                        {undoingCompanyRelease ? 'Undoing...' : 'Undo Company Release'}
                       </Button>
                     </span>
                   </Tooltip>

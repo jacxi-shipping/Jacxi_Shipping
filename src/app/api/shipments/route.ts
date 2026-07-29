@@ -27,6 +27,56 @@ function asRecord(value: Prisma.JsonValue | null | undefined): Record<string, un
   return value as Record<string, unknown>;
 }
 
+function parseOptionalInteger(value: number | string | null | undefined): number | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.trunc(value) : null;
+  }
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(trimmedValue, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalFloat(value: number | string | null | undefined): number | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(trimmedValue);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalDate(value: string | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const parsed = new Date(trimmedValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -369,11 +419,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedVehicleVIN = typeof vehicleVIN === 'string' ? vehicleVIN.trim() : '';
+    const sanitizedVehicleVIN = normalizedVehicleVIN || null;
+
     // Check for duplicate VIN if provided
-    if (vehicleVIN && vehicleVIN.trim()) {
+    if (sanitizedVehicleVIN) {
       const existingShipment = await prisma.shipment.findFirst({
         where: { 
-          vehicleVIN: vehicleVIN.trim(),
+          vehicleVIN: sanitizedVehicleVIN,
         },
         select: {
           id: true,
@@ -401,16 +454,10 @@ export async function POST(request: NextRequest) {
     const sanitizedVehiclePhotos = Array.isArray(vehiclePhotos)
       ? vehiclePhotos.filter((photo): photo is string => typeof photo === 'string')
       : [];
-    const parsedVehicleYear =
-      typeof vehicleYear === 'number'
-        ? vehicleYear
-        : typeof vehicleYear === 'string'
-        ? parseInt(vehicleYear, 10)
-        : null;
-    const parsedWeight =
-      typeof weight === 'number' ? weight : typeof weight === 'string' ? parseFloat(weight) : null;
-    const parsedPurchasePrice =
-      typeof purchasePrice === 'number' ? purchasePrice : typeof purchasePrice === 'string' ? parseFloat(purchasePrice) : null;
+    const parsedVehicleYear = parseOptionalInteger(vehicleYear);
+    const parsedWeight = parseOptionalFloat(weight);
+    const parsedPurchasePrice = parseOptionalFloat(purchasePrice);
+    const parsedPurchaseDate = parseOptionalDate(purchaseDate);
     
     // Calculate vehicle age if vehicleYear is provided
     const currentYear = new Date().getFullYear();
@@ -444,7 +491,7 @@ export async function POST(request: NextRequest) {
           vehicleMake,
           vehicleModel,
           vehicleYear: parsedVehicleYear,
-          vehicleVIN,
+          vehicleVIN: sanitizedVehicleVIN,
           vehicleColor,
           lotNumber,
           auctionName,
@@ -463,7 +510,7 @@ export async function POST(request: NextRequest) {
           vehicleAge: calculatedVehicleAge,
           // Purchase information
           purchasePrice: parsedPurchasePrice,
-          purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+          purchaseDate: parsedPurchaseDate,
           purchaseLocation: purchaseLocation || null,
           dealerName: dealerName || null,
           purchaseNotes: purchaseNotes || null,
@@ -553,4 +600,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
