@@ -61,6 +61,7 @@ export async function POST(
         userId: true,
         status: true,
         transitId: true,
+        shippingCompanyId: true,
         vehicleYear: true,
         vehicleMake: true,
         vehicleModel: true,
