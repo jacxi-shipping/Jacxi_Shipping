@@ -33,6 +33,7 @@ export interface Container {
   currentCount: number;
   notes: string | null;
   trackingEvents: ShipmentEvent[];
+  company?: { id: string; name: string } | null;
 }
 
 export interface ShipmentTransit {

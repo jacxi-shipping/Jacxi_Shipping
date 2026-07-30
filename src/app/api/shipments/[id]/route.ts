@@ -151,6 +151,7 @@ export async function GET(
               },
               take: 10,
             },
+            company: { select: { id: true, name: true } },
           },
         },
         dispatch: {
@@ -615,6 +616,7 @@ export async function GET(
             ? {
                 ...shipment.container,
                 shippingLine: canViewWorkflowCompanyDetails ? shipment.container.shippingLine : null,
+                company: canViewWorkflowCompanyDetails ? shipment.container.company : null,
               }
             : null,
           dispatch: shipment.dispatch

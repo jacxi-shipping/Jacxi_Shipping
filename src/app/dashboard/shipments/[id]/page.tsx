@@ -329,9 +329,13 @@ export default function ShipmentDetailPage() {
   }, [session?.user?.role]);
 
   useEffect(() => {
-    const currentCompanyId = shipment?.shippingCompany?.id || shipment?.transit?.currentCompany?.id || '';
+    const currentCompanyId =
+      shipment?.shippingCompany?.id ||
+      shipment?.transit?.currentCompany?.id ||
+      shipment?.container?.company?.id ||
+      '';
     setSelectedShippingCompanyId(currentCompanyId);
-  }, [shipment?.shippingCompany?.id, shipment?.transit?.currentCompany?.id]);
+  }, [shipment?.shippingCompany?.id, shipment?.transit?.currentCompany?.id, shipment?.container?.company?.id]);
 
   const companyReleaseStartedAt =
     shipment?.companyReleaseEvent?.releasedAt ||
@@ -1529,7 +1533,7 @@ export default function ShipmentDetailPage() {
               <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
                 <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Selected Company</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
-                  {shipment.shippingCompany?.name || shipment.transit?.currentCompany?.name || 'Not selected'}
+                  {shipment.shippingCompany?.name || shipment.transit?.currentCompany?.name || shipment.container?.company?.name || 'Not selected'}
                 </p>
                 <p className="mt-4 text-xs uppercase tracking-wide text-[var(--text-secondary)]">Release Started</p>
                 <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">

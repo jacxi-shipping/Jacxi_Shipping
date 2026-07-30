@@ -20,6 +20,7 @@ type ShipmentsResultsPanelProps = {
 	searchQuery: string;
 	canManageShipments: boolean;
 	canUseBulkMode: boolean;
+	canManageWorkflow?: boolean;
 	showBulkTable: boolean;
 	onToggleBulkMode: () => void;
 	shipmentTableRows: ShipmentTableRow[];
@@ -43,6 +44,7 @@ export default function ShipmentsResultsPanel({
 	searchQuery,
 	canManageShipments,
 	canUseBulkMode,
+	canManageWorkflow = false,
 	showBulkTable,
 	onToggleBulkMode,
 	shipmentTableRows,
@@ -156,6 +158,7 @@ export default function ShipmentsResultsPanel({
 								purchasePricePaid={canViewFinance ? (shipment.purchasePricePaid ?? null) : null}
 								showCustomer={isAdmin}
 								delay={index * 0.05}
+								canManageWorkflow={canManageWorkflow}
 							/>
 						))}
 					</Box>
