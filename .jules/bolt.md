@@ -18,3 +18,11 @@
 ## 2025-04-06 - Parallelize Independent Database Queries in React Server Components
 **Learning:** In Next.js Server Components that fetch data for dashboards (e.g., `src/app/dashboard/finance/page.tsx`), making sequential database queries (using `await` one after the other) causes total request latency to be the sum of all query times. Since these queries are independent (e.g., fetching a summary and counting active users), executing them sequentially is an anti-pattern.
 **Action:** When a Server Component requires multiple datasets that do not depend on each other, always group the Prisma queries into a single `Promise.all()` call to fetch them concurrently, reducing latency to the time of the single longest query.
+
+## 2026-07-30 - Array Allocation Overhead in Partner Portals
+**Learning:** The partner portal API routes extensively used chained `.filter(condition).reduce(...)` and `.filter(condition).length` array operations (sometimes inside loops or nested  operations) to compute financial aggregates. While readable, this (N * M)$ anti-pattern creates significant unnecessary CPU overhead and garbage collection pressure due to intermediate array allocations, especially for partners with hundreds of shipments or invoices.
+**Action:** Always replace chained array iterators for aggregations with single-pass `for...of` loops that mutate local accumulator variables. When dealing with arrays of size $, this reduces time complexity to strictly (N)$ and space complexity for intermediate memory to (1)$.
+
+## 2024-06-25 - Array Allocation Overhead in Partner Portals
+**Learning:** The partner portal API routes extensively used chained `.filter(condition).reduce(...)` and `.filter(condition).length` array operations (sometimes inside loops or nested `.flatMap` operations) to compute financial aggregates. While readable, this O(N * M) anti-pattern creates significant unnecessary CPU overhead and garbage collection pressure due to intermediate array allocations, especially for partners with hundreds of shipments or invoices.
+**Action:** Always replace chained array iterators for aggregations with single-pass `for...of` loops that mutate local accumulator variables. When dealing with arrays of size N, this reduces time complexity to strictly O(N) and space complexity for intermediate memory to O(1).

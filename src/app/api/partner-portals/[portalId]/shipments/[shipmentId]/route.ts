@@ -270,8 +270,19 @@ export async function GET(
       })),
     ].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
 
-    const portalDebitAmount = portalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0);
-    const portalCreditAmount = portalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0);
+    // ⚡ Bolt: Replace chained array operations (.filter().reduce()) with single-pass loop
+    // to improve performance by reducing O(2N) iteration to O(N) and eliminating
+    // intermediate array allocations during portal debit and credit amount calculation.
+    let portalDebitAmount = 0;
+    let portalCreditAmount = 0;
+    for (const entry of portalLedgerEntries) {
+      if (entry.type === 'DEBIT') {
+        portalDebitAmount += entry.amount;
+      } else if (entry.type === 'CREDIT') {
+        portalCreditAmount += entry.amount;
+      }
+    }
+
     const portalBalance = portalDebitAmount - portalCreditAmount;
     const portalPaymentStatus = portalDebitAmount <= 0
       ? 'PENDING'
