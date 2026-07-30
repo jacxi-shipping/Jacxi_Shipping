@@ -9,7 +9,7 @@ const COMPANY_RELEASED_AUDIT_ACTION = 'COMPANY_RELEASED';
 const COMPANY_RELEASE_UNDONE_AUDIT_ACTION = 'COMPANY_RELEASE_UNDONE';
 
 const companyReleaseSchema = z.object({
-  companyId: z.string().min(1),
+  companyId: z.string().min(1).optional(),
   origin: z.string().optional(),
   destination: z.string().optional(),
 });
@@ -71,6 +71,7 @@ export async function POST(
             status: true,
             loadingPort: true,
             destinationPort: true,
+            companyId: true,
           },
         },
       },
@@ -96,8 +97,14 @@ export async function POST(
     const body = await request.json();
     const validatedData = companyReleaseSchema.parse(body);
 
+    const resolvedCompanyId = validatedData.companyId || shipment.container?.companyId;
+
+    if (!resolvedCompanyId) {
+      return NextResponse.json({ error: 'Company ID is required' }, { status: 400 });
+    }
+
     const company = await routeDeps.prisma.company.findUnique({
-      where: { id: validatedData.companyId },
+      where: { id: resolvedCompanyId },
       select: {
         id: true,
         name: true,

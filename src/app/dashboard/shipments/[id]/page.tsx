@@ -337,6 +337,27 @@ export default function ShipmentDetailPage() {
     setSelectedShippingCompanyId(currentCompanyId);
   }, [shipment?.shippingCompany?.id, shipment?.transit?.currentCompany?.id, shipment?.container?.company?.id]);
 
+  // Ensure the container's assigned company is always available in the dropdown for pre-selection,
+  // even if it is not returned by the shipping-companies filter.
+  useEffect(() => {
+    const containerCompany = shipment?.container?.company;
+    if (!containerCompany) return;
+
+    setShippingCompanies((prev) => {
+      if (prev.some((c) => c.id === containerCompany.id)) return prev;
+      return [
+        {
+          id: containerCompany.id,
+          name: containerCompany.name,
+          companyType: 'SHIPPING' as const,
+          isShipping: true,
+          isTransit: false,
+        },
+        ...prev,
+      ];
+    });
+  }, [shipment?.container?.company?.id, shipment?.container?.company?.name]);
+
   const companyReleaseStartedAt =
     shipment?.companyReleaseEvent?.releasedAt ||
     shipment?.transit?.currentEvent?.eventDate ||
@@ -1562,7 +1583,9 @@ export default function ShipmentDetailPage() {
                   ))}
                 </select>
                 <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                  Choose a company from your company ledger to begin third-party delivery.
+                  {shipment.container?.company && selectedShippingCompanyId === shipment.container.company.id
+                    ? 'Company auto-selected from the assigned container.'
+                    : 'Choose a company from your company ledger to begin third-party delivery.'}
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
