@@ -156,6 +156,7 @@ export async function GET(request: NextRequest) {
         where,
         select: {
           id: true,
+          shippingCompanyId: true,
           vehicleType: true,
           vehicleMake: true,
           vehicleModel: true,
