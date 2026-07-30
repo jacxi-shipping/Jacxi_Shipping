@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { siteBrandAssets } from '@/lib/site-branding';
 
 // Define types
 interface LedgerEntry {
@@ -72,6 +73,28 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+const loadImageAsDataUrl = async (src: string): Promise<string | null> => {
+  try {
+    const response = await fetch(src);
+    if (!response.ok) {
+      return null;
+    }
+
+    const blob = await response.blob();
+
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(typeof reader.result === 'string' ? reader.result : null);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Generate and download a PDF receipt for a single shipment
  * 
@@ -92,15 +115,22 @@ const formatDate = (dateString: string): string => {
  * @param data - Shipment invoice data including shipment details and expenses
  * @returns jsPDF document (auto-downloads)
  */
-export const generateShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
+export const generateShipmentInvoicePDF = async (data: ShipmentInvoiceData) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   let yPos = 20;
+  const logoDataUrl =
+    (await loadImageAsDataUrl(siteBrandAssets.headerLogo)) ||
+    (await loadImageAsDataUrl(siteBrandAssets.mainLogo));
 
   // Header
   doc.setFillColor(...COLORS.dark);
   doc.rect(0, 0, pageWidth, 45, 'F');
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', pageWidth - 68, 8, 48, 20, undefined, 'FAST');
+  }
   
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(28);
@@ -264,8 +294,8 @@ export const generateShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
   return doc;
 };
 
-export const downloadShipmentInvoicePDF = (data: ShipmentInvoiceData) => {
-  const doc = generateShipmentInvoicePDF(data);
+export const downloadShipmentInvoicePDF = async (data: ShipmentInvoiceData) => {
+  const doc = await generateShipmentInvoicePDF(data);
   const fileName = `Invoice_${data.shipment.vehicleVIN || 'Shipment'}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 };

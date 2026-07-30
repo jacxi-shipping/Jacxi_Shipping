@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { AccessTime, Business, Clear, FilterAlt, Inventory2, Search } from '@mui/icons-material';
 import { Box, FormControl, InputAdornment, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
 import { DashboardPanel, DashboardSurface } from '@/components/dashboard/DashboardSurface';
-import { Breadcrumbs, Button, EmptyState, SkeletonTable, StatusBadge, toast } from '@/components/design-system';
+import { Breadcrumbs, Button, EmptyState, SkeletonTable, toast } from '@/components/design-system';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { exportToCSVWithHeaders } from '@/lib/export';
 import { hasPermission } from '@/lib/rbac';
@@ -63,6 +63,7 @@ type CompanyReleasedShipment = {
     id: string;
     name: string;
   } | null;
+  companyLedgerShippingExpense?: number;
   releaseEvent: {
     releasedAt: string | null;
     origin: string;
@@ -76,17 +77,13 @@ type CompanyReleasedRow = {
   vehicle: string;
   vin: string;
   customer: string;
-  company: string;
-  route: string;
-  transitReference: string;
-  releasedAtRaw: string;
-  releasedAt: string;
-  timeSinceRelease: string;
-  status: string;
-  paymentStatus: string;
-  lotNumber: string;
-  auctionName: string;
-  serviceType: string;
+  releasedDateRaw: string;
+  releasedDate: string;
+  releasedTimeRaw: string;
+  releasedTime: string;
+  companyLedgerShippingExpenseRaw: number;
+  companyLedgerShippingExpense: string;
+  canUndo: boolean;
 };
 
 type AppliedFilters = {
@@ -116,6 +113,45 @@ function formatDateTime(value: string | null | undefined) {
   }
 
   return parsed.toLocaleString();
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return '-';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '-';
+  }
+
+  return parsed.toLocaleDateString();
+}
+
+function formatTime(value: string | null | undefined) {
+  if (!value) {
+    return '-';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '-';
+  }
+
+  return parsed.toLocaleTimeString();
+}
+
+function formatCurrency(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '$0.00';
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function formatElapsedTime(value: string | null | undefined) {
@@ -158,6 +194,7 @@ export default function CompanyReleasedShipmentsPage() {
   const [shipments, setShipments] = useState<CompanyReleasedShipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
+  const [undoingShipmentId, setUndoingShipmentId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -172,6 +209,9 @@ export default function CompanyReleasedShipmentsPage() {
     hasPermission(session?.user?.role, 'shipments:read_all') ||
     hasPermission(session?.user?.role, 'shipments:manage') ||
     hasPermission(session?.user?.role, 'transits:manage');
+  const canUndoCompanyRelease =
+    hasPermission(session?.user?.role, 'workflow:move') &&
+    hasPermission(session?.user?.role, 'shipments:manage');
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -293,58 +333,61 @@ export default function CompanyReleasedShipmentsPage() {
           vehicle,
           vin: shipment.vehicleVIN || '-',
           customer: shipment.user?.name || shipment.user?.email || '-',
-          company: shipment.shippingCompany?.name || '-',
-          route: `${shipment.releaseEvent?.origin || shipment.transit?.origin || '-'} → ${shipment.releaseEvent?.destination || shipment.transit?.destination || '-'}`,
-          transitReference: shipment.transit?.referenceNumber || '-',
-          releasedAtRaw: releasedAt || '',
-          releasedAt: formatDateTime(releasedAt),
-          timeSinceRelease: formatElapsedTime(releasedAt),
-          status: shipment.status,
-          paymentStatus: shipment.paymentStatus || '-',
-          lotNumber: shipment.lotNumber || '-',
-          auctionName: shipment.auctionName || '-',
-          serviceType: shipment.serviceType.replaceAll('_', ' '),
+          releasedDateRaw: releasedAt || '',
+          releasedDate: formatDate(releasedAt),
+          releasedTimeRaw: releasedAt || '',
+          releasedTime: formatTime(releasedAt),
+          companyLedgerShippingExpenseRaw: shipment.companyLedgerShippingExpense || 0,
+          companyLedgerShippingExpense: formatCurrency(shipment.companyLedgerShippingExpense || 0),
+          canUndo: canUndoCompanyRelease && !shipment.transit,
         };
       }),
-    [shipments],
+    [canUndoCompanyRelease, shipments],
   );
 
   const columns = useMemo<Column<CompanyReleasedRow>[]>(
     () => [
-      { key: 'vehicle', header: 'Vehicle', sortable: true },
       { key: 'vin', header: 'VIN', sortable: true },
+      {
+        key: 'releasedTimeRaw',
+        header: 'Released Time',
+        sortable: true,
+        render: (_value, row) => row.releasedTime,
+      },
+      {
+        key: 'releasedDateRaw',
+        header: 'Released Date',
+        sortable: true,
+        render: (_value, row) => row.releasedDate,
+      },
+      {
+        key: 'companyLedgerShippingExpenseRaw',
+        header: 'Shipping Expenses',
+        sortable: true,
+        render: (_value, row) => row.companyLedgerShippingExpense,
+      },
+      { key: 'vehicle', header: 'Vehicle', sortable: true },
       { key: 'customer', header: 'Customer', sortable: true },
-      { key: 'company', header: 'Company', sortable: true },
-      { key: 'route', header: 'Route', sortable: true },
-      { key: 'transitReference', header: 'Transit Ref', sortable: true },
-      { key: 'lotNumber', header: 'Lot #', sortable: true },
-      { key: 'auctionName', header: 'Auction', sortable: true },
-      { key: 'serviceType', header: 'Service', sortable: true },
       {
-        key: 'releasedAtRaw',
-        header: 'Released At',
-        sortable: true,
-        render: (_value, row) => row.releasedAt,
-      },
-      {
-        key: 'timeSinceRelease',
-        header: 'Elapsed',
+        key: 'canUndo',
+        header: 'Undo Released',
         sortable: false,
-      },
-      {
-        key: 'status',
-        header: 'Shipment Status',
-        sortable: true,
-        render: (value) => <StatusBadge status={String(value)} size="sm" />,
-      },
-      {
-        key: 'paymentStatus',
-        header: 'Payment',
-        sortable: true,
-        render: (value) => <StatusBadge status={String(value)} size="sm" />,
+        render: (_value, row) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!row.canUndo || undoingShipmentId === row.id}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleUndoCompanyRelease(row.id);
+            }}
+          >
+            {undoingShipmentId === row.id ? 'Undoing...' : 'Undo Released'}
+          </Button>
+        ),
       },
     ],
-    [],
+    [undoingShipmentId],
   );
 
   const handleApplyFilters = useCallback(() => {
@@ -363,19 +406,12 @@ export default function CompanyReleasedShipmentsPage() {
       exportToCSVWithHeaders(
         rows,
         [
-          { key: 'vehicle', label: 'Vehicle' },
           { key: 'vin', label: 'VIN' },
+          { key: 'releasedTime', label: 'Released Time' },
+          { key: 'releasedDate', label: 'Released Date' },
+          { key: 'companyLedgerShippingExpense', label: 'Shipping Expenses' },
+          { key: 'vehicle', label: 'Vehicle' },
           { key: 'customer', label: 'Customer' },
-          { key: 'company', label: 'Company' },
-          { key: 'route', label: 'Route' },
-          { key: 'transitReference', label: 'Transit Ref' },
-          { key: 'lotNumber', label: 'Lot Number' },
-          { key: 'auctionName', label: 'Auction' },
-          { key: 'serviceType', label: 'Service Type' },
-          { key: 'releasedAt', label: 'Released At' },
-          { key: 'timeSinceRelease', label: 'Elapsed' },
-          { key: 'status', label: 'Shipment Status' },
-          { key: 'paymentStatus', label: 'Payment Status' },
         ],
         'company-released-shipments',
       );
@@ -385,6 +421,37 @@ export default function CompanyReleasedShipmentsPage() {
       toast.error('Failed to export results');
     }
   }, [rows]);
+
+  const handleUndoCompanyRelease = useCallback(async (shipmentId: string) => {
+    if (!canUndoCompanyRelease) {
+      toast.error('You do not have permission to undo company release');
+      return;
+    }
+
+    if (!confirm('Undo the company release for this shipment?')) {
+      return;
+    }
+
+    try {
+      setUndoingShipmentId(shipmentId);
+
+      const response = await fetch(`/api/shipments/${shipmentId}/company-release`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to undo company release');
+      }
+
+      toast.success('Company release undone');
+      await fetchShipments();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to undo company release');
+    } finally {
+      setUndoingShipmentId(null);
+    }
+  }, [canUndoCompanyRelease, fetchShipments]);
 
   if (sessionStatus === 'loading') {
     return (
@@ -578,6 +645,7 @@ export default function CompanyReleasedShipmentsPage() {
                   .join(' ')
                   .trim() || shipment.vehicleType;
                 const releasedAt = shipment.releaseEvent?.releasedAt ?? shipment.transit?.dispatchDate ?? null;
+                const canUndoRow = canUndoCompanyRelease && !shipment.transit;
 
                 return (
                   <Box
@@ -591,10 +659,7 @@ export default function CompanyReleasedShipmentsPage() {
                       bgcolor: 'rgba(var(--panel-rgb), 0.72)',
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mb: 1 }}>
-                      <Typography sx={{ fontWeight: 700, color: 'var(--text-primary)' }}>{vehicle}</Typography>
-                      <StatusBadge status={shipment.status} size="sm" />
-                    </Box>
+                    <Typography sx={{ fontWeight: 700, color: 'var(--text-primary)', mb: 1 }}>{vehicle}</Typography>
                     <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                       VIN: {shipment.vehicleVIN || '-'}
                     </Typography>
@@ -602,17 +667,27 @@ export default function CompanyReleasedShipmentsPage() {
                       Customer: {shipment.user?.name || shipment.user?.email || '-'}
                     </Typography>
                     <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      Company: {shipment.shippingCompany?.name || '-'}
+                      Released Date: {formatDate(releasedAt)}
                     </Typography>
                     <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      Transit: {shipment.transit?.referenceNumber || '-'}
+                      Released Time: {formatTime(releasedAt)}
                     </Typography>
                     <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      Route: {shipment.releaseEvent?.origin || shipment.transit?.origin || '-'} → {shipment.releaseEvent?.destination || shipment.transit?.destination || '-'}
+                      Shipping Expenses: {formatCurrency(shipment.companyLedgerShippingExpense || 0)}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      Released: {formatDateTime(releasedAt)} ({formatElapsedTime(releasedAt)})
-                    </Typography>
+                    <Box sx={{ mt: 1.25 }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={!canUndoRow || undoingShipmentId === shipment.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleUndoCompanyRelease(shipment.id);
+                        }}
+                      >
+                        {undoingShipmentId === shipment.id ? 'Undoing...' : 'Undo Released'}
+                      </Button>
+                    </Box>
                   </Box>
                 );
               })}

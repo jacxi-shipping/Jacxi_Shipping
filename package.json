@@ -28,7 +28,7 @@
     "db:setup": "npm run db:generate && npm run db:push && npm run db:seed",
     "db:full-reset": "npm run db:reset && npm run db:seed",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:routes": "tsx --test src/app/api/workflow-routes.test.ts",
+    "test:routes": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs --test src/app/api/workflow-routes.test.ts",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate --no-engine && node scripts/fix-tanstack-react-query-types.js"
   },

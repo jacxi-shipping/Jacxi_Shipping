@@ -310,24 +310,6 @@ export const generateInvoicePDF = (invoice: Invoice) => {
   const hasMultipleVehicles = groupKeys.length > 1;
   
   Object.values(groupedItems).forEach(group => {
-    // Vehicle header row — only show when there are multiple vehicles (container with many shipments)
-    if (group.shipment && hasMultipleVehicles) {
-      const vehicleDesc = `${group.shipment.vehicleYear || ''} ${group.shipment.vehicleMake || ''} ${group.shipment.vehicleModel || ''}`.trim();
-      const vehicleVIN = group.shipment.vehicleVIN ? `VIN: ${group.shipment.vehicleVIN}` : '';
-      tableData.push([
-        { 
-          content: `Vehicle: ${vehicleDesc}${vehicleVIN ? ' • ' + vehicleVIN : ''}`, 
-          colSpan: 5, 
-          styles: { 
-            fontStyle: 'bold', 
-            fillColor: COLORS.background,
-            textColor: COLORS.textPrimary,
-            fontSize: 9
-          } 
-        }
-      ]);
-    }
-
     // Line items
     group.items.forEach(item => {
       const isPurchasePaid =

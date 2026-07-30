@@ -15,6 +15,52 @@ function getStringMetadataValue(metadata: Prisma.JsonValue | null | undefined, k
   return typeof value === 'string' ? value : null;
 }
 
+function getLedgerMetadata(metadata: Prisma.JsonValue | null | undefined) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+
+  return metadata as Prisma.JsonObject;
+}
+
+function isShipmentCompanyLedgerExpense(entry: {
+  category: string | null;
+  reference: string | null;
+  metadata: Prisma.JsonValue | null;
+}) {
+  const category = (entry.category || '').toLowerCase();
+  const reference = (entry.reference || '').toLowerCase();
+  const metadata = getLedgerMetadata(entry.metadata);
+
+  if (!metadata) {
+    return false;
+  }
+
+  if (
+    metadata.isContainerExpense === true ||
+    metadata.isDispatchExpense === true ||
+    metadata.isTransitExpense === true
+  ) {
+    return false;
+  }
+
+  const explicitSource =
+    typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : null;
+
+  if (explicitSource && explicitSource !== 'SHIPMENT') {
+    return false;
+  }
+
+  return (
+    category.includes('shipping fare') ||
+    metadata.isExpenseRecovery === true ||
+    metadata.isShipmentShippingFare === true ||
+    reference.startsWith('shipment-expense:') ||
+    reference.startsWith('shipment-shipping-fare:') ||
+    explicitSource === 'SHIPMENT'
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -190,6 +236,48 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const shipmentIds = shipments.map((shipment) => shipment.id);
+
+    const companyLedgerEntries = shipmentIds.length
+      ? await prisma.companyLedgerEntry.findMany({
+          where: {
+            OR: shipmentIds.map((shipmentId) => ({
+              metadata: {
+                path: ['shipmentId'],
+                equals: shipmentId,
+              },
+            })),
+          },
+          select: {
+            companyId: true,
+            type: true,
+            amount: true,
+            category: true,
+            reference: true,
+            metadata: true,
+          },
+        })
+      : [];
+
+    const shipmentCompanyLedgerNetByKey = new Map<string, number>();
+
+    for (const entry of companyLedgerEntries) {
+      if (!isShipmentCompanyLedgerExpense(entry)) {
+        continue;
+      }
+
+      const metadata = getLedgerMetadata(entry.metadata);
+      const shipmentId = typeof metadata?.shipmentId === 'string' ? metadata.shipmentId : null;
+
+      if (!shipmentId) {
+        continue;
+      }
+
+      const mapKey = `${shipmentId}:${entry.companyId}`;
+      const signedAmount = entry.type === 'DEBIT' ? entry.amount : -entry.amount;
+      shipmentCompanyLedgerNetByKey.set(mapKey, (shipmentCompanyLedgerNetByKey.get(mapKey) ?? 0) + signedAmount);
+    }
+
     const summary = groupedStatuses.reduce<Record<string, number>>((accumulator, item) => {
       accumulator[item.status] = item._count.status;
       return accumulator;
@@ -199,9 +287,13 @@ export async function GET(request: NextRequest) {
       const releaseLog = shipment.auditLogs[0] ?? null;
       const releasedAt =
         releaseLog?.timestamp?.toISOString() ?? shipment.transit?.dispatchDate?.toISOString() ?? null;
+      const companyLedgerShippingExpense = shipment.shippingCompanyId
+        ? Math.abs(shipmentCompanyLedgerNetByKey.get(`${shipment.id}:${shipment.shippingCompanyId}`) ?? 0)
+        : 0;
 
       return {
         ...shipment,
+        companyLedgerShippingExpense,
         releaseEvent: releaseLog
           ? {
               releasedAt,

@@ -337,26 +337,43 @@ export default function ShipmentDetailPage() {
     setSelectedShippingCompanyId(currentCompanyId);
   }, [shipment?.shippingCompany?.id, shipment?.transit?.currentCompany?.id, shipment?.container?.company?.id]);
 
-  // Ensure the container's assigned company is always available in the dropdown for pre-selection,
-  // even if it is not returned by the shipping-companies filter.
+  // Ensure the shipment's current company choice is available in the dropdown for pre-selection,
+  // even if it is not returned by the active shipping-companies filter.
   useEffect(() => {
-    const containerCompany = shipment?.container?.company;
-    if (!containerCompany) return;
+    const preselectedCompanies: Array<{ id: string; name: string }> = [
+      shipment?.shippingCompany,
+      shipment?.transit?.currentCompany,
+      shipment?.container?.company,
+    ].filter((company): company is { id: string; name: string } => Boolean(company));
+
+    if (preselectedCompanies.length === 0) return;
 
     setShippingCompanies((prev) => {
-      if (prev.some((c) => c.id === containerCompany.id)) return prev;
+      const missingCompanies = preselectedCompanies.filter(
+        (company) => !prev.some((existingCompany) => existingCompany.id === company.id),
+      );
+
+      if (missingCompanies.length === 0) return prev;
+
       return [
-        {
-          id: containerCompany.id,
-          name: containerCompany.name,
+        ...missingCompanies.map((company) => ({
+          id: company.id,
+          name: company.name,
           companyType: 'SHIPPING' as const,
           isShipping: true,
-          isTransit: false,
-        },
+          isTransit: true,
+        })),
         ...prev,
       ];
     });
-  }, [shipment?.container?.company?.id, shipment?.container?.company?.name]);
+  }, [
+    shipment?.shippingCompany?.id,
+    shipment?.shippingCompany?.name,
+    shipment?.transit?.currentCompany?.id,
+    shipment?.transit?.currentCompany?.name,
+    shipment?.container?.company?.id,
+    shipment?.container?.company?.name,
+  ]);
 
   const companyReleaseStartedAt =
     shipment?.companyReleaseEvent?.releasedAt ||
@@ -676,7 +693,7 @@ export default function ShipmentDetailPage() {
             expenses: expenses
         };
 
-        downloadShipmentInvoicePDF(invoiceData);
+        await downloadShipmentInvoicePDF(invoiceData);
         toast.success('Receipt downloaded');
     } catch (error) {
         console.error('Error generating receipt:', error);
