@@ -582,7 +582,7 @@ export default function ShipmentDetailPage() {
     if (!shipment) return;
 
     if (!selectedShippingCompanyId) {
-      toast.error('Please select a shipping company');
+      toast.error('Assign a shipping company to the container first');
       return;
     }
 
@@ -591,7 +591,7 @@ export default function ShipmentDetailPage() {
       const response = await fetch(`/api/shipments/${shipment.id}/company-release`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: selectedShippingCompanyId }),
+        body: JSON.stringify({}),
       });
       const data = await response.json();
 
@@ -1588,8 +1588,8 @@ export default function ShipmentDetailPage() {
                 <select
                   id="company-release-select"
                   value={selectedShippingCompanyId}
-                  onChange={(event) => setSelectedShippingCompanyId(event.target.value)}
-                  disabled={loadingShippingCompanies || hasCompanyReleaseTransit}
+                  onChange={() => {}}
+                  disabled
                   className="mt-2 w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Select company</option>
@@ -1601,8 +1601,8 @@ export default function ShipmentDetailPage() {
                 </select>
                 <p className="mt-2 text-xs text-[var(--text-secondary)]">
                   {shipment.container?.company && selectedShippingCompanyId === shipment.container.company.id
-                    ? 'Company auto-selected from the assigned container.'
-                    : 'Choose a company from your company ledger to begin third-party delivery.'}
+                    ? 'Company is auto-selected from the assigned container and cannot be changed here.'
+                    : 'Assign a shipping company on the container first. Manual company selection is disabled.'}
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -1613,7 +1613,7 @@ export default function ShipmentDetailPage() {
                           ? 'Shipment is already assigned to a transit'
                           : 'You do not have permission to release to a company'
                         : !selectedShippingCompanyId
-                        ? 'Please select a shipping company'
+                        ? 'Assign a shipping company to the container first'
                         : ''
                     }
                   >

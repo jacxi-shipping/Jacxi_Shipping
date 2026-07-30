@@ -97,10 +97,13 @@ export async function POST(
     const body = await request.json();
     const validatedData = companyReleaseSchema.parse(body);
 
-    const resolvedCompanyId = validatedData.companyId || shipment.container?.companyId;
+    const resolvedCompanyId = shipment.container?.companyId;
 
     if (!resolvedCompanyId) {
-      return NextResponse.json({ error: 'Company ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Assign a shipping company to the container before company release' },
+        { status: 400 },
+      );
     }
 
     const company = await routeDeps.prisma.company.findUnique({
