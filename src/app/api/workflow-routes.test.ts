@@ -994,6 +994,26 @@ describe('workflow route integration', () => {
     assert.equal(state.shipmentAuditLogs[0].action, 'COMPANY_RELEASED');
   });
 
+  it('auto-detects container company when no companyId is provided for company release', async () => {
+    state.shipments.s1.containerId = 'c1';
+    state.shipments.s1.status = 'RELEASED';
+    state.containers.c1.status = 'RELEASED';
+    // c1 has companyId: 'shipping-co' set in initial state
+
+    const response = await postCompanyRelease(
+      request('http://localhost/api/shipments/s1/company-release', 'POST', {}),
+      { params: Promise.resolve({ id: 's1' }) },
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.shipment.shippingCompanyId, 'shipping-co');
+    assert.equal(body.companyRelease.companyId, 'shipping-co');
+    assert.equal(state.shipments.s1.shippingCompanyId, 'shipping-co');
+    assert.equal(state.shipmentAuditLogs.length, 1);
+    assert.equal(state.shipmentAuditLogs[0].action, 'COMPANY_RELEASED');
+  });
+
   it('undoes company release before transit assignment', async () => {
     state.shipments.s1.containerId = 'c1';
     state.shipments.s1.status = 'RELEASED';
