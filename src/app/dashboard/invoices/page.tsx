@@ -176,15 +176,69 @@ export default function InvoicesPage() {
 				description: 'Please wait a moment'
 			});
 
-			// Fetch full invoice details
-			const response = await fetch(`/api/invoices/${invoice.id}`, { cache: 'no-store' });
-			const fullInvoice = await response.json();
+			const fallbackInvoice = {
+				invoiceNumber: invoice.invoiceNumber,
+				issueDate: invoice.issueDate,
+				dueDate: invoice.dueDate,
+				paidDate: null,
+				status: invoice.status,
+				subtotal: invoice.total,
+				tax: 0,
+				discount: 0,
+				total: invoice.total,
+				paymentMethod: null,
+				paymentReference: null,
+				notes: null,
+				user: invoice.user,
+				container: invoice.container
+					? {
+						containerNumber: invoice.container.containerNumber,
+						trackingNumber: null,
+						vesselName: null,
+						loadingPort: null,
+						destinationPort: null,
+					}
+					: null,
+				shipment: invoice.shipment
+					? {
+						id: invoice.shipment.id,
+						vehicleType: invoice.shipment.vehicleType,
+						vehicleMake: invoice.shipment.vehicleMake,
+						vehicleModel: invoice.shipment.vehicleModel,
+						vehicleYear: invoice.shipment.vehicleYear,
+						vehicleVIN: invoice.shipment.vehicleVIN,
+						vehicleColor: null,
+						paymentStatus: null,
+					}
+					: null,
+				lineItems: [],
+			};
+
+			let pdfInvoice = fallbackInvoice;
+
+			try {
+				const response = await fetch(`/api/invoices/${invoice.id}`, { cache: 'no-store' });
+				if (response.ok) {
+					pdfInvoice = await response.json();
+				} else {
+					const payload = await response.json().catch(() => ({}));
+					console.warn('Falling back to invoice row data for PDF download:', payload);
+					toast.warning('Using available invoice data to generate the PDF', {
+						description: 'The full invoice details could not be loaded right now.',
+					});
+				}
+			} catch (fetchError) {
+				console.warn('Falling back to invoice row data for PDF download:', fetchError);
+				toast.warning('Using available invoice data to generate the PDF', {
+					description: 'The full invoice details could not be loaded right now.',
+				});
+			}
 
 			// Dynamically import the PDF generator
 			const { downloadInvoicePDF } = await import('@/lib/utils/generateInvoicePDF');
 			
 			// Generate and download the PDF
-			downloadInvoicePDF(fullInvoice);
+			downloadInvoicePDF(pdfInvoice);
 
 			toast.success('PDF downloaded successfully!', {
 				description: 'Check your downloads folder'
