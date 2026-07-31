@@ -189,7 +189,14 @@ export default function InvoicesPage() {
 				paymentMethod: null,
 				paymentReference: null,
 				notes: null,
-				user: invoice.user,
+				user: {
+					name: invoice.user.name,
+					email: invoice.user.email,
+					phone: null,
+					address: null,
+					city: null,
+					country: null,
+				},
 				container: invoice.container
 					? {
 						containerNumber: invoice.container.containerNumber,
