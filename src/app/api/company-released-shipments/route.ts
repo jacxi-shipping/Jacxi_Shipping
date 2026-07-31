@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, ShipmentSimpleStatus } from '@prisma/client';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { hasPermission } from '@/lib/rbac';
+import { routeDeps } from '@/lib/route-deps';
 
 const COMPANY_RELEASED_AUDIT_ACTION = 'COMPANY_RELEASED';
 
@@ -61,17 +59,44 @@ function isShipmentCompanyLedgerExpense(entry: {
   );
 }
 
+function isDispatchCompanyLedgerExpense(entry: {
+  category: string | null;
+  reference: string | null;
+  metadata: Prisma.JsonValue | null;
+}) {
+  const category = (entry.category || '').toLowerCase();
+  const reference = (entry.reference || '').toLowerCase();
+  const metadata = getLedgerMetadata(entry.metadata);
+
+  if (!metadata) {
+    return false;
+  }
+
+  const explicitSource =
+    typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : null;
+
+  if (metadata.isDispatchExpense === true) {
+    return true;
+  }
+
+  if (explicitSource === 'DISPATCH') {
+    return true;
+  }
+
+  return category.includes('dispatch expense') || reference.startsWith('dispatch-expense:');
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await routeDeps.auth();
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canReadAllShipments = hasPermission(session.user?.role, 'shipments:read_all');
-    const canManageShipments = hasPermission(session.user?.role, 'shipments:manage');
-    const canManageTransits = hasPermission(session.user?.role, 'transits:manage');
+    const canReadAllShipments = routeDeps.hasPermission(session.user?.role, 'shipments:read_all');
+    const canManageShipments = routeDeps.hasPermission(session.user?.role, 'shipments:manage');
+    const canManageTransits = routeDeps.hasPermission(session.user?.role, 'transits:manage');
 
     if (!canReadAllShipments && !canManageShipments && !canManageTransits) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -152,7 +177,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [shipments, total, groupedStatuses] = await Promise.all([
-      prisma.shipment.findMany({
+      routeDeps.prisma.shipment.findMany({
         where,
         select: {
           id: true,
@@ -208,6 +233,11 @@ export async function GET(request: NextRequest) {
               name: true,
             },
           },
+          dispatch: {
+            select: {
+              companyId: true,
+            },
+          },
           auditLogs: {
             where: {
               action: COMPANY_RELEASED_AUDIT_ACTION,
@@ -227,8 +257,8 @@ export async function GET(request: NextRequest) {
         skip,
         take: safeLimit,
       }),
-      prisma.shipment.count({ where }),
-      prisma.shipment.groupBy({
+      routeDeps.prisma.shipment.count({ where }),
+      routeDeps.prisma.shipment.groupBy({
         by: ['status'],
         where,
         _count: {
@@ -240,7 +270,7 @@ export async function GET(request: NextRequest) {
     const shipmentIds = shipments.map((shipment) => shipment.id);
 
     const companyLedgerEntries = shipmentIds.length
-      ? await prisma.companyLedgerEntry.findMany({
+      ? await routeDeps.prisma.companyLedgerEntry.findMany({
           where: {
             OR: shipmentIds.map((shipmentId) => ({
               metadata: {
@@ -288,9 +318,26 @@ export async function GET(request: NextRequest) {
       const releaseLog = shipment.auditLogs[0] ?? null;
       const releasedAt =
         releaseLog?.timestamp?.toISOString() ?? shipment.transit?.dispatchDate?.toISOString() ?? null;
-      const companyLedgerShippingExpense = shipment.shippingCompanyId
+      const shippingCompanyLedgerExpense = shipment.shippingCompanyId
         ? Math.abs(shipmentCompanyLedgerNetByKey.get(`${shipment.id}:${shipment.shippingCompanyId}`) ?? 0)
         : 0;
+      const shouldIncludeDispatchExpense =
+        shipment.shippingCompanyId !== null && shipment.dispatch?.companyId === shipment.shippingCompanyId;
+      const dispatchCompanyLedgerExpense = shouldIncludeDispatchExpense && shipment.shippingCompanyId
+        ? Math.abs(
+            companyLedgerEntries
+              .filter((entry) => {
+                if (entry.companyId !== shipment.shippingCompanyId) {
+                  return false;
+                }
+
+                const metadata = getLedgerMetadata(entry.metadata);
+                return metadata?.shipmentId === shipment.id && isDispatchCompanyLedgerExpense(entry);
+              })
+              .reduce((sum, entry) => sum + (entry.type === 'DEBIT' ? entry.amount : -entry.amount), 0),
+          )
+        : 0;
+      const companyLedgerShippingExpense = shippingCompanyLedgerExpense + dispatchCompanyLedgerExpense;
 
       return {
         ...shipment,
