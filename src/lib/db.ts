@@ -1,18 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-export function resolvePrismaDatasourceUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env.jacxi_PRISMA_DATABASE_URL || env.DATABASE_URL || env.jacxi_DATABASE_URL;
-}
-
 const prismaClientSingleton = () => {
-  const datasourceUrl = resolvePrismaDatasourceUrl();
-
-  if (!datasourceUrl) {
-    throw new Error('No Prisma datasource URL configured. Set jacxi_PRISMA_DATABASE_URL, DATABASE_URL, or jacxi_DATABASE_URL.');
-  }
-
   return new PrismaClient({
-    datasourceUrl,
+    datasourceUrl: process.env.jacxi_PRISMA_DATABASE_URL
   });
 };
 

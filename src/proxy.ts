@@ -3,8 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { authConfig } from "./lib/auth.config";
 import { isSystemHost, normalizeRequestHost } from "./lib/partner-portal-domains";
 
-const resolvedSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET_INTERNAL || 'development-secret-change-me';
-const { auth } = NextAuth({ ...authConfig, secret: resolvedSecret });
+const { auth } = NextAuth(authConfig);
 
 const mobileWebOriginPatterns = [
   /^http:\/\/127\.0\.0\.1:\d+$/,

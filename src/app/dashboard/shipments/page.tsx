@@ -284,7 +284,6 @@ export default function ShipmentsListPage() {
 				searchQuery={searchFilters.query}
 				canManageShipments={canManageShipments}
 				canUseBulkMode={canUseBulkMode}
-				canManageWorkflow={canMoveWorkflow}
 				showBulkTable={showBulkTable}
 				onToggleBulkMode={() => setShowBulkTable((prev) => !prev)}
 				shipmentTableRows={shipmentTableRows}

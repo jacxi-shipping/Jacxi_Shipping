@@ -38,7 +38,6 @@ import {
 	DetailPageSkeleton,
 } from '@/components/design-system';
 import { AdminRoute } from '@/components/auth/AdminRoute';
-import { getInvoiceLineItemDisplayLabel } from '@/lib/invoice-line-item-labels';
 
 interface LineItem {
 	id: string;
@@ -256,11 +255,13 @@ export default function InvoiceDetailPage() {
 	};
 
 	const getLineItemTypeLabel = (item: LineItem) => {
-		return getInvoiceLineItemDisplayLabel(item.type, item.description);
+		if (item.type === 'DISCOUNT' && /damage/i.test(item.description)) {
+			return 'DAMAGE CREDIT';
+		}
+		return item.type.replace(/_/g, ' ');
 	};
 
 	const getExpenseShortLabel = (item: LineItem): string => {
-		const label = getInvoiceLineItemDisplayLabel(item.type, item.description);
 		const typeMap: Record<string, string> = {
 			PURCHASE_PRICE: 'Vehicle Purchase',
 			VEHICLE_PRICE: 'Vehicle Purchase',
@@ -272,7 +273,7 @@ export default function InvoiceDetailPage() {
 			OTHER_FEE: 'Other',
 			DISCOUNT: 'Discount',
 		};
-		return typeMap[item.type] ?? label;
+		return typeMap[item.type] ?? item.type.replace(/_/g, ' ');
 	};
 
 	const openCompanyLedgerEntry = (entry: NonNullable<LineItem['linkedCompanyLedgerEntry']>) => {
@@ -656,7 +657,7 @@ export default function InvoiceDetailPage() {
 													<TableRow key={item.id} hover>
 													<TableCell align="left" sx={{ pl: 2, pr: 2 }}>
 														<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 1, flexWrap: 'wrap', textAlign: 'left' }}>
-															<span>{item.description}</span>
+															<span>{getExpenseShortLabel(item)}</span>
 															{(item.type === 'PURCHASE_PRICE' || item.type === 'VEHICLE_PRICE') &&
 																invoice.shipment?.paymentStatus === 'COMPLETED' && (
 																<Chip

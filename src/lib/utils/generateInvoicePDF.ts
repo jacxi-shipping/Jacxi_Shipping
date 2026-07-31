@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getInvoiceLineItemDisplayLabel } from '@/lib/invoice-line-item-labels';
 
 // Define types
 interface LineItem {
@@ -100,7 +99,11 @@ const formatDate = (dateString: string | null): string => {
 };
 
 const getLineItemTypeLabel = (type: string, description: string): string => {
-  return getInvoiceLineItemDisplayLabel(type, description);
+  if (type === 'DISCOUNT' && /damage/i.test(description)) {
+    return 'DAMAGE CREDIT';
+  }
+
+  return type.replace('_', ' ');
 };
 
 const formatStatus = (status: string): string => {
@@ -310,12 +313,30 @@ export const generateInvoicePDF = (invoice: Invoice) => {
   const hasMultipleVehicles = groupKeys.length > 1;
   
   Object.values(groupedItems).forEach(group => {
+    // Vehicle header row — only show when there are multiple vehicles (container with many shipments)
+    if (group.shipment && hasMultipleVehicles) {
+      const vehicleDesc = `${group.shipment.vehicleYear || ''} ${group.shipment.vehicleMake || ''} ${group.shipment.vehicleModel || ''}`.trim();
+      const vehicleVIN = group.shipment.vehicleVIN ? `VIN: ${group.shipment.vehicleVIN}` : '';
+      tableData.push([
+        { 
+          content: `Vehicle: ${vehicleDesc}${vehicleVIN ? ' • ' + vehicleVIN : ''}`, 
+          colSpan: 5, 
+          styles: { 
+            fontStyle: 'bold', 
+            fillColor: COLORS.background,
+            textColor: COLORS.textPrimary,
+            fontSize: 9
+          } 
+        }
+      ]);
+    }
+
     // Line items
     group.items.forEach(item => {
       const isPurchasePaid =
         (item.type === 'PURCHASE_PRICE' || item.type === 'VEHICLE_PRICE') &&
         invoice.shipment?.paymentStatus === 'COMPLETED';
-      const descLabel = item.description
+      const descLabel = getLineItemTypeLabel(item.type, item.description)
         + (isPurchasePaid ? ' ✓ PAID' : '');
       tableData.push([
         { content: descLabel, styles: { halign: 'left', textColor: isPurchasePaid ? COLORS.success : COLORS.textPrimary } },

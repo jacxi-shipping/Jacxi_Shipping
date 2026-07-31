@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { Bell, X, Check, Package, Ship, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { IconButton, Badge, Drawer, Box, Typography, Divider } from '@mui/material';
 import { toast } from '@/components/design-system';
@@ -24,80 +23,34 @@ interface Notification {
   } | null;
 }
 
-interface NotificationsApiResponse {
-  data: Notification[];
-  unreadCount?: number;
-}
-
 export function NotificationCenter() {
   const router = useRouter();
-  const { status } = useSession();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [hasConnectivityIssue, setHasConnectivityIssue] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
-    if (status !== 'authenticated') {
-      setNotifications([]);
-      setUnreadCount(0);
-      setHasConnectivityIssue(false);
-      return;
-    }
-
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setHasConnectivityIssue(true);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch('/api/notifications');
       if (response.ok) {
-        setHasConnectivityIssue(false);
-        const payload = await response.json();
-        if (Array.isArray(payload)) {
-          setNotifications(payload);
-          setUnreadCount(payload.filter((n: Notification) => !n.read).length);
-        } else if (payload && typeof payload === 'object' && Array.isArray((payload as NotificationsApiResponse).data)) {
-          const notificationsData = (payload as NotificationsApiResponse).data;
-          setNotifications(notificationsData);
-          setUnreadCount(
-            typeof (payload as NotificationsApiResponse).unreadCount === 'number'
-              ? (payload as NotificationsApiResponse).unreadCount as number
-              : notificationsData.filter((n: Notification) => !n.read).length
-          );
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setNotifications(data);
+          setUnreadCount(data.filter((n: Notification) => !n.read).length);
         } else {
-          console.error('Invalid notification data:', payload);
+          console.error('Invalid notification data:', data);
         }
-      } else if (response.status === 401) {
-        // Session is unavailable or expired; do not treat this as a connectivity failure.
-        setNotifications([]);
-        setUnreadCount(0);
-        setHasConnectivityIssue(false);
-      } else {
-        console.error('Failed to fetch notifications:', response.status, response.statusText);
       }
     } catch (error) {
-      setHasConnectivityIssue(true);
-      // Avoid noisy error spam for transient network/server restarts.
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        console.warn('Notifications service is temporarily unavailable. Retrying automatically.');
-      } else {
-        console.error('Failed to fetch notifications', error);
-      }
+      console.error('Failed to fetch notifications', error);
     } finally {
       setLoading(false);
     }
-  }, [status]);
+  }, []);
 
   useEffect(() => {
-    if (status !== 'authenticated') {
-      return;
-    }
-
     fetchNotifications();
 
     const stream = new EventSource('/api/notifications/stream');
@@ -120,7 +73,7 @@ export function NotificationCenter() {
       stream.removeEventListener('connected', refreshFromStream);
       stream.close();
     };
-  }, [fetchNotifications, status]);
+  }, [fetchNotifications]);
 
   const markAsRead = async (id: string) => {
     // Optimistic update
@@ -303,27 +256,6 @@ export function NotificationCenter() {
               }}
             >
               <RefreshCw className="w-6 h-6 text-[var(--text-secondary)] animate-spin" />
-            </Box>
-          ) : hasConnectivityIssue ? (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                py: 8,
-                px: 3,
-                textAlign: 'center',
-                gap: 1,
-              }}
-            >
-              <AlertCircle className="w-10 h-10 text-[var(--error)] opacity-80" />
-              <Typography sx={{ color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600 }}>
-                Notifications are temporarily unavailable
-              </Typography>
-              <Typography sx={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                Check your connection or refresh in a moment.
-              </Typography>
             </Box>
           ) : notifications.length === 0 ? (
             <Box

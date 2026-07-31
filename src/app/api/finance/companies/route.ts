@@ -28,9 +28,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canViewFinance = hasPermission(session.user?.role, 'finance:view');
-    const canManageTransits = hasPermission(session.user?.role, 'transits:manage');
-    if (!canViewFinance && !canManageTransits) {
+    if (!hasPermission(session.user?.role, 'finance:view')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

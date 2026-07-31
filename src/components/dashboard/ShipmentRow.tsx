@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Edit, LocalShipping, CreditCard, LocationOn, CalendarToday } from '@mui/icons-material';
 import { Box, Typography, LinearProgress, Chip } from '@mui/material';
-import { Building2 } from 'lucide-react';
 import { StatusBadge, Button } from '@/components/design-system';
 
 interface ShipmentRowProps {
@@ -55,7 +54,6 @@ interface ShipmentRowProps {
 	isAdmin?: boolean;
 	onStatusUpdated?: () => void;
 	delay?: number;
-	canManageWorkflow?: boolean;
 }
 
 const formatStatus = (status: string) => {
@@ -84,7 +82,6 @@ export default function ShipmentRow({
 	user,
 	showCustomer = false,
 	delay = 0,
-	canManageWorkflow = false,
 }: ShipmentRowProps) {
 	const router = useRouter();
 	const vehicleInfo = [vehicleMake, vehicleModel, vehicleYear].filter(Boolean).join(' ') || vehicleType;
@@ -443,35 +440,9 @@ export default function ShipmentRow({
 						display: { xs: 'none', md: 'flex' },
 						justifyContent: 'flex-end',
 						alignItems: 'center',
-						gap: 0.5,
 						flexShrink: 0,
 					}}
 				>
-					{canManageWorkflow && (
-						<Button
-							component={Link}
-							href={`${shipmentHref}?tab=company-release`}
-							variant="ghost"
-							size="sm"
-							onClick={(event) => {
-								event.stopPropagation();
-							}}
-							sx={{
-								borderRadius: '999px',
-								minWidth: 'auto',
-								minHeight: { xs: '44px', md: 'auto' },
-								px: 1.25,
-								color: 'var(--text-secondary)',
-								'&:hover': {
-									bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)',
-									color: 'var(--accent-gold)',
-								},
-							}}
-						>
-							<Building2 className="mr-1.5 h-3.5 w-3.5" />
-							Company Release
-						</Button>
-					)}
 					<Button
 						component={Link}
 						href={editHref}
@@ -511,30 +482,6 @@ export default function ShipmentRow({
 				>
 					<Box sx={{ minWidth: 0, overflow: 'hidden' }}>{statusRow}</Box>
 					<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
-						{canManageWorkflow && (
-							<Button
-								component={Link}
-								href={`${shipmentHref}?tab=company-release`}
-								variant="ghost"
-								size="sm"
-								onClick={(event) => {
-									event.stopPropagation();
-								}}
-								sx={{
-									minHeight: { xs: '44px', md: 'auto' },
-									borderRadius: '999px',
-									px: 1.25,
-									color: 'var(--text-secondary)',
-									'&:hover': {
-										bgcolor: 'rgba(var(--accent-gold-rgb), 0.08)',
-										color: 'var(--accent-gold)',
-									},
-								}}
-							>
-								<Building2 className="mr-1.5 h-3.5 w-3.5" />
-								Release
-							</Button>
-						)}
 						<Button
 							component={Link}
 							href={shipmentHref}
