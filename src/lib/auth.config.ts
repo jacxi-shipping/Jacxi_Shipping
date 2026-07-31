@@ -6,10 +6,7 @@ function getPortalIdFromPath(pathname: string) {
   return match?.[1] || null;
 }
 
-const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET_INTERNAL || 'development-secret-change-me';
-
 export const authConfig = {
-  trustHost: true,
   pages: {
     signIn: "/auth/signin",
     error: "/auth/signin",
@@ -88,5 +85,5 @@ export const authConfig = {
       },
     },
   },
-  secret: authSecret,
+  secret: process.env.NEXTAUTH_SECRET,
 } satisfies NextAuthConfig;

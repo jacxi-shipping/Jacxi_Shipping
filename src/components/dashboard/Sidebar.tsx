@@ -61,12 +61,6 @@ const shipmentNavigation: NavigationItem[] = [
 		requiredPermission: 'transits:manage',
 	},
 	{
-		name: 'Company Released',
-		href: '/dashboard/shipments/company-released',
-		icon: Business,
-		requiredPermission: 'transits:manage',
-	},
-	{
 		name: 'Track Shipments',
 		href: '/dashboard/tracking',
 		icon: Search,

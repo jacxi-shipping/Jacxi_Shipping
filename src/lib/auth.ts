@@ -5,8 +5,6 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { authConfig } from "./auth.config";
-
-const resolvedSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET_INTERNAL || 'development-secret-change-me';
 import {
   authenticateWithEmailPassword,
   authenticateWithLoginCode,
@@ -16,8 +14,6 @@ import {
 
 const nextAuth = NextAuth({
   ...authConfig,
-  secret: resolvedSecret,
-  trustHost: true,
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({

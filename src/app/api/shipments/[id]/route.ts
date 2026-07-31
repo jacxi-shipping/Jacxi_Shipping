@@ -9,20 +9,6 @@ import { validateManualShipmentWorkflowUpdate } from '@/lib/shipment-workflow';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 import { buildUnifiedShipmentTimeline } from '@/lib/shipment-timeline';
 
-const COMPANY_RELEASED_AUDIT_ACTION = 'COMPANY_RELEASED';
-
-function getStringMetadataValue(
-  metadata: Prisma.JsonValue | null | undefined,
-  key: string,
-) {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
-    return null;
-  }
-
-  const value = (metadata as Prisma.JsonObject)[key];
-  return typeof value === 'string' ? value : null;
-}
-
 type UpdateShipmentPayload = {
   userId?: string;
   serviceType?: 'PURCHASE_AND_SHIPPING' | 'SHIPPING_ONLY';
@@ -123,7 +109,6 @@ export async function GET(
         dispatchId: true,
         containerId: true,
         transitId: true,
-        shippingCompanyId: true,
         userId: true,
         internalNotes: true,
         paymentStatus: true,
@@ -151,7 +136,6 @@ export async function GET(
               },
               take: 10,
             },
-            company: { select: { id: true, name: true } },
           },
         },
         dispatch: {
@@ -161,7 +145,6 @@ export async function GET(
         },
         transit: {
           include: {
-            company: { select: { id: true, name: true } },
             events: {
               orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
               take: 1,
@@ -169,12 +152,6 @@ export async function GET(
                 company: { select: { id: true, name: true } },
               },
             },
-          },
-        },
-        shippingCompany: {
-          select: {
-            id: true,
-            name: true,
           },
         },
         documents: true,
@@ -586,22 +563,6 @@ export async function GET(
     });
 
     const currentTransitEvent = shipment.transit?.events[0] ?? null;
-    const latestCompanyReleaseLog = shipment.shippingCompanyId
-      ? await prisma.shipmentAuditLog.findFirst({
-          where: {
-            shipmentId: id,
-            action: COMPANY_RELEASED_AUDIT_ACTION,
-          },
-          orderBy: {
-            timestamp: 'desc',
-          },
-          select: {
-            description: true,
-            timestamp: true,
-            metadata: true,
-          },
-        })
-      : null;
     const visibleDocuments = canReadAllShipments
       ? shipment.documents
       : shipment.documents.filter((document) => document.isPublic);
@@ -616,7 +577,6 @@ export async function GET(
             ? {
                 ...shipment.container,
                 shippingLine: canViewWorkflowCompanyDetails ? shipment.container.shippingLine : null,
-                company: canViewWorkflowCompanyDetails ? shipment.container.company : null,
               }
             : null,
           dispatch: shipment.dispatch
@@ -632,7 +592,6 @@ export async function GET(
                 origin: shipment.transit.origin,
                 destination: shipment.transit.destination,
                 status: shipment.transit.status,
-                dispatchDate: shipment.transit.dispatchDate,
                 currentEvent: currentTransitEvent
                   ? {
                       id: currentTransitEvent.id,
@@ -640,19 +599,9 @@ export async function GET(
                       origin: currentTransitEvent.origin,
                       destination: currentTransitEvent.destination,
                       status: currentTransitEvent.status,
-                      eventDate: currentTransitEvent.eventDate,
                     }
                   : null,
                 currentCompany: canViewWorkflowCompanyDetails ? currentTransitEvent?.company ?? null : null,
-              }
-            : null,
-          shippingCompany: canViewWorkflowCompanyDetails ? shipment.shippingCompany : null,
-          companyReleaseEvent: latestCompanyReleaseLog
-            ? {
-                releasedAt: latestCompanyReleaseLog.timestamp,
-                origin: getStringMetadataValue(latestCompanyReleaseLog.metadata, 'origin'),
-                destination: getStringMetadataValue(latestCompanyReleaseLog.metadata, 'destination'),
-                description: latestCompanyReleaseLog.description,
               }
             : null,
           companyLedgerEntries,

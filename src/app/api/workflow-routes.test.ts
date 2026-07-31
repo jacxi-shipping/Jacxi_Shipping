@@ -7,9 +7,7 @@ import { POST as postDispatchReceive } from './dispatches/[id]/receive/route.ts'
 import { DELETE as deleteDispatchShipment, POST as postDispatchShipment } from './dispatches/[id]/shipments/route.ts';
 import { PATCH as patchDispatch } from './dispatches/[id]/route.ts';
 import { DELETE as deleteContainerShipment, POST as postContainerShipments } from './containers/[id]/shipments/route.ts';
-import { DELETE as deleteCompanyRelease, POST as postCompanyRelease } from './shipments/[id]/company-release/route.ts';
 import { POST as postReleaseToken } from './shipments/[id]/release-token/route.ts';
-import { GET as getCompanyReleasedShipments } from './company-released-shipments/route.ts';
 import { POST as postTransitDeliveryConfirmation } from './transits/[id]/confirm-delivery/route.ts';
 import { PATCH as patchTransit } from './transits/[id]/route.ts';
 import { DELETE as deleteTransitShipment, POST as postTransitShipment } from './transits/[id]/shipments/route.ts';
@@ -126,8 +124,6 @@ const originalRouteDepFns = {
   companyFindUnique: routeDeps.prisma.company.findUnique,
   shipmentFindUnique: routeDeps.prisma.shipment.findUnique,
   shipmentFindMany: routeDeps.prisma.shipment.findMany,
-  shipmentCount: routeDeps.prisma.shipment.count,
-  shipmentGroupBy: routeDeps.prisma.shipment.groupBy,
   shipmentUpdate: routeDeps.prisma.shipment.update,
   shipmentUpdateMany: routeDeps.prisma.shipment.updateMany,
   containerFindUnique: routeDeps.prisma.container.findUnique,
@@ -144,7 +140,6 @@ const originalRouteDepFns = {
   containerAuditCreateMany: routeDeps.prisma.containerAuditLog.createMany,
   ledgerEntryCreate: routeDeps.prisma.ledgerEntry.create,
   companyLedgerEntryCreate: routeDeps.prisma.companyLedgerEntry.create,
-  companyLedgerEntryFindMany: routeDeps.prisma.companyLedgerEntry.findMany,
   shipmentChargeFindFirst: routeDeps.prisma.shipmentCharge.findFirst,
   shipmentChargeCreate: routeDeps.prisma.shipmentCharge.create,
   shipmentChargeUpdate: routeDeps.prisma.shipmentCharge.update,
@@ -328,7 +323,6 @@ function buildShipment(state: WorkflowState, shipmentId: string) {
             : [],
         }
       : null,
-    shippingCompany: shipment.shippingCompanyId ? state.companies[shipment.shippingCompanyId] : null,
   };
 }
 
@@ -657,8 +651,6 @@ describe('workflow route integration', () => {
     routeDeps.prisma.company.findUnique = originalRouteDepFns.companyFindUnique;
     routeDeps.prisma.shipment.findUnique = originalRouteDepFns.shipmentFindUnique;
     routeDeps.prisma.shipment.findMany = originalRouteDepFns.shipmentFindMany;
-    routeDeps.prisma.shipment.count = originalRouteDepFns.shipmentCount;
-    routeDeps.prisma.shipment.groupBy = originalRouteDepFns.shipmentGroupBy;
     routeDeps.prisma.shipment.update = originalRouteDepFns.shipmentUpdate;
     routeDeps.prisma.shipment.updateMany = originalRouteDepFns.shipmentUpdateMany;
     routeDeps.prisma.container.findUnique = originalRouteDepFns.containerFindUnique;
@@ -675,7 +667,6 @@ describe('workflow route integration', () => {
     routeDeps.prisma.containerAuditLog.createMany = originalRouteDepFns.containerAuditCreateMany;
     routeDeps.prisma.ledgerEntry.create = originalRouteDepFns.ledgerEntryCreate;
     routeDeps.prisma.companyLedgerEntry.create = originalRouteDepFns.companyLedgerEntryCreate;
-    routeDeps.prisma.companyLedgerEntry.findMany = originalRouteDepFns.companyLedgerEntryFindMany;
     routeDeps.prisma.shipmentCharge.findFirst = originalRouteDepFns.shipmentChargeFindFirst;
     routeDeps.prisma.shipmentCharge.create = originalRouteDepFns.shipmentChargeCreate;
     routeDeps.prisma.shipmentCharge.update = originalRouteDepFns.shipmentChargeUpdate;
@@ -978,279 +969,6 @@ describe('workflow route integration', () => {
     assert.equal(body.error, 'Cannot remove a shipment from dispatch after handoff to container or transit');
     assert.equal(state.shipments.s1.dispatchId, 'd1');
     assert.equal(state.shipments.s1.containerId, 'c1');
-  });
-
-  it('releases a released shipment to the container company without creating a transit', async () => {
-    state.shipments.s1.containerId = 'c1';
-    state.shipments.s1.status = 'RELEASED';
-    state.containers.c1.status = 'RELEASED';
-
-    const response = await postCompanyRelease(
-      request('http://localhost/api/shipments/s1/company-release', 'POST', { companyId: 'transit-co' }),
-      { params: Promise.resolve({ id: 's1' }) },
-    );
-    const body = await response.json();
-
-    assert.equal(response.status, 200);
-    assert.equal(body.shipment.shippingCompanyId, 'shipping-co');
-    assert.equal(body.shipment.transitId, null);
-    assert.equal(body.shipment.status, 'RELEASED');
-    assert.equal(state.shipments.s1.shippingCompanyId, 'shipping-co');
-    assert.equal(state.shipments.s1.transitId, null);
-    assert.equal(state.shipmentAuditLogs.length, 1);
-    assert.equal(state.shipmentAuditLogs[0].action, 'COMPANY_RELEASED');
-  });
-
-  it('requires a container company for company release', async () => {
-    state.shipments.s1.containerId = 'c1';
-    state.shipments.s1.status = 'RELEASED';
-    state.containers.c1.status = 'RELEASED';
-    state.containers.c1.companyId = null;
-
-    const response = await postCompanyRelease(
-      request('http://localhost/api/shipments/s1/company-release', 'POST', { companyId: 'shipping-co' }),
-      { params: Promise.resolve({ id: 's1' }) },
-    );
-    const body = await response.json();
-
-    assert.equal(response.status, 400);
-    assert.equal(body.error, 'Assign a shipping company to the container before company release');
-    assert.equal(state.shipments.s1.shippingCompanyId, null);
-  });
-
-  it('auto-detects container company when no companyId is provided for company release', async () => {
-    state.shipments.s1.containerId = 'c1';
-    state.shipments.s1.status = 'RELEASED';
-    state.containers.c1.status = 'RELEASED';
-    // c1 has companyId: 'shipping-co' set in initial state
-
-    const response = await postCompanyRelease(
-      request('http://localhost/api/shipments/s1/company-release', 'POST', {}),
-      { params: Promise.resolve({ id: 's1' }) },
-    );
-    const body = await response.json();
-
-    assert.equal(response.status, 200);
-    assert.equal(body.shipment.shippingCompanyId, 'shipping-co');
-    assert.equal(body.companyRelease.companyId, 'shipping-co');
-    assert.equal(state.shipments.s1.shippingCompanyId, 'shipping-co');
-    assert.equal(state.shipmentAuditLogs.length, 1);
-    assert.equal(state.shipmentAuditLogs[0].action, 'COMPANY_RELEASED');
-  });
-
-  it('adds dispatch expense to company released shipping expense only when dispatch and shipping companies match', async () => {
-    state.shipments.s1.status = 'RELEASED';
-    state.shipments.s1.dispatchId = 'd1';
-    state.shipments.s1.shippingCompanyId = 'dispatch-co';
-    state.shipments.s1.containerId = 'c1';
-    state.shipments.s2.status = 'RELEASED';
-    state.shipments.s2.dispatchId = 'd1';
-    state.shipments.s2.shippingCompanyId = 'shipping-co';
-    state.shipments.s2.containerId = 'c2';
-    state.shipmentAuditLogs.push(
-      {
-        shipmentId: 's1',
-        action: 'COMPANY_RELEASED',
-        description: 'Shipment s1 released to Dispatch Co',
-        timestamp: new Date('2026-04-05T10:30:00.000Z'),
-        metadata: {
-          origin: 'Dubai, UAE',
-          destination: 'Kabul, Afghanistan',
-        },
-      },
-      {
-        shipmentId: 's2',
-        action: 'COMPANY_RELEASED',
-        description: 'Shipment s2 released to Shipping Co',
-        timestamp: new Date('2026-04-06T11:45:00.000Z'),
-        metadata: {
-          origin: 'Dubai, UAE',
-          destination: 'Kabul, Afghanistan',
-        },
-      },
-    );
-    state.companyLedgerEntries.push(
-      {
-        id: 'cle-ship-s1',
-        companyId: 'dispatch-co',
-        type: 'CREDIT',
-        amount: 100,
-        category: 'Shipping Fare Recovery',
-        reference: 'shipment-expense:s1',
-        metadata: {
-          shipmentId: 's1',
-          expenseSource: 'SHIPMENT',
-        },
-      },
-      {
-        id: 'cle-dispatch-s1',
-        companyId: 'dispatch-co',
-        type: 'CREDIT',
-        amount: 50,
-        category: 'Dispatch Expense Recovery',
-        reference: 'dispatch-expense:de-s1',
-        metadata: {
-          shipmentId: 's1',
-          dispatchId: 'd1',
-          isDispatchExpense: true,
-          expenseSource: 'DISPATCH',
-        },
-      },
-      {
-        id: 'cle-ship-s2',
-        companyId: 'shipping-co',
-        type: 'CREDIT',
-        amount: 80,
-        category: 'Shipping Fare Recovery',
-        reference: 'shipment-expense:s2',
-        metadata: {
-          shipmentId: 's2',
-          expenseSource: 'SHIPMENT',
-        },
-      },
-      {
-        id: 'cle-dispatch-s2',
-        companyId: 'dispatch-co',
-        type: 'CREDIT',
-        amount: 40,
-        category: 'Dispatch Expense Recovery',
-        reference: 'dispatch-expense:de-s2',
-        metadata: {
-          shipmentId: 's2',
-          dispatchId: 'd1',
-          isDispatchExpense: true,
-          expenseSource: 'DISPATCH',
-        },
-      },
-    );
-
-    routeDeps.prisma.shipment.findMany = (async () => [
-      {
-        id: 's1',
-        shippingCompanyId: 'dispatch-co',
-        vehicleType: 'Sedan',
-        vehicleMake: 'Toyota',
-        vehicleModel: 'Corolla',
-        vehicleYear: 2022,
-        vehicleVIN: 'VIN-1',
-        vehicleColor: null,
-        lotNumber: null,
-        auctionName: null,
-        status: 'RELEASED',
-        createdAt: new Date('2026-04-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-04-05T10:30:00.000Z'),
-        price: null,
-        purchasePrice: null,
-        paymentStatus: 'PENDING',
-        serviceType: 'SHIPPING_ONLY',
-        internalNotes: null,
-        user: {
-          id: 'user-1',
-          name: 'Customer One',
-          email: 'customer@example.com',
-        },
-        container: {
-          id: 'c1',
-          containerNumber: 'CONT-1',
-          trackingNumber: null,
-          loadingPort: 'Dubai, UAE',
-          destinationPort: 'Kabul, Afghanistan',
-          status: 'RELEASED',
-        },
-        transit: null,
-        dispatch: {
-          companyId: 'dispatch-co',
-        },
-        shippingCompany: {
-          id: 'dispatch-co',
-          name: 'Dispatch Co',
-        },
-        auditLogs: [state.shipmentAuditLogs[0]],
-      },
-      {
-        id: 's2',
-        shippingCompanyId: 'shipping-co',
-        vehicleType: 'Sedan',
-        vehicleMake: 'Honda',
-        vehicleModel: 'Civic',
-        vehicleYear: 2023,
-        vehicleVIN: 'VIN-2',
-        vehicleColor: null,
-        lotNumber: null,
-        auctionName: null,
-        status: 'RELEASED',
-        createdAt: new Date('2026-04-02T00:00:00.000Z'),
-        updatedAt: new Date('2026-04-06T11:45:00.000Z'),
-        price: null,
-        purchasePrice: null,
-        paymentStatus: 'PENDING',
-        serviceType: 'SHIPPING_ONLY',
-        internalNotes: null,
-        user: {
-          id: 'user-1',
-          name: 'Customer One',
-          email: 'customer@example.com',
-        },
-        container: {
-          id: 'c2',
-          containerNumber: 'CONT-2',
-          trackingNumber: null,
-          loadingPort: 'Dubai, UAE',
-          destinationPort: 'Kabul, Afghanistan',
-          status: 'RELEASED',
-        },
-        transit: null,
-        dispatch: {
-          companyId: 'dispatch-co',
-        },
-        shippingCompany: {
-          id: 'shipping-co',
-          name: 'Shipping Co',
-        },
-        auditLogs: [state.shipmentAuditLogs[1]],
-      },
-    ]) as unknown as typeof routeDeps.prisma.shipment.findMany;
-    routeDeps.prisma.shipment.count = (async () => 2) as unknown as typeof routeDeps.prisma.shipment.count;
-    routeDeps.prisma.shipment.groupBy = (async () => [
-      {
-        status: 'RELEASED',
-        _count: {
-          status: 2,
-        },
-      },
-    ]) as unknown as typeof routeDeps.prisma.shipment.groupBy;
-    routeDeps.prisma.companyLedgerEntry.findMany = (async () => state.companyLedgerEntries as any) as unknown as typeof routeDeps.prisma.companyLedgerEntry.findMany;
-
-    const response = await getCompanyReleasedShipments(
-      request('http://localhost/api/company-released-shipments?page=1&limit=20', 'GET'),
-    );
-    const body = await response.json();
-
-    assert.equal(response.status, 200);
-    assert.equal(body.shipments.length, 2);
-    assert.equal(body.shipments[0].companyLedgerShippingExpense, 150);
-    assert.equal(body.shipments[1].companyLedgerShippingExpense, 80);
-  });
-
-  it('undoes company release before transit assignment', async () => {
-    state.shipments.s1.containerId = 'c1';
-    state.shipments.s1.status = 'RELEASED';
-    state.shipments.s1.shippingCompanyId = 'shipping-co';
-    state.containers.c1.status = 'RELEASED';
-
-    const response = await deleteCompanyRelease(
-      request('http://localhost/api/shipments/s1/company-release', 'DELETE'),
-      { params: Promise.resolve({ id: 's1' }) },
-    );
-    const body = await response.json();
-
-    assert.equal(response.status, 200);
-    assert.equal(body.shipment.shippingCompanyId, null);
-    assert.equal(body.shipment.transitId, null);
-    assert.equal(body.shipment.status, 'RELEASED');
-    assert.equal(state.shipments.s1.shippingCompanyId, null);
-    assert.equal(state.shipmentAuditLogs.length, 1);
-    assert.equal(state.shipmentAuditLogs[0].action, 'COMPANY_RELEASE_UNDONE');
   });
 
   it('generates a release token only for released shipments', async () => {

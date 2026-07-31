@@ -14,18 +14,19 @@ import {
   resetInvoiceShipmentCharges,
 } from '@/lib/billing/shipment-charges';
 
-function normalizeShipmentRefInDescription(description: string) {
+function normalizeShipmentRefInDescription(
+  description: string,
+  shipment?: { id: string; vehicleVIN: string | null }
+) {
+  if (!shipment?.id || !shipment.vehicleVIN) return description;
   return description
-    .replace(/\s*\(Shipment\s+[A-Za-z0-9-]+\)\s*/gi, ' ')
-    .replace(/\s*\(VIN\s+[A-Za-z0-9-]+\)\s*/gi, ' ')
-    .replace(/\bShipment\s+[A-Za-z0-9-]+\b/gi, ' ')
-    .replace(/\bVIN\s+[A-Za-z0-9-]+\b/gi, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+    .replace(new RegExp(`\\(Shipment\\s+${shipment.id}\\)`, 'gi'), `(VIN ${shipment.vehicleVIN})`)
+    .replace(new RegExp(`Shipment\\s+${shipment.id}`, 'gi'), `VIN ${shipment.vehicleVIN}`)
+    .replace(new RegExp(`shipment\\s+${shipment.id}`, 'g'), `VIN ${shipment.vehicleVIN}`);
 }
 
 function buildExpenseLineItemKey(shipmentId: string, description: string, amount: number) {
-  return `${shipmentId}::${normalizeShipmentRefInDescription(description).toLowerCase()}::${amount.toFixed(2)}`;
+  return `${shipmentId}::${description.trim().toLowerCase()}::${amount.toFixed(2)}`;
 }
 
 function isShipmentFinancialExpenseLineItem(lineItem: {
@@ -316,7 +317,8 @@ export async function GET(
     for (const entry of shipmentExpenseEntries) {
       if (!entry.shipmentId) continue;
 
-      const normalizedDescription = normalizeShipmentRefInDescription(entry.description || '');
+      const shipment = shipmentById.get(entry.shipmentId);
+      const normalizedDescription = normalizeShipmentRefInDescription(entry.description || '', shipment);
       const key = buildExpenseLineItemKey(entry.shipmentId, normalizedDescription, entry.amount);
       const queuedEntries = queuedExpenseEntriesByKey.get(key) || [];
       queuedEntries.push(entry);
@@ -324,24 +326,16 @@ export async function GET(
     }
 
     const lineItemsWithLinks = invoice.lineItems.map((lineItem) => {
-      const normalizedDescription = normalizeShipmentRefInDescription(lineItem.description || '');
-
       if (!lineItem.shipmentId) {
-        return {
-          ...lineItem,
-          description: normalizedDescription,
-          linkedCompanyLedgerEntry: null,
-          matchedUserExpenseEntryId: null,
-        };
+        return { ...lineItem, linkedCompanyLedgerEntry: null, matchedUserExpenseEntryId: null };
       }
 
-      const key = buildExpenseLineItemKey(lineItem.shipmentId, normalizedDescription, lineItem.amount);
+      const key = buildExpenseLineItemKey(lineItem.shipmentId, lineItem.description, lineItem.amount);
       const queuedEntries = queuedExpenseEntriesByKey.get(key);
       const matchedUserExpenseEntry = queuedEntries?.shift();
 
       return {
         ...lineItem,
-        description: normalizedDescription,
         matchedUserExpenseEntryId: matchedUserExpenseEntry?.id || null,
         linkedCompanyLedgerEntry: matchedUserExpenseEntry
           ? linkedCompanyEntriesByUserExpenseId.get(matchedUserExpenseEntry.id) || null
@@ -349,7 +343,7 @@ export async function GET(
       };
     });
 
-    const isEditableInvoice = invoice.status === 'DRAFT' || invoice.status === 'PENDING';
+    const isEditableInvoice = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED';
     const lineItems = isEditableInvoice
       ? lineItemsWithLinks.filter((lineItem) => {
           if (!isShipmentFinancialExpenseLineItem({ shipmentId: lineItem.shipmentId, description: lineItem.description })) {

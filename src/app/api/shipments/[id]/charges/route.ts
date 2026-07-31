@@ -156,34 +156,29 @@ export async function GET(
 
     const fallbackActorId = session.user.id as string;
 
-    try {
-      await prisma.$transaction(async (tx) => {
-        const ledgerEntries = await tx.ledgerEntry.findMany({
-          where: {
-            shipmentId: id,
-            type: 'DEBIT',
-          },
-          select: {
-            id: true,
-            userId: true,
-            shipmentId: true,
-            description: true,
-            type: true,
-            amount: true,
-            transactionDate: true,
-            transactionInfoType: true,
-            notes: true,
-            metadata: true,
-            createdBy: true,
-          },
-        });
-
-        await materializeShipmentLedgerCharges(tx, ledgerEntries, fallbackActorId);
+    await prisma.$transaction(async (tx) => {
+      const ledgerEntries = await tx.ledgerEntry.findMany({
+        where: {
+          shipmentId: id,
+          type: 'DEBIT',
+        },
+        select: {
+          id: true,
+          userId: true,
+          shipmentId: true,
+          description: true,
+          type: true,
+          amount: true,
+          transactionDate: true,
+          transactionInfoType: true,
+          notes: true,
+          metadata: true,
+          createdBy: true,
+        },
       });
-    } catch (materializeError) {
-      console.error('[charges/GET] Failed to materialize shipment charges:', materializeError);
-      // Continue with existing charges so the billing tab can still load
-    }
+
+      await materializeShipmentLedgerCharges(tx, ledgerEntries, fallbackActorId);
+    });
 
     const charges = await prisma.shipmentCharge.findMany({
       where: {
