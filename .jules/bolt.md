@@ -18,3 +18,6 @@
 ## 2025-04-06 - Parallelize Independent Database Queries in React Server Components
 **Learning:** In Next.js Server Components that fetch data for dashboards (e.g., `src/app/dashboard/finance/page.tsx`), making sequential database queries (using `await` one after the other) causes total request latency to be the sum of all query times. Since these queries are independent (e.g., fetching a summary and counting active users), executing them sequentially is an anti-pattern.
 **Action:** When a Server Component requires multiple datasets that do not depend on each other, always group the Prisma queries into a single `Promise.all()` call to fetch them concurrently, reducing latency to the time of the single longest query.
+## 2026-05-18 - Replacing sequential `prisma.create` with `createMany`
+**Learning:** Found a loop executing sequential `await prisma.containerTrackingEvent.create(...)` in `src/lib/services/tracking-sync.ts`. Iterating and inserting records one by one causes a severe N+1 database bottleneck when processing tracking webhook arrays or syncing data.
+**Action:** Always replace sequential `.create()` database operations within a loop with a bulk `prisma.[model].createMany({ data: mappedArray, skipDuplicates: true })` call to combine N inserts into a single query and assign the result count (`result.count`) directly for tracking.

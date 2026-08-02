@@ -65,10 +65,11 @@ export class TrackingSyncService {
 
 			// Insert new events
 			let insertedCount = 0;
-			for (const event of newEvents) {
+			if (newEvents.length > 0) {
 				try {
-					await prisma.containerTrackingEvent.create({
-						data: {
+					// ⚡ Bolt: Replaced sequential create calls in a loop with a bulk createMany for performance
+					const result = await prisma.containerTrackingEvent.createMany({
+						data: newEvents.map((event) => ({
 							containerId,
 							status: event.status,
 							location: event.location || undefined,
@@ -79,11 +80,12 @@ export class TrackingSyncService {
 							completed: this.isCompletedStatus(event.status),
 							latitude: event.latitude || undefined,
 							longitude: event.longitude || undefined,
-						},
+						})),
+						skipDuplicates: true,
 					});
-					insertedCount++;
+					insertedCount = result.count;
 				} catch (error) {
-					logger.error('Error inserting tracking event:', error);
+					logger.error('Error inserting tracking events:', error);
 				}
 			}
 
