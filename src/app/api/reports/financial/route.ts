@@ -123,12 +123,14 @@ export async function GET(request: NextRequest) {
           count: s._count.id,
         })),
         dispatchSummary: {
-          activeCount: dispatchStatusSummary.reduce((total, entry) => (
-            ['PENDING', 'DISPATCHED', 'ARRIVED_AT_PORT'].includes(entry.status)
-              ? total + entry._count.id
-              : total
-          ), 0),
-          totalCount: dispatchStatusSummary.reduce((total, entry) => total + entry._count.id, 0),
+          // ⚡ Bolt: Consolidated activeCount and totalCount loops into a single reduce pass
+          ...dispatchStatusSummary.reduce((acc: { activeCount: number, totalCount: number }, entry: { status: string, _count: { id: number } }) => {
+            acc.totalCount += entry._count.id;
+            if (['PENDING', 'DISPATCHED', 'ARRIVED_AT_PORT'].includes(entry.status)) {
+              acc.activeCount += entry._count.id;
+            }
+            return acc;
+          }, { activeCount: 0, totalCount: 0 }),
           totalExpenseAmount: dispatchExpenseSummary._sum.amount || 0,
           expenseCount: dispatchExpenseSummary._count.id || 0,
           statuses: dispatchStatusSummary.map((entry) => ({
@@ -343,8 +345,13 @@ export async function GET(request: NextRequest) {
       });
 
       // Calculate overall summary
-      const totalRevenue = shipmentReports.reduce((sum, s) => sum + s.revenue, 0);
-      const totalExpenses = shipmentReports.reduce((sum, s) => sum + s.totalExpenses, 0);
+      // ⚡ Bolt: Calculated totalRevenue and totalExpenses in a single O(N) loop to eliminate chained array allocations
+      let totalRevenue = 0;
+      let totalExpenses = 0;
+      for (const s of shipmentReports) {
+        totalRevenue += s.revenue;
+        totalExpenses += s.totalExpenses;
+      }
       const totalProfit = totalRevenue - totalExpenses;
       const avgProfitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 

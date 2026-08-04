@@ -286,12 +286,20 @@ export async function GET(
       isWithinDateRange(payment.paymentDate, activityStartDate, activityEndDate)
     ));
 
-    const activitySummary = {
-      debitAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
-      paymentRecordCount: filteredPortalPaymentRecords.length,
-      ledgerEntryCount: filteredPortalLedgerEntries.length,
-    };
+    // ⚡ Bolt: Single pass O(N) loop to calculate debit and credit amounts avoiding chained array allocations
+    const activitySummary = filteredPortalLedgerEntries.reduce(
+      (acc, entry) => {
+        if (entry.type === 'DEBIT') acc.debitAmount += entry.amount;
+        else if (entry.type === 'CREDIT') acc.creditAmount += entry.amount;
+        return acc;
+      },
+      {
+        debitAmount: 0,
+        creditAmount: 0,
+        paymentRecordCount: filteredPortalPaymentRecords.length,
+        ledgerEntryCount: filteredPortalLedgerEntries.length,
+      }
+    );
 
     const invoices = assignments.flatMap((assignment) => {
       const shipmentReference = formatShipmentReference(assignment.shipment);
@@ -357,17 +365,35 @@ export async function GET(
       }));
     });
 
-    const summary = {
-      linkedShipmentCount: assignments.length,
-      invoiceCount: invoices.length,
-      openInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).length,
-      overdueInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).length,
-      outstandingAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).reduce((sum, invoice) => sum + invoice.total, 0),
-      overdueAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).reduce((sum, invoice) => sum + invoice.total, 0),
-      paidAmount: invoices.filter((invoice) => invoice.status === 'PAID').reduce((sum, invoice) => sum + invoice.total, 0),
-      unbilledAmount: unbilledCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
-      unbilledChargeCount: unbilledCharges.length,
-    };
+    // ⚡ Bolt: Consolidated summary metrics in a single O(N) loop to eliminate chained array allocations
+    const summary = invoices.reduce(
+      (acc, invoice) => {
+        const isOutstanding = outstandingInvoiceStatuses.has(invoice.status);
+        if (isOutstanding) {
+          acc.openInvoiceCount++;
+          acc.outstandingAmount += invoice.total;
+          if ((invoice.daysOverdue ?? 0) > 0) {
+            acc.overdueInvoiceCount++;
+            acc.overdueAmount += invoice.total;
+          }
+        }
+        if (invoice.status === 'PAID') {
+          acc.paidAmount += invoice.total;
+        }
+        return acc;
+      },
+      {
+        linkedShipmentCount: assignments.length,
+        invoiceCount: invoices.length,
+        openInvoiceCount: 0,
+        overdueInvoiceCount: 0,
+        outstandingAmount: 0,
+        overdueAmount: 0,
+        paidAmount: 0,
+        unbilledAmount: unbilledCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
+        unbilledChargeCount: unbilledCharges.length,
+      }
+    );
 
     if (format === 'csv') {
       const csvRows: string[] = [
