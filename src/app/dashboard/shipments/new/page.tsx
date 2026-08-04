@@ -609,11 +609,10 @@ export default function NewShipmentPage() {
 											<FormField
 												id="vehicleVIN"
 												label="VIN (Vehicle Identification Number)"
-												placeholder="17-character VIN"
+												placeholder="VIN or vehicle identifier"
 												error={!!errors.vehicleVIN}
 												helperText={errors.vehicleVIN?.message}
 												{...register('vehicleVIN')}
-												inputProps={{ maxLength: 17 }}
 											/>
 										</Box>
 										<Button

@@ -17,10 +17,7 @@ export const shipmentSchema = z.object({
     (val) => !val || (parseInt(val) >= 1900 && parseInt(val) <= new Date().getFullYear() + 1),
     { message: 'Please enter a valid year between 1900 and ' + (new Date().getFullYear() + 1) }
   ),
-  vehicleVIN: z.string().optional().refine(
-    (val) => !val || val.length >= 17,
-    { message: 'VIN must be at least 17 characters' }
-  ),
+  vehicleVIN: z.string().optional(),
   vehicleColor: z.string().optional(),
   lotNumber: z.string().optional(),
   auctionName: z.string().optional(),
@@ -95,10 +92,7 @@ export const shipmentUpdateSchema = z.object({
     (val) => !val || (parseInt(val) >= 1900 && parseInt(val) <= new Date().getFullYear() + 1),
     { message: 'Please enter a valid year between 1900 and ' + (new Date().getFullYear() + 1) }
   ),
-  vehicleVIN: z.string().optional().refine(
-    (val) => !val || val.length >= 17,
-    { message: 'VIN must be at least 17 characters' }
-  ),
+  vehicleVIN: z.string().optional(),
   vehicleColor: z.string().optional(),
   lotNumber: z.string().optional(),
   auctionName: z.string().optional(),

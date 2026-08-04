@@ -141,9 +141,9 @@ export function DashboardPanel({
 				>
 					<div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
 						{title && (
-							<p className="text-[0.95rem] font-semibold tracking-tight text-[var(--text-primary)] overflow-hidden text-ellipsis">{title}</p>
+							<div className="text-[0.95rem] font-semibold tracking-tight text-[var(--text-primary)] overflow-hidden text-ellipsis">{title}</div>
 						)}
-						{description && <p className="text-[0.8rem] text-[var(--text-secondary)] overflow-hidden text-ellipsis">{description}</p>}
+						{description && <div className="text-[0.8rem] text-[var(--text-secondary)] overflow-hidden text-ellipsis">{description}</div>}
 					</div>
 					{actions && <div className="flex flex-shrink-0 items-center gap-2 text-[0.8rem]">{actions}</div>}
 				</header>

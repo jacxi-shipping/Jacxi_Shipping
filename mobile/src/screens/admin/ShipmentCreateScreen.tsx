@@ -341,13 +341,10 @@ const ShipmentCreateScreen: React.FC = () => {
           <Controller
             control={control}
             name="vehicleVIN"
-            rules={{
-              validate: (value) => !value || value.trim().length === 17 || 'VIN must be exactly 17 characters',
-            }}
             render={({ field }) => (
               <Input
                 label="VIN"
-                placeholder="17-character VIN"
+                placeholder="VIN or vehicle identifier"
                 value={field.value}
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}

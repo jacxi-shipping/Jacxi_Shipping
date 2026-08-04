@@ -23,6 +23,11 @@ interface Notification {
   } | null;
 }
 
+interface NotificationsResponse {
+  data: Notification[];
+  unreadCount: number;
+}
+
 export function NotificationCenter() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -35,10 +40,12 @@ export function NotificationCenter() {
     try {
       const response = await fetch('/api/notifications');
       if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setNotifications(data);
-          setUnreadCount(data.filter((n: Notification) => !n.read).length);
+        const data = await response.json() as NotificationsResponse;
+        if (Array.isArray(data.data)) {
+          setNotifications(data.data);
+          setUnreadCount(typeof data.unreadCount === 'number'
+            ? data.unreadCount
+            : data.data.filter((notification) => !notification.read).length);
         } else {
           console.error('Invalid notification data:', data);
         }
