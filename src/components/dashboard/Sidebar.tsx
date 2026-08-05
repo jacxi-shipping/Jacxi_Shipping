@@ -547,6 +547,7 @@ function SidebarContent({
 	const userRole = appUser?.role;
 	const userName = appUser?.name || 'User';
 	const userInitial = userName.charAt(0).toUpperCase();
+	const userImage = appUser?.image || undefined;
 	const [navBadges, setNavBadges] = useState<NavBadges | null>(null);
 
 	useEffect(() => {
@@ -640,6 +641,7 @@ function SidebarContent({
 			>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.25, minWidth: 0 }}>
 					<Avatar
+						src={userImage}
 						sx={{
 							width: 32,
 							height: 32,

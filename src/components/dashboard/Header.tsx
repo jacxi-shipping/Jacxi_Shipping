@@ -272,6 +272,7 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 							}}
 						>
 						<Avatar
+							src={session?.user?.image || undefined}
 							sx={{
 									width: 30,
 									height: 30,

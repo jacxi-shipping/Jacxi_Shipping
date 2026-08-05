@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Box, Avatar, Divider } from '@mui/material';
@@ -17,6 +17,7 @@ import {
 	Key,
 	Copy,
 	RefreshCw,
+	Upload,
 } from 'lucide-react';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import { PageHeader, Button, Breadcrumbs, toast, EmptyState, StatsCard, DashboardPageSkeleton, FormField } from '@/components/design-system';
@@ -71,7 +72,7 @@ const initialPasswordFormState: PasswordFormState = {
 };
 
 export default function ProfilePage() {
-	const { data: session, status } = useSession();
+	const { data: session, status, update: updateSession } = useSession();
 	const router = useRouter();
 	const [profile, setProfile] = useState<ProfileResponse['user'] | null>(null);
 	const [form, setForm] = useState<ProfileFormState>(initialFormState);
@@ -80,6 +81,8 @@ export default function ProfilePage() {
 	const [saving, setSaving] = useState(false);
 	const [savingPassword, setSavingPassword] = useState(false);
 	const [generatingCode, setGeneratingCode] = useState(false);
+	const [uploadingAvatar, setUploadingAvatar] = useState(false);
+	const avatarInputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		if (status === 'loading') return;
@@ -120,6 +123,33 @@ export default function ProfilePage() {
 	const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = event.target;
 		setForm((prev) => ({ ...prev, [name]: value }));
+	};
+
+	const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		setUploadingAvatar(true);
+		try {
+			const uploadData = new FormData();
+			uploadData.append('file', file);
+			const response = await fetch('/api/profile/avatar', { method: 'POST', body: uploadData });
+			const payload = (await response.json()) as { user?: { image?: string | null }; message?: string };
+
+			if (!response.ok || !payload.user?.image) {
+				throw new Error(payload.message || 'Failed to upload profile image');
+			}
+
+			setProfile((current) => current ? { ...current, image: payload.user!.image || null } : current);
+			setForm((current) => ({ ...current, image: payload.user!.image || '' }));
+			await updateSession({ image: payload.user.image });
+			toast.success('Profile image updated');
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Unable to upload profile image');
+		} finally {
+			setUploadingAvatar(false);
+			event.target.value = '';
+		}
 	};
 
 	const handleSubmit = async (event: React.FormEvent) => {
@@ -347,6 +377,24 @@ export default function ProfilePage() {
 												<Box sx={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
 													{profile.email}
 												</Box>
+												<input
+													ref={avatarInputRef}
+													type="file"
+													accept="image/jpeg,image/png,image/webp"
+													onChange={handleAvatarUpload}
+													className="sr-only"
+												/>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													icon={<Upload className="w-4 h-4" />}
+													onClick={() => avatarInputRef.current?.click()}
+													disabled={uploadingAvatar}
+													sx={{ mt: 1.25 }}
+												>
+													{uploadingAvatar ? 'Uploading...' : 'Change photo'}
+												</Button>
 											</Box>
 										</Box>
 									</Box>
