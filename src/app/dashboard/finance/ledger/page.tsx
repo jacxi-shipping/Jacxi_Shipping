@@ -17,12 +17,14 @@ import {
   TrendingDown as TrendingDownIcon,
   AttachMoney,
   LocalShipping,
+  Delete,
 } from '@mui/icons-material';
 import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
 import { Breadcrumbs, Button, toast, EmptyState, SkeletonCard, SkeletonTable, Tooltip, StatusBadge, TableSkeleton, StatsCard } from '@/components/design-system';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { DashboardSurface, DashboardPanel, DashboardGrid } from '@/components/dashboard/DashboardSurface';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { hasPermission } from '@/lib/rbac';
 
 interface LedgerEntry {
   id: string;
@@ -69,6 +71,7 @@ export default function LedgerPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAdmin = session?.user?.role === 'admin';
+  const canManageLedger = hasPermission(session?.user?.role, 'finance:manage');
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [summary, setSummary] = useState<LedgerSummary>({
     totalDebit: 0,
@@ -190,6 +193,28 @@ export default function LedgerPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!window.confirm('Delete this transaction? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/ledger/${entryId}`, { method: 'DELETE' });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete transaction');
+      }
+
+      toast.success('Transaction deleted successfully');
+      await fetchLedgerEntries();
+    } catch (error) {
+      toast.error('Unable to delete transaction', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    }
   };
 
   const handleAddEntry = async (e: React.FormEvent) => {
@@ -425,8 +450,26 @@ export default function LedgerPage() {
           {formatCurrency(row.balance)}
         </span>
       )
-    }
-  ], []);
+    },
+    ...(canManageLedger ? [{
+      key: 'id' as const,
+      header: 'Actions',
+      align: 'center' as const,
+      width: '10%',
+      render: (_: unknown, row: LedgerEntry) => (
+        <Tooltip title="Delete transaction">
+          <IconButton
+            size="small"
+            color="error"
+            aria-label={`Delete ${row.description}`}
+            onClick={() => void handleDeleteEntry(row.id)}
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
+    }] : [])
+  ], [canManageLedger]);
 
   if (status === 'loading' || loading) {
     return (
