@@ -135,6 +135,12 @@ export async function GET(
         },
         container: {
           include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             trackingEvents: {
               orderBy: {
                 eventDate: 'desc',
@@ -574,6 +580,7 @@ export async function GET(
     });
 
     const currentTransitEvent = shipment.transit?.events[0] ?? null;
+    const companyGetpassCompany = shipment.shippingCompany || shipment.container?.company || null;
     const visibleDocuments = canReadAllShipments
       ? shipment.documents
       : shipment.documents.filter((document) => document.isPublic);
@@ -585,7 +592,7 @@ export async function GET(
           documents: visibleDocuments,
           internalNotes: canReadAllShipments ? shipment.internalNotes : null,
           shippingCompany:
-            canViewWorkflowCompanyDetails || canUseCompanyGetpass ? shipment.shippingCompany : null,
+            canViewWorkflowCompanyDetails || canUseCompanyGetpass ? companyGetpassCompany : null,
           container: shipment.container
             ? {
                 ...shipment.container,

@@ -32,6 +32,16 @@ export async function POST(
         containerId: true,
         transitId: true,
         companyGetpassStartedAt: true,
+        container: {
+          select: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         shippingCompany: {
           select: {
             id: true,
@@ -52,7 +62,9 @@ export async function POST(
       );
     }
 
-    if (!shipment.shippingCompany) {
+    const company = shipment.shippingCompany || shipment.container?.company;
+
+    if (!company) {
       return NextResponse.json(
         { error: 'Assign a shipping company before starting Company Getpass' },
         { status: 400 },
@@ -69,7 +81,7 @@ export async function POST(
     }
 
     return NextResponse.json({
-      company: shipment.shippingCompany,
+      company,
       companyGetpassStartedAt,
     });
   } catch (error) {

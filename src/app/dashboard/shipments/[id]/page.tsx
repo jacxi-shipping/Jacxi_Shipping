@@ -680,7 +680,7 @@ export default function ShipmentDetailPage() {
   const canViewWorkflowCompanyDetails = hasPermission(session?.user?.role, 'shipments:read_all');
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
   const isShippingStage = shipment ? getShipmentWorkflowStage(shipment) === 'SHIPPING' : false;
-  const canUseCompanyGetpass = isShippingStage && Boolean(shipment?.shippingCompany);
+  const canUseCompanyGetpass = isShippingStage;
   const canAssignDispatch = canManageWorkflow && !shipment?.dispatchId && !shipment?.containerId && !shipment?.transitId && shipment?.status === 'ON_HAND';
   const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.dispatchId || (shipment?.transitId && shipment?.transit?.currentCompany));
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
