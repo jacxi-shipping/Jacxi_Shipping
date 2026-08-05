@@ -1419,6 +1419,7 @@ export default function ShipmentDetailPage() {
               shipmentId={shipment.id}
               companies={companyLedgerCompanies}
               entries={companyLedgerEntries}
+              paymentSummary={shipment.companyPaymentSummary || { charged: 0, paid: 0, remaining: 0, status: 'NOT_DUE' }}
               canManageLedger={canManageCompanyLedger}
               onTransactionCreated={() => {
                 void refreshShipmentPage();

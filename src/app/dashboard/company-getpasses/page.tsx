@@ -23,6 +23,12 @@ type GetpassShipment = {
     dispatch: number;
     total: number;
   };
+  companyPayment: {
+    charged: number;
+    paid: number;
+    remaining: number;
+    status: 'NOT_DUE' | 'UNPAID' | 'PARTIAL' | 'PAID_TO_COMPANY';
+  };
 };
 
 function formatElapsedTime(startedAt: string, now: number) {
@@ -40,6 +46,13 @@ function formatVehicle(shipment: GetpassShipment) {
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+}
+
+function companyPaymentLabel(status: GetpassShipment['companyPayment']['status']) {
+  if (status === 'PAID_TO_COMPANY') return 'Paid to company';
+  if (status === 'PARTIAL') return 'Partially paid';
+  if (status === 'UNPAID') return 'Unpaid';
+  return 'No payment due';
 }
 
 export default function CompanyGetpassesPage() {
@@ -119,6 +132,7 @@ export default function CompanyGetpassesPage() {
                       <th className="px-3 py-3">Shipping Company</th>
                       <th className="px-3 py-3">Container</th>
                       <th className="px-3 py-3">Expenses</th>
+                      <th className="px-3 py-3">Company Payment</th>
                       <th className="px-3 py-3">Elapsed</th>
                       <th className="px-3 py-3 text-right">Actions</th>
                     </tr>
@@ -141,6 +155,14 @@ export default function CompanyGetpassesPage() {
                           <p className="font-semibold text-[var(--text-primary)]">{formatMoney(shipment.expenses.total)}</p>
                           <p className="mt-1 text-xs text-[var(--text-secondary)]">
                             Shipping {formatMoney(shipment.expenses.shipping)} | Dispatch {formatMoney(shipment.expenses.dispatch)}
+                          </p>
+                        </td>
+                        <td className="px-3 py-4">
+                          <p className={shipment.companyPayment.status === 'PAID_TO_COMPANY' ? 'font-semibold text-emerald-600' : shipment.companyPayment.status === 'PARTIAL' ? 'font-semibold text-[var(--warning)]' : 'font-semibold text-[var(--text-primary)]'}>
+                            {companyPaymentLabel(shipment.companyPayment.status)}
+                          </p>
+                          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                            Paid {formatMoney(shipment.companyPayment.paid)} of {formatMoney(shipment.companyPayment.charged)}
                           </p>
                         </td>
                         <td className="px-3 py-4">

@@ -12,6 +12,7 @@ type ShipmentCompanyLedgerTabProps = {
   shipmentId: string;
   companies: Array<{ id: string; name: string; source: 'Shipping' | 'Dispatch' | 'Transit' }>;
   entries: NonNullable<Shipment['companyLedgerEntries']>;
+  paymentSummary: NonNullable<Shipment['companyPaymentSummary']>;
   canManageLedger: boolean;
   onTransactionCreated: () => void;
 };
@@ -42,6 +43,7 @@ export default function ShipmentCompanyLedgerTab({
   shipmentId,
   companies,
   entries,
+  paymentSummary,
   canManageLedger,
   onTransactionCreated,
 }: ShipmentCompanyLedgerTabProps) {
@@ -89,7 +91,10 @@ export default function ShipmentCompanyLedgerTab({
           category: form.category.trim() || undefined,
           reference: form.reference.trim() || undefined,
           notes: form.notes.trim() || undefined,
-          metadata: { shipmentId },
+          metadata: {
+            shipmentId,
+            ...(isPayment ? { isCompanyPayment: true, paymentScope: 'SHIPMENT' } : {}),
+          },
         }),
       });
       const data = await response.json();
@@ -137,6 +142,13 @@ export default function ShipmentCompanyLedgerTab({
           </div>
         }
       >
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
+          <span className="text-[var(--text-secondary)]">Company payment:</span>
+          <span className={paymentSummary.status === 'PAID_TO_COMPANY' ? 'font-semibold text-emerald-600' : paymentSummary.status === 'PARTIAL' ? 'font-semibold text-[var(--warning)]' : 'font-semibold text-[var(--text-primary)]'}>
+            {paymentSummary.status === 'PAID_TO_COMPANY' ? 'Paid to company' : paymentSummary.status === 'PARTIAL' ? 'Partially paid to company' : paymentSummary.status === 'UNPAID' ? 'Unpaid to company' : 'No payment due'}
+          </span>
+          <span className="text-[var(--text-secondary)]">Paid {formatMoney(paymentSummary.paid)} of {formatMoney(paymentSummary.charged)}</span>
+        </div>
         {companies.length > 1 && (
           <Box sx={{ maxWidth: 360, mb: 2 }}>
             <TextField

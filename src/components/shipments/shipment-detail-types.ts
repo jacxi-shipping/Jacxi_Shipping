@@ -177,6 +177,12 @@ export interface Shipment {
       code: string | null;
     };
   }>;
+  companyPaymentSummary?: {
+    charged: number;
+    paid: number;
+    remaining: number;
+    status: 'NOT_DUE' | 'UNPAID' | 'PARTIAL' | 'PAID_TO_COMPANY';
+  };
   containerDamages: Array<{
     id: string;
     containerId: string;

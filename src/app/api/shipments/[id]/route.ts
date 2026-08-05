@@ -9,6 +9,7 @@ import { validateManualShipmentWorkflowUpdate } from '@/lib/shipment-workflow';
 import { getShipmentWorkflowStage } from '@/lib/shipment-workflow-stage';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 import { buildUnifiedShipmentTimeline } from '@/lib/shipment-timeline';
+import { calculateCompanyPaymentStatus } from '@/lib/company-payment-status';
 
 type UpdateShipmentPayload = {
   userId?: string;
@@ -271,6 +272,7 @@ export async function GET(
           },
         })
       : [];
+    const companyPaymentSummary = calculateCompanyPaymentStatus(companyLedgerEntries);
 
     const relatedDispatchIds = Array.from(
       new Set(
@@ -629,6 +631,7 @@ export async function GET(
               }
             : null,
           companyLedgerEntries,
+          companyPaymentSummary,
           auditLogs,
           unifiedTimeline,
         },

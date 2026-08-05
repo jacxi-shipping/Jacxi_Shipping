@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
+import { calculateCompanyPaymentStatus } from '@/lib/company-payment-status';
 
 function asRecord(value: Prisma.JsonValue | null): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -67,6 +68,16 @@ export async function GET() {
       orderBy: { companyGetpassStartedAt: 'desc' },
     });
 
+    const companyLedgerEntries = await prisma.companyLedgerEntry.findMany({
+      where: {
+        OR: shipments.flatMap((shipment) => [
+          { metadata: { path: ['shipmentId'], equals: shipment.id } },
+          ...(shipment.container?.id ? [{ metadata: { path: ['containerId'], equals: shipment.container.id } }] : []),
+        ]),
+      },
+      select: { type: true, amount: true, metadata: true },
+    });
+
     const shipmentsWithExpenses = shipments.map(({ ledgerEntries, ...shipment }) => {
       let shippingExpenses = 0;
       let dispatchExpenses = 0;
@@ -94,6 +105,13 @@ export async function GET() {
       return {
         ...shipment,
         shippingCompany: shipment.shippingCompany || shipment.container?.company || null,
+        companyPayment: calculateCompanyPaymentStatus(
+          companyLedgerEntries.filter((entry) => {
+            const metadata = asRecord(entry.metadata);
+            return metadata.shipmentId === shipment.id ||
+              Boolean(shipment.container?.id && metadata.containerId === shipment.container.id);
+          })
+        ),
         expenses: {
           shipping: shippingExpenses,
           dispatch: dispatchExpenses,

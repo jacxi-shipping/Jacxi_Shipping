@@ -229,12 +229,16 @@ export async function POST(
     const body = await request.json();
     const validatedData = createEntrySchema.parse(body);
     const metadataObject = validatedData.metadata as Record<string, unknown> | undefined;
+    const normalizedMetadata =
+      validatedData.type === 'DEBIT' && typeof metadataObject?.shipmentId === 'string'
+        ? { ...metadataObject, isCompanyPayment: true, paymentScope: 'SHIPMENT' }
+        : metadataObject;
     const normalizedType =
       shouldForceCompanyExpenseCredit({
         description: validatedData.description,
         category: validatedData.category,
         reference: validatedData.reference,
-        metadata: metadataObject,
+        metadata: normalizedMetadata,
       })
         ? 'CREDIT'
         : validatedData.type;
@@ -253,8 +257,8 @@ export async function POST(
           category: validatedData.category || null,
           reference: validatedData.reference || null,
           notes: validatedData.notes || null,
-          metadata: validatedData.metadata !== undefined
-            ? (validatedData.metadata as Prisma.InputJsonValue)
+          metadata: normalizedMetadata !== undefined
+            ? (normalizedMetadata as Prisma.InputJsonValue)
             : undefined,
           createdBy: session.user!.id as string,
         },
