@@ -1,1 +1,5 @@
-export { POST } from '@/app/api/auth/signout/route';
+import { NextResponse } from 'next/server';
+
+export async function POST() {
+	return NextResponse.json({ success: true });
+}
