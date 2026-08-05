@@ -592,7 +592,7 @@ export async function GET(
           documents: visibleDocuments,
           internalNotes: canReadAllShipments ? shipment.internalNotes : null,
           shippingCompany:
-            canViewWorkflowCompanyDetails || canUseCompanyGetpass ? companyGetpassCompany : null,
+            canViewWorkflowCompanyDetails || canUseCompanyGetpass || canViewCompanyLedgerComparison ? companyGetpassCompany : null,
           container: shipment.container
             ? {
                 ...shipment.container,

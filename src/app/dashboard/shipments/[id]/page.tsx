@@ -35,6 +35,7 @@ import ShipmentDetailOverlays from '@/components/shipments/ShipmentDetailOverlay
 import ShipmentActivityTab from '@/components/shipments/ShipmentActivityTab';
 import ShipmentCustomerTab from '@/components/shipments/ShipmentCustomerTab';
 import ShipmentCompanyGetpassTab from '@/components/shipments/ShipmentCompanyGetpassTab';
+import ShipmentCompanyLedgerTab from '@/components/shipments/ShipmentCompanyLedgerTab';
 import ShipmentDamagesTab from '@/components/shipments/ShipmentDamagesTab';
 import ShipmentDetailsTab from '@/components/shipments/ShipmentDetailsTab';
 import ShipmentBillingTab from '@/components/shipments/ShipmentBillingTab';
@@ -91,6 +92,7 @@ const shipmentTabSlugs = [
   'activity',
   'customer',
   'company-getpass',
+  'company-ledger',
 ];
 
 function TabPanel({ children, value, index }: { children: React.ReactNode; value: number; index: number }) {
@@ -677,6 +679,7 @@ export default function ShipmentDetailPage() {
   const isAdmin = session?.user?.role === 'admin';
   const canManageShipmentExpenses = canPostExpenses;
   const canViewLedgerComparison = hasAnyPermission(session?.user?.role, ['finance:view', 'finance:manage', 'shipments:read_all']);
+  const canManageCompanyLedger = hasPermission(session?.user?.role, 'finance:manage');
   const canViewWorkflowCompanyDetails = hasPermission(session?.user?.role, 'shipments:read_all');
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
   const isShippingStage = shipment ? getShipmentWorkflowStage(shipment) === 'SHIPPING' : false;
@@ -1226,6 +1229,7 @@ export default function ShipmentDetailPage() {
             {isAdmin && <Tab value={8} icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
             {isAdmin && <Tab value={9} icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
             {canUseCompanyGetpass && <Tab value={10} icon={<Clock3 className="h-4 w-4" />} iconPosition="start" label="Company Getpass" />}
+            {canViewLedgerComparison && shipment.shippingCompany && <Tab value={11} icon={<Wallet className="h-4 w-4" />} iconPosition="start" label="Company Ledger" />}
           </Tabs>
         </Box>
 
@@ -1395,6 +1399,20 @@ export default function ShipmentDetailPage() {
                 setShipment((currentShipment) =>
                   currentShipment ? { ...currentShipment, companyGetpassStartedAt: null } : currentShipment
                 );
+              }}
+            />
+          </TabPanel>
+        )}
+
+        {canViewLedgerComparison && shipment.shippingCompany && (
+          <TabPanel value={activeTab} index={11}>
+            <ShipmentCompanyLedgerTab
+              shipmentId={shipment.id}
+              company={shipment.shippingCompany}
+              entries={companyLedgerEntries.filter((entry) => entry.companyId === shipment.shippingCompany?.id)}
+              canManageLedger={canManageCompanyLedger}
+              onTransactionCreated={() => {
+                void refreshShipmentPage();
               }}
             />
           </TabPanel>
