@@ -6,6 +6,7 @@ import { createNotification } from '@/lib/notifications';
 import { createShipmentAuditLogs } from '@/lib/entity-audit-history';
 import { hasPermission } from '@/lib/rbac';
 import { validateManualShipmentWorkflowUpdate } from '@/lib/shipment-workflow';
+import { getShipmentWorkflowStage } from '@/lib/shipment-workflow-stage';
 import { sendShipmentWorkflowNotifications } from '@/lib/workflow-notifications';
 import { buildUnifiedShipmentTimeline } from '@/lib/shipment-timeline';
 
@@ -82,6 +83,9 @@ export async function GET(
       canReadAllShipments;
     const canViewAuditHistory = canReadAllShipments;
     const canViewWorkflowCompanyDetails = canReadAllShipments;
+    const canUseCompanyGetpass =
+      hasPermission(session.user?.role, 'workflow:move') &&
+      hasPermission(session.user?.role, 'shipments:manage');
 
     const shipment = await prisma.shipment.findUnique({
       where: { id },
@@ -115,6 +119,7 @@ export async function GET(
         paymentMode: true,
         releaseToken: true,
         releaseTokenCreatedAt: true,
+        companyGetpassStartedAt: true,
         createdAt: true,
         updatedAt: true,
         user: {
@@ -136,6 +141,12 @@ export async function GET(
               },
               take: 10,
             },
+          },
+        },
+        shippingCompany: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         dispatch: {
@@ -573,6 +584,8 @@ export async function GET(
           ...shipment,
           documents: visibleDocuments,
           internalNotes: canReadAllShipments ? shipment.internalNotes : null,
+          shippingCompany:
+            canViewWorkflowCompanyDetails || canUseCompanyGetpass ? shipment.shippingCompany : null,
           container: shipment.container
             ? {
                 ...shipment.container,

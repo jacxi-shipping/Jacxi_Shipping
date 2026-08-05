@@ -11,6 +11,7 @@ import { Button, DetailPageSkeleton } from '@/components/design-system';
 import {
   ArrowLeft,
   CalendarCheck,
+  Clock3,
   FileText,
   DollarSign,
   Image as ImageIcon,
@@ -33,6 +34,7 @@ import { Breadcrumbs, toast, Tooltip } from '@/components/design-system';
 import ShipmentDetailOverlays from '@/components/shipments/ShipmentDetailOverlays';
 import ShipmentActivityTab from '@/components/shipments/ShipmentActivityTab';
 import ShipmentCustomerTab from '@/components/shipments/ShipmentCustomerTab';
+import ShipmentCompanyGetpassTab from '@/components/shipments/ShipmentCompanyGetpassTab';
 import ShipmentDamagesTab from '@/components/shipments/ShipmentDamagesTab';
 import ShipmentDetailsTab from '@/components/shipments/ShipmentDetailsTab';
 import ShipmentBillingTab from '@/components/shipments/ShipmentBillingTab';
@@ -46,6 +48,7 @@ import ShipmentWorkflowStrip from '@/components/shipments/ShipmentWorkflowStrip'
 import { downloadShipmentInvoicePDF } from '@/lib/utils/generateShipmentInvoicePDF';
 import { downloadReleaseTokenPDF } from '@/lib/utils/generateReleaseTokenPDF';
 import { hasAnyPermission, hasPermission } from '@/lib/rbac';
+import { getShipmentWorkflowStage } from '@/lib/shipment-workflow-stage';
 import type {
   AvailableDispatchOption,
   ClassifiedExpenseSource,
@@ -87,6 +90,7 @@ const shipmentTabSlugs = [
   'details',
   'activity',
   'customer',
+  'company-getpass',
 ];
 
 function TabPanel({ children, value, index }: { children: React.ReactNode; value: number; index: number }) {
@@ -675,6 +679,8 @@ export default function ShipmentDetailPage() {
   const canViewLedgerComparison = hasAnyPermission(session?.user?.role, ['finance:view', 'finance:manage', 'shipments:read_all']);
   const canViewWorkflowCompanyDetails = hasPermission(session?.user?.role, 'shipments:read_all');
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
+  const isShippingStage = shipment ? getShipmentWorkflowStage(shipment) === 'SHIPPING' : false;
+  const canUseCompanyGetpass = isShippingStage && Boolean(shipment?.shippingCompany);
   const canAssignDispatch = canManageWorkflow && !shipment?.dispatchId && !shipment?.containerId && !shipment?.transitId && shipment?.status === 'ON_HAND';
   const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.dispatchId || (shipment?.transitId && shipment?.transit?.currentCompany));
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
@@ -1209,16 +1215,17 @@ export default function ShipmentDetailPage() {
               },
             }}
           >
-            <Tab icon={<Info className="h-4 w-4" />} iconPosition="start" label="Overview" />
-            <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Timeline" />
-            <Tab icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Photos" meta={String(photoCount)} tone={photoCount > 0 ? 'ready' : 'neutral'} />} />
-            <Tab icon={<FileText className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Documents" meta={String(documentCount)} tone={documentCount > 0 ? 'ready' : 'warning'} />} />
-            <Tab icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Financials" meta={priceListTabMeta} tone={priceListTabTone} />} />
-            <Tab icon={<Wallet className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Billing" meta={billingTabMeta} tone={billingTabTone} />} />
-            <Tab icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Damages" meta={String(damageCount)} tone={damageCount > 0 ? 'danger' : 'ready'} />} />
-            <Tab icon={<PackageCheck className="h-4 w-4" />} iconPosition="start" label="Details" />
-            {isAdmin && <Tab icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
-            {isAdmin && <Tab icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
+            <Tab value={0} icon={<Info className="h-4 w-4" />} iconPosition="start" label="Overview" />
+            <Tab value={1} icon={<History className="h-4 w-4" />} iconPosition="start" label="Timeline" />
+            <Tab value={2} icon={<ImageIcon className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Photos" meta={String(photoCount)} tone={photoCount > 0 ? 'ready' : 'neutral'} />} />
+            <Tab value={3} icon={<FileText className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Documents" meta={String(documentCount)} tone={documentCount > 0 ? 'ready' : 'warning'} />} />
+            <Tab value={4} icon={<DollarSign className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Financials" meta={priceListTabMeta} tone={priceListTabTone} />} />
+            <Tab value={5} icon={<Wallet className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Billing" meta={billingTabMeta} tone={billingTabTone} />} />
+            <Tab value={6} icon={<AlertTriangle className="h-4 w-4" />} iconPosition="start" label={<ShipmentTabLabel label="Damages" meta={String(damageCount)} tone={damageCount > 0 ? 'danger' : 'ready'} />} />
+            <Tab value={7} icon={<PackageCheck className="h-4 w-4" />} iconPosition="start" label="Details" />
+            {isAdmin && <Tab value={8} icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
+            {isAdmin && <Tab value={9} icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
+            {canUseCompanyGetpass && <Tab value={10} icon={<Clock3 className="h-4 w-4" />} iconPosition="start" label="Company Getpass" />}
           </Tabs>
         </Box>
 
@@ -1369,6 +1376,27 @@ export default function ShipmentDetailPage() {
         {isAdmin && (
           <TabPanel value={activeTab} index={9}>
             <ShipmentCustomerTab user={shipment.user} shipmentId={shipment.id} />
+          </TabPanel>
+        )}
+
+        {canUseCompanyGetpass && (
+          <TabPanel value={activeTab} index={10}>
+            <ShipmentCompanyGetpassTab
+              shipmentId={shipment.id}
+              company={shipment.shippingCompany}
+              startedAt={shipment.companyGetpassStartedAt}
+              canStart={canManageWorkflow}
+              onStarted={(companyGetpassStartedAt) => {
+                setShipment((currentShipment) =>
+                  currentShipment ? { ...currentShipment, companyGetpassStartedAt } : currentShipment
+                );
+              }}
+              onUndone={() => {
+                setShipment((currentShipment) =>
+                  currentShipment ? { ...currentShipment, companyGetpassStartedAt: null } : currentShipment
+                );
+              }}
+            />
           </TabPanel>
         )}
       </DashboardSurface>

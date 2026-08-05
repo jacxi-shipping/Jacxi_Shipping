@@ -126,6 +126,8 @@ export interface Shipment {
   paymentMode: string | null;
   releaseToken: string | null;
   releaseTokenCreatedAt: string | null;
+  companyGetpassStartedAt: string | null;
+  shippingCompany: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
   user: {

@@ -231,7 +231,7 @@ export default function InvoiceDetailPage() {
 		if (!invoice) return;
 		try {
 			const { downloadInvoicePDF } = await import('@/lib/utils/generateInvoicePDF');
-			downloadInvoicePDF(invoice);
+			await downloadInvoicePDF(invoice);
 		} catch (error) {
 			console.error('PDF generation error:', error);
 			toast.error('Failed to generate PDF');

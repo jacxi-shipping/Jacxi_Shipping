@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore, AdminPanelSettings, CompareArrows, Settings } from '@mui/icons-material';
+import { Dashboard, Inventory2, Description, Search, Analytics, Group, AllInbox, Receipt, AccountBalance, Payment, Business, LocalShipping, SmartToy, PhoneInTalk, Route, ExpandLess, ExpandMore, AdminPanelSettings, CompareArrows, Settings, Timer } from '@mui/icons-material';
 import { signOut, useSession } from 'next-auth/react';
 import { Drawer, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography, Collapse, IconButton, Avatar, Button } from '@mui/material';
 import { hasPermission, type Permission } from '@/lib/rbac';
@@ -41,6 +41,12 @@ const shipmentNavigation: NavigationItem[] = [
 		href: '/dashboard/shipments',
 		icon: Inventory2,
 		requiredPermission: 'shipments:view',
+	},
+	{
+		name: 'Company Getpasses',
+		href: '/dashboard/company-getpasses',
+		icon: Timer,
+		requiredPermission: 'shipments:manage',
 	},
 	{
 		name: 'Containers',

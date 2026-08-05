@@ -184,7 +184,7 @@ export default function InvoicesPage() {
 			const { downloadInvoicePDF } = await import('@/lib/utils/generateInvoicePDF');
 			
 			// Generate and download the PDF
-			downloadInvoicePDF(fullInvoice);
+			await downloadInvoicePDF(fullInvoice);
 
 			toast.success('PDF downloaded successfully!', {
 				description: 'Check your downloads folder'

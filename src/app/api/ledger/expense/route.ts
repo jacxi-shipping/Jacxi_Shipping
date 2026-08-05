@@ -219,9 +219,10 @@ export async function POST(request: NextRequest) {
       await addExpenseLineItemToShipmentInvoice(
         validatedData.shipmentId,
         {
-          description,
+          description: validatedData.description,
           type: mapExpenseTypeToLineItemType(validatedData.expenseType),
           amount: userAmount,
+          expenseSource,
         },
         tx
       );

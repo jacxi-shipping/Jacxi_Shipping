@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 interface LineItem {
   description: string;
   type: string;
+  expenseSource?: string | null;
   quantity: number;
   unitPrice: number;
   amount: number;
@@ -98,7 +99,16 @@ const formatDate = (dateString: string | null): string => {
   });
 };
 
-const getLineItemTypeLabel = (type: string, description: string): string => {
+const getLineItemTypeLabel = (type: string, description: string, expenseSource?: string | null): string => {
+  const source = expenseSource?.toUpperCase();
+  if (source === 'DISPATCH') return 'DISPATCH EXPENSE';
+  if (source === 'SHIPMENT') return 'SHIPPING EXPENSE';
+  if (source === 'TRANSIT') return 'TRANSIT EXPENSE';
+
+  if (/^dispatch expense/i.test(description)) return 'DISPATCH EXPENSE';
+  if (/^(container|shipping) expense/i.test(description)) return 'SHIPPING EXPENSE';
+  if (/^transit expense/i.test(description)) return 'TRANSIT EXPENSE';
+
   if (type === 'DISCOUNT' && /damage/i.test(description)) {
     return 'DAMAGE CREDIT';
   }
@@ -106,11 +116,43 @@ const getLineItemTypeLabel = (type: string, description: string): string => {
   return type.replace('_', ' ');
 };
 
+const getInvoiceLineDescription = (lineItem: Pick<LineItem, 'description' | 'expenseSource'>): string => {
+  if (lineItem.expenseSource) {
+    return lineItem.description;
+  }
+
+  return lineItem.description
+    .replace(/^(?:dispatch|transit|container|shipping) expense(?: allocation)?\s*-\s*/i, '')
+    .replace(/\s+-\s+[^-]+?\s+for\s+.*$/i, '')
+    .replace(/\s+for\s+.*$/i, '')
+    .trim();
+};
+
 const formatStatus = (status: string): string => {
   return status.replace('_', ' ').toUpperCase();
 };
 
-export const generateInvoicePDF = (invoice: Invoice) => {
+async function loadInvoiceLogo(): Promise<string | null> {
+  try {
+    const response = await fetch('/main-logo.png');
+    if (!response.ok) {
+      return null;
+    }
+
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Unable to load invoice logo:', error);
+    return null;
+  }
+}
+
+export const generateInvoicePDF = async (invoice: Invoice) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -124,16 +166,10 @@ export const generateInvoicePDF = (invoice: Invoice) => {
   doc.setFillColor(...COLORS.white);
   doc.rect(0, 8, pageWidth, 42, 'F');
   
-  // Company branding
-  doc.setTextColor(...COLORS.textPrimary);
-  doc.setFontSize(32);
-  doc.setFont('helvetica', 'bold');
-  doc.text('JACXI', 20, 28);
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...COLORS.textSecondary);
-  doc.text('SHIPPING', 20, 35);
+  const logo = await loadInvoiceLogo();
+  if (logo) {
+    doc.addImage(logo, 'PNG', 20, 10, 42, 38);
+  }
   
   // Invoice title and number
   doc.setTextColor(...COLORS.accentGold);
@@ -336,11 +372,13 @@ export const generateInvoicePDF = (invoice: Invoice) => {
       const isPurchasePaid =
         (item.type === 'PURCHASE_PRICE' || item.type === 'VEHICLE_PRICE') &&
         invoice.shipment?.paymentStatus === 'COMPLETED';
-      const descLabel = getLineItemTypeLabel(item.type, item.description)
+      const description = getInvoiceLineDescription(item);
+      const typeLabel = getLineItemTypeLabel(item.type, item.description, item.expenseSource);
+      const descLabel = description
         + (isPurchasePaid ? ' ✓ PAID' : '');
       tableData.push([
         { content: descLabel, styles: { halign: 'left', textColor: isPurchasePaid ? COLORS.success : COLORS.textPrimary } },
-        { content: getLineItemTypeLabel(item.type, item.description), styles: { halign: 'left', textColor: COLORS.textSecondary } },
+        { content: typeLabel, styles: { halign: 'left', textColor: COLORS.textSecondary } },
         { content: item.quantity.toString(), styles: { halign: 'center', textColor: COLORS.textSecondary } },
         { content: formatCurrency(item.unitPrice), styles: { halign: 'center', textColor: COLORS.textSecondary } },
         { content: formatCurrency(item.amount), styles: { halign: 'center', fontStyle: 'bold', textColor: COLORS.textPrimary } },
@@ -492,8 +530,8 @@ export const generateInvoicePDF = (invoice: Invoice) => {
   return doc;
 };
 
-export const downloadInvoicePDF = (invoice: Invoice) => {
-  const doc = generateInvoicePDF(invoice);
+export const downloadInvoicePDF = async (invoice: Invoice) => {
+  const doc = await generateInvoicePDF(invoice);
   const fileName = `Invoice_${invoice.invoiceNumber}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 };

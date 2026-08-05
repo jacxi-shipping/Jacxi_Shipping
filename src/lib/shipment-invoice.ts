@@ -63,6 +63,7 @@ export async function addExpenseLineItemToShipmentInvoice(
     type: LineItemType;
     amount: number;
     quantity?: number;
+    expenseSource?: 'DISPATCH' | 'SHIPMENT' | 'TRANSIT';
   },
   client: DbClient = prisma
 ): Promise<string | null> {
@@ -84,6 +85,7 @@ export async function addExpenseLineItemToShipmentInvoice(
       quantity,
       unitPrice,
       amount: lineItemData.amount,
+      expenseSource: lineItemData.expenseSource,
     },
   });
 

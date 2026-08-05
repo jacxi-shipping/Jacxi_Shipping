@@ -183,9 +183,10 @@ async function replaceDispatchExpenseLedgerEffects(
     await addExpenseLineItemToShipmentInvoice(
       shipment.id,
       {
-        description: `Dispatch expense - ${input.type} for ${vehicleLabel || 'shipment'}${vinSuffix}`,
+        description: input.description,
         type: mapExpenseTypeToLineItemType(input.type),
         amount: allocation.amount,
+        expenseSource: 'DISPATCH',
       },
       tx
     );

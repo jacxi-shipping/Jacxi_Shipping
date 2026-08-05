@@ -1,5 +1,7 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+
+const INVOICE_LOGO_PATH = `${process.cwd()}/public/main-logo.png`;
 
 // Register a standard font (optional, using standard Helvetica by default)
 // Font.register({ family: 'Roboto', src: '...' });
@@ -32,6 +34,11 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flexDirection: 'column',
+  },
+  logo: {
+    width: 68,
+    height: 68,
+    objectFit: 'contain',
   },
   companyName: {
     fontSize: 32,
@@ -314,6 +321,7 @@ interface InvoiceTemplateProps {
       id: string;
       description: string;
       type: string;
+      expenseSource?: string | null;
       quantity: number;
       unitPrice: number;
       amount: number;
@@ -328,12 +336,33 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const getLineItemTypeLabel = (type: string, description: string): string => {
+const getLineItemTypeLabel = (type: string, description: string, expenseSource?: string | null): string => {
+  const source = expenseSource?.toUpperCase();
+  if (source === 'DISPATCH') return 'DISPATCH EXPENSE';
+  if (source === 'SHIPMENT') return 'SHIPPING EXPENSE';
+  if (source === 'TRANSIT') return 'TRANSIT EXPENSE';
+
+  if (/^dispatch expense/i.test(description)) return 'DISPATCH EXPENSE';
+  if (/^(container|shipping) expense/i.test(description)) return 'SHIPPING EXPENSE';
+  if (/^transit expense/i.test(description)) return 'TRANSIT EXPENSE';
+
   if (type === 'DISCOUNT' && /damage/i.test(description)) {
     return 'DAMAGE CREDIT';
   }
 
   return type.replace('_', ' ');
+};
+
+const getInvoiceLineDescription = (lineItem: { description: string; expenseSource?: string | null }) => {
+  if (lineItem.expenseSource) {
+    return lineItem.description;
+  }
+
+  return lineItem.description
+    .replace(/^(?:dispatch|transit|container|shipping) expense(?: allocation)?\s*-\s*/i, '')
+    .replace(/\s+-\s+[^-]+?\s+for\s+.*$/i, '')
+    .replace(/\s+for\s+.*$/i, '')
+    .trim();
 };
 
 const formatDate = (date: Date | string | null) => {
@@ -364,8 +393,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.companyName}>JACXI</Text>
-            <Text style={styles.companyTagline}>SHIPPING</Text>
+            <Image src={INVOICE_LOGO_PATH} style={styles.logo} />
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.title}>INVOICE</Text>
@@ -445,8 +473,8 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ invoice }) => {
 
           {invoice.lineItems.map((item, index) => (
             <View key={item.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]}>
-              <Text style={[styles.td, styles.col1]}>{item.description}</Text>
-              <Text style={[styles.td, styles.col2]}>{getLineItemTypeLabel(item.type, item.description)}</Text>
+              <Text style={[styles.td, styles.col1]}>{getInvoiceLineDescription(item)}</Text>
+              <Text style={[styles.td, styles.col2]}>{getLineItemTypeLabel(item.type, item.description, item.expenseSource)}</Text>
               <Text style={[styles.td, styles.col3]}>{item.quantity}</Text>
               <Text style={[styles.td, styles.col4]}>{formatCurrency(item.unitPrice)}</Text>
               <Text style={[styles.td, styles.col5]}>{formatCurrency(item.amount)}</Text>

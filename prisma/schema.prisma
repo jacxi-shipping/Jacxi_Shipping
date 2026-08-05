@@ -169,6 +169,7 @@ model Shipment {
   paymentMode   PaymentMode?
   releaseToken  String?       @unique
   releaseTokenCreatedAt DateTime?
+  companyGetpassStartedAt DateTime?
 
   // Metadata
   createdAt DateTime @default(now())
@@ -821,6 +822,7 @@ model InvoiceLineItem {
   quantity  Float @default(1)
   unitPrice Float
   amount    Float // quantity × unitPrice
+  expenseSource String?
 
   // Metadata
   createdAt DateTime @default(now())
@@ -833,6 +835,7 @@ model InvoiceLineItem {
   @@index([invoiceId])
   @@index([shipmentId])
   @@index([type])
+  @@index([expenseSource])
 }
 
 // ============================================

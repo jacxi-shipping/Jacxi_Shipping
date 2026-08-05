@@ -335,7 +335,7 @@ export default function ShipmentBillingTab({ shipmentId, refreshKey, purchasePri
       }
 
       const { downloadInvoicePDF } = await import('@/lib/utils/generateInvoicePDF');
-      downloadInvoicePDF(payload);
+      await downloadInvoicePDF(payload);
     } catch (downloadError) {
       toast.error(downloadError instanceof Error ? downloadError.message : 'Failed to download invoice');
     } finally {

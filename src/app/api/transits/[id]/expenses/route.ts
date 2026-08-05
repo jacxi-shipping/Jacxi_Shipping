@@ -271,9 +271,10 @@ export async function POST(
         await addExpenseLineItemToShipmentInvoice(
           shipment.id,
           {
-            description: `Transit expense - ${validatedData.type} for ${vehicleLabel || 'shipment'}${vinSuffix}`,
+            description: validatedData.type,
             type: mapExpenseTypeToLineItemType(validatedData.type),
             amount: allocation.amount,
+            expenseSource: 'TRANSIT',
           },
           tx
         );
