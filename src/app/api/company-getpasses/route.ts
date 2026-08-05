@@ -57,11 +57,14 @@ export async function GET() {
             },
           },
         },
-        ledgerEntries: {
+        dispatch: {
           select: {
-            type: true,
-            amount: true,
-            metadata: true,
+            id: true,
+          },
+        },
+        transit: {
+          select: {
+            id: true,
           },
         },
       },
@@ -73,30 +76,38 @@ export async function GET() {
         OR: shipments.flatMap((shipment) => [
           { metadata: { path: ['shipmentId'], equals: shipment.id } },
           ...(shipment.container?.id ? [{ metadata: { path: ['containerId'], equals: shipment.container.id } }] : []),
+          ...(shipment.dispatch?.id ? [{ metadata: { path: ['dispatchId'], equals: shipment.dispatch.id } }] : []),
+          ...(shipment.transit?.id ? [{ metadata: { path: ['transitId'], equals: shipment.transit.id } }] : []),
         ]),
       },
       select: { type: true, amount: true, metadata: true },
     });
 
-    const shipmentsWithExpenses = shipments.map(({ ledgerEntries, ...shipment }) => {
+    const shipmentsWithExpenses = shipments.map((shipment) => {
       let shippingExpenses = 0;
       let dispatchExpenses = 0;
+      let transitExpenses = 0;
 
-      for (const entry of ledgerEntries) {
-        if (entry.type !== 'DEBIT') {
+      const shipmentCompanyEntries = companyLedgerEntries.filter((entry) => {
+        const metadata = asRecord(entry.metadata);
+        return metadata.shipmentId === shipment.id ||
+          Boolean(shipment.container?.id && metadata.containerId === shipment.container.id) ||
+          Boolean(shipment.dispatch?.id && metadata.dispatchId === shipment.dispatch.id) ||
+          Boolean(shipment.transit?.id && metadata.transitId === shipment.transit.id);
+      });
+
+      for (const entry of shipmentCompanyEntries) {
+        if (entry.type !== 'CREDIT') {
           continue;
         }
 
         const metadata = asRecord(entry.metadata);
-        const isExpense = metadata.isExpense === true || metadata.isExpense === 'true';
         const expenseSource = typeof metadata.expenseSource === 'string' ? metadata.expenseSource.toUpperCase() : null;
-
-        if (!isExpense && expenseSource !== 'SHIPMENT' && expenseSource !== 'DISPATCH') {
-          continue;
-        }
 
         if (expenseSource === 'DISPATCH' || typeof metadata.dispatchId === 'string') {
           dispatchExpenses += entry.amount;
+        } else if (expenseSource === 'TRANSIT' || typeof metadata.transitId === 'string') {
+          transitExpenses += entry.amount;
         } else if (expenseSource === 'SHIPMENT' || typeof metadata.containerId === 'string') {
           shippingExpenses += entry.amount;
         }
@@ -106,16 +117,13 @@ export async function GET() {
         ...shipment,
         shippingCompany: shipment.shippingCompany || shipment.container?.company || null,
         companyPayment: calculateCompanyPaymentStatus(
-          companyLedgerEntries.filter((entry) => {
-            const metadata = asRecord(entry.metadata);
-            return metadata.shipmentId === shipment.id ||
-              Boolean(shipment.container?.id && metadata.containerId === shipment.container.id);
-          })
+          shipmentCompanyEntries
         ),
         expenses: {
           shipping: shippingExpenses,
           dispatch: dispatchExpenses,
-          total: shippingExpenses + dispatchExpenses,
+          transit: transitExpenses,
+          total: shippingExpenses + dispatchExpenses + transitExpenses,
         },
       };
     });

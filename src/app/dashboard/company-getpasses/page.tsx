@@ -21,6 +21,7 @@ type GetpassShipment = {
   expenses: {
     shipping: number;
     dispatch: number;
+    transit: number;
     total: number;
   };
   companyPayment: {
@@ -154,7 +155,7 @@ export default function CompanyGetpassesPage() {
                         <td className="px-3 py-4">
                           <p className="font-semibold text-[var(--text-primary)]">{formatMoney(shipment.expenses.total)}</p>
                           <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                            Shipping {formatMoney(shipment.expenses.shipping)} | Dispatch {formatMoney(shipment.expenses.dispatch)}
+                            Shipping {formatMoney(shipment.expenses.shipping)} | Dispatch {formatMoney(shipment.expenses.dispatch)} | Transit {formatMoney(shipment.expenses.transit)}
                           </p>
                         </td>
                         <td className="px-3 py-4">
