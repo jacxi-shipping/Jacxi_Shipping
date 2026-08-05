@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Building2, Clock3, ExternalLink, Undo2 } from 'lucide-react';
+import { Building2, CheckCircle2, Clock3, ExternalLink, Search, Undo2 } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { DashboardSurface, DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Breadcrumbs, Button, EmptyState, toast } from '@/components/design-system';
@@ -16,6 +16,8 @@ type GetpassShipment = {
   vehicleVIN: string | null;
   status: string;
   companyGetpassStartedAt: string;
+  companyGetpassCompletedAt: string | null;
+  companyGetpassDurationSeconds: number | null;
   shippingCompany: { id: string; name: string } | null;
   container: { id: string; containerNumber: string } | null;
   expenses: {
@@ -41,6 +43,13 @@ function formatElapsedTime(startedAt: string, now: number) {
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
 }
 
+function formatDuration(seconds: number) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  return [hours, minutes, remainingSeconds].map((value) => String(value).padStart(2, '0')).join(':');
+}
+
 function formatVehicle(shipment: GetpassShipment) {
   return [shipment.vehicleYear, shipment.vehicleMake, shipment.vehicleModel].filter(Boolean).join(' ') || shipment.vehicleType;
 }
@@ -60,12 +69,18 @@ export default function CompanyGetpassesPage() {
   const [shipments, setShipments] = useState<GetpassShipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [undoingId, setUndoingId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [stateFilter, setStateFilter] = useState<'active' | 'completed' | 'all'>('active');
 
   const fetchGetpasses = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/company-getpasses', { cache: 'no-store' });
+      const params = new URLSearchParams({ state: stateFilter });
+      if (search) params.set('search', search);
+      const response = await fetch(`/api/company-getpasses?${params.toString()}`, { cache: 'no-store' });
       const data = await response.json();
 
       if (!response.ok) {
@@ -86,7 +101,7 @@ export default function CompanyGetpassesPage() {
     void fetchGetpasses();
     const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [search, stateFilter]);
 
   const handleUndo = async (shipmentId: string) => {
     setUndoingId(shipmentId);
@@ -110,19 +125,69 @@ export default function CompanyGetpassesPage() {
     }
   };
 
+  const handleComplete = async (shipmentId: string) => {
+    setCompletingId(shipmentId);
+
+    try {
+      const response = await fetch(`/api/shipments/${shipmentId}/company-getpass`, { method: 'PATCH' });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete Company Getpass');
+      }
+
+      toast.success('Company Getpass completed');
+      await fetchGetpasses();
+    } catch (error) {
+      toast.error('Unable to complete Company Getpass', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <DashboardSurface>
         <div className="flex flex-col gap-4">
           <Breadcrumbs items={[{ label: 'Company Getpasses', href: '' }]} />
-          <DashboardPanel title="Company Getpasses" description="Active shipment getpass timers by shipping company">
+          <DashboardPanel title="Company Getpasses" description="Track active and completed shipment getpasses by company">
+            <form
+              className="mb-4 flex flex-col gap-3 md:flex-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setSearch(searchInput.trim());
+              }}
+            >
+              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3">
+                <Search className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                <input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search VIN, vehicle, container, or company"
+                  className="h-10 min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
+                />
+              </label>
+              <select
+                value={stateFilter}
+                onChange={(event) => setStateFilter(event.target.value as 'active' | 'completed' | 'all')}
+                className="h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--text-primary)]"
+                aria-label="Getpass state"
+              >
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="all">All getpasses</option>
+              </select>
+              <Button type="submit" variant="outline" size="sm">Search</Button>
+            </form>
             {loading ? (
               <div className="py-10 text-center text-sm text-[var(--text-secondary)]">Loading Company Getpasses...</div>
             ) : shipments.length === 0 ? (
               <EmptyState
                 icon={<Clock3 className="h-8 w-8" />}
-                title="No active Company Getpasses"
-                description="Start a getpass timer from a shipment in the shipping stage."
+                title="No Company Getpasses Found"
+                description="Try a different search or state filter, or start a getpass from a shipment."
               />
             ) : (
               <div className="overflow-x-auto">
@@ -134,7 +199,7 @@ export default function CompanyGetpassesPage() {
                       <th className="px-3 py-3">Container</th>
                       <th className="px-3 py-3">Expenses</th>
                       <th className="px-3 py-3">Company Payment</th>
-                      <th className="px-3 py-3">Elapsed</th>
+                      <th className="px-3 py-3">Getpass</th>
                       <th className="px-3 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -168,8 +233,13 @@ export default function CompanyGetpassesPage() {
                         </td>
                         <td className="px-3 py-4">
                           <span className="font-mono text-base font-semibold tabular-nums text-[var(--text-primary)]">
-                            {formatElapsedTime(shipment.companyGetpassStartedAt, now)}
+                            {shipment.companyGetpassCompletedAt
+                              ? formatDuration(shipment.companyGetpassDurationSeconds || 0)
+                              : formatElapsedTime(shipment.companyGetpassStartedAt, now)}
                           </span>
+                          <p className={shipment.companyGetpassCompletedAt ? 'mt-1 text-xs font-semibold text-emerald-600' : 'mt-1 text-xs text-[var(--text-secondary)]'}>
+                            {shipment.companyGetpassCompletedAt ? `Completed ${new Date(shipment.companyGetpassCompletedAt).toLocaleDateString()}` : 'Active'}
+                          </p>
                         </td>
                         <td className="px-3 py-4">
                           <div className="flex justify-end gap-2">
@@ -178,15 +248,27 @@ export default function CompanyGetpassesPage() {
                                 <ExternalLink className="h-4 w-4" />
                               </Button>
                             </Link>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void handleUndo(shipment.id)}
-                              disabled={undoingId === shipment.id}
-                            >
-                              <Undo2 className="mr-2 h-4 w-4" />
-                              {undoingId === shipment.id ? 'Undoing...' : 'Undo'}
-                            </Button>
+                            {!shipment.companyGetpassCompletedAt && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => void handleComplete(shipment.id)}
+                                  disabled={completingId === shipment.id}
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  {completingId === shipment.id ? 'Completing...' : 'Complete'}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void handleUndo(shipment.id)}
+                                  disabled={undoingId === shipment.id}
+                                >
+                                  <Undo2 className="mr-2 h-4 w-4" />
+                                  {undoingId === shipment.id ? 'Undoing...' : 'Undo'}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

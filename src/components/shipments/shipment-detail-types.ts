@@ -127,6 +127,8 @@ export interface Shipment {
   releaseToken: string | null;
   releaseTokenCreatedAt: string | null;
   companyGetpassStartedAt: string | null;
+  companyGetpassCompletedAt: string | null;
+  companyGetpassDurationSeconds: number | null;
   shippingCompany: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;

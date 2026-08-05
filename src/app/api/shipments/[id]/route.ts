@@ -121,6 +121,8 @@ export async function GET(
         releaseToken: true,
         releaseTokenCreatedAt: true,
         companyGetpassStartedAt: true,
+        companyGetpassCompletedAt: true,
+        companyGetpassDurationSeconds: true,
         createdAt: true,
         updatedAt: true,
         user: {

@@ -170,6 +170,8 @@ model Shipment {
   releaseToken  String?       @unique
   releaseTokenCreatedAt DateTime?
   companyGetpassStartedAt DateTime?
+  companyGetpassCompletedAt DateTime?
+  companyGetpassDurationSeconds Int?
 
   // Metadata
   createdAt DateTime @default(now())

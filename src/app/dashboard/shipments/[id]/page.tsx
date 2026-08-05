@@ -683,7 +683,7 @@ export default function ShipmentDetailPage() {
   const canViewWorkflowCompanyDetails = hasPermission(session?.user?.role, 'shipments:read_all');
   const isReleasedForTransit = shipment?.status === 'RELEASED' || shipment?.container?.status === 'RELEASED';
   const isShippingStage = shipment ? getShipmentWorkflowStage(shipment) === 'SHIPPING' : false;
-  const canUseCompanyGetpass = isShippingStage;
+  const canUseCompanyGetpass = isShippingStage || Boolean(shipment?.companyGetpassStartedAt || shipment?.companyGetpassCompletedAt);
   const canAssignDispatch = canManageWorkflow && !shipment?.dispatchId && !shipment?.containerId && !shipment?.transitId && shipment?.status === 'ON_HAND';
   const canAddShipmentExpense = Boolean(shipment?.containerId || shipment?.dispatchId || (shipment?.transitId && shipment?.transit?.currentCompany));
   const canAddDispatchExpense = Boolean(shipment?.dispatchId);
@@ -1398,10 +1398,19 @@ export default function ShipmentDetailPage() {
               shipmentId={shipment.id}
               company={shipment.shippingCompany}
               startedAt={shipment.companyGetpassStartedAt}
+              completedAt={shipment.companyGetpassCompletedAt}
+              durationSeconds={shipment.companyGetpassDurationSeconds}
               canStart={canManageWorkflow}
               onStarted={(companyGetpassStartedAt) => {
                 setShipment((currentShipment) =>
                   currentShipment ? { ...currentShipment, companyGetpassStartedAt } : currentShipment
+                );
+              }}
+              onCompleted={(companyGetpassCompletedAt, companyGetpassDurationSeconds) => {
+                setShipment((currentShipment) =>
+                  currentShipment
+                    ? { ...currentShipment, companyGetpassCompletedAt, companyGetpassDurationSeconds }
+                    : currentShipment
                 );
               }}
               onUndone={() => {

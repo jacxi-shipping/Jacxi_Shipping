@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -13,7 +13,7 @@ function asRecord(value: Prisma.JsonValue | null): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
@@ -28,8 +28,26 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search')?.trim() || '';
+    const state = searchParams.get('state') || 'active';
+    const where: Prisma.ShipmentWhereInput = {
+      companyGetpassStartedAt: { not: null },
+      ...(state === 'active' ? { companyGetpassCompletedAt: null } : {}),
+      ...(state === 'completed' ? { companyGetpassCompletedAt: { not: null } } : {}),
+      ...(search ? {
+        OR: [
+          { vehicleVIN: { contains: search, mode: 'insensitive' } },
+          { vehicleMake: { contains: search, mode: 'insensitive' } },
+          { vehicleModel: { contains: search, mode: 'insensitive' } },
+          { container: { containerNumber: { contains: search, mode: 'insensitive' } } },
+          { shippingCompany: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      } : {}),
+    };
+
     const shipments = await prisma.shipment.findMany({
-      where: { companyGetpassStartedAt: { not: null } },
+      where,
       select: {
         id: true,
         vehicleType: true,
@@ -39,6 +57,8 @@ export async function GET() {
         vehicleVIN: true,
         status: true,
         companyGetpassStartedAt: true,
+        companyGetpassCompletedAt: true,
+        companyGetpassDurationSeconds: true,
         shippingCompany: {
           select: {
             id: true,
