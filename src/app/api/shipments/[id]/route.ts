@@ -235,14 +235,18 @@ export async function GET(
       );
     }
 
+    const companyLedgerEntryWhere: Prisma.CompanyLedgerEntryWhereInput = {
+      OR: [
+        { metadata: { path: ['shipmentId'], equals: id } },
+        ...(shipment.containerId ? [{ metadata: { path: ['containerId'], equals: shipment.containerId } }] : []),
+        ...(shipment.dispatchId ? [{ metadata: { path: ['dispatchId'], equals: shipment.dispatchId } }] : []),
+        ...(shipment.transitId ? [{ metadata: { path: ['transitId'], equals: shipment.transitId } }] : []),
+      ],
+    };
+
     const companyLedgerEntries = canViewCompanyLedgerComparison
       ? await prisma.companyLedgerEntry.findMany({
-          where: {
-            metadata: {
-              path: ['shipmentId'],
-              equals: id,
-            },
-          },
+          where: companyLedgerEntryWhere,
           select: {
             id: true,
             companyId: true,
@@ -602,7 +606,7 @@ export async function GET(
           dispatch: shipment.dispatch
             ? {
                 ...shipment.dispatch,
-                company: canViewWorkflowCompanyDetails ? shipment.dispatch.company : null,
+                company: canViewWorkflowCompanyDetails || canViewCompanyLedgerComparison ? shipment.dispatch.company : null,
               }
             : null,
           transit: shipment.transit
@@ -621,7 +625,7 @@ export async function GET(
                       status: currentTransitEvent.status,
                     }
                   : null,
-                currentCompany: canViewWorkflowCompanyDetails ? currentTransitEvent?.company ?? null : null,
+                currentCompany: canViewWorkflowCompanyDetails || canViewCompanyLedgerComparison ? currentTransitEvent?.company ?? null : null,
               }
             : null,
           companyLedgerEntries,

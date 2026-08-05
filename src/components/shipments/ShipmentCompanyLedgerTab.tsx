@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Building2, DollarSign, Plus, ReceiptText } from 'lucide-react';
-import { Box, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
 import { DashboardPanel } from '@/components/dashboard/DashboardSurface';
 import { Button, toast } from '@/components/design-system';
 import type { Shipment } from '@/components/shipments/shipment-detail-types';
 
 type ShipmentCompanyLedgerTabProps = {
   shipmentId: string;
-  company: { id: string; name: string } | null;
+  companies: Array<{ id: string; name: string; source: 'Shipping' | 'Dispatch' | 'Transit' }>;
   entries: NonNullable<Shipment['companyLedgerEntries']>;
   canManageLedger: boolean;
   onTransactionCreated: () => void;
@@ -40,7 +40,7 @@ function formatMoney(amount: number) {
 
 export default function ShipmentCompanyLedgerTab({
   shipmentId,
-  company,
+  companies,
   entries,
   canManageLedger,
   onTransactionCreated,
@@ -49,6 +49,9 @@ export default function ShipmentCompanyLedgerTab({
   const [isPayment, setIsPayment] = useState(false);
   const [open, setOpen] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const company = companies.find((candidate) => candidate.id === selectedCompanyId) || companies[0] || null;
+  const companyEntries = company ? entries.filter((entry) => entry.companyId === company.id) : [];
 
   const openEntryForm = (payment: boolean) => {
     setIsPayment(payment);
@@ -110,7 +113,7 @@ export default function ShipmentCompanyLedgerTab({
   if (!company) {
     return (
       <DashboardPanel title="Company Ledger" description="Company transactions linked to this shipment">
-        <p className="py-4 text-sm text-[var(--text-secondary)]">Assign a shipping company to use this ledger.</p>
+        <p className="py-4 text-sm text-[var(--text-secondary)]">Assign a shipping, dispatch, or transit company to use this ledger.</p>
       </DashboardPanel>
     );
   }
@@ -134,7 +137,23 @@ export default function ShipmentCompanyLedgerTab({
           </div>
         }
       >
-        {entries.length === 0 ? (
+        {companies.length > 1 && (
+          <Box sx={{ maxWidth: 360, mb: 2 }}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Company ledger"
+              value={company.id}
+              onChange={(event) => setSelectedCompanyId(event.target.value)}
+            >
+              {companies.map((candidate) => (
+                <MenuItem key={candidate.id} value={candidate.id}>{candidate.source}: {candidate.name}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        )}
+        {companyEntries.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center text-[var(--text-secondary)]">
             <ReceiptText className="h-7 w-7 text-[var(--accent-gold)]" />
             <p className="text-sm">No company ledger transactions are linked to this shipment.</p>
@@ -146,7 +165,7 @@ export default function ShipmentCompanyLedgerTab({
                 <tr><th className="px-3 py-3">Date</th><th className="px-3 py-3">Description</th><th className="px-3 py-3">Type</th><th className="px-3 py-3 text-right">Amount</th><th className="px-3 py-3 text-right">Balance</th></tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
+                {companyEntries.map((entry) => (
                   <tr key={entry.id} className="border-b border-[var(--border)] last:border-0">
                     <td className="px-3 py-3 text-[var(--text-secondary)]">{new Date(entry.transactionDate).toLocaleDateString()}</td>
                     <td className="px-3 py-3 text-[var(--text-primary)]"><p className="font-medium">{entry.description}</p>{entry.notes && <p className="mt-1 text-xs text-[var(--text-secondary)]">{entry.notes}</p>}</td>

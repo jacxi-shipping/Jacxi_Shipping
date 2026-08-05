@@ -780,6 +780,15 @@ export default function ShipmentDetailPage() {
   const netUserCharged = userLedgerDebitsTotal - userLedgerCreditsTotal;
 
   const companyLedgerEntries = shipment?.companyLedgerEntries || [];
+  const companyLedgerCompanies = useMemo(() => {
+    const candidates = [
+      shipment?.shippingCompany ? { ...shipment.shippingCompany, source: 'Shipping' as const } : null,
+      shipment?.dispatch?.company ? { ...shipment.dispatch.company, source: 'Dispatch' as const } : null,
+      shipment?.transit?.currentCompany ? { ...shipment.transit.currentCompany, source: 'Transit' as const } : null,
+    ].filter((company): company is { id: string; name: string; source: 'Shipping' | 'Dispatch' | 'Transit' } => Boolean(company));
+
+    return Array.from(new Map(candidates.map((company) => [company.id, company])).values());
+  }, [shipment?.dispatch?.company, shipment?.shippingCompany, shipment?.transit?.currentCompany]);
   let companyLedgerDebitsTotal = 0;
   let companyLedgerCreditsTotal = 0;
   for (const entry of companyLedgerEntries) {
@@ -1408,8 +1417,8 @@ export default function ShipmentDetailPage() {
           <TabPanel value={activeTab} index={11}>
             <ShipmentCompanyLedgerTab
               shipmentId={shipment.id}
-              company={shipment.shippingCompany}
-              entries={companyLedgerEntries.filter((entry) => entry.companyId === shipment.shippingCompany?.id)}
+              companies={companyLedgerCompanies}
+              entries={companyLedgerEntries}
               canManageLedger={canManageCompanyLedger}
               onTransactionCreated={() => {
                 void refreshShipmentPage();
