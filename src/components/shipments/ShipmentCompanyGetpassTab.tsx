@@ -17,6 +17,12 @@ type ShipmentCompanyGetpassTabProps = {
   onUndone: () => void;
 };
 
+function getDateTimeLocalValue(date: Date) {
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60 * 1000);
+  return localDate.toISOString().slice(0, 16);
+}
+
 function formatElapsedTime(startedAt: string, now: number) {
   const elapsedSeconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
   const hours = Math.floor(elapsedSeconds / 3600);
@@ -46,6 +52,7 @@ export default function ShipmentCompanyGetpassTab({
 }: ShipmentCompanyGetpassTabProps) {
   const [now, setNow] = useState(() => Date.now());
   const [starting, setStarting] = useState(false);
+  const [fromDate, setFromDate] = useState(() => getDateTimeLocalValue(new Date()));
 
   useEffect(() => {
     if (!startedAt) return;
@@ -58,7 +65,11 @@ export default function ShipmentCompanyGetpassTab({
     setStarting(true);
 
     try {
-      const response = await fetch(`/api/shipments/${shipmentId}/company-getpass`, { method: 'POST' });
+      const response = await fetch(`/api/shipments/${shipmentId}/company-getpass`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromDate }),
+      });
       const data = await response.json();
 
       if (!response.ok) {
@@ -168,10 +179,22 @@ export default function ShipmentCompanyGetpassTab({
             </div>
           </div>
         ) : (
-          <Button onClick={() => void handleStart()} disabled={!canStart || !company || starting}>
-            <Play className="mr-2 h-4 w-4" />
-            {starting ? 'Starting...' : 'Start Getpass'}
-          </Button>
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--text-secondary)]">
+              From date and time
+              <input
+                type="datetime-local"
+                value={fromDate}
+                onChange={(event) => setFromDate(event.target.value)}
+                disabled={!canStart || !company || starting}
+                className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm font-normal text-[var(--text-primary)]"
+              />
+            </label>
+            <Button onClick={() => void handleStart()} disabled={!canStart || !company || starting || !fromDate}>
+              <Play className="mr-2 h-4 w-4" />
+              {starting ? 'Starting...' : 'Start Getpass'}
+            </Button>
+          </div>
         )}
       </div>
     </DashboardPanel>

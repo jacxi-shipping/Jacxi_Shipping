@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/rbac';
 import { getShipmentWorkflowStage } from '@/lib/shipment-workflow-stage';
 
 export async function POST(
-  _request: Request,
+  request: Request,
   props: { params: Promise<{ id: string }> },
 ) {
   const { id } = await props.params;
@@ -22,6 +22,15 @@ export async function POST(
       !hasPermission(session.user.role, 'shipments:manage')
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    let fromDate: Date | undefined;
+    const requestBody = await request.json().catch(() => ({}));
+    if (requestBody.fromDate !== undefined) {
+      fromDate = new Date(requestBody.fromDate);
+      if (Number.isNaN(fromDate.getTime())) {
+        return NextResponse.json({ error: 'Enter a valid Company Getpass from date and time' }, { status: 400 });
+      }
     }
 
     const shipment = await prisma.shipment.findUnique({
@@ -79,7 +88,7 @@ export async function POST(
       );
     }
 
-    const companyGetpassStartedAt = shipment.companyGetpassStartedAt ?? new Date();
+    const companyGetpassStartedAt = shipment.companyGetpassStartedAt ?? fromDate ?? new Date();
 
     if (!shipment.companyGetpassStartedAt) {
       await prisma.shipment.update({
