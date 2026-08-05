@@ -680,7 +680,7 @@ function SidebarContent({
 					fullWidth
 					size="small"
 					variant="outlined"
-					onClick={() => signOut({ callbackUrl: '/login' })}
+					onClick={() => signOut({ callbackUrl: '/auth/signin' })}
 					sx={{
 						borderColor: 'var(--border)',
 						color: 'var(--text-primary)',

@@ -113,7 +113,9 @@ export default function Header({ onMenuClick, pageTitle }: HeaderProps) {
 
 	const handleSignOut = async () => {
 		handleMenuClose();
-		await signOut({ callbackUrl: '/' });
+		await signOut({ redirect: false });
+		router.replace('/');
+		router.refresh();
 	};
 
   const toggleKeyboardShortcuts = () => {

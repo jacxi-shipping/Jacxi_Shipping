@@ -15,6 +15,8 @@ import ServicesPreviewSection from '@/components/sections/home/ServicesPreviewSe
 import TestimonialsSection from '@/components/sections/home/TestimonialsSection';
 import { auth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   let session = null;
   try {
