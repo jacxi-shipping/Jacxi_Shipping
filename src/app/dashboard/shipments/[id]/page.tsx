@@ -1229,7 +1229,7 @@ export default function ShipmentDetailPage() {
             {isAdmin && <Tab value={8} icon={<History className="h-4 w-4" />} iconPosition="start" label="Activity" />}
             {isAdmin && <Tab value={9} icon={<User className="h-4 w-4" />} iconPosition="start" label="Customer" />}
             {canUseCompanyGetpass && <Tab value={10} icon={<Clock3 className="h-4 w-4" />} iconPosition="start" label="Company Getpass" />}
-            {canViewLedgerComparison && shipment.shippingCompany && <Tab value={11} icon={<Wallet className="h-4 w-4" />} iconPosition="start" label="Company Ledger" />}
+            {canViewLedgerComparison && <Tab value={11} icon={<Wallet className="h-4 w-4" />} iconPosition="start" label="Company Ledger" />}
           </Tabs>
         </Box>
 
@@ -1404,7 +1404,7 @@ export default function ShipmentDetailPage() {
           </TabPanel>
         )}
 
-        {canViewLedgerComparison && shipment.shippingCompany && (
+        {canViewLedgerComparison && (
           <TabPanel value={activeTab} index={11}>
             <ShipmentCompanyLedgerTab
               shipmentId={shipment.id}
