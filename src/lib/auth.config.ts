@@ -40,7 +40,7 @@ export const authConfig = {
       // Allow access to other routes
       return true;
     },
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         if (user.id) {
           token.id = user.id;
@@ -48,10 +48,16 @@ export const authConfig = {
         if (user.role) {
           token.role = user.role;
         }
+        if (user.image !== undefined) {
+          token.image = user.image;
+        }
       }
       // Extend token expiry on each request to keep session alive
       if (trigger === 'update') {
         token.iat = Math.floor(Date.now() / 1000);
+        if (typeof session?.image === 'string') {
+          token.image = session.image;
+        }
       }
       return token;
     },
@@ -62,6 +68,9 @@ export const authConfig = {
         }
         if (typeof token.role === "string") {
           session.user.role = token.role;
+        }
+        if (typeof token.image === 'string') {
+          session.user.image = token.image;
         }
       }
       return session;
