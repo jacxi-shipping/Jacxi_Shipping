@@ -48,6 +48,12 @@ export async function GET() {
           select: {
             id: true,
             containerNumber: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         ledgerEntries: {
@@ -87,6 +93,7 @@ export async function GET() {
 
       return {
         ...shipment,
+        shippingCompany: shipment.shippingCompany || shipment.container?.company || null,
         expenses: {
           shipping: shippingExpenses,
           dispatch: dispatchExpenses,
