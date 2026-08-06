@@ -25,18 +25,22 @@ function getDateTimeLocalValue(date: Date) {
 
 function formatElapsedTime(startedAt: string, now: number) {
   const elapsedSeconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
-  const hours = Math.floor(elapsedSeconds / 3600);
+  const days = Math.floor(elapsedSeconds / 86400);
+  const hours = Math.floor((elapsedSeconds % 86400) / 3600);
   const minutes = Math.floor((elapsedSeconds % 3600) / 60);
   const seconds = elapsedSeconds % 60;
 
-  return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
+  const timePart = [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
+  return days > 0 ? `${days}d ${timePart}` : timePart;
 }
 
 function formatDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = seconds % 60;
-  return [hours, minutes, remainingSeconds].map((value) => String(value).padStart(2, '0')).join(':');
+  const timePart = [hours, minutes, remainingSeconds].map((value) => String(value).padStart(2, '0')).join(':');
+  return days > 0 ? `${days}d ${timePart}` : timePart;
 }
 
 export default function ShipmentCompanyGetpassTab({
