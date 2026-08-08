@@ -22,28 +22,29 @@ export async function POST(request: NextRequest) {
     const zip = new JSZip();
     const folder = zip.folder(filename || 'photos');
 
-    // Download and add each photo to zip
-    for (let i = 0; i < photos.length; i++) {
-      try {
-        const photoUrl = photos[i];
-        const response = await fetch(photoUrl);
-        
-        if (response.ok) {
-          const blob = await response.blob();
-          const arrayBuffer = await blob.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
+    // ⚡ Bolt: Replaced sequential fetch loop with parallel Promise.all array mapping to reduce network latency.
+    await Promise.all(
+      photos.map(async (photoUrl, i) => {
+        try {
+          const response = await fetch(photoUrl);
           
-          // Extract filename from URL or use index
-          const urlParts = photoUrl.split('/');
-          const photoFilename = urlParts[urlParts.length - 1] || `photo-${i + 1}.jpg`;
-          
-          folder?.file(photoFilename, buffer);
+          if (response.ok) {
+            const blob = await response.blob();
+            const arrayBuffer = await blob.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            // Extract filename from URL or use index
+            const urlParts = photoUrl.split('/');
+            const photoFilename = urlParts[urlParts.length - 1] || `photo-${i + 1}.jpg`;
+
+            folder?.file(photoFilename, buffer);
+          }
+        } catch (error) {
+          console.error(`Error downloading photo ${i}:`, error);
+          // Continue with other photos
         }
-      } catch (error) {
-        console.error(`Error downloading photo ${i}:`, error);
-        // Continue with other photos
-      }
-    }
+      })
+    );
 
     // Generate zip
     const zipContent = await zip.generateAsync({ type: 'arraybuffer' });
