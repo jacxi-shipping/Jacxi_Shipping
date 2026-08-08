@@ -1,0 +1,961 @@
+npm warn exec The following package was not found and will be installed: tsx@4.23.1
+TAP version 13
+# node:internal/modules/cjs/loader:1383
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'next/server'
+# Require stack:
+# - /app/src/app/api/workflow-routes.test.ts
+#     at node:internal/modules/cjs/loader:1383:15
+#     at nextResolveSimple (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1017)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:4613
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3894
+#     at resolveTsPaths (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:770)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1171
+#     at T._resolveFilename (file:///home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:15301)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [ '/app/src/app/api/workflow-routes.test.ts' ]
+# }
+# Node.js v22.22.1
+# Subtest: src/app/api/workflow-routes.test.ts
+not ok 1 - src/app/api/workflow-routes.test.ts
+  ---
+  duration_ms: 431.153063
+  type: 'test'
+  location: '/app/src/app/api/workflow-routes.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/cjs/loader:1383
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'react'
+# Require stack:
+# - /app/src/hooks/useInView.ts
+# - /app/src/hooks/useInView.test.ts
+#     at node:internal/modules/cjs/loader:1383:15
+#     at nextResolveSimple (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1017)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:4613
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3894
+#     at resolveTsPaths (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:770)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1171
+#     at T._resolveFilename (file:///home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:15301)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [ '/app/src/hooks/useInView.ts', '/app/src/hooks/useInView.test.ts' ]
+# }
+# Node.js v22.22.1
+# Subtest: src/hooks/useInView.test.ts
+not ok 2 - src/hooks/useInView.test.ts
+  ---
+  duration_ms: 405.283716
+  type: 'test'
+  location: '/app/src/hooks/useInView.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/cjs/loader:1383
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'next/server'
+# Require stack:
+# - /app/src/lib/auth.config.ts
+# - /app/src/lib/auth.config.test.ts
+#     at node:internal/modules/cjs/loader:1383:15
+#     at nextResolveSimple (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1017)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:4613
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3894
+#     at resolveTsPaths (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:770)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1171
+#     at T._resolveFilename (file:///home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:15301)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [ '/app/src/lib/auth.config.ts', '/app/src/lib/auth.config.test.ts' ]
+# }
+# Node.js v22.22.1
+# Subtest: src/lib/auth.config.test.ts
+not ok 3 - src/lib/auth.config.test.ts
+  ---
+  duration_ms: 408.351522
+  type: 'test'
+  location: '/app/src/lib/auth.config.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: company price comparison presets
+    # Subtest: saves, updates, loads, and deletes presets
+    ok 1 - saves, updates, loads, and deletes presets
+      ---
+      duration_ms: 2.044687
+      type: 'test'
+      ...
+    # Subtest: sanitizes unavailable company ids from preset config
+    ok 2 - sanitizes unavailable company ids from preset config
+      ---
+      duration_ms: 2.112088
+      type: 'test'
+      ...
+    1..2
+ok 4 - company price comparison presets
+  ---
+  duration_ms: 6.026115
+  type: 'suite'
+  ...
+# Subtest: company price comparison
+    # Subtest: builds state comparison rows with spread
+    ok 1 - builds state comparison rows with spread
+      ---
+      duration_ms: 1.66911
+      type: 'test'
+      ...
+    # Subtest: filters to rows with differences only
+    ok 2 - filters to rows with differences only
+      ---
+      duration_ms: 0.331173
+      type: 'test'
+      ...
+    # Subtest: builds lane comparison rows across companies
+    ok 3 - builds lane comparison rows across companies
+      ---
+      duration_ms: 0.490253
+      type: 'test'
+      ...
+    # Subtest: sorts rows by spread descending
+    ok 4 - sorts rows by spread descending
+      ---
+      duration_ms: 0.462467
+      type: 'test'
+      ...
+    # Subtest: applies vehicle multipliers to comparison rows
+    ok 5 - applies vehicle multipliers to comparison rows
+      ---
+      duration_ms: 0.406053
+      type: 'test'
+      ...
+    # Subtest: builds company scorecards and insights
+    ok 6 - builds company scorecards and insights
+      ---
+      duration_ms: 0.737143
+      type: 'test'
+      ...
+    # Subtest: calculates reference deltas and exports csv
+    ok 7 - calculates reference deltas and exports csv
+      ---
+      duration_ms: 1.134659
+      type: 'test'
+      ...
+    # Subtest: builds side-by-side rows and summary
+    ok 8 - builds side-by-side rows and summary
+      ---
+      duration_ms: 0.945823
+      type: 'test'
+      ...
+    1..8
+ok 5 - company price comparison
+  ---
+  duration_ms: 8.195088
+  type: 'suite'
+  ...
+# Subtest: runWithConcurrency
+    # Subtest: processes all items
+    ok 1 - processes all items
+      ---
+      duration_ms: 1.861521
+      type: 'test'
+      ...
+    # Subtest: respects concurrency limit
+    ok 2 - respects concurrency limit
+      ---
+      duration_ms: 43.038211
+      type: 'test'
+      ...
+    # Subtest: runs work concurrently when limit is greater than one
+    ok 3 - runs work concurrently when limit is greater than one
+      ---
+      duration_ms: 76.937673
+      type: 'test'
+      ...
+    1..3
+ok 6 - runWithConcurrency
+  ---
+  duration_ms: 123.40149
+  type: 'suite'
+  ...
+# node:internal/modules/cjs/loader:1383
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'next/server'
+# Require stack:
+# - /app/src/lib/cron-auth.test.ts
+#     at node:internal/modules/cjs/loader:1383:15
+#     at nextResolveSimple (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1017)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:4613
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3894
+#     at resolveTsPaths (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:770)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1171
+#     at T._resolveFilename (file:///home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:15301)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [ '/app/src/lib/cron-auth.test.ts' ]
+# }
+# Node.js v22.22.1
+# Subtest: src/lib/cron-auth.test.ts
+not ok 7 - src/lib/cron-auth.test.ts
+  ---
+  duration_ms: 393.807831
+  type: 'test'
+  location: '/app/src/lib/cron-auth.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: dispatch workflow helpers
+    # Subtest: marks only completed and cancelled dispatches as closed
+    ok 1 - marks only completed and cancelled dispatches as closed
+      ---
+      duration_ms: 1.269456
+      type: 'test'
+      ...
+    # Subtest: treats pending, dispatched, and arrived-at-port dispatches as active
+    ok 2 - treats pending, dispatched, and arrived-at-port dispatches as active
+      ---
+      duration_ms: 0.229862
+      type: 'test'
+      ...
+    # Subtest: releases shipments when a dispatch reaches handoff or is cancelled
+    ok 3 - releases shipments when a dispatch reaches handoff or is cancelled
+      ---
+      duration_ms: 0.235217
+      type: 'test'
+      ...
+    # Subtest: returns readable labels for known statuses
+    ok 4 - returns readable labels for known statuses
+      ---
+      duration_ms: 0.183436
+      type: 'test'
+      ...
+    # Subtest: allocates dispatch expenses evenly and preserves cents
+    ok 5 - allocates dispatch expenses evenly and preserves cents
+      ---
+      duration_ms: 1.112487
+      type: 'test'
+      ...
+    # Subtest: returns no allocations when no shipments are present
+    ok 6 - returns no allocations when no shipments are present
+      ---
+      duration_ms: 0.168959
+      type: 'test'
+      ...
+    1..6
+ok 8 - dispatch workflow helpers
+  ---
+  duration_ms: 4.68675
+  type: 'suite'
+  ...
+# Subtest: Expense Allocation
+    # Subtest: allocateExpenses
+        # Subtest: should allocate equally
+        ok 1 - should allocate equally
+          ---
+          duration_ms: 1.2648
+          type: 'test'
+          ...
+        # Subtest: should allocate by value
+        ok 2 - should allocate by value
+          ---
+          duration_ms: 0.277588
+          type: 'test'
+          ...
+        # Subtest: should allocate by weight
+        ok 3 - should allocate by weight
+          ---
+          duration_ms: 0.196945
+          type: 'test'
+          ...
+        # Subtest: should handle zero value fallback to equal
+        ok 4 - should handle zero value fallback to equal
+          ---
+          duration_ms: 0.318348
+          type: 'test'
+          ...
+        1..4
+    ok 1 - allocateExpenses
+      ---
+      duration_ms: 3.094038
+      type: 'suite'
+      ...
+    # Subtest: validateAllocationMethod
+        # Subtest: should validate EQUAL
+        ok 1 - should validate EQUAL
+          ---
+          duration_ms: 0.423039
+          type: 'test'
+          ...
+        # Subtest: should validate BY_VALUE with values
+        ok 2 - should validate BY_VALUE with values
+          ---
+          duration_ms: 0.235113
+          type: 'test'
+          ...
+        # Subtest: should invalidate BY_VALUE without values
+        ok 3 - should invalidate BY_VALUE without values
+          ---
+          duration_ms: 0.308748
+          type: 'test'
+          ...
+        1..3
+    ok 2 - validateAllocationMethod
+      ---
+      duration_ms: 1.5563
+      type: 'suite'
+      ...
+    1..2
+ok 9 - Expense Allocation
+  ---
+  duration_ms: 5.454211
+  type: 'suite'
+  ...
+# Subtest: Export Utilities
+    # Subtest: exportToCSV should create a CSV file and download it
+    ok 1 - exportToCSV should create a CSV file and download it
+      ---
+      duration_ms: 2.305736
+      type: 'test'
+      ...
+    # Subtest: exportToCSVWithHeaders should use custom headers
+    ok 2 - exportToCSVWithHeaders should use custom headers
+      ---
+      duration_ms: 0.62216
+      type: 'test'
+      ...
+    # Subtest: exportToExcel should create a CSV with BOM
+    ok 3 - exportToExcel should create a CSV with BOM
+      ---
+      duration_ms: 0.65812
+      type: 'test'
+      ...
+    # Subtest: formatDataForExport should format dates and booleans
+    ok 4 - formatDataForExport should format dates and booleans
+      ---
+      duration_ms: 0.33754
+      type: 'test'
+      ...
+    # Subtest: should handle empty data
+    ok 5 - should handle empty data
+      ---
+      duration_ms: 0.564927
+      type: 'test'
+      ...
+    # Subtest: should handle special characters in CSV
+    ok 6 - should handle special characters in CSV
+      ---
+      duration_ms: 0.412308
+      type: 'test'
+      ...
+    1..6
+ok 10 - Export Utilities
+  ---
+  duration_ms: 7.38999
+  type: 'suite'
+  ...
+# Subtest: parseBankOfAmericaCsv
+    # Subtest: parses signed amount exports with common Bank of America columns
+    ok 1 - parses signed amount exports with common Bank of America columns
+      ---
+      duration_ms: 3.554786
+      type: 'test'
+      ...
+    # Subtest: parses debit and credit columns when amount is split
+    ok 2 - parses debit and credit columns when amount is split
+      ---
+      duration_ms: 0.442936
+      type: 'test'
+      ...
+    # Subtest: handles quoted fields with commas
+    ok 3 - handles quoted fields with commas
+      ---
+      duration_ms: 0.385969
+      type: 'test'
+      ...
+    # Subtest: parses statement exports with summary rows before the transaction header
+    ok 4 - parses statement exports with summary rows before the transaction header
+      ---
+      duration_ms: 1.179243
+      type: 'test'
+      ...
+    # Subtest: throws for unsupported files
+    ok 5 - throws for unsupported files
+      ---
+      duration_ms: 0.686908
+      type: 'test'
+      ...
+    1..5
+ok 11 - parseBankOfAmericaCsv
+  ---
+  duration_ms: 7.754949
+  type: 'suite'
+  ...
+# Subtest: Tax Validation
+    # Subtest: validateTaxConfig returns true for valid config
+    ok 1 - validateTaxConfig returns true for valid config
+      ---
+      duration_ms: 1.417898
+      type: 'test'
+      ...
+    # Subtest: validateTaxConfig returns false for taxRate < 0
+    ok 2 - validateTaxConfig returns false for taxRate < 0
+      ---
+      duration_ms: 0.213899
+      type: 'test'
+      ...
+    # Subtest: validateTaxConfig returns false for taxRate > 100
+    ok 3 - validateTaxConfig returns false for taxRate > 100
+      ---
+      duration_ms: 0.158242
+      type: 'test'
+      ...
+    # Subtest: validateTaxConfig returns false for empty taxName
+    ok 4 - validateTaxConfig returns false for empty taxName
+      ---
+      duration_ms: 0.157767
+      type: 'test'
+      ...
+    # Subtest: validateTaxConfig returns false for whitespace taxName
+    ok 5 - validateTaxConfig returns false for whitespace taxName
+      ---
+      duration_ms: 0.203819
+      type: 'test'
+      ...
+    1..5
+ok 12 - Tax Validation
+  ---
+  duration_ms: 3.639032
+  type: 'suite'
+  ...
+# Subtest: Tax Calculation
+    # Subtest: calculateTax handles standard sales tax correctly
+    ok 1 - calculateTax handles standard sales tax correctly
+      ---
+      duration_ms: 0.534363
+      type: 'test'
+      ...
+    # Subtest: calculateTax handles VAT (applicable to both) correctly
+    ok 2 - calculateTax handles VAT (applicable to both) correctly
+      ---
+      duration_ms: 0.283568
+      type: 'test'
+      ...
+    # Subtest: calculateTax handles B2B VAT exemption (reverse charge)
+    ok 3 - calculateTax handles B2B VAT exemption (reverse charge)
+      ---
+      duration_ms: 0.608698
+      type: 'test'
+      ...
+    # Subtest: calculateTax handles NONE tax config
+    ok 4 - calculateTax handles NONE tax config
+      ---
+      duration_ms: 0.369309
+      type: 'test'
+      ...
+    1..4
+ok 13 - Tax Calculation
+  ---
+  duration_ms: 2.480731
+  type: 'suite'
+  ...
+# Subtest: Tax Configuration Retrieval
+    # Subtest: getTaxConfig returns correct config for valid code
+    ok 1 - getTaxConfig returns correct config for valid code
+      ---
+      duration_ms: 0.336532
+      type: 'test'
+      ...
+    # Subtest: getTaxConfig returns NONE config for invalid code
+    ok 2 - getTaxConfig returns NONE config for invalid code
+      ---
+      duration_ms: 0.151745
+      type: 'test'
+      ...
+    1..2
+ok 14 - Tax Configuration Retrieval
+  ---
+  duration_ms: 0.768457
+  type: 'suite'
+  ...
+# Subtest: Custom Duty Calculation
+    # Subtest: calculateCustomDuty without shipping cost
+    ok 1 - calculateCustomDuty without shipping cost
+      ---
+      duration_ms: 0.392123
+      type: 'test'
+      ...
+    # Subtest: calculateCustomDuty with shipping cost
+    ok 2 - calculateCustomDuty with shipping cost
+      ---
+      duration_ms: 0.161044
+      type: 'test'
+      ...
+    1..2
+ok 15 - Custom Duty Calculation
+  ---
+  duration_ms: 0.698833
+  type: 'suite'
+  ...
+# Subtest: Tax Formatting
+    # Subtest: formatTaxLine for zero tax
+    ok 1 - formatTaxLine for zero tax
+      ---
+      duration_ms: 0.244769
+      type: 'test'
+      ...
+    # Subtest: formatTaxLine for positive tax
+    ok 2 - formatTaxLine for positive tax
+      ---
+      duration_ms: 0.174982
+      type: 'test'
+      ...
+    1..2
+ok 16 - Tax Formatting
+  ---
+  duration_ms: 0.727221
+  type: 'suite'
+  ...
+# Failed to geocode Error Place: Error: OSM API Error: 500
+#     at getCoordinates (/app/src/lib/geocoding.ts:95:24)
+#     at async TestContext.<anonymous> (/app/src/lib/geocoding.test.ts:56:20)
+#     at async Test.run (node:internal/test_runner/test:1054:7)
+#     at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+# Subtest: geocoding
+    # Subtest: should return known coordinates for known ports synchronously
+    ok 1 - should return known coordinates for known ports synchronously
+      ---
+      duration_ms: 2.112595
+      type: 'test'
+      ...
+    # Subtest: should fetch coordinates for unknown locations
+    ok 2 - should fetch coordinates for unknown locations
+      ---
+      duration_ms: 0.626542
+      type: 'test'
+      ...
+    # Subtest: should return null on fetch error
+    ok 3 - should return null on fetch error
+      ---
+      duration_ms: 5.044365
+      type: 'test'
+      ...
+    # Subtest: should return null on empty response
+    ok 4 - should return null on empty response
+      ---
+      duration_ms: 0.534982
+      type: 'test'
+      ...
+    # Subtest: should use cache for subsequent requests
+    ok 5 - should use cache for subsequent requests
+      ---
+      duration_ms: 0.977075
+      type: 'test'
+      ...
+    1..5
+ok 17 - geocoding
+  ---
+  duration_ms: 11.113967
+  type: 'suite'
+  ...
+# Subtest: Logger
+    # Subtest: should log info messages correctly in development
+    ok 1 - should log info messages correctly in development
+      ---
+      duration_ms: 2.411971
+      type: 'test'
+      ...
+    # Subtest: should log info messages correctly in production
+    ok 2 - should log info messages correctly in production
+      ---
+      duration_ms: 0.480636
+      type: 'test'
+      ...
+    # Subtest: should log error messages correctly
+    ok 3 - should log error messages correctly
+      ---
+      duration_ms: 0.389025
+      type: 'test'
+      ...
+    # Subtest: should log warn messages correctly
+    ok 4 - should log warn messages correctly
+      ---
+      duration_ms: 0.344122
+      type: 'test'
+      ...
+    1..4
+ok 18 - Logger
+  ---
+  duration_ms: 5.97877
+  type: 'suite'
+  ...
+# Subtest: Login Code Generation
+    # Subtest: should generate an 8-character string
+    ok 1 - should generate an 8-character string
+      ---
+      duration_ms: 1.693677
+      type: 'test'
+      ...
+    # Subtest: should only contain valid characters
+    ok 2 - should only contain valid characters
+      ---
+      duration_ms: 0.515514
+      type: 'test'
+      ...
+    # Subtest: should generate different codes
+    ok 3 - should generate different codes
+      ---
+      duration_ms: 0.239698
+      type: 'test'
+      ...
+    # Subtest: should NOT use Math.random()
+    ok 4 - should NOT use Math.random()
+      ---
+      duration_ms: 0.215544
+      type: 'test'
+      ...
+    1..4
+ok 19 - Login Code Generation
+  ---
+  duration_ms: 4.101914
+  type: 'suite'
+  ...
+# Subtest: Login Code Validation
+    # Subtest: should validate correct codes
+    ok 1 - should validate correct codes
+      ---
+      duration_ms: 0.411545
+      type: 'test'
+      ...
+    # Subtest: should invalidate incorrect lengths
+    ok 2 - should invalidate incorrect lengths
+      ---
+      duration_ms: 0.162668
+      type: 'test'
+      ...
+    # Subtest: should invalidate incorrect characters
+    ok 3 - should invalidate incorrect characters
+      ---
+      duration_ms: 0.439051
+      type: 'test'
+      ...
+    1..3
+ok 20 - Login Code Validation
+  ---
+  duration_ms: 1.566743
+  type: 'suite'
+  ...
+# Subtest: Login Code Formatting
+    # Subtest: should format code with a space in the middle
+    ok 1 - should format code with a space in the middle
+      ---
+      duration_ms: 0.310136
+      type: 'test'
+      ...
+    # Subtest: should not format invalid length codes
+    ok 2 - should not format invalid length codes
+      ---
+      duration_ms: 0.269561
+      type: 'test'
+      ...
+    1..2
+ok 21 - Login Code Formatting
+  ---
+  duration_ms: 1.069007
+  type: 'suite'
+  ...
+# Subtest: Voice Keypad Mapping
+    # Subtest: should map letters to standard phone keypad digits
+    ok 1 - should map letters to standard phone keypad digits
+      ---
+      duration_ms: 0.425471
+      type: 'test'
+      ...
+    # Subtest: should preserve numeric codes
+    ok 2 - should preserve numeric codes
+      ---
+      duration_ms: 0.155739
+      type: 'test'
+      ...
+    # Subtest: should return an empty string for invalid codes
+    ok 3 - should return an empty string for invalid codes
+      ---
+      duration_ms: 0.125392
+      type: 'test'
+      ...
+    1..3
+ok 22 - Voice Keypad Mapping
+  ---
+  duration_ms: 0.916111
+  type: 'suite'
+  ...
+# node:internal/modules/cjs/loader:1383
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'next/server'
+# Require stack:
+# - /app/src/lib/public-api-auth.test.ts
+#     at node:internal/modules/cjs/loader:1383:15
+#     at nextResolveSimple (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1017)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:4613
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3894
+#     at resolveTsPaths (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:770)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1171
+#     at T._resolveFilename (file:///home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:15301)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [ '/app/src/lib/public-api-auth.test.ts' ]
+# }
+# Node.js v22.22.1
+# Subtest: src/lib/public-api-auth.test.ts
+not ok 16 - src/lib/public-api-auth.test.ts
+  ---
+  duration_ms: 419.282545
+  type: 'test'
+  location: '/app/src/lib/public-api-auth.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: shipping rate average
+    # Subtest: averages matching auction rows across company price lists
+    ok 1 - averages matching auction rows across company price lists
+      ---
+      duration_ms: 2.837158
+      type: 'test'
+      ...
+    # Subtest: uses explicit state rates and ignores missing default-filled states
+    ok 2 - uses explicit state rates and ignores missing default-filled states
+      ---
+      duration_ms: 0.520306
+      type: 'test'
+      ...
+    # Subtest: uses exact city and branch lane matches before state averages
+    ok 3 - uses exact city and branch lane matches before state averages
+      ---
+      duration_ms: 0.50073
+      type: 'test'
+      ...
+    # Subtest: falls back to state averages when no exact lane matches
+    ok 4 - falls back to state averages when no exact lane matches
+      ---
+      duration_ms: 0.601758
+      type: 'test'
+      ...
+    # Subtest: returns null when no company has a real price for the state
+    ok 5 - returns null when no company has a real price for the state
+      ---
+      duration_ms: 0.234493
+      type: 'test'
+      ...
+    1..5
+ok 24 - shipping rate average
+  ---
+  duration_ms: 6.252095
+  type: 'suite'
+  ...
+# node:internal/modules/cjs/loader:1383
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'jspdf'
+# Require stack:
+# - /app/src/lib/shipping-rate-pdf-import.test.ts
+#     at node:internal/modules/cjs/loader:1383:15
+#     at nextResolveSimple (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1017)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:4613
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3894
+#     at resolveTsPaths (/home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:770)
+#     at /home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BoI6-WNn.cjs:10:1171
+#     at T._resolveFilename (file:///home/jules/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:15301)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [ '/app/src/lib/shipping-rate-pdf-import.test.ts' ]
+# }
+# Node.js v22.22.1
+# Subtest: src/lib/shipping-rate-pdf-import.test.ts
+not ok 18 - src/lib/shipping-rate-pdf-import.test.ts
+  ---
+  duration_ms: 393.48721
+  type: 'test'
+  location: '/app/src/lib/shipping-rate-pdf-import.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: voice audio helpers
+    # Subtest: mu-law silence round trips near zero
+    ok 1 - mu-law silence round trips near zero
+      ---
+      duration_ms: 1.271788
+      type: 'test'
+      ...
+    # Subtest: resamples pcm lengths between sample rates
+    ok 2 - resamples pcm lengths between sample rates
+      ---
+      duration_ms: 0.575663
+      type: 'test'
+      ...
+    # Subtest: converts twilio mulaw to gemini pcm base64
+    ok 3 - converts twilio mulaw to gemini pcm base64
+      ---
+      duration_ms: 0.545309
+      type: 'test'
+      ...
+    # Subtest: converts gemini pcm to twilio mulaw base64
+    ok 4 - converts gemini pcm to twilio mulaw base64
+      ---
+      duration_ms: 0.471245
+      type: 'test'
+      ...
+    1..4
+ok 26 - voice audio helpers
+  ---
+  duration_ms: 4.289565
+  type: 'suite'
+  ...
+# Subtest: voice speech helpers
+    # Subtest: normalizes digits and letters for access codes
+    ok 1 - normalizes digits and letters for access codes
+      ---
+      duration_ms: 1.264789
+      type: 'test'
+      ...
+    # Subtest: builds finance speech with balances and counts
+    ok 2 - builds finance speech with balances and counts
+      ---
+      duration_ms: 259.325635
+      type: 'test'
+      ...
+    # Subtest: builds tracking speech from the latest event
+    ok 3 - builds tracking speech from the latest event
+      ---
+      duration_ms: 6.649556
+      type: 'test'
+      ...
+    # Subtest: builds shipment summaries for up to three shipments
+    ok 4 - builds shipment summaries for up to three shipments
+      ---
+      duration_ms: 0.490308
+      type: 'test'
+      ...
+    # Subtest: clips long assistant replies cleanly
+    ok 5 - clips long assistant replies cleanly
+      ---
+      duration_ms: 0.400861
+      type: 'test'
+      ...
+    1..5
+ok 27 - voice speech helpers
+  ---
+  duration_ms: 269.672737
+  type: 'suite'
+  ...
+# Subtest: voice twiml helpers
+    # Subtest: escapes text and attributes in twiml
+    ok 1 - escapes text and attributes in twiml
+      ---
+      duration_ms: 0.67197
+      type: 'test'
+      ...
+    # Subtest: renders a twilio connect stream with custom parameters
+    ok 2 - renders a twilio connect stream with custom parameters
+      ---
+      duration_ms: 0.459587
+      type: 'test'
+      ...
+    1..2
+ok 28 - voice twiml helpers
+  ---
+  duration_ms: 1.68242
+  type: 'suite'
+  ...
+# Subtest: verifySignature
+    # Subtest: should return true for valid signature
+    ok 1 - should return true for valid signature
+      ---
+      duration_ms: 1.573301
+      type: 'test'
+      ...
+    # Subtest: should return false for invalid signature
+    ok 2 - should return false for invalid signature
+      ---
+      duration_ms: 0.269125
+      type: 'test'
+      ...
+    # Subtest: should return false for tampered body
+    ok 3 - should return false for tampered body
+      ---
+      duration_ms: 0.229903
+      type: 'test'
+      ...
+    # Subtest: should return false for different secret
+    ok 4 - should return false for different secret
+      ---
+      duration_ms: 0.355545
+      type: 'test'
+      ...
+    # Subtest: should return false if signature is missing
+    ok 5 - should return false if signature is missing
+      ---
+      duration_ms: 0.157219
+      type: 'test'
+      ...
+    # Subtest: should return false if body is missing
+    ok 6 - should return false if body is missing
+      ---
+      duration_ms: 0.204688
+      type: 'test'
+      ...
+    # Subtest: should return false if secret is missing
+    ok 7 - should return false if secret is missing
+      ---
+      duration_ms: 0.317972
+      type: 'test'
+      ...
+    1..7
+ok 29 - verifySignature
+  ---
+  duration_ms: 4.695266
+  type: 'suite'
+  ...
+1..29
+# tests 102
+# suites 25
+# pass 96
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3368.900438
