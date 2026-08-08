@@ -414,7 +414,12 @@ export default function NewShipmentPage() {
 				body: JSON.stringify(data),
 			});
 
-			const result = await response.json();
+			let result: { message?: string; error?: string } | null = null;
+			try {
+				result = await response.json();
+			} catch {
+				result = null;
+			}
 
 			if (response.ok) {
 				toast.success('Shipment created successfully!');
@@ -422,14 +427,14 @@ export default function NewShipmentPage() {
 					router.push('/dashboard/shipments');
 				}, 1500);
 			} else {
-				toast.error(result.message || 'Failed to create shipment', {
-					description: 'Please check your inputs and try again'
+				toast.error('Failed to create shipment', {
+					description: result?.message || result?.error || `Request failed with status ${response.status}`
 				});
 			}
 		} catch (error) {
 			console.error('Error creating shipment:', error);
-			toast.error('An error occurred', {
-				description: 'Please try again later'
+			toast.error('Failed to create shipment', {
+				description: error instanceof Error ? error.message : 'Please try again later'
 			});
 		}
 	};
