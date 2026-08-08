@@ -350,36 +350,37 @@ export async function PATCH(
 
     const actorId = session.user.id;
     await prisma.$transaction(async (tx) => {
-      for (const charge of charges) {
-        await tx.shipmentCharge.update({
-          where: { id: charge.id },
-          data: {
-            status: body.status,
-            approvedAt: body.status === 'APPROVED' ? new Date() : null,
-            approvedBy: body.status === 'APPROVED' ? actorId : null,
-            notes: trimmedNote,
-          },
-        });
+      // ⚡ Bolt: Replaced O(N) sequential update loop with O(1) bulk updateMany and createMany
+      await tx.shipmentCharge.updateMany({
+        where: { id: { in: uniqueChargeIds } },
+        data: {
+          status: body.status,
+          approvedAt: body.status === 'APPROVED' ? new Date() : null,
+          approvedBy: body.status === 'APPROVED' ? actorId : null,
+          notes: trimmedNote,
+        },
+      });
 
-        await tx.shipmentChargeAuditLog.create({
-          data: {
-            chargeId: charge.id,
-            action: body.status === 'APPROVED' ? 'BULK_APPROVAL' : 'BULK_DISPUTE',
-            description:
-              body.status === 'APPROVED'
-                ? `Shipment charge approved in bulk: ${charge.description}`
-                : `Shipment charge disputed in bulk: ${charge.description}`,
-            performedBy: actorId,
-            oldValue: charge.status,
-            newValue: body.status,
-            metadata: {
-              mode: 'bulk',
-              chargeIds: uniqueChargeIds,
-              ...(trimmedNote ? { note: trimmedNote } : {}),
-            },
-          },
-        });
-      }
+      const auditLogs = charges.map((charge) => ({
+        chargeId: charge.id,
+        action: body.status === 'APPROVED' ? 'BULK_APPROVAL' : 'BULK_DISPUTE',
+        description:
+          body.status === 'APPROVED'
+            ? `Shipment charge approved in bulk: ${charge.description}`
+            : `Shipment charge disputed in bulk: ${charge.description}`,
+        performedBy: actorId,
+        oldValue: charge.status,
+        newValue: body.status,
+        metadata: {
+          mode: 'bulk',
+          chargeIds: uniqueChargeIds,
+          ...(trimmedNote ? { note: trimmedNote } : {}),
+        },
+      }));
+
+      await tx.shipmentChargeAuditLog.createMany({
+        data: auditLogs,
+      });
     });
 
     return NextResponse.json({ success: true, updated: uniqueChargeIds.length });
