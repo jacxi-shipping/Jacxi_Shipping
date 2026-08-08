@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { hasPermission } from '@/lib/rbac';
 import { generateInvoiceNumber } from '@/lib/shipment-invoice';
 import { syncShipmentPurchasePriceEntries } from '@/lib/shipment-purchase-price';
+import { getShipmentCreateErrorResponse } from '@/lib/shipment-create-error';
 
 const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
   'ON_HAND',
@@ -17,6 +18,68 @@ const SUPPORTED_SHIPMENT_STATUSES = new Set<ShipmentSimpleStatus>([
 
 function isShipmentStatus(value: string): value is ShipmentSimpleStatus {
   return SUPPORTED_SHIPMENT_STATUSES.has(value as ShipmentSimpleStatus);
+}
+
+function parseOptionalInt(value: number | string | null | undefined, fieldName: string): { value: number | null; error?: string } {
+  if (value === null || value === undefined) {
+    return { value: null };
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isInteger(value)) {
+      return { value: null, error: `${fieldName} must be a whole number` };
+    }
+    return { value };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { value: null };
+  }
+
+  if (!/^-?\d+$/.test(trimmed)) {
+    return { value: null, error: `${fieldName} must be a whole number` };
+  }
+
+  return { value: Number.parseInt(trimmed, 10) };
+}
+
+function parseOptionalFloat(value: number | string | null | undefined, fieldName: string): { value: number | null; error?: string } {
+  if (value === null || value === undefined) {
+    return { value: null };
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return { value: null, error: `${fieldName} must be a valid number` };
+    }
+    return { value };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { value: null };
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) {
+    return { value: null, error: `${fieldName} must be a valid number` };
+  }
+
+  return { value: parsed };
+}
+
+function parseOptionalDate(value: string | null | undefined, fieldName: string): { value: Date | null; error?: string } {
+  if (!value) {
+    return { value: null };
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return { value: null, error: `${fieldName} must be a valid date` };
+  }
+
+  return { value: parsed };
 }
 
 function asRecord(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
@@ -334,6 +397,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (providedStatus && !isShipmentStatus(providedStatus)) {
+      return NextResponse.json(
+        { message: 'Invalid shipment status value' },
+        { status: 400 }
+      );
+    }
+
     // If containerId is provided, verify it exists
     if (containerId) {
       const container = await prisma.container.findUnique({
@@ -401,23 +471,45 @@ export async function POST(request: NextRequest) {
     const sanitizedVehiclePhotos = Array.isArray(vehiclePhotos)
       ? vehiclePhotos.filter((photo): photo is string => typeof photo === 'string')
       : [];
-    const parsedVehicleYear =
-      typeof vehicleYear === 'number'
-        ? vehicleYear
-        : typeof vehicleYear === 'string'
-        ? parseInt(vehicleYear, 10)
-        : null;
-    const parsedWeight =
-      typeof weight === 'number' ? weight : typeof weight === 'string' ? parseFloat(weight) : null;
-    const parsedPurchasePrice =
-      typeof purchasePrice === 'number' ? purchasePrice : typeof purchasePrice === 'string' ? parseFloat(purchasePrice) : null;
+    const parsedVehicleYearResult = parseOptionalInt(vehicleYear, 'vehicleYear');
+    if (parsedVehicleYearResult.error) {
+      return NextResponse.json({ message: parsedVehicleYearResult.error }, { status: 400 });
+    }
+
+    const parsedWeightResult = parseOptionalFloat(weight, 'weight');
+    if (parsedWeightResult.error) {
+      return NextResponse.json({ message: parsedWeightResult.error }, { status: 400 });
+    }
+
+    const parsedPurchasePriceResult = parseOptionalFloat(purchasePrice, 'purchasePrice');
+    if (parsedPurchasePriceResult.error) {
+      return NextResponse.json({ message: parsedPurchasePriceResult.error }, { status: 400 });
+    }
+
+    const parsedPurchaseDateResult = parseOptionalDate(purchaseDate, 'purchaseDate');
+    if (parsedPurchaseDateResult.error) {
+      return NextResponse.json({ message: parsedPurchaseDateResult.error }, { status: 400 });
+    }
+
+    const parsedVehicleYear = parsedVehicleYearResult.value;
+    const parsedWeight = parsedWeightResult.value;
+    const parsedPurchasePrice = parsedPurchasePriceResult.value;
+    const parsedPurchaseDate = parsedPurchaseDateResult.value;
     
     // Calculate vehicle age if vehicleYear is provided
     const currentYear = new Date().getFullYear();
     const calculatedVehicleAge = parsedVehicleYear ? currentYear - parsedVehicleYear : null;
     
     // Validate titleStatus - only allowed if hasTitle is true
-    const finalTitleStatus = (hasTitle === true && titleStatus) ? titleStatus as TitleStatus : null;
+    if (hasTitle === true && titleStatus && titleStatus !== 'PENDING' && titleStatus !== 'DELIVERED') {
+      return NextResponse.json(
+        { message: 'titleStatus must be PENDING or DELIVERED when hasTitle is true' },
+        { status: 400 }
+      );
+    }
+
+    const finalTitleStatus: TitleStatus | null =
+      hasTitle === true && titleStatus ? titleStatus : null;
     
     // Validate purchase price for PURCHASE_AND_SHIPPING
     if (serviceType === 'PURCHASE_AND_SHIPPING' && !parsedPurchasePrice) {
@@ -429,12 +521,8 @@ export async function POST(request: NextRequest) {
     
     const shipment = await prisma.$transaction(async (tx) => {
       // Determine payment status based on payment mode
-      let finalPaymentStatus = 'PENDING';
-      if (paymentMode === 'CASH') {
-        finalPaymentStatus = 'COMPLETED';
-      } else if (paymentMode === 'DUE') {
-        finalPaymentStatus = 'PENDING';
-      }
+      const finalPaymentStatus: PaymentStatus =
+        paymentMode === 'CASH' ? PaymentStatus.COMPLETED : PaymentStatus.PENDING;
 
       const createdShipment = await tx.shipment.create({
         data: {
@@ -453,7 +541,7 @@ export async function POST(request: NextRequest) {
           weight: parsedWeight,
           dimensions,
           vehiclePhotos: sanitizedVehiclePhotos,
-          paymentStatus: finalPaymentStatus as PaymentStatus,
+          paymentStatus: finalPaymentStatus,
           paymentMode: paymentMode || null,
           internalNotes: internalNotes || null,
           // Vehicle details
@@ -463,7 +551,7 @@ export async function POST(request: NextRequest) {
           vehicleAge: calculatedVehicleAge,
           // Purchase information
           purchasePrice: parsedPurchasePrice,
-          purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+          purchaseDate: parsedPurchaseDate,
           purchaseLocation: purchaseLocation || null,
           dealerName: dealerName || null,
           purchaseNotes: purchaseNotes || null,
@@ -547,10 +635,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error creating shipment:', error);
+    const errorResponse = getShipmentCreateErrorResponse(error);
     return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
+      { message: errorResponse.message },
+      { status: errorResponse.status }
     );
   }
 }
-

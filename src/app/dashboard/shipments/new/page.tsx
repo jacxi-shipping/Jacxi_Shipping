@@ -414,7 +414,14 @@ export default function NewShipmentPage() {
 				body: JSON.stringify(data),
 			});
 
-			const result = await response.json();
+			let result: { message?: string; error?: string; details?: unknown } | null = null;
+			const contentType = response.headers.get('content-type') || '';
+			if (contentType.includes('application/json')) {
+				result = await response.json();
+			} else {
+				const rawText = await response.text();
+				result = rawText ? { message: rawText } : null;
+			}
 
 			if (response.ok) {
 				toast.success('Shipment created successfully!');
@@ -422,9 +429,32 @@ export default function NewShipmentPage() {
 					router.push('/dashboard/shipments');
 				}, 1500);
 			} else {
-				toast.error(result.message || 'Failed to create shipment', {
-					description: 'Please check your inputs and try again'
-				});
+				const message =
+					(typeof result?.message === 'string' && result.message) ||
+					(typeof result?.error === 'string' && result.error) ||
+					'Failed to create shipment';
+
+				const details = Array.isArray(result?.details)
+					? result.details
+							.map((item) =>
+								typeof item === 'object' &&
+								item !== null &&
+								'message' in item &&
+								typeof item.message === 'string'
+									? item.message
+									: null
+							)
+							.filter((item): item is string => Boolean(item))
+							.join(', ')
+					: typeof result?.details === 'string'
+						? result.details
+						: undefined;
+
+				const description =
+					details ||
+					(message === 'Failed to create shipment' ? 'Please check your inputs and try again' : undefined);
+
+				toast.error(message, description ? { description } : undefined);
 			}
 		} catch (error) {
 			console.error('Error creating shipment:', error);
