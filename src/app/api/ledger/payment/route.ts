@@ -123,43 +123,36 @@ export async function POST(request: NextRequest) {
 
     const shipmentDueMap = new Map<string, number>();
     const shipmentOverallDueMap = new Map<string, number>();
+
+    // ⚡ Bolt: Single-pass O(N) calculation to replace nested array reduce methods inside a loop
+    const ledgerTotalsByShipment = new Map<string, { totalDebit: number, totalCredit: number, catDebit: number, catCredit: number }>();
+
+    for (const entry of shipmentLedgerEntries) {
+      if (!entry.shipmentId) continue;
+
+      let totals = ledgerTotalsByShipment.get(entry.shipmentId);
+      if (!totals) {
+        totals = { totalDebit: 0, totalCredit: 0, catDebit: 0, catCredit: 0 };
+        ledgerTotalsByShipment.set(entry.shipmentId, totals);
+      }
+
+      if (entry.type === 'DEBIT') {
+        totals.totalDebit += entry.amount;
+        if (matchesPaymentCategory(entry, validatedData.paymentCategory)) {
+          totals.catDebit += entry.amount;
+        }
+      } else if (entry.type === 'CREDIT') {
+        totals.totalCredit += entry.amount;
+        if (matchesPaymentCategory(entry, validatedData.paymentCategory)) {
+          totals.catCredit += entry.amount;
+        }
+      }
+    }
+
     for (const shipment of shipments) {
-      const totals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
-
-      const categoryTotals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id || !matchesPaymentCategory(entry, validatedData.paymentCategory)) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
-
-      shipmentDueMap.set(shipment.id, Math.max(0, categoryTotals.debit - categoryTotals.credit));
-      shipmentOverallDueMap.set(shipment.id, Math.max(0, totals.debit - totals.credit));
+      const totals = ledgerTotalsByShipment.get(shipment.id) || { totalDebit: 0, totalCredit: 0, catDebit: 0, catCredit: 0 };
+      shipmentDueMap.set(shipment.id, Math.max(0, totals.catDebit - totals.catCredit));
+      shipmentOverallDueMap.set(shipment.id, Math.max(0, totals.totalDebit - totals.totalCredit));
     }
 
     const totalRemainingDue = Array.from(shipmentDueMap.values()).reduce((sum, value) => sum + value, 0);
@@ -318,20 +311,23 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        for (const pendingExpenseEntry of pendingExpenseEntries) {
-          const metadata = asRecord(pendingExpenseEntry.metadata);
-          await tx.ledgerEntry.update({
-            where: { id: pendingExpenseEntry.id },
-            data: {
-              metadata: {
-                ...metadata,
-                pendingInvoice: false,
-                paymentMethod: validatedData.paymentMethod,
-                paymentReference: entry.id,
+        // ⚡ Bolt: Execute independent ledger entry updates concurrently to avoid O(N) sequential queries
+        await Promise.all(
+          pendingExpenseEntries.map(async (pendingExpenseEntry) => {
+            const metadata = asRecord(pendingExpenseEntry.metadata);
+            return tx.ledgerEntry.update({
+              where: { id: pendingExpenseEntry.id },
+              data: {
+                metadata: {
+                  ...metadata,
+                  pendingInvoice: false,
+                  paymentMethod: validatedData.paymentMethod,
+                  paymentReference: entry.id,
+                },
               },
-            },
-          });
-        }
+            });
+          })
+        );
       }
 
       if (completedShipmentIds.length > 0) {
