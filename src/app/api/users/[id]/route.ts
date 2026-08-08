@@ -165,6 +165,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         days90plus: { count: 0, amount: 0 },
       };
 
+      // ⚡ Bolt: Consolidated multiple filter and reduce operations into a single O(N) loop
+      let outstandingAmount = 0;
+      let overdueAmount = 0;
+      let paidAmount = 0;
+      let creditAmount = 0;
+      let openInvoiceCount = 0;
+      let overdueInvoiceCount = 0;
+      let paidInvoiceCount = 0;
+
       const timeline = invoices.map((invoice) => {
         const kind = getInvoiceKind(invoice.invoiceNumber);
         const isOutstanding = outstandingInvoiceStatuses.has(invoice.status);
@@ -176,6 +185,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         const reference = buildShipmentReference(invoice.shipment) || (invoice.container?.containerNumber ? `Container ${invoice.container.containerNumber}` : null);
 
         if (isOutstanding) {
+          outstandingAmount += invoice.total;
+          openInvoiceCount += 1;
+
+          if (daysOverdue !== null && daysOverdue > 0) {
+            overdueAmount += invoice.total;
+            overdueInvoiceCount += 1;
+          }
+
           if (rawDaysOverdue === null || rawDaysOverdue < 0) {
             aging.current.count += 1;
             aging.current.amount += invoice.total;
@@ -194,6 +211,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           }
         }
 
+        if (invoice.status === 'PAID') {
+          paidAmount += invoice.total;
+          paidInvoiceCount += 1;
+        }
+
+        if (kind === 'CREDIT_NOTE') {
+          creditAmount += Math.abs(invoice.total);
+        }
+
         return {
           id: invoice.id,
           invoiceNumber: invoice.invoiceNumber,
@@ -210,18 +236,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         };
       });
 
-      const outstandingAmount = timeline
-        .filter((invoice) => outstandingInvoiceStatuses.has(invoice.status))
-        .reduce((sum, invoice) => sum + invoice.total, 0);
-      const overdueAmount = timeline
-        .filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0)
-        .reduce((sum, invoice) => sum + invoice.total, 0);
-      const paidAmount = timeline
-        .filter((invoice) => invoice.status === 'PAID')
-        .reduce((sum, invoice) => sum + invoice.total, 0);
-      const creditAmount = timeline
-        .filter((invoice) => invoice.kind === 'CREDIT_NOTE')
-        .reduce((sum, invoice) => sum + Math.abs(invoice.total), 0);
       const latestBalance = latestLedgerEntry?.balance ?? 0;
 
       statement = {
@@ -230,9 +244,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           overdueAmount,
           paidAmount,
           creditAmount,
-          openInvoiceCount: timeline.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).length,
-          overdueInvoiceCount: timeline.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).length,
-          paidInvoiceCount: timeline.filter((invoice) => invoice.status === 'PAID').length,
+          openInvoiceCount,
+          overdueInvoiceCount,
+          paidInvoiceCount,
           availableCredit: latestBalance < 0 ? Math.abs(latestBalance) : 0,
           accountBalance: latestBalance,
         },
