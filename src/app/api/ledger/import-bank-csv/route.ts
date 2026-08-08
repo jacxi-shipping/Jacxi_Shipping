@@ -255,35 +255,34 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      let importedCount = 0;
-
-      for (const transaction of preview.importableRows) {
-        await tx.ledgerEntry.create({
-          data: {
-            userId: session.user.id as string,
-            description: transaction.description,
-            type: transaction.type,
-            amount: transaction.amount,
-            balance: 0,
-            transactionDate: transaction.ledgerDate,
-            createdBy: session.user.id as string,
-            notes: transaction.notes || null,
-            metadata: {
-              importSource: 'BANK_OF_AMERICA_CSV',
-              importFingerprint: transaction.importFingerprint,
-              importedAt: new Date().toISOString(),
-              importedFileName: file.name,
-              sourceLabel,
-              category,
-              rawRow: transaction.rawRow,
-            } as Prisma.InputJsonValue,
-          },
-        });
-
-        importedCount += 1;
-      }
+      // ⚡ Bolt: Replaced sequential tx.ledgerEntry.create calls inside a loop with a single createMany operation to eliminate N+1 queries.
+      const importedCount = preview.importableRows.length;
 
       if (importedCount > 0) {
+        const ledgerEntriesData = preview.importableRows.map((transaction) => ({
+          userId: session.user.id as string,
+          description: transaction.description,
+          type: transaction.type,
+          amount: transaction.amount,
+          balance: 0,
+          transactionDate: transaction.ledgerDate,
+          createdBy: session.user.id as string,
+          notes: transaction.notes || null,
+          metadata: {
+            importSource: 'BANK_OF_AMERICA_CSV',
+            importFingerprint: transaction.importFingerprint,
+            importedAt: new Date().toISOString(),
+            importedFileName: file.name,
+            sourceLabel,
+            category,
+            rawRow: transaction.rawRow,
+          } as Prisma.InputJsonValue,
+        }));
+
+        await tx.ledgerEntry.createMany({
+          data: ledgerEntriesData,
+        });
+
         await recalculateUserLedgerBalances(tx, session.user.id as string);
       }
 
