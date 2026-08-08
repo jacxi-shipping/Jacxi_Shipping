@@ -225,7 +225,12 @@ export async function GET(
         continue;
       }
 
-      customer.unbilledAmount += assignment.shipment.charges.reduce((sum, charge) => sum + charge.totalAmount, 0);
+      // ⚡ Bolt: Single pass loop for charges instead of .reduce
+      let chargeTotal = 0;
+      for (const charge of assignment.shipment.charges) {
+        chargeTotal += charge.totalAmount;
+      }
+      customer.unbilledAmount += chargeTotal;
       customer.unbilledChargeCount += assignment.shipment.charges.length;
 
       for (const invoice of assignment.shipment.invoices) {
@@ -300,7 +305,27 @@ export async function GET(
     }
 
     const aging = createAgingBuckets();
-    const summary = invoiceRows.reduce((accumulator, invoice) => {
+    // ⚡ Bolt: Single pass O(N) loop to generate summary metrics without intermediate array allocation
+    let linkedCustomerCount = 0;
+    for (const customer of customers) {
+      if ((customer._count?.shipmentAssignments || 0) > 0) linkedCustomerCount++;
+    }
+
+    const summary = invoiceRows.reduce((accumulator: {
+      linkedCustomerCount: number;
+      linkedShipmentCount: number;
+      invoiceCount: number;
+      openInvoiceCount: number;
+      overdueInvoiceCount: number;
+      outstandingAmount: number;
+      overdueAmount: number;
+      paidAmount: number;
+      portalBalance: number;
+      portalDebitAmount: number;
+      portalCreditAmount: number;
+      portalPaymentRecordCount: number;
+      portalLedgerEntryCount: number;
+    }, invoice) => {
       accumulator.invoiceCount += 1;
       if (outstandingInvoiceStatuses.has(invoice.status)) {
         accumulator.outstandingAmount += invoice.total;
@@ -322,17 +347,18 @@ export async function GET(
           aging.days90plus.count += 1;
           aging.days90plus.amount += invoice.total;
         }
+
+        if ((invoice.daysOverdue ?? 0) > 0) {
+          accumulator.overdueAmount += invoice.total;
+          accumulator.overdueInvoiceCount += 1;
+        }
       }
       if (invoice.status === 'PAID') {
         accumulator.paidAmount += invoice.total;
       }
-      if (outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0) {
-        accumulator.overdueAmount += invoice.total;
-        accumulator.overdueInvoiceCount += 1;
-      }
       return accumulator;
     }, {
-      linkedCustomerCount: customers.filter((customer) => (customer._count?.shipmentAssignments || 0) > 0).length,
+      linkedCustomerCount,
       linkedShipmentCount: assignments.length,
       invoiceCount: 0,
       openInvoiceCount: 0,

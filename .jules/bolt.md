@@ -18,3 +18,7 @@
 ## 2025-04-06 - Parallelize Independent Database Queries in React Server Components
 **Learning:** In Next.js Server Components that fetch data for dashboards (e.g., `src/app/dashboard/finance/page.tsx`), making sequential database queries (using `await` one after the other) causes total request latency to be the sum of all query times. Since these queries are independent (e.g., fetching a summary and counting active users), executing them sequentially is an anti-pattern.
 **Action:** When a Server Component requires multiple datasets that do not depend on each other, always group the Prisma queries into a single `Promise.all()` call to fetch them concurrently, reducing latency to the time of the single longest query.
+
+## 2024-05-24 - Avoiding Array Iteration Micro-Optimizations (Clarification)
+**Learning:** While micro-optimizing small arrays is generally not worth the effort, when building analytics dashboards or financial reports that iterate over hundreds or thousands of shipments, invoices, or ledger entries, chained array methods (`.filter(...).reduce(...)` or multiple `.reduce()` calls) incur measurable O(N*M) CPU and memory allocation penalties.
+**Action:** For reporting and analytic endpoints processing large data sets (e.g., `src/app/api/partner-portals/[portalId]/finance/route.ts` or `src/app/api/reports/financial/route.ts`), consolidate chained loops into a single-pass `reduce` or `for...of` loop to calculate multiple aggregate values simultaneously without allocating intermediate arrays.
