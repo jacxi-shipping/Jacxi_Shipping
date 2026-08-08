@@ -1,0 +1,3 @@
+## 2024-05-27 - O(N*M) Array Iteration in Partner Portals Finance Route
+**Learning:** Found deeply chained `.filter().reduce()` operations in `src/app/api/partner-portals/[portalId]/finance/[customerId]/route.ts` to calculate ledger and invoice summaries. In endpoints heavily iterating over large records, chaining these array methods results in O(N*M) time complexity and excess memory allocation from intermediate arrays.
+**Action:** Always replace chained `.filter().reduce()` or `.filter().length` operations with a single-pass O(N) loop (using `.reduce()` with internal conditionals or a `for...of` loop) to calculate all needed summary aggregates concurrently and reduce server-side memory overhead.
