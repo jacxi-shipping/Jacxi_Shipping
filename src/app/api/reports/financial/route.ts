@@ -180,8 +180,17 @@ export async function GET(request: NextRequest) {
 
         const currentBalance = user.ledgerEntries[0]?.balance || 0;
 
-        const paidShipments = user.shipments.filter(s => s.paymentStatus === 'COMPLETED').length;
-        const dueShipments = user.shipments.filter(s => s.paymentStatus === 'PENDING').length;
+        // ⚡ Bolt: Single pass loop to count shipment statuses
+        // avoiding multiple `.filter()` passes and intermediate array allocations.
+        let paidShipments = 0;
+        let dueShipments = 0;
+        for (const s of user.shipments) {
+          if (s.paymentStatus === 'COMPLETED') {
+            paidShipments++;
+          } else if (s.paymentStatus === 'PENDING') {
+            dueShipments++;
+          }
+        }
 
         return {
           userId: user.id,
