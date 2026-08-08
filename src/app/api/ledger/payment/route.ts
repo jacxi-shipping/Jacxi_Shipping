@@ -121,42 +121,31 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // ⚡ Bolt: Replace O(N * M) nested loops with single-pass O(M) loop for pre-calculating totals
+    const shipmentTotals = new Map<string, { debit: number; credit: number }>();
+    const shipmentCategoryTotals = new Map<string, { debit: number; credit: number }>();
+
+    for (const entry of shipmentLedgerEntries) {
+      if (!entry.shipmentId) continue;
+
+      const currentTotal = shipmentTotals.get(entry.shipmentId) || { debit: 0, credit: 0 };
+      if (entry.type === 'DEBIT') currentTotal.debit += entry.amount;
+      else if (entry.type === 'CREDIT') currentTotal.credit += entry.amount;
+      shipmentTotals.set(entry.shipmentId, currentTotal);
+
+      if (matchesPaymentCategory(entry, validatedData.paymentCategory)) {
+        const currentCatTotal = shipmentCategoryTotals.get(entry.shipmentId) || { debit: 0, credit: 0 };
+        if (entry.type === 'DEBIT') currentCatTotal.debit += entry.amount;
+        else if (entry.type === 'CREDIT') currentCatTotal.credit += entry.amount;
+        shipmentCategoryTotals.set(entry.shipmentId, currentCatTotal);
+      }
+    }
+
     const shipmentDueMap = new Map<string, number>();
     const shipmentOverallDueMap = new Map<string, number>();
     for (const shipment of shipments) {
-      const totals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
-
-      const categoryTotals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id || !matchesPaymentCategory(entry, validatedData.paymentCategory)) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
+      const totals = shipmentTotals.get(shipment.id) || { debit: 0, credit: 0 };
+      const categoryTotals = shipmentCategoryTotals.get(shipment.id) || { debit: 0, credit: 0 };
 
       shipmentDueMap.set(shipment.id, Math.max(0, categoryTotals.debit - categoryTotals.credit));
       shipmentOverallDueMap.set(shipment.id, Math.max(0, totals.debit - totals.credit));
