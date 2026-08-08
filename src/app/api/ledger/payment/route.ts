@@ -108,55 +108,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const shipmentLedgerEntries = await prisma.ledgerEntry.findMany({
-      where: {
-        shipmentId: { in: validatedData.shipmentIds },
-      },
-      select: {
-        shipmentId: true,
-        type: true,
-        amount: true,
-        transactionInfoType: true,
-        metadata: true,
-      },
-    });
+    // ⚡ Bolt: Parallelize independent sequential queries using Promise.all to reduce API latency
+    const [shipmentLedgerEntries, latestEntry] = await Promise.all([
+      prisma.ledgerEntry.findMany({
+        where: {
+          shipmentId: { in: validatedData.shipmentIds },
+        },
+        select: {
+          shipmentId: true,
+          type: true,
+          amount: true,
+          transactionInfoType: true,
+          metadata: true,
+        },
+      }),
+      // Get current balance for the user
+      prisma.ledgerEntry.findFirst({
+        where: { userId: validatedData.userId },
+        orderBy: { transactionDate: 'desc' },
+        select: { balance: true },
+      }),
+    ]);
+
+    // ⚡ Bolt: Optimize O(N*M) nested loops to O(N) by pre-calculating totals in a single pass
+    const precalculatedTotals = new Map<string, { debit: number; credit: number }>();
+    const precalculatedCategoryTotals = new Map<string, { debit: number; credit: number }>();
+
+    for (const entry of shipmentLedgerEntries) {
+      if (!entry.shipmentId) continue;
+
+      const shipmentId = entry.shipmentId;
+
+      if (!precalculatedTotals.has(shipmentId)) {
+        precalculatedTotals.set(shipmentId, { debit: 0, credit: 0 });
+      }
+      if (!precalculatedCategoryTotals.has(shipmentId)) {
+        precalculatedCategoryTotals.set(shipmentId, { debit: 0, credit: 0 });
+      }
+
+      const totals = precalculatedTotals.get(shipmentId)!;
+      const categoryTotals = precalculatedCategoryTotals.get(shipmentId)!;
+      const isCategoryMatch = matchesPaymentCategory(entry, validatedData.paymentCategory);
+
+      if (entry.type === 'DEBIT') {
+        totals.debit += entry.amount;
+        if (isCategoryMatch) categoryTotals.debit += entry.amount;
+      } else if (entry.type === 'CREDIT') {
+        totals.credit += entry.amount;
+        if (isCategoryMatch) categoryTotals.credit += entry.amount;
+      }
+    }
 
     const shipmentDueMap = new Map<string, number>();
     const shipmentOverallDueMap = new Map<string, number>();
     for (const shipment of shipments) {
-      const totals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
-
-      const categoryTotals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id || !matchesPaymentCategory(entry, validatedData.paymentCategory)) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
+      const totals = precalculatedTotals.get(shipment.id) || { debit: 0, credit: 0 };
+      const categoryTotals = precalculatedCategoryTotals.get(shipment.id) || { debit: 0, credit: 0 };
 
       shipmentDueMap.set(shipment.id, Math.max(0, categoryTotals.debit - categoryTotals.credit));
       shipmentOverallDueMap.set(shipment.id, Math.max(0, totals.debit - totals.credit));
@@ -169,13 +176,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Get current balance for the user
-    const latestEntry = await prisma.ledgerEntry.findFirst({
-      where: { userId: validatedData.userId },
-      orderBy: { transactionDate: 'desc' },
-      select: { balance: true },
-    });
 
     const currentBalance = latestEntry?.balance || 0;
 

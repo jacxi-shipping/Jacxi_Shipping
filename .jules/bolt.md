@@ -18,3 +18,7 @@
 ## 2025-04-06 - Parallelize Independent Database Queries in React Server Components
 **Learning:** In Next.js Server Components that fetch data for dashboards (e.g., `src/app/dashboard/finance/page.tsx`), making sequential database queries (using `await` one after the other) causes total request latency to be the sum of all query times. Since these queries are independent (e.g., fetching a summary and counting active users), executing them sequentially is an anti-pattern.
 **Action:** When a Server Component requires multiple datasets that do not depend on each other, always group the Prisma queries into a single `Promise.all()` call to fetch them concurrently, reducing latency to the time of the single longest query.
+
+## 2024-05-27 - O(N*M) Nested Reducers on Large Data Sets
+**Learning:** Found a nested loop where multiple `.reduce` iterations were performed on a full dataset (`shipmentLedgerEntries`) *inside* a `for...of` loop over `shipments`. This created an $O(N \times M)$ algorithmic complexity, which significantly slowed down processing on bulk operations like ledger payment API endpoints.
+**Action:** When a `.reduce` inside a loop requires scanning the identical secondary array repeatedly, extract the logic into a single-pass $O(N)$ loop before the primary iteration, calculating needed totals into a `Map` structure for $O(1)$ lookup within the primary loop.
