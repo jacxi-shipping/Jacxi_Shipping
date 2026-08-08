@@ -18,3 +18,7 @@
 ## 2025-04-06 - Parallelize Independent Database Queries in React Server Components
 **Learning:** In Next.js Server Components that fetch data for dashboards (e.g., `src/app/dashboard/finance/page.tsx`), making sequential database queries (using `await` one after the other) causes total request latency to be the sum of all query times. Since these queries are independent (e.g., fetching a summary and counting active users), executing them sequentially is an anti-pattern.
 **Action:** When a Server Component requires multiple datasets that do not depend on each other, always group the Prisma queries into a single `Promise.all()` call to fetch them concurrently, reducing latency to the time of the single longest query.
+
+## 2024-05-18 - Avoid Memory Thrashing via Chained Filters on Shared Data
+**Learning:** In analytical API endpoints (like `finance/[customerId]/route.ts`), it is a common anti-pattern to repeatedly chain `.filter().reduce()` or `.filter().length` on the exact same array (e.g. `invoices` or `ledgerEntries`) to calculate different aggregates. This creates O(N*M) passes and generates numerous intermediate arrays, leading to increased memory allocations and CPU overhead in Node.js.
+**Action:** Replace these chained functional patterns with a single `for...of` loop that mutates localized primitive variables. This flattens the complexity to O(N) and entirely eliminates intermediate array allocations.
