@@ -123,40 +123,39 @@ export async function POST(request: NextRequest) {
 
     const shipmentDueMap = new Map<string, number>();
     const shipmentOverallDueMap = new Map<string, number>();
+
+    // ⚡ Bolt: Reduced O(N * M) nested loops to O(N + M) by aggregating ledger entries in a single pass
+    // and storing them in dictionaries for O(1) lookups during shipment iteration.
+    const totalsMap = new Map<string, { debit: number; credit: number }>();
+    const categoryTotalsMap = new Map<string, { debit: number; credit: number }>();
+
+    for (const entry of shipmentLedgerEntries) {
+      if (!entry.shipmentId) continue;
+
+      const shipmentId = entry.shipmentId;
+
+      let totals = totalsMap.get(shipmentId);
+      if (!totals) {
+        totals = { debit: 0, credit: 0 };
+        totalsMap.set(shipmentId, totals);
+      }
+      if (entry.type === 'DEBIT') totals.debit += entry.amount;
+      else if (entry.type === 'CREDIT') totals.credit += entry.amount;
+
+      if (matchesPaymentCategory(entry, validatedData.paymentCategory)) {
+        let categoryTotals = categoryTotalsMap.get(shipmentId);
+        if (!categoryTotals) {
+          categoryTotals = { debit: 0, credit: 0 };
+          categoryTotalsMap.set(shipmentId, categoryTotals);
+        }
+        if (entry.type === 'DEBIT') categoryTotals.debit += entry.amount;
+        else if (entry.type === 'CREDIT') categoryTotals.credit += entry.amount;
+      }
+    }
+
     for (const shipment of shipments) {
-      const totals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
-
-      const categoryTotals = shipmentLedgerEntries.reduce(
-        (accumulator, entry) => {
-          if (entry.shipmentId !== shipment.id || !matchesPaymentCategory(entry, validatedData.paymentCategory)) {
-            return accumulator;
-          }
-
-          if (entry.type === 'DEBIT') {
-            accumulator.debit += entry.amount;
-          } else if (entry.type === 'CREDIT') {
-            accumulator.credit += entry.amount;
-          }
-
-          return accumulator;
-        },
-        { debit: 0, credit: 0 },
-      );
+      const totals = totalsMap.get(shipment.id) || { debit: 0, credit: 0 };
+      const categoryTotals = categoryTotalsMap.get(shipment.id) || { debit: 0, credit: 0 };
 
       shipmentDueMap.set(shipment.id, Math.max(0, categoryTotals.debit - categoryTotals.credit));
       shipmentOverallDueMap.set(shipment.id, Math.max(0, totals.debit - totals.credit));
