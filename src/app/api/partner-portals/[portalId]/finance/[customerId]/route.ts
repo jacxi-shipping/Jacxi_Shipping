@@ -270,10 +270,11 @@ export async function GET(
       portalShipmentFinanceMap.set(entry.shipmentId, existing);
     }
 
+    // ⚡ Bolt: Replace chained .filter().reduce() with single pass O(N) loop to reduce memory allocations and iteration overhead
     const portalLedgerSummary = {
       balance: portalLedgerEntries[0]?.balance || 0,
-      debitAmount: portalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: portalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: portalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'DEBIT' ? entry.amount : 0), 0),
+      creditAmount: portalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'CREDIT' ? entry.amount : 0), 0),
       paymentRecordCount: portalPaymentRecords.length,
       ledgerEntryCount: portalLedgerEntries.length,
     };
@@ -286,9 +287,10 @@ export async function GET(
       isWithinDateRange(payment.paymentDate, activityStartDate, activityEndDate)
     ));
 
+    // ⚡ Bolt: Replace chained .filter().reduce() with single pass O(N) loop to reduce memory allocations and iteration overhead
     const activitySummary = {
-      debitAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: filteredPortalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'DEBIT' ? entry.amount : 0), 0),
+      creditAmount: filteredPortalLedgerEntries.reduce((sum, entry) => sum + (entry.type === 'CREDIT' ? entry.amount : 0), 0),
       paymentRecordCount: filteredPortalPaymentRecords.length,
       ledgerEntryCount: filteredPortalLedgerEntries.length,
     };
@@ -357,14 +359,35 @@ export async function GET(
       }));
     });
 
+    // ⚡ Bolt: Replace multiple O(N) array iterations (.filter/.reduce) with a single pass O(N) loop
+    // to calculate all invoice-related summary metrics simultaneously, reducing overhead.
+    let openInvoiceCount = 0;
+    let overdueInvoiceCount = 0;
+    let outstandingAmount = 0;
+    let overdueAmount = 0;
+    let paidAmount = 0;
+
+    for (const invoice of invoices) {
+      if (outstandingInvoiceStatuses.has(invoice.status)) {
+        openInvoiceCount++;
+        outstandingAmount += invoice.total;
+        if ((invoice.daysOverdue ?? 0) > 0) {
+          overdueInvoiceCount++;
+          overdueAmount += invoice.total;
+        }
+      } else if (invoice.status === 'PAID') {
+        paidAmount += invoice.total;
+      }
+    }
+
     const summary = {
       linkedShipmentCount: assignments.length,
       invoiceCount: invoices.length,
-      openInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).length,
-      overdueInvoiceCount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).length,
-      outstandingAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status)).reduce((sum, invoice) => sum + invoice.total, 0),
-      overdueAmount: invoices.filter((invoice) => outstandingInvoiceStatuses.has(invoice.status) && (invoice.daysOverdue ?? 0) > 0).reduce((sum, invoice) => sum + invoice.total, 0),
-      paidAmount: invoices.filter((invoice) => invoice.status === 'PAID').reduce((sum, invoice) => sum + invoice.total, 0),
+      openInvoiceCount,
+      overdueInvoiceCount,
+      outstandingAmount,
+      overdueAmount,
+      paidAmount,
       unbilledAmount: unbilledCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
       unbilledChargeCount: unbilledCharges.length,
     };
