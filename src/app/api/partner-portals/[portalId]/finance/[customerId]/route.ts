@@ -270,10 +270,18 @@ export async function GET(
       portalShipmentFinanceMap.set(entry.shipmentId, existing);
     }
 
+    // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop to calculate debit and credit totals
+    let portalDebitTotal = 0;
+    let portalCreditTotal = 0;
+    for (const entry of portalLedgerEntries) {
+      if (entry.type === 'DEBIT') portalDebitTotal += entry.amount;
+      else if (entry.type === 'CREDIT') portalCreditTotal += entry.amount;
+    }
+
     const portalLedgerSummary = {
       balance: portalLedgerEntries[0]?.balance || 0,
-      debitAmount: portalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: portalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: portalDebitTotal,
+      creditAmount: portalCreditTotal,
       paymentRecordCount: portalPaymentRecords.length,
       ledgerEntryCount: portalLedgerEntries.length,
     };
@@ -286,9 +294,17 @@ export async function GET(
       isWithinDateRange(payment.paymentDate, activityStartDate, activityEndDate)
     ));
 
+    // ⚡ Bolt: Replaced chained .filter().reduce() with a single loop to calculate debit and credit totals
+    let filteredDebitTotal = 0;
+    let filteredCreditTotal = 0;
+    for (const entry of filteredPortalLedgerEntries) {
+      if (entry.type === 'DEBIT') filteredDebitTotal += entry.amount;
+      else if (entry.type === 'CREDIT') filteredCreditTotal += entry.amount;
+    }
+
     const activitySummary = {
-      debitAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'DEBIT').reduce((sum, entry) => sum + entry.amount, 0),
-      creditAmount: filteredPortalLedgerEntries.filter((entry) => entry.type === 'CREDIT').reduce((sum, entry) => sum + entry.amount, 0),
+      debitAmount: filteredDebitTotal,
+      creditAmount: filteredCreditTotal,
       paymentRecordCount: filteredPortalPaymentRecords.length,
       ledgerEntryCount: filteredPortalLedgerEntries.length,
     };
